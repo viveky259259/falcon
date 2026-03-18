@@ -1,0 +1,86 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+    --cyan: #06b6d4;
+    --dark: #0f172a;
+    --darker: #020617;
+    --sidebar-bg: #0b1120;
+    --gray: #94a3b8;
+    --light-gray: #cbd5e1;
+    --white: #f8fafc;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --purple: #a855f7;
+    --border: #1e293b;
+    --code-bg: #1e293b;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--darker); color: var(--white); line-height: 1.7; }
+a { color: var(--cyan); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.layout { display: flex; min-height: 100vh; }
+
+/* Sidebar */
+.sidebar { width: 280px; background: var(--sidebar-bg); border-right: 1px solid var(--border); padding: 24px 0; position: fixed; top: 0; left: 0; bottom: 0; overflow-y: auto; }
+.sidebar-logo { font-size: 22px; font-weight: 800; color: var(--cyan); padding: 0 24px 24px; border-bottom: 1px solid var(--border); display: block; }
+.sidebar-section { padding: 16px 0 4px; }
+.sidebar-section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--gray); padding: 0 24px 8px; font-weight: 600; }
+.sidebar a { display: block; padding: 6px 24px; color: var(--light-gray); font-size: 14px; border-left: 3px solid transparent; }
+.sidebar a:hover { background: rgba(6, 182, 212, 0.05); color: var(--white); text-decoration: none; border-left-color: var(--cyan); }
+.sidebar a.active { background: rgba(6, 182, 212, 0.1); color: var(--cyan); border-left-color: var(--cyan); font-weight: 600; }
+
+/* Main */
+.main { margin-left: 280px; flex: 1; padding: 48px 64px; max-width: 900px; }
+.main h1 { font-size: 36px; margin-bottom: 8px; }
+.main h2 { font-size: 24px; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 18px; margin: 32px 0 12px; color: var(--cyan); }
+.main p { margin-bottom: 16px; color: var(--light-gray); }
+.main ul, .main ol { margin: 0 0 16px 24px; color: var(--light-gray); }
+.main li { margin-bottom: 6px; }
+.main strong { color: var(--white); }
+
+/* Code */
+pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; overflow-x: auto; margin: 12px 0 20px; font-size: 13px; line-height: 1.6; }
+code { font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; }
+p code, li code, td code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-size: 13px; color: var(--cyan); }
+pre code { color: var(--light-gray); }
+.cmd { color: var(--green); }
+.flag { color: var(--yellow); }
+.str { color: var(--green); }
+.comment { color: #64748b; }
+.keyword { color: var(--purple); }
+.type { color: var(--cyan); }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: 12px 0 24px; }
+th { text-align: left; padding: 10px 16px; border-bottom: 2px solid var(--border); font-size: 13px; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; }
+td { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--light-gray); }
+tr:hover td { background: rgba(6, 182, 212, 0.03); }
+
+/* Badges */
+.badge { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+.badge-error { background: rgba(239, 68, 68, 0.15); color: var(--red); }
+.badge-warning { background: rgba(234, 179, 8, 0.15); color: var(--yellow); }
+.badge-info { background: rgba(59, 130, 246, 0.15); color: var(--blue); }
+
+/* Callouts */
+.callout { border-left: 4px solid var(--cyan); background: rgba(6, 182, 212, 0.05); padding: 16px 20px; border-radius: 0 8px 8px 0; margin: 16px 0 24px; }
+.callout-warning { border-left-color: var(--yellow); background: rgba(234, 179, 8, 0.05); }
+.callout-title { font-weight: 700; margin-bottom: 4px; color: var(--white); }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 13px; color: var(--gray); margin-bottom: 24px; }
+.breadcrumb a { color: var(--gray); }
+
+/* Code examples */
+.code-examples { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 16px 0; }
+@media (max-width: 700px) {
+    .code-examples { grid-template-columns: 1fr; }
+}
+
+/* Mobile */
+@media (max-width: 900px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; padding: 24px; }
+}

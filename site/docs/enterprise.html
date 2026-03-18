@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise - Falcon Documentation</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <a href="index.html" class="sidebar-logo">falcon docs</a>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Getting Started</div>
+                <a href="index.html">Home</a>
+                <a href="getting-started.html">Getting Started</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Reference</div>
+                <a href="cli-reference.html">CLI Reference</a>
+                <a href="rules.html">Rules</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">AI Features</div>
+                <a href="ai-features.html">AI Features</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Integration</div>
+                <a href="ci-cd.html">CI/CD</a>
+                <a href="integrations.html">Integrations</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Platform</div>
+                <a href="enterprise.html" class="active">Enterprise</a>
+            </nav>
+        </aside>
+
+        <main class="main">
+            <h1>Enterprise</h1>
+            <p>Falcon Enterprise adds policies, audit logs, compliance reports, certification, and team cloud features for organizations.</p>
+
+            <h2>1. Enterprise Policies</h2>
+            <p>Use <code>falcon enterprise</code> to define and enforce organizational policies across your projects.</p>
+
+            <h3>Initialize policies</h3>
+            <p>Run <code>falcon enterprise init</code> to create default policies in your project:</p>
+            <pre><code><span class="cmd">$</span> falcon enterprise init
+<span class="str">Created .falcon-data/policies.json with 4 default policies</span></code></pre>
+
+            <h3>Default policies</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Policy</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>min_ai_score</code></td>
+                        <td>Minimum AI quality score (default: 70)</td>
+                    </tr>
+                    <tr>
+                        <td><code>max_critical_issues</code></td>
+                        <td>Maximum allowed critical issues (default: 0)</td>
+                    </tr>
+                    <tr>
+                        <td><code>required_rules</code></td>
+                        <td>Rules that must pass (e.g., prefer_const, avoid_print)</td>
+                    </tr>
+                    <tr>
+                        <td><code>ai_provenance_required</code></td>
+                        <td>Require AI-generated code to have provenance metadata</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Check policies</h3>
+            <p>Evaluate your project against policies with <code>falcon enterprise check</code>:</p>
+            <pre><code><span class="cmd">$</span> falcon enterprise check
+<span class="str">Checking policies...</span>
+
+<span class="str">✓ min_ai_score</span>        (72 >= 70)
+<span class="str">✓ max_critical_issues</span> (0 <= 0)
+<span class="str">✓ required_rules</span>      (all passed)
+<span class="str">✗ ai_provenance_required</span> (3 files missing provenance)
+
+<span class="str">2 passed, 1 failed</span></code></pre>
+
+            <h3>Custom policies</h3>
+            <p>Edit <code>.falcon-data/policies.json</code> to add custom policies. Example:</p>
+            <pre><code>{
+  <span class="str">"policies"</span>: [
+    {
+      <span class="str">"id"</span>: <span class="str">"custom_no_deprecated"</span>,
+      <span class="str">"name"</span>: <span class="str">"No Deprecated APIs"</span>,
+      <span class="str">"rule"</span>: <span class="str">"avoid_deprecated"</span>,
+      <span class="str">"severity"</span>: <span class="str">"error"</span>
+    }
+  ]
+}</code></pre>
+
+            <h2>2. Audit Logs</h2>
+            <p>Every Falcon action is recorded with timestamp, user, action, and target for compliance and traceability.</p>
+
+            <h3>View audit log</h3>
+            <p>Run <code>falcon enterprise audit</code> to view recent actions:</p>
+            <pre><code><span class="cmd">$</span> falcon enterprise audit
+<span class="str">Timestamp              User      Action           Target</span>
+<span class="str">2025-03-18 10:23:01   alice     analyze           /projects/app</span>
+<span class="str">2025-03-18 10:22:45   bob       ai-score          /projects/app</span>
+<span class="str">2025-03-18 10:20:12   alice     fix               lib/main.dart</span>
+<span class="str">2025-03-18 10:18:00   bob       enterprise-check  /projects/app</span></code></pre>
+
+            <h2>3. Compliance Reports</h2>
+            <p>Generate markdown compliance reports with <code>falcon enterprise compliance --output report.md</code>.</p>
+
+            <h3>Report contents</h3>
+            <ul>
+                <li>Policy evaluation results (passed/failed)</li>
+                <li>Audit log summary</li>
+                <li>Timestamps and run metadata</li>
+            </ul>
+
+            <h3>Example output</h3>
+            <pre><code><span class="comment"># Falcon Compliance Report</span>
+<span class="comment">Generated: 2025-03-18 10:30:00</span>
+
+<span class="comment">## Policy Results</span>
+| Policy | Status |
+|--------|--------|
+| min_ai_score | ✓ Passed |
+| max_critical_issues | ✓ Passed |
+| ai_provenance_required | ✗ Failed |
+
+<span class="comment">## Audit Log (last 24h)</span>
+- 2025-03-18 10:23:01 | alice | analyze | /projects/app
+- 2025-03-18 10:22:45 | bob | ai-score | /projects/app</code></pre>
+
+            <h2>4. Falcon Certification</h2>
+            <p>Certify your project with <code>falcon certify</code>. Certification levels are based on AI score thresholds.</p>
+
+            <h3>Certification levels</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Level</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Bronze</td>
+                        <td>60+</td>
+                    </tr>
+                    <tr>
+                        <td>Silver</td>
+                        <td>75+</td>
+                    </tr>
+                    <tr>
+                        <td>Gold</td>
+                        <td>85+</td>
+                    </tr>
+                    <tr>
+                        <td>Platinum</td>
+                        <td>95+</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Criteria checked</h3>
+            <p>Falcon evaluates 7 criteria: code quality, conventions, test coverage, documentation, security, performance, and maintainability.</p>
+
+            <h3>Example output</h3>
+            <pre><code><span class="cmd">$</span> falcon certify
+<span class="str">Certifying project...</span>
+
+<span class="str">Score: 87/100</span>
+<span class="str">Certification: Gold ✓</span>
+
+<span class="str">Criteria:</span>
+<span class="str">  ✓ Code quality</span>
+<span class="str">  ✓ Conventions</span>
+<span class="str">  ✓ Test coverage</span>
+<span class="str">  ✓ Documentation</span>
+<span class="str">  ✓ Security</span>
+<span class="str">  ✓ Performance</span>
+<span class="str">  ✓ Maintainability</span></code></pre>
+
+            <h3>Badge for README</h3>
+            <p>Add a certification badge to your README:</p>
+            <pre><code>![Falcon Certified](https://img.shields.io/badge/Falcon-Certified_Gold-gold)</code></pre>
+
+            <h2>5. Team Cloud</h2>
+            <p>Manage multiple projects and team dashboards with <code>falcon cloud</code>.</p>
+
+            <h3>Initialize team</h3>
+            <pre><code><span class="cmd">$</span> falcon cloud init --team <span class="str">"My Team"</span>
+<span class="str">Team "My Team" initialized</span></code></pre>
+
+            <h3>Add projects</h3>
+            <pre><code><span class="cmd">$</span> falcon cloud add-project --name app --project-path /path/to/app
+<span class="str">Project "app" added to team</span></code></pre>
+
+            <h3>Dashboard</h3>
+            <pre><code><span class="cmd">$</span> falcon cloud dashboard
+<span class="str">Team: My Team</span>
+<span class="str">Projects: 3</span>
+
+<span class="str">| Project | Score | Last Run    | Status |</span>
+<span class="str">|---------|-------|-------------|--------|</span>
+<span class="str">| app     | 87    | 2 min ago   | ✓      |</span>
+<span class="str">| api     | 72    | 5 min ago   | ✓      |</span>
+<span class="str">| web     | 65    | 1 hour ago  | ⚠      |</span></code></pre>
+
+            <h3>Alert configuration</h3>
+            <p>Configure alerts for score drops, policy failures, or critical issues via <code>.falcon-data/cloud.json</code> or the web dashboard.</p>
+
+            <h2>6. Pricing</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Plan</th>
+                        <th>Price</th>
+                        <th>Features</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Free</td>
+                        <td>—</td>
+                        <td>Core CLI, local analysis, MCP, HTTP API</td>
+                    </tr>
+                    <tr>
+                        <td>Team</td>
+                        <td>$9/seat/mo</td>
+                        <td>Team Cloud, policies, audit logs, compliance reports</td>
+                    </tr>
+                    <tr>
+                        <td>Enterprise</td>
+                        <td>$29/seat/mo</td>
+                        <td>SSO, custom policies, SLA, dedicated support</td>
+                    </tr>
+                </tbody>
+            </table>
+        </main>
+    </div>
+</body>
+</html>

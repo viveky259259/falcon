@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integrations - Falcon Documentation</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <a href="index.html" class="sidebar-logo">falcon docs</a>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Getting Started</div>
+                <a href="index.html">Home</a>
+                <a href="getting-started.html">Getting Started</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Reference</div>
+                <a href="cli-reference.html">CLI Reference</a>
+                <a href="rules.html">Rules</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">AI Features</div>
+                <a href="ai-features.html">AI Features</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Integration</div>
+                <a href="ci-cd.html">CI/CD</a>
+                <a href="integrations.html" class="active">Integrations</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Platform</div>
+                <a href="enterprise.html">Enterprise</a>
+            </nav>
+        </aside>
+
+        <main class="main">
+            <h1>Integrations</h1>
+            <p>Connect Falcon with your IDE, CI/CD pipeline, and third-party tools via MCP, HTTP API, Rust SDK, and LSP.</p>
+
+            <h2>1. MCP Server</h2>
+            <p>Falcon provides an MCP (Model Context Protocol) server that exposes Falcon's analysis capabilities to AI assistants like Cursor. Run it with <code>falcon-mcp</code> or <code>falcon mcp</code>.</p>
+
+            <h3>What is MCP?</h3>
+            <p>MCP (Model Context Protocol) is a standard that lets AI tools discover and invoke external tools. Falcon's MCP server exposes static analysis, scoring, and fix capabilities so your AI assistant can analyze code, explain rules, and suggest fixes directly in context.</p>
+
+            <h3>Configure in Cursor</h3>
+            <p>Add Falcon to your Cursor MCP settings (<code>~/.cursor/mcp.json</code> or project-level config):</p>
+            <pre><code>{
+  <span class="str">"mcpServers"</span>: {
+    <span class="str">"falcon"</span>: {
+      <span class="str">"command"</span>: <span class="str">"falcon-mcp"</span>
+    }
+  }
+}</code></pre>
+
+            <h3>Available Tools</h3>
+            <p>Falcon exposes 7 MCP tools:</p>
+            <ul>
+                <li><code>falcon_analyze</code> — Full project analysis</li>
+                <li><code>falcon_ai_score</code> — AI-powered quality score</li>
+                <li><code>falcon_check_file</code> — Check a single file</li>
+                <li><code>falcon_explain_rule</code> — Explain a rule's purpose and fix</li>
+                <li><code>falcon_fix</code> — Apply automated fixes</li>
+                <li><code>falcon_conventions</code> — List project conventions</li>
+                <li><code>falcon_provenance</code> — Show AI provenance for code</li>
+            </ul>
+
+            <h3>Example: tools/list</h3>
+            <pre><code><span class="comment">// JSON-RPC request</span>
+{
+  <span class="str">"jsonrpc"</span>: <span class="str">"2.0"</span>,
+  <span class="str">"id"</span>: 1,
+  <span class="str">"method"</span>: <span class="str">"tools/list"</span>
+}
+
+<span class="comment">// Response (simplified)</span>
+{
+  <span class="str">"jsonrpc"</span>: <span class="str">"2.0"</span>,
+  <span class="str">"id"</span>: 1,
+  <span class="str">"result"</span>: {
+    <span class="str">"tools"</span>: [
+      { <span class="str">"name"</span>: <span class="str">"falcon_analyze"</span>, <span class="str">"description"</span>: <span class="str">"Analyze project..."</span> },
+      { <span class="str">"name"</span>: <span class="str">"falcon_check_file"</span>, <span class="str">"description"</span>: <span class="str">"Check single file..."</span> }
+      <span class="comment">// ... 5 more</span>
+    ]
+  }
+}</code></pre>
+
+            <h3>Example: tools/call with falcon_check_file</h3>
+            <pre><code><span class="comment">// Request</span>
+{
+  <span class="str">"jsonrpc"</span>: <span class="str">"2.0"</span>,
+  <span class="str">"id"</span>: 2,
+  <span class="str">"method"</span>: <span class="str">"tools/call"</span>,
+  <span class="str">"params"</span>: {
+    <span class="str">"name"</span>: <span class="str">"falcon_check_file"</span>,
+    <span class="str">"arguments"</span>: {
+      <span class="str">"path"</span>: <span class="str">"lib/main.dart"</span>,
+      <span class="str">"source"</span>: <span class="str">"void main() { print('hi'); }"</span>
+    }
+  }
+}
+
+<span class="comment">// Response</span>
+{
+  <span class="str">"jsonrpc"</span>: <span class="str">"2.0"</span>,
+  <span class="str">"id"</span>: 2,
+  <span class="str">"result"</span>: {
+    <span class="str">"content"</span>: [
+      { <span class="str">"type"</span>: <span class="str">"text"</span>, <span class="str">"text"</span>: <span class="str">"{\"issues\":[],\"score\":100}"</span> }
+    ]
+  }
+}</code></pre>
+
+            <h2>2. HTTP API</h2>
+            <p>Run Falcon as an HTTP server with <code>falcon api --port 8090</code> to integrate with webhooks, custom dashboards, or other services.</p>
+
+            <h3>Endpoints</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Path</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>POST</code></td>
+                        <td><code>/analyze</code></td>
+                        <td>Analyze project or source code</td>
+                    </tr>
+                    <tr>
+                        <td><code>POST</code></td>
+                        <td><code>/score</code></td>
+                        <td>Get AI quality score</td>
+                    </tr>
+                    <tr>
+                        <td><code>POST</code></td>
+                        <td><code>/check-file</code></td>
+                        <td>Check a single file</td>
+                    </tr>
+                    <tr>
+                        <td><code>GET</code></td>
+                        <td><code>/health</code></td>
+                        <td>Health check</td>
+                    </tr>
+                    <tr>
+                        <td><code>GET</code></td>
+                        <td><code>/tools</code></td>
+                        <td>List available tools</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Example: POST /analyze</h3>
+            <pre><code>curl -X POST http://localhost:8090/analyze \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{"source": "void main() { print(\"hello\"); }"}'</span></code></pre>
+
+            <h3>Example: POST /score</h3>
+            <pre><code>curl -X POST http://localhost:8090/score \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{"project_path": "/path/to/flutter/project"}'</span></code></pre>
+
+            <h3>Example: GET /health</h3>
+            <pre><code>curl http://localhost:8090/health</code></pre>
+            <pre><code><span class="comment">// Response</span>
+{
+  <span class="str">"status"</span>: <span class="str">"ok"</span>,
+  <span class="str">"version"</span>: <span class="str">"0.1.0"</span>
+}</code></pre>
+
+            <h2>3. Rust SDK</h2>
+            <p>Use Falcon programmatically from Rust via the <code>falcon::sdk</code> crate.</p>
+
+            <h3>Add as dependency</h3>
+            <pre><code><span class="comment">// Cargo.toml</span>
+[dependencies]
+falcon = { git = <span class="str">"https://github.com/viveky259259/falcon"</span> }</code></pre>
+
+            <h3>Analyze project</h3>
+            <pre><code><span class="keyword">use</span> falcon::sdk::{analyze_project, AnalyzeOptions};
+
+<span class="keyword">let</span> result = analyze_project(<span class="str">"/path/to/project"</span>, AnalyzeOptions::default())?;
+<span class="keyword">for</span> issue <span class="keyword">in</span> result.issues {
+    println!(<span class="str">"{:?}"</span>, issue);
+}</code></pre>
+
+            <h3>Analyze single file</h3>
+            <pre><code><span class="keyword">use</span> falcon::sdk::analyze_source;
+
+<span class="keyword">let</span> source = <span class="str">r#"void main() { print('hi'); }"#</span>;
+<span class="keyword">let</span> result = analyze_source(source)?;</code></pre>
+
+            <h3>Score project</h3>
+            <pre><code><span class="keyword">use</span> falcon::sdk::score_project;
+
+<span class="keyword">let</span> score = score_project(<span class="str">"/path/to/project"</span>)?;
+println!(<span class="str">"Score: {}/100"</span>, score.total);</code></pre>
+
+            <h3>Analyze to JSON</h3>
+            <pre><code><span class="keyword">use</span> falcon::sdk::analyze_to_json;
+
+<span class="keyword">let</span> json = analyze_to_json(<span class="str">"/path/to/project"</span>)?;
+println!(<span class="str">"{}"</span>, json);</code></pre>
+
+            <h2>4. LSP Server</h2>
+            <p>Falcon provides an LSP (Language Server Protocol) server (<code>falcon-lsp</code>) for real-time diagnostics and code actions in your editor.</p>
+
+            <h3>VS Code extension setup</h3>
+            <p>Install the Falcon VS Code extension from the marketplace, or build from source. The extension automatically discovers <code>falcon-lsp</code> on your PATH.</p>
+
+            <h3>Features</h3>
+            <ul>
+                <li><strong>Diagnostics</strong> — Inline squiggles for rule violations as you type</li>
+                <li><strong>Code actions</strong> — Quick fixes for auto-fixable rules</li>
+                <li><strong>AI provenance hints</strong> — Inlay hints showing which rules flagged AI-generated code</li>
+            </ul>
+
+            <h3>Configuration</h3>
+            <p>Add to your <code>settings.json</code>:</p>
+            <pre><code>{
+  <span class="str">"falcon.enabled"</span>: <span class="keyword">true</span>,
+  <span class="str">"falcon.lspPath"</span>: <span class="str">"falcon-lsp"</span>,
+  <span class="str">"falcon.rules"</span>: [<span class="str">"prefer_const"</span>, <span class="str">"avoid_print"</span>]
+}</code></pre>
+
+            <h2>5. Partner Integrations</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Partner</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Cursor</td>
+                        <td><span class="badge badge-info">Certified</span></td>
+                    </tr>
+                    <tr>
+                        <td>VS Code</td>
+                        <td><span class="badge badge-info">Certified</span></td>
+                    </tr>
+                    <tr>
+                        <td>GitHub Actions</td>
+                        <td><span class="badge badge-info">Certified</span></td>
+                    </tr>
+                    <tr>
+                        <td>GitLab CI</td>
+                        <td><span class="badge badge-warning">In Progress</span></td>
+                    </tr>
+                    <tr>
+                        <td>Windsurf</td>
+                        <td><span class="badge badge-warning">In Progress</span></td>
+                    </tr>
+                    <tr>
+                        <td>Copilot</td>
+                        <td><span class="badge badge-warning">Planned</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </main>
+    </div>
+</body>
+</html>

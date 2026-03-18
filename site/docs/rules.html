@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rule Catalog — Falcon Documentation</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <a href="index.html" class="sidebar-logo">falcon docs</a>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Getting Started</div>
+                <a href="index.html">Home</a>
+                <a href="getting-started.html">Getting Started</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Reference</div>
+                <a href="cli-reference.html">CLI Reference</a>
+                <a href="rules.html" class="active">Rules</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">AI Features</div>
+                <a href="ai-features.html">AI Features</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Integration</div>
+                <a href="ci-cd.html">CI/CD</a>
+                <a href="integrations.html">Integrations</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Platform</div>
+                <a href="enterprise.html">Enterprise</a>
+            </nav>
+        </aside>
+
+        <main class="main">
+            <h1>Rule Catalog</h1>
+            <p>Falcon includes 58+ lint rules organized into 6 categories. These rules help you catch bugs, enforce best practices, and improve code quality across your Flutter and Dart projects.</p>
+
+            <h2>Common Rules</h2>
+            <p>31 rules covering general Dart best practices, type safety, and code style.</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rule</th>
+                        <th>Severity</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>avoid-dynamic</code></td><td><span class="badge badge-error">Error</span></td><td>Discourages use of the <code>dynamic</code> type; prefer explicit types for better type safety.</td></tr>
+                    <tr><td><code>avoid-empty-catch</code></td><td><span class="badge badge-error">Error</span></td><td>Flags empty catch blocks that silently swallow exceptions; require proper error handling.</td></tr>
+                    <tr><td><code>avoid-global-state</code></td><td><span class="badge badge-error">Error</span></td><td>Warns against mutable global variables that make code harder to test and reason about.</td></tr>
+                    <tr><td><code>avoid-hardcoded-credentials</code></td><td><span class="badge badge-error">Error</span></td><td>Detects hardcoded passwords, API keys, or secrets in source code.</td></tr>
+                    <tr><td><code>avoid-throw-in-catch</code></td><td><span class="badge badge-error">Error</span></td><td>Flags re-throwing errors in catch blocks without proper wrapping or context.</td></tr>
+                    <tr><td><code>avoid-unawaited-futures</code></td><td><span class="badge badge-error">Error</span></td><td>Detects Future calls that are not awaited, which can cause unhandled errors.</td></tr>
+                    <tr><td><code>avoid-late-keyword</code></td><td><span class="badge badge-warning">Warning</span></td><td>Suggests alternatives to <code>late</code> when initialization can be guaranteed.</td></tr>
+                    <tr><td><code>avoid-long-functions</code></td><td><span class="badge badge-warning">Warning</span></td><td>Discourages functions that exceed a configurable length threshold.</td></tr>
+                    <tr><td><code>avoid-long-parameter-list</code></td><td><span class="badge badge-warning">Warning</span></td><td>Flags functions with too many parameters; suggests using objects or records.</td></tr>
+                    <tr><td><code>avoid-nested-conditionals</code></td><td><span class="badge badge-warning">Warning</span></td><td>Encourages early returns to reduce nesting depth.</td></tr>
+                    <tr><td><code>avoid-non-ascii-symbols</code></td><td><span class="badge badge-warning">Warning</span></td><td>Discourages non-ASCII characters in identifiers for portability.</td></tr>
+                    <tr><td><code>avoid-print-in-production</code></td><td><span class="badge badge-warning">Warning</span></td><td>Flags <code>print</code> statements that should be removed or replaced with logging.</td></tr>
+                    <tr><td><code>avoid-unnecessary-type-assertions</code></td><td><span class="badge badge-warning">Warning</span></td><td>Detects redundant <code>!</code> or type assertions when type is already known.</td></tr>
+                    <tr><td><code>avoid-unnecessary-type-casts</code></td><td><span class="badge badge-warning">Warning</span></td><td>Flags unnecessary <code>as</code> casts that add no value.</td></tr>
+                    <tr><td><code>avoid-unused-parameters</code></td><td><span class="badge badge-warning">Warning</span></td><td>Detects function parameters that are never used.</td></tr>
+                    <tr><td><code>avoid-cascade-after-if-null</code></td><td><span class="badge badge-warning">Warning</span></td><td>Warns about cascades after <code>??</code> which may not behave as expected.</td></tr>
+                    <tr><td><code>avoid-collection-methods-unrelated-types</code></td><td><span class="badge badge-warning">Warning</span></td><td>Flags collection methods used with incompatible element types.</td></tr>
+                    <tr><td><code>avoid-double-negation</code></td><td><span class="badge badge-warning">Warning</span></td><td>Discourages <code>!!</code> or redundant negation patterns.</td></tr>
+                    <tr><td><code>avoid-duplicate-exports</code></td><td><span class="badge badge-warning">Warning</span></td><td>Detects duplicate export directives in library files.</td></tr>
+                    <tr><td><code>avoid-missing-enum-constant-in-map</code></td><td><span class="badge badge-warning">Warning</span></td><td>Ensures all enum values are handled in switch/map expressions.</td></tr>
+                    <tr><td><code>avoid-top-level-members-in-tests</code></td><td><span class="badge badge-warning">Warning</span></td><td>Discourages top-level variables in test files that can cause test pollution.</td></tr>
+                    <tr><td><code>prefer-correct-identifier-length</code></td><td><span class="badge badge-warning">Warning</span></td><td>Enforces reasonable identifier length for readability.</td></tr>
+                    <tr><td><code>prefer-match-file-name</code></td><td><span class="badge badge-warning">Warning</span></td><td>Ensures library/part names match the file name.</td></tr>
+                    <tr><td><code>prefer-named-boolean-parameters</code></td><td><span class="badge badge-warning">Warning</span></td><td>Suggests named parameters for boolean arguments to improve clarity.</td></tr>
+                    <tr><td><code>prefer-specific-catch-type</code></td><td><span class="badge badge-warning">Warning</span></td><td>Encourages catching specific exception types instead of <code>Object</code>.</td></tr>
+                    <tr><td><code>no-magic-numbers</code></td><td><span class="badge badge-warning">Warning</span></td><td>Flags unexplained numeric literals; suggests named constants.</td></tr>
+                    <tr><td><code>binary-expression-operand-order</code></td><td><span class="badge badge-info">Info</span></td><td>Enforces consistent operand order in binary expressions.</td></tr>
+                    <tr><td><code>double-literal-format</code></td><td><span class="badge badge-info">Info</span></td><td>Enforces consistent formatting of double literals.</td></tr>
+                    <tr><td><code>newline-before-return</code></td><td><span class="badge badge-info">Info</span></td><td>Requires a blank line before return statements.</td></tr>
+                    <tr><td><code>prefer-first-last</code></td><td><span class="badge badge-info">Info</span></td><td>Suggests <code>first</code>/<code>last</code> over <code>[0]</code>/<code>[length-1]</code> for iterables.</td></tr>
+                    <tr><td><code>prefer-trailing-comma</code></td><td><span class="badge badge-info">Info</span></td><td>Encourages trailing commas in multi-line collections for cleaner diffs.</td></tr>
+                </tbody>
+            </table>
+
+            <h2>Flutter Rules</h2>
+            <p>11 rules specific to Flutter widget lifecycle, performance, and accessibility.</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rule</th>
+                        <th>Severity</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>ensure-dispose-lifecycle</code></td><td><span class="badge badge-error">Error</span></td><td>Ensures controllers and subscriptions are disposed in <code>dispose()</code>.</td></tr>
+                    <tr><td><code>ensure-stream-subscription-cancel</code></td><td><span class="badge badge-error">Error</span></td><td>Requires StreamSubscription to be cancelled to prevent memory leaks.</td></tr>
+                    <tr><td><code>avoid-unnecessary-setstate</code></td><td><span class="badge badge-error">Error</span></td><td>Flags unnecessary <code>setState</code> calls that don't change state.</td></tr>
+                    <tr><td><code>avoid-returning-widgets</code></td><td><span class="badge badge-warning">Warning</span></td><td>Discourages returning widgets from non-build methods; prefer extracting widgets.</td></tr>
+                    <tr><td><code>avoid-excessive-widget-nesting</code></td><td><span class="badge badge-warning">Warning</span></td><td>Flags deeply nested widget trees that hurt readability and performance.</td></tr>
+                    <tr><td><code>prefer-const-constructors</code></td><td><span class="badge badge-warning">Warning</span></td><td>Suggests <code>const</code> constructors when widgets don't depend on runtime values.</td></tr>
+                    <tr><td><code>prefer-extracting-callbacks</code></td><td><span class="badge badge-warning">Warning</span></td><td>Encourages extracting inline callbacks to named methods for clarity.</td></tr>
+                    <tr><td><code>ensure-semantics-label</code></td><td><span class="badge badge-warning">Warning</span></td><td>Requires semantic labels for interactive widgets for accessibility.</td></tr>
+                    <tr><td><code>ensure-image-semantics</code></td><td><span class="badge badge-warning">Warning</span></td><td>Ensures images have semantic labels for screen readers.</td></tr>
+                    <tr><td><code>avoid-expanded-as-spacer</code></td><td><span class="badge badge-info">Info</span></td><td>Suggests <code>SizedBox</code> or <code>Spacer</code> instead of <code>Expanded</code> for spacing.</td></tr>
+                    <tr><td><code>ensure-touch-target-size</code></td><td><span class="badge badge-info">Info</span></td><td>Ensures touch targets meet minimum size (e.g., 48x48 logical pixels).</td></tr>
+                </tbody>
+            </table>
+
+            <h2>Code Examples</h2>
+
+            <h3>avoid-empty-catch</h3>
+            <p>Empty catch blocks silently swallow exceptions, making debugging difficult. Always handle or rethrow errors.</p>
+            <div class="code-examples">
+                <div>
+                    <p><strong style="color: var(--red);">Bad</strong></p>
+                    <pre><code><span class="keyword">try</span> {
+  await fetchData();
+} <span class="keyword">catch</span> (e) {
+  <span class="comment">// empty — error is silently ignored</span>
+}</code></pre>
+                </div>
+                <div>
+                    <p><strong style="color: var(--green);">Good</strong></p>
+                    <pre><code><span class="keyword">try</span> {
+  await fetchData();
+} <span class="keyword">catch</span> (e, stackTrace) {
+  logError(e, stackTrace);
+  <span class="keyword">rethrow</span>;
+}</code></pre>
+                </div>
+            </div>
+
+            <h3>ensure-dispose-lifecycle</h3>
+            <p>Controllers and subscriptions must be disposed to prevent memory leaks. Override <code>dispose()</code> and clean up resources.</p>
+            <div class="code-examples">
+                <div>
+                    <p><strong style="color: var(--red);">Bad</strong></p>
+                    <pre><code><span class="keyword">class</span> <span class="type">MyWidget</span> <span class="keyword">extends</span> <span class="type">StatefulWidget</span> {
+  <span class="keyword">final</span> <span class="type">TextEditingController</span> controller =
+      <span class="type">TextEditingController</span>();
+  <span class="comment">// Missing dispose — controller leaks</span>
+}</code></pre>
+                </div>
+                <div>
+                    <p><strong style="color: var(--green);">Good</strong></p>
+                    <pre><code><span class="keyword">class</span> <span class="type">MyWidget</span> <span class="keyword">extends</span> <span class="type">StatefulWidget</span> {
+  <span class="keyword">final</span> <span class="type">TextEditingController</span> controller =
+      <span class="type">TextEditingController</span>();
+
+  @<span class="type">override</span>
+  <span class="keyword">void</span> dispose() {
+    controller.dispose();
+    <span class="keyword">super</span>.dispose();
+  }
+}</code></pre>
+                </div>
+            </div>
+
+            <h3>avoid-unawaited-futures</h3>
+            <p>Futures must be awaited to handle errors and ensure proper execution order. Unawaited futures can cause unhandled exceptions.</p>
+            <div class="code-examples">
+                <div>
+                    <p><strong style="color: var(--red);">Bad</strong></p>
+                    <pre><code><span class="keyword">void</span> saveData() {
+  writeToFile(data);  <span class="comment">// Future not awaited — errors lost</span>
+}</code></pre>
+                </div>
+                <div>
+                    <p><strong style="color: var(--green);">Good</strong></p>
+                    <pre><code><span class="keyword">Future</span>&lt;<span class="keyword">void</span>&gt; saveData() <span class="keyword">async</span> {
+  <span class="keyword">await</span> writeToFile(data);
+}</code></pre>
+                </div>
+            </div>
+
+            <h2>BLoC Rules</h2>
+            <p>5 rules for projects using the BLoC pattern for state management.</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rule</th>
+                        <th>Severity</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>bloc-avoid-public-members</code></td><td><span class="badge badge-warning">Warning</span></td><td>Encourages encapsulating BLoC internals; avoid exposing implementation details.</td></tr>
+                    <tr><td><code>bloc-avoid-context-read</code></td><td><span class="badge badge-warning">Warning</span></td><td>Discourages <code>context.read</code> in build methods; prefer BlocBuilder/BlocListener.</td></tr>
+                    <tr><td><code>bloc-close-subscription</code></td><td><span class="badge badge-error">Error</span></td><td>Ensures Bloc is closed when no longer needed to prevent leaks.</td></tr>
+                    <tr><td><code>bloc-avoid-emit-after-close</code></td><td><span class="badge badge-error">Error</span></td><td>Flags emit calls after the bloc has been closed.</td></tr>
+                    <tr><td><code>bloc-prefer-cubit</code></td><td><span class="badge badge-info">Info</span></td><td>Suggests Cubit over full Bloc when events are not needed.</td></tr>
+                </tbody>
+            </table>
+
+            <h2>Provider / Riverpod Rules</h2>
+            <p>5 rules for projects using Provider or Riverpod for dependency injection and state management.</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rule</th>
+                        <th>Severity</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>provider-dispose</code></td><td><span class="badge badge-error">Error</span></td><td>Ensures Provider resources are properly disposed when no longer needed.</td></tr>
+                    <tr><td><code>provider-avoid-context-read-in-build</code></td><td><span class="badge badge-warning">Warning</span></td><td>Discourages context.read/watch in build; use Consumer or context extensions.</td></tr>
+                    <tr><td><code>riverpod-avoid-dispose-in-build</code></td><td><span class="badge badge-error">Error</span></td><td>Flags ref.dispose or similar calls during build phase.</td></tr>
+                    <tr><td><code>riverpod-prefer-ref</code></td><td><span class="badge badge-info">Info</span></td><td>Suggests using ref over context when both are available in providers.</td></tr>
+                    <tr><td><code>riverpod-keep-alive</code></td><td><span class="badge badge-info">Info</span></td><td>Recommends autoDispose or keepAlive based on provider lifecycle needs.</td></tr>
+                </tbody>
+            </table>
+
+            <h2>Equatable Rules</h2>
+            <p>3 rules for projects using Equatable for value equality.</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rule</th>
+                        <th>Severity</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>equatable-props-complete</code></td><td><span class="badge badge-error">Error</span></td><td>Ensures all relevant properties are listed in the props getter.</td></tr>
+                    <tr><td><code>equatable-avoid-mutable-props</code></td><td><span class="badge badge-warning">Warning</span></td><td>Discourages mutable types in Equatable props; use immutable copies.</td></tr>
+                    <tr><td><code>equatable-prefer-const</code></td><td><span class="badge badge-info">Info</span></td><td>Suggests const constructors for Equatable classes when possible.</td></tr>
+                </tbody>
+            </table>
+
+            <h2>Presets</h2>
+            <p>Presets bundle related rules for quick configuration. Choose a preset that matches your project's dependencies.</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Preset</th>
+                        <th>Rule Count</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>recommended</code></td><td>42</td><td>Default preset with common and Flutter rules; suitable for most projects.</td></tr>
+                    <tr><td><code>strict</code></td><td>58</td><td>All rules enabled; maximum enforcement for high-compliance projects.</td></tr>
+                    <tr><td><code>minimal</code></td><td>12</td><td>Only critical error-level rules; minimal friction for new projects.</td></tr>
+                    <tr><td><code>bloc</code></td><td>47</td><td>Recommended + BLoC rules; for projects using flutter_bloc.</td></tr>
+                    <tr><td><code>riverpod</code></td><td>47</td><td>Recommended + Riverpod rules; for projects using flutter_riverpod.</td></tr>
+                    <tr><td><code>provider</code></td><td>46</td><td>Recommended + Provider rules; for projects using provider.</td></tr>
+                </tbody>
+            </table>
+        </main>
+    </div>
+</body>
+</html>

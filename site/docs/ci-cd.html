@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CI/CD Integration — Falcon Documentation</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <a href="index.html" class="sidebar-logo">falcon docs</a>
+
+            <nav class="sidebar-section">
+                <a href="index.html">Home</a>
+                <a href="getting-started.html">Getting Started</a>
+                <a href="cli-reference.html">CLI Reference</a>
+                <a href="rules.html">Rules</a>
+                <a href="ai-features.html">AI Features</a>
+                <a href="ci-cd.html" class="active">CI/CD</a>
+                <a href="integrations.html">Integrations</a>
+                <a href="enterprise.html">Enterprise</a>
+            </nav>
+        </aside>
+
+        <main class="main">
+            <h1>CI/CD Integration</h1>
+            <p>Integrate Falcon into your continuous integration pipeline for automated analysis, PR comments, and quality gates.</p>
+
+            <h2>1. GitHub Actions</h2>
+            <p>Add Falcon to your GitHub Actions workflow. Below is a complete workflow that runs basic analysis, posts PR comments, and tracks AI score.</p>
+
+            <p>Create <code>.github/workflows/falcon.yml</code>:</p>
+            <pre><code><span class="keyword">name</span>: Falcon Analysis
+
+<span class="keyword">on</span>:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+<span class="keyword">jobs</span>:
+  falcon:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Install Falcon
+        run: cargo install --git https://github.com/viveky259259/falcon
+
+      - name: Run Falcon analysis
+        run: falcon analyze . --fail-on error
+
+      - name: Run AI score
+        id: ai-score
+        run: |
+          falcon ai-score . --json > score.json
+          SCORE=$(jq -r '.score' score.json)
+          echo "score=$SCORE" >> $GITHUB_OUTPUT
+
+      - name: Post PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('score.json', 'utf8');
+            const data = JSON.parse(report);
+            const body = `## Falcon Analysis
+            **AI Score:** ${data.score}/100 (${data.grade})
+            **Issues:** ${data.issues || 0} found
+            `;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });</code></pre>
+
+            <h2>2. GitLab CI</h2>
+            <p>Add Falcon to your GitLab CI pipeline. Example <code>.gitlab-ci.yml</code> with CodeClimate format output:</p>
+            <pre><code><span class="keyword">stages</span>:
+  - analyze
+
+falcon:
+  stage: analyze
+  image: rust:latest
+  before_script:
+    - cargo install --git https://github.com/viveky259259/falcon
+  script:
+    - falcon analyze . --format codeclimate --output gl-codeclimate-report.json
+  artifacts:
+    reports:
+      codequality: gl-codeclimate-report.json</code></pre>
+
+            <h2>3. PR Comment Bot</h2>
+            <p>Use <code>falcon pr-comment</code> to post analysis results as a comment on pull requests.</p>
+
+            <h3>How it works</h3>
+            <p>The command runs Falcon analysis, formats the output as markdown, and posts it as a PR comment via the GitHub API. It can auto-detect context from GitHub Actions environment variables or accept explicit targeting.</p>
+
+            <h3>Flags</h3>
+            <ul>
+                <li><code>--dry-run</code> — Preview the comment without posting</li>
+                <li><code>--owner</code> — Repository owner (e.g., <code>myorg</code>)</li>
+                <li><code>--repo</code> — Repository name (e.g., <code>myapp</code>)</li>
+                <li><code>--pr</code> — Pull request number</li>
+            </ul>
+
+            <h3>Auto-detection</h3>
+            <p>When running in GitHub Actions, Falcon automatically uses <code>GITHUB_REPOSITORY</code> and <code>GITHUB_EVENT_PATH</code> to determine owner, repo, and PR number.</p>
+
+            <h3>Example PR comment output</h3>
+            <pre><code><span class="str">## Falcon Analysis</span>
+
+**AI Score:** 82/100 (B)
+
+| Dimension | Score |
+|-----------|-------|
+| Maintainability | 78% |
+| Testability | 85% |
+| Performance | 82% |
+| Security | 80% |
+| Consistency | 92% |
+| Documentation | 62% |
+
+**Issues found:** 4
+- 2 errors
+- 2 warnings
+
+<em>Run Falcon locally: `falcon analyze .`</em></code></pre>
+
+            <h2>4. Webhook Integration</h2>
+            <p>Use <code>falcon webhook</code> to send analysis events to external services.</p>
+
+            <h3>Event types</h3>
+            <ul>
+                <li><code>analysis.complete</code> — Analysis finished successfully</li>
+                <li><code>score.changed</code> — AI score changed (e.g., from previous run)</li>
+                <li><code>drift.detected</code> — Drift from conventions detected</li>
+            </ul>
+
+            <h3>Example command</h3>
+            <pre><code><span class="cmd">$</span> falcon webhook --url https://hooks.example.com/falcon --event analysis.complete</code></pre>
+
+            <h3>Example payload (JSON)</h3>
+            <pre><code>{
+  "event": "analysis.complete",
+  "timestamp": "2025-03-18T10:30:00Z",
+  "project": "/path/to/project",
+  "results": {
+    "errors": 2,
+    "warnings": 5,
+    "ai_score": 82,
+    "grade": "B"
+  }
+}</code></pre>
+
+            <h2>5. Exit Codes</h2>
+            <p>Falcon uses the following exit codes for CI integration:</p>
+            <table>
+                <thead>
+                    <tr><th>Code</th><th>Meaning</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>0</code></td><td>Pass — No errors (or no errors above the configured threshold)</td></tr>
+                    <tr><td><code>1</code></td><td>Errors found — One or more issues at error level</td></tr>
+                    <tr><td><code>2</code></td><td>Configuration or runtime error</td></tr>
+                </tbody>
+            </table>
+
+            <p>Use <code>--fail-on error</code> to fail only on errors; use <code>--fail-on warning</code> to also fail on warnings.</p>
+
+            <h2>6. Output Formats</h2>
+            <p>Falcon supports multiple output formats for different CI and tooling integrations:</p>
+            <table>
+                <thead>
+                    <tr><th>Format</th><th>Use case</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>console</code></td><td>Human-readable terminal output (default)</td></tr>
+                    <tr><td><code>json</code></td><td>Machine-readable JSON for scripts and pipelines</td></tr>
+                    <tr><td><code>html</code></td><td>HTML report for artifact storage or dashboards</td></tr>
+                    <tr><td><code>sarif</code></td><td>SARIF format for GitHub Code Scanning</td></tr>
+                    <tr><td><code>codeclimate</code></td><td>CodeClimate format for GitLab and other tools</td></tr>
+                    <tr><td><code>checkstyle</code></td><td>Checkstyle XML for Jenkins and similar</td></tr>
+                    <tr><td><code>sonar</code></td><td>SonarQube/SonarCloud import format</td></tr>
+                    <tr><td><code>gitlab</code></td><td>GitLab Code Quality report format</td></tr>
+                </tbody>
+            </table>
+
+            <p>Example:</p>
+            <pre><code>falcon analyze . --format sarif --output falcon-report.sarif</code></pre>
+        </main>
+    </div>
+</body>
+</html>

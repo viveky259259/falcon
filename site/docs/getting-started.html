@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Getting Started — Falcon Documentation</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <a href="index.html" class="sidebar-logo">falcon docs</a>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Getting Started</div>
+                <a href="index.html">Home</a>
+                <a href="getting-started.html" class="active">Getting Started</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Reference</div>
+                <a href="cli-reference.html">CLI Reference</a>
+                <a href="rules.html">Rules</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">AI Features</div>
+                <a href="ai-features.html">AI Features</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Integration</div>
+                <a href="ci-cd.html">CI/CD</a>
+                <a href="integrations.html">Integrations</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Platform</div>
+                <a href="enterprise.html">Enterprise</a>
+            </nav>
+        </aside>
+
+        <main class="main">
+            <nav class="breadcrumb"><a href="index.html">Docs</a> &gt; Getting Started</nav>
+
+            <h1>Getting Started</h1>
+            <p>Falcon is a Rust-powered static analysis CLI tool for Flutter and Dart projects. This guide walks you through installation, your first analysis, configuration, and presets.</p>
+
+            <h2>Installation</h2>
+            <p>Install Falcon using one of these methods:</p>
+
+            <h3>From source (Cargo)</h3>
+            <pre><code>cargo install --git https://github.com/viveky259259/falcon</code></pre>
+
+            <h3>From pub.dev</h3>
+            <pre><code>dart pub global activate falcon_cli</code></pre>
+
+            <h3>Verify installation</h3>
+            <pre><code>falcon --version</code></pre>
+
+            <div class="callout">
+                <div class="callout-title">Tip</div>
+                <p>Ensure your <code>PATH</code> includes the Cargo or Dart pub global bin directory so the <code>falcon</code> command is available.</p>
+            </div>
+
+            <h2>Your First Analysis</h2>
+            <p>Follow these steps to run Falcon on a Flutter or Dart project.</p>
+
+            <h3>Step 1: Navigate to your project</h3>
+            <pre><code>cd /path/to/flutter/app</code></pre>
+
+            <h3>Step 2: Run AI score</h3>
+            <pre><code>falcon ai-score .</code></pre>
+            <p>Example output:</p>
+            <pre><code><span class="cmd">$</span> falcon ai-score .
+<span class="str">Analyzing project...</span>
+<span class="str">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>
+<span class="str">  Overall Score:  78/100</span>
+<span class="str">  Maintainability: 82</span>
+<span class="str">  Performance:     71</span>
+<span class="str">  Best Practices: 80</span>
+<span class="str">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>
+<span class="str">3 suggestions found. Run falcon analyze for details.</span></code></pre>
+
+            <h3>Step 3: Run full analysis</h3>
+            <pre><code>falcon analyze .</code></pre>
+            <p>Example output:</p>
+            <pre><code><span class="cmd">$</span> falcon analyze .
+<span class="str">Analyzing lib/...</span>
+<span class="badge badge-error">error</span> <span class="str">lib/main.dart:12:5</span> — Avoid using print in production
+<span class="badge badge-warning">warning</span> <span class="str">lib/widgets/card.dart:45:10</span> — Prefer const constructors
+<span class="badge badge-info">info</span> <span class="str">lib/utils/helper.dart:8:1</span> — Consider extracting to a separate file
+<span class="str">Found 3 issues (1 error, 1 warning, 1 info)</span></code></pre>
+
+            <h2>Configuration</h2>
+            <p>Falcon uses a <code>falcon.yaml</code> file in your project root to customize analysis. Here's a complete example:</p>
+
+            <pre><code><span class="comment"># falcon.yaml — Falcon configuration</span>
+
+<span class="keyword">metrics</span>:
+  max_complexity: 15
+  max_file_lines: 500
+  max_function_params: 5
+
+<span class="keyword">rules</span>:
+  avoid_print: error
+  prefer_const_constructors: warning
+  use_key_in_widget_constructors: warning
+  avoid_dynamic: info
+
+<span class="keyword">unused</span>:
+  check_imports: true
+  check_variables: true
+  check_functions: true
+
+<span class="keyword">exclude</span>:
+  - "**/generated/**"
+  - "**/*.g.dart"
+  - "**/*.freezed.dart"
+  - "test/**"</code></pre>
+
+            <h3>Section overview</h3>
+            <ul>
+                <li><strong>metrics</strong> — Thresholds for complexity, file size, and function parameters. Issues are reported when limits are exceeded.</li>
+                <li><strong>rules</strong> — Rule IDs mapped to severity (<code>error</code>, <code>warning</code>, <code>info</code>, or <code>off</code>).</li>
+                <li><strong>unused</strong> — Enable or disable checks for unused imports, variables, and functions.</li>
+                <li><strong>exclude</strong> — Glob patterns for files or directories to skip during analysis.</li>
+            </ul>
+
+            <h3>Generate and validate config</h3>
+            <p>Create a default config file:</p>
+            <pre><code>falcon init</code></pre>
+            <p>Validate your configuration:</p>
+            <pre><code>falcon validate</code></pre>
+
+            <div class="callout">
+                <div class="callout-title">Tip</div>
+                <p>Run <code>falcon init</code> in a new project to get a sensible starting config, then customize <code>falcon.yaml</code> as needed.</p>
+            </div>
+
+            <h2>Presets</h2>
+            <p>Presets are quick rule sets for common use cases. Use <code>--preset &lt;name&gt;</code> to apply one:</p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Preset</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>recommended</code></td>
+                        <td>Balanced set of rules for most projects</td>
+                    </tr>
+                    <tr>
+                        <td><code>strict</code></td>
+                        <td>Maximum enforcement; good for greenfield projects</td>
+                    </tr>
+                    <tr>
+                        <td><code>flutter</code></td>
+                        <td>Flutter-specific best practices and widget rules</td>
+                    </tr>
+                    <tr>
+                        <td><code>ai-generated</code></td>
+                        <td>Rules tuned for AI-generated or assisted code</td>
+                    </tr>
+                    <tr>
+                        <td><code>performance</code></td>
+                        <td>Focus on performance and efficiency</td>
+                    </tr>
+                    <tr>
+                        <td><code>riverpod</code></td>
+                        <td>Riverpod state management patterns</td>
+                    </tr>
+                    <tr>
+                        <td><code>bloc</code></td>
+                        <td>BLoC pattern and event handling</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p>Example:</p>
+            <pre><code>falcon analyze --preset ai-generated .</code></pre>
+
+            <h2>What's Next</h2>
+            <ul>
+                <li><a href="cli-reference.html">CLI Reference</a> — Full command-line options and subcommands</li>
+                <li><a href="rules.html">Rule Catalog</a> — All available rules and how to configure them</li>
+                <li><a href="ci-cd.html">CI/CD Integration</a> — Add Falcon to your continuous integration pipeline</li>
+            </ul>
+        </main>
+    </div>
+</body>
+</html>
