@@ -44,7 +44,7 @@ impl RuleRegistry {
             Box::new(common::AvoidDynamic),
             Box::new(common::PreferTrailingComma),
             Box::new(common::AvoidGlobalState),
-            Box::new(common::AvoidLateKeyword),
+            Box::new(common::AvoidLateKeyword::default()),
             Box::new(common::NoMagicNumbers::default()),
             Box::new(common::PreferMatchFileName),
             Box::new(common::AvoidDoubleNegation),

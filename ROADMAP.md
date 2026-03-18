@@ -205,9 +205,9 @@ is money saved — and Falcon does it for free.
 ### CI Integration
 - [x] GitHub Actions action (`falcon-lint/action`)
 - [ ] PR comment bot (post analysis results as PR comments)
-- [ ] GitLab CI template
-- [ ] Bitbucket Pipelines pipe
-- [ ] Pre-commit hook support
+- [x] GitLab CI template
+- [x] Bitbucket Pipelines pipe
+- [x] Pre-commit hook support (shell hook + pre-commit framework)
 - [x] Exit code configuration (fail on warning vs error only)
 
 ### Performance Targets
@@ -217,7 +217,7 @@ is money saved — and Falcon does it for free.
 
 ---
 
-## v0.5 — Advanced Detection + AI Foundation
+## v0.5 — Advanced Detection + AI Foundation (Mostly Complete)
 
 > **Pain points addressed**:
 > - Dead code tools use regex, not AST — unreliable (#7)
@@ -228,40 +228,75 @@ is money saved — and Falcon does it for free.
 This version has two halves: hardened detection that developers can trust,
 and the AI infrastructure that powers everything from v0.6 onward.
 
-### Advanced Unused Detection (Complete)
-- [x] Unused l10n/localization keys detection
-- [x] Cyclic dependency detection (multi-level) with visualization
-- [x] Over-promoted dependency detection
-- [x] Under-promoted dependency detection (dev → regular)
-- [x] Unused method parameters detection
-- [x] Dead code path detection (unreachable branches)
+### 5A: Advanced Unused Detection (~3 weeks) (Complete)
 
-### AI Foundation — Infrastructure (NEW)
-- [ ] `falcon.yaml` AI configuration section (`ai:` block)
-- [ ] BYOK (Bring Your Own Key) — OpenAI, Anthropic, Gemini API key support
-- [ ] Local model support (Ollama, llama.cpp) for privacy-sensitive codebases
-- [ ] Codebase context extraction pipeline (import graph, naming patterns, conventions)
-- [ ] AI feature toggle (all AI features off by default, opt-in)
-- [ ] `falcon ai setup` — interactive AI configuration wizard
+| Deliverable | Effort | Why it matters |
+|---|---|---|
+| Unused l10n/localization keys detection | M | Localization bloat is invisible without tooling |
+| Cyclic dependency detection (multi-level) | M | With visualization (which files form the cycle) |
+| Over-promoted dependency detection | M | dev deps used in lib code |
+| Under-promoted dependency detection (dev → regular) | M | Regular deps only used in test |
+| Unused method parameters detection | M | Catches dead parameters after refactors |
+| Dead code path detection (unreachable branches) | L | Unreachable branches after if/else |
 
-### AI: Confidence Scoring (NEW — addresses Pain Point #7)
-- [ ] Dead code confidence levels: "95% unused" vs "72% — check dynamic refs"
-- [ ] Mark dynamic/reflection usage patterns that reduce confidence
-- [ ] `--min-confidence=90` flag to filter by confidence
-- [ ] Confidence explanations ("unused except for 1 dynamic `Type.toString()` reference")
+**Exit criteria**: All detection passes produce zero false positives on
+FlutterFlow codebase test suite. Cyclic dependency visualization renders
+in HTML report.
 
-### AI: False Positive Reduction (NEW — addresses Pain Points #4, #5)
-- [ ] Context-aware `no-magic-numbers` — skip HTTP status codes, well-known constants
-- [ ] Smart `avoid-late-keyword` — skip test files and framework-required patterns
-- [ ] Rule impact tracking — "this rule caught 3 real issues / generated 47 ignored warnings"
-- [ ] Per-rule signal-to-noise ratio reporting
-- [ ] Auto-suggest rule configuration based on team's suppress patterns
+### 5B: AI Foundation — Infrastructure (Complete)
 
-### AI: Smart Fix Suggestions (NEW)
-- [ ] Context-aware fix generation using LLM (matches codebase naming conventions)
-- [ ] "Existing constant available" detection for magic numbers
-- [ ] Batch auto-fix with preview (`falcon fix --preview`)
-- [ ] `falcon explain <rule>` — AI-generated contextual explanation of any violation
+| Deliverable | Effort | Why it matters |
+|---|---|---|
+| `falcon.yaml` AI configuration section (`ai:` block) | S | Foundation for all AI features |
+| BYOK (Bring Your Own Key) — OpenAI, Anthropic, Gemini | M | User brings their key, no Falcon account needed |
+| Local model support (Ollama, llama.cpp) | L | Privacy-sensitive codebases never send code to cloud |
+| Codebase context extraction pipeline | L | Import graph, naming patterns, conventions — feeds all AI features |
+| AI feature toggle (all AI features off by default, opt-in) | S | No surprises — user explicitly enables AI |
+| `falcon ai setup` — interactive configuration wizard | M | Guided setup: choose provider → enter key → test connection → done |
+
+**Exit criteria**: `falcon ai setup` completes in < 2 minutes. AI features
+work with OpenAI, Anthropic, Gemini (cloud) and Ollama (local). All AI
+features are off by default.
+
+### 5C: AI-Enhanced Analysis (Mostly Complete)
+
+| Deliverable | Effort | Why it matters |
+|---|---|---|
+| Dead code confidence levels ("95% unused" vs "72%") | L | Trust through transparency — users see why |
+| Mark dynamic/reflection patterns that reduce confidence | M | Explains WHY confidence is lower |
+| `--min-confidence=90` flag | S | Filter results by confidence threshold |
+| Confidence explanations | M | "Unused except for 1 dynamic `Type.toString()` reference" |
+| Context-aware `no-magic-numbers` | M | Skip HTTP status codes, well-known constants |
+| Smart `avoid-late-keyword` | M | Skip test files, framework-required patterns |
+| Rule impact tracking | L | "This rule caught 3 issues / generated 47 ignored warnings" |
+| Per-rule signal-to-noise ratio | M | Which rules actually help vs generate noise |
+| Auto-suggest rule config from suppress patterns | M | Learn from team behavior |
+| Context-aware fix generation (LLM) | M | Matches codebase naming conventions |
+| "Existing constant available" detection | M | For magic numbers — find the constant that already exists |
+| `falcon fix --preview` | M | Batch auto-fix with diff preview |
+| `falcon explain <rule>` | M | AI-generated contextual explanation of any violation |
+
+**Exit criteria**: Dead code confidence scores match manual review 90%+ of
+the time. `falcon explain` produces useful, contextual explanations — not
+generic rule descriptions. False positive rate on magic numbers drops 60%+
+with context-aware mode.
+
+### v0.5 Success Metrics
+
+| Metric | Target | How to measure |
+|---|---|---|
+| False positive rate (dead code) | < 5% | Manual audit of confidence-scored results |
+| AI setup completion rate | > 70% | Track `falcon ai setup` wizard completion |
+| Confidence accuracy | > 90% match with manual review | Audit on 5 real projects |
+| Magic number false positive reduction | > 60% | Before/after comparison |
+
+### v0.5 Risks
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| AI BYOK creates support burden | Users confused by API key setup | Interactive wizard + clear docs + Ollama as "just works" local option |
+| Confidence scoring too aggressive | Users don't trust "95% unused" | Start conservative (never say >95%), validate on real codebases |
+| LLM explain quality varies by model | Bad explanations worse than none | Test across models, show model name, let user switch |
 
 ---
 
@@ -275,26 +310,62 @@ and the AI infrastructure that powers everything from v0.6 onward.
 The moment Falcon appears in the editor, it becomes the default tool.
 Everything before this is CLI — this version makes it invisible infrastructure.
 
-### VS Code Extension
-- [ ] Language Server Protocol (LSP) implementation in Rust
-- [ ] Real-time analysis in editor (sub-second, not 70-second lag)
-- [ ] Inline diagnostics (squiggly underlines)
-- [ ] Quick fixes (code actions) — rule-based + AI-generated
-- [ ] Auto-fixes on save
-- [ ] Configuration UI for falcon.yaml
-- [ ] Status bar widget showing issue counts
-- [ ] AI explanation tooltips on hover (opt-in)
+### 6A: VS Code Extension (~5 weeks)
 
-### IntelliJ/Android Studio Plugin
-- [ ] External annotator for inline warnings
-- [ ] Quick-fix intentions
-- [ ] Tool window for analysis results
+| Deliverable | Effort | Why it matters |
+|---|---|---|
+| LSP server in Rust | XL | Foundation for all IDE features |
+| VS Code extension | XL | Primary IDE for Flutter developers |
+| Real-time analysis (sub-second) | L | Not 70-second lag spikes like dart analyzer |
+| Inline diagnostics (squiggly underlines) | M | See violations as you type |
+| Quick fixes (code actions) | L | Rule-based + AI-generated fix suggestions |
+| Auto-fixes on save | M | Opt-in automatic fixing |
+| Configuration UI for falcon.yaml | M | Edit config from VS Code settings |
+| Status bar widget showing issue counts | S | Issue count at a glance |
 
-### AI: IDE Features (NEW)
-- [ ] "Explain this warning" — hover tooltip with AI-generated explanation
-- [ ] "Show me similar code" — find semantically related code in the project
-- [ ] AI-powered quick fix suggestions alongside rule-based fixes
-- [ ] Confidence indicators on unused code warnings (green/yellow/red dot)
+**Exit criteria**: Install extension, open Flutter project, see violations
+with squiggly underlines within 1 second. Quick fixes work. Zero conflict
+with the built-in Dart analyzer.
+
+### 6B: IntelliJ/Android Studio Plugin (~3 weeks)
+
+| Deliverable | Effort | Why it matters |
+|---|---|---|
+| External annotator for inline warnings | XL | IntelliJ's squiggly underline equivalent |
+| Quick-fix intentions | L | Fix violations from the editor |
+| Tool window for analysis results | M | Dedicated panel for Falcon results |
+
+**Exit criteria**: IntelliJ shows Falcon diagnostics inline. Quick fixes
+resolve violations in one click.
+
+### 6C: AI IDE Features (~2 weeks)
+
+| Deliverable | Effort | Why it matters |
+|---|---|---|
+| AI hover tooltips ("Explain this warning") | M | Contextual explanation on hover (opt-in) |
+| "Show me similar code" command | M | Find semantically related code in the project |
+| AI-powered quick fix suggestions | M | Alongside rule-based fixes, AI suggests context-aware fixes |
+| Confidence indicators | S | Green/yellow/red dot on unused code warnings |
+
+**Exit criteria**: AI explanations appear on hover within 2 seconds.
+Confidence dots accurately reflect dead code confidence from v0.5.
+
+### v0.6 Success Metrics
+
+| Metric | Target | How to measure |
+|---|---|---|
+| VS Code installs | 2,000+ | VS Code marketplace |
+| IDE analysis latency | < 1 second | In-extension telemetry |
+| Quick fix usage | > 20% of violations fixed via quick fix | Track code action acceptance |
+| AI tooltip usage | > 10% of users enable | Feature flag telemetry |
+
+### v0.6 Risks
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| LSP complexity delays entire phase | Delays lock-in moment | Ship incrementally (diagnostics first, fixes later) |
+| IntelliJ plugin doubles effort | Resource strain | Ship VS Code first, IntelliJ follows in v0.6.1 |
+| Conflicts with Dart analyzer LSP | Broken IDE experience | Run as separate LSP, don't overlap with dart analyzer diagnostics |
 
 ---
 
@@ -304,38 +375,80 @@ Everything before this is CLI — this version makes it invisible infrastructure
 > These features transform Falcon from "a faster DCM" into "an AI teammate
 > that understands your codebase."
 
-### AI: PR Review Mode (NEW)
-- [ ] `falcon review --diff HEAD~1` — AI-powered review of changes
-- [ ] Pattern consistency checking ("8 similar handlers use try/catch, yours doesn't")
-- [ ] Convention violation detection (naming, architecture, error handling patterns)
-- [ ] Missing test detection ("this function has 4 code paths, tests cover 1")
-- [ ] Review output as PR comment (GitHub, GitLab)
-- [ ] Configurable review strictness (quick / standard / thorough)
+### 7A: AI PR Review Mode (~4 weeks)
 
-### AI: Codebase Intelligence (NEW)
-- [ ] God file decomposition advisor ("here's how to safely split this 8K-line file")
-- [ ] Semantic code clone detection (same logic, different syntax)
-- [ ] Architectural drift detection ("repository accumulating UI logic")
-- [ ] Codebase health narrative ("complexity rose 31% in checkout/ this quarter — here's why")
-- [ ] Technical debt scoring with effort estimation
+| Deliverable | Effort | Why it matters |
+|---|---|---|
+| `falcon review --diff HEAD~1` | L | AI-powered review of changes |
+| Pattern consistency checking | L | "8 similar handlers use try/catch, yours doesn't" |
+| Convention violation detection | L | Naming, architecture, error handling patterns |
+| Missing test detection | M | "This function has 4 code paths, tests cover 1" |
+| Review as PR comment (GitHub + GitLab) | M | AI review appears alongside human review |
+| Review strictness levels (quick / standard / thorough) | S | Teams control depth vs speed |
 
-### AI: Natural Language Rule Creation (NEW — killer feature)
-- [ ] `falcon rule create "warn when BLoC event handler calls another handler directly"`
-- [ ] AI generates AST-matching rule logic from English description
-- [ ] Auto-generates test cases for the new rule
-- [ ] Scans codebase for existing violations
-- [ ] Adds rule to falcon.yaml with configurable severity
-- [ ] Rule explanation and documentation auto-generated
+**Exit criteria**: `falcon review` on a real PR produces 3-5 observations
+that a senior engineer would agree with. False alarm rate < 20%.
 
-### Advanced Analysis (from original v0.7)
-- [ ] Layer dependency enforcement (clean architecture validation)
-- [ ] Package boundary validation
-- [ ] Import restriction rules
-- [ ] Circular dependency detection with visualization
-- [ ] Cognitive complexity metric
-- [ ] Widget rebuild detection (unnecessary rebuilds)
-- [ ] Build method complexity warnings
-- [ ] Async/await anti-patterns
+### 7B: Codebase Intelligence (~3 weeks)
+
+| Deliverable | Effort | Why it matters |
+|---|---|---|
+| God file decomposition advisor | L | "Here's how to split this 8K-line file into 5 modules" |
+| Semantic code clone detection | L | Same logic, different syntax — embeddings-based |
+| Architectural drift detection | L | "Repository accumulating UI logic" |
+| Codebase health narrative | M | "Complexity rose 31% in checkout/ — here's why" |
+| Technical debt scoring + effort estimation | M | Estimations teams can put in sprint planning |
+
+**Exit criteria**: Decomposition advisor produces actionable suggestions
+on FlutterFlow's `project.dart` (8,489 lines) and `extensions.dart` (80 extensions).
+Health narrative correlates multiple metrics into coherent story.
+
+### 7C: Natural Language Rule Creation (~3 weeks)
+
+| Deliverable | Effort | Why it matters |
+|---|---|---|
+| `falcon rule create "<description>"` | XL | AI generates AST rule from English description |
+| Auto-generate rule test cases | M | NL rule comes with tests |
+| Scan codebase for existing violations | M | "Found 7 existing violations of your new rule" |
+| Add rule to falcon.yaml with severity | S | Seamless config integration |
+| Rule explanation + docs auto-generated | M | Every NL rule ships with documentation |
+
+**Exit criteria**: NL rule creation works for 80%+ of common rule
+descriptions. Generated rules have < 10% false positive rate.
+
+### 7D: Advanced Static Analysis (~3 weeks)
+
+| Deliverable | Effort | Why it matters |
+|---|---|---|
+| Layer dependency enforcement | L | Clean architecture validation |
+| Package boundary validation | M | Enforce import restrictions |
+| Import restriction rules | M | "Module A cannot import Module B" |
+| Circular dependency detection with visualization | M | Detect and visualize import cycles |
+| Cognitive complexity metric | M | Beyond cyclomatic — measures human readability |
+| Widget rebuild detection | L | Flag unnecessary rebuilds |
+| Build method complexity warnings | M | Build methods that are too complex to reason about |
+| Async/await anti-patterns | M | Common concurrency mistakes |
+
+**Exit criteria**: Layer enforcement correctly validates clean architecture
+on a real project. Cognitive complexity correlates with developer-reported
+"hard to understand" code in user study.
+
+### v0.7 Success Metrics
+
+| Metric | Target | How to measure |
+|---|---|---|
+| PR review accuracy | > 80% useful observations | User feedback on review comments |
+| NL rule creation success rate | > 80% of descriptions | Track create → valid rule rate |
+| AI feature adoption | > 30% of active users | Track AI feature usage |
+| Codebase intelligence engagement | > 50% of teams run it monthly | Track command usage |
+
+### v0.7 Risks
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| AI review false alarms | Developers disable it | Conservative defaults, strictness levels, easy disable |
+| NL rule generation unreliable | Feature becomes a gimmick | Limit to well-defined patterns, show confidence, allow manual editing |
+| Codebase context too large for LLM | Slow or inaccurate intelligence | Chunked context with semantic prioritization |
 
 ---
 
@@ -346,23 +459,40 @@ Everything before this is CLI — this version makes it invisible infrastructure
 > - DCM offers no extensibility for custom team rules
 > - No rule sharing ecosystem exists for Dart/Flutter
 
-### Plugin System
-- [ ] Rust plugin API for custom rules
-- [ ] WASM-based plugin system (write rules in any language that compiles to WASM)
-- [ ] Rule template generator (`falcon plugin create <name>`)
-- [ ] Plugin registry and discovery (`falcon plugin search`)
-- [ ] Plugin performance isolation (plugins can't slow down core analysis)
+### 8A: Plugin System (~4 weeks)
 
-### Community
-- [ ] Shareable rule presets (strict, recommended, flutter, riverpod, bloc)
-- [ ] Team configuration sharing and publishing
-- [ ] Rule request and voting system
-- [ ] Community plugin marketplace
+| Deliverable | Effort | Why it matters |
+|---|---|---|
+| Rust plugin API for custom rules | XL | Native-speed custom rules |
+| WASM plugin system | XL | Write rules in Dart, TypeScript, Go — compiles to WASM |
+| `falcon plugin create <name>` | M | Scaffold a new plugin project |
+| `falcon plugin search` | M | Discover community plugins |
+| Plugin performance isolation | L | Plugins can't slow down core analysis |
 
-### AI: Plugin Intelligence (NEW)
-- [ ] AI-assisted plugin development ("generate a rule that catches X")
-- [ ] Auto-test generation for custom rules
-- [ ] Plugin quality scoring (false positive rate, performance impact)
+**Exit criteria**: A developer writes a custom rule in Dart, compiles to
+WASM, distributes via registry. Plugin adds < 50ms to analysis time.
+
+### 8B: Community + AI Plugin Intelligence (~3 weeks)
+
+| Deliverable | Effort | Why it matters |
+|---|---|---|
+| Shareable rule presets (strict, recommended, flutter, riverpod, bloc) | M | Teams adopt curated configs |
+| Team configuration sharing and publishing | M | Publish falcon.yaml as a package |
+| Rule request and voting system | M | Community-driven rule prioritization |
+| Community plugin marketplace | L | Browse, install, rate plugins |
+| AI-assisted plugin development | L | "Generate a rule that catches X" using NL → plugin |
+| Auto-test generation for plugins | M | Every plugin ships with tests |
+| Plugin quality scoring | M | AI-powered: false positive rate, performance impact |
+
+**Exit criteria**: 10+ community-published plugins. Marketplace has search,
+install, and rating functionality.
+
+### v0.8 Risks
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| WASM plugin perf overhead | Plugins slow down analysis | Sandbox with timeout, performance budget per plugin |
+| Low community contribution | Empty marketplace | Seed with official plugins, NL creation lowers barrier |
 
 ---
 
@@ -373,56 +503,130 @@ Everything before this is CLI — this version makes it invisible infrastructure
 > - No tool tracks code quality over time in the Dart ecosystem
 > - Teams can't prove ROI of static analysis to management
 
-### Metrics Dashboard
-- [ ] Local web dashboard for project metrics
-- [ ] Historical trend tracking (per-commit, per-sprint, per-quarter)
-- [ ] Team/developer statistics
-- [ ] Technical debt visualization (treemap, heatmap)
-- [ ] Code health score over time
-- [ ] Package-level drill-down for monorepos
+### 9A: Metrics Dashboard (~4 weeks)
 
-### AI: Learning & Adaptation (NEW)
-- [ ] Team convention learning — observe suppress patterns, adapt rule thresholds
-- [ ] Rule impact measurement — "this rule prevented 12 bugs in 6 months"
-- [ ] Signal-to-noise dashboard — which rules teams actually value vs ignore
-- [ ] Auto-tune recommendations — "consider disabling rule X (98% suppress rate)"
-- [ ] Onboarding guide generator — AI synthesizes codebase conventions for new devs
-- [ ] Complexity growth alerts — "checkout/ complexity rising 5% per sprint"
+| Deliverable | Effort | Why it matters |
+|---|---|---|
+| Local web dashboard (localhost, no cloud) | XL | See metrics visually, no account needed |
+| Historical trend tracking (per-commit, per-sprint, per-quarter) | L | Quality over time, not just a snapshot |
+| Package-level drill-down for monorepos | M | Compare packages side by side |
+| Technical debt visualization (treemap, heatmap) | M | Visual hot-spots for refactoring |
+| Code health score over time | M | Single number executives understand |
+| Team/developer statistics | M | Contribution quality patterns |
 
-### Integration
-- [ ] SonarQube bidirectional integration (push metrics, pull configurations)
-- [ ] Datadog / Grafana metrics export
-- [ ] Custom webhook notifications
-- [ ] Slack/Teams bot for quality alerts
+**Exit criteria**: Dashboard shows 90-day trend of code health. A tech lead
+can show the CTO "our code quality improved 15% this quarter" with a chart.
+
+### 9B: AI Learning + Adaptation (~3 weeks)
+
+| Deliverable | Effort | Why it matters |
+|---|---|---|
+| Team convention learning | XL | Observe suppress patterns → adapt thresholds |
+| Rule impact measurement | L | "This rule prevented 12 bugs in 6 months" |
+| Signal-to-noise dashboard | M | Which rules teams value vs ignore |
+| Auto-tune recommendations | M | "Consider disabling rule X (98% suppress rate)" |
+| Onboarding guide generator | L | AI synthesizes conventions for new devs |
+| Complexity growth alerts | M | "checkout/ complexity rising 5% per sprint" |
+
+**Exit criteria**: After 30 days of usage, Falcon recommends rule adjustments
+that reduce noise by 40%+ while maintaining bug-catch rate.
+
+### 9C: External Integrations (~2 weeks)
+
+| Deliverable | Effort | Why it matters |
+|---|---|---|
+| SonarQube bidirectional integration | L | Push metrics to SonarQube, pull config |
+| Datadog / Grafana metrics export | M | Feed into existing observability stack |
+| Custom webhook notifications | S | Trigger automations on quality events |
+| Slack/Teams bot for quality alerts | M | "Checkout module complexity hit alarm threshold" |
+
+**Exit criteria**: Falcon metrics appear in SonarQube dashboard alongside
+Java/Kotlin metrics. Slack bot sends actionable alerts.
+
+### v0.9 Success Metrics
+
+| Metric | Target | How to measure |
+|---|---|---|
+| Dashboard adoption | > 40% of teams | Track dashboard server starts |
+| Auto-tune noise reduction | > 40% fewer ignored warnings | Before/after suppress rate |
+| Rule impact data accuracy | > 85% | Cross-reference with git blame + bug tracker |
+
+### v0.9 Risks
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| Dashboard maintenance burden | Extra surface area | Ship as separate binary, optional install |
+| Convention learning is wrong | Auto-tune breaks real rules | Recommendations only, never auto-disable — human confirms |
 
 ---
 
 ## v1.0 — Production Ready
 
-### Goals
-- [ ] 200+ lint rules
-- [ ] All 19 DCM metrics implemented
-- [ ] Full IDE integration (VS Code + IntelliJ)
-- [ ] Complete CI/CD pipeline support (GitHub, GitLab, Bitbucket, Azure)
-- [ ] Plugin ecosystem with community marketplace
-- [ ] AI-powered analysis, review, and rule creation
-- [ ] Dashboard with historical trend tracking
-- [ ] Production-ready stability and performance
-- [ ] Comprehensive documentation site
-- [ ] Migration guide from DCM (`falcon migrate-from-dcm`)
+> **Exit criteria**: A 50-person team using DCM can fully migrate to Falcon in
+> one sprint. Zero known crashers. Every feature documented.
 
-### Performance Targets
-- [ ] Parse 1M+ LOC monorepos in < 5 seconds (full analysis)
-- [ ] Incremental analysis in < 500ms (changed files only)
-- [ ] Watch mode with sub-second feedback
-- [ ] Memory usage under 100MB for large projects
-- [ ] AI features add < 2 seconds for local models, < 5 seconds for cloud
+### 1.0A: Feature Completion (~3 weeks)
 
-### DCM Migration
-- [ ] `falcon migrate-from-dcm` — auto-convert DCM config to falcon.yaml
-- [ ] Rule name mapping (DCM rule names → Falcon equivalents)
-- [ ] Feature gap report ("these DCM rules don't have Falcon equivalents yet")
-- [ ] Side-by-side comparison mode (run both, diff results)
+| Deliverable | Effort | Why it matters |
+|---|---|---|
+| 200+ lint rules | ongoing | Feature parity benchmark with DCM |
+| All 19 DCM metrics implemented | S | Complete metric parity |
+| Complete CI/CD pipeline support | M | GitHub, GitLab, Bitbucket, Azure |
+
+### 1.0B: Production Hardening (~2 weeks)
+
+| Deliverable | Effort | Why it matters |
+|---|---|---|
+| Production stability audit | L | Edge cases, error handling, crash recovery |
+| Performance: 1M+ LOC < 5 seconds (full) | M | Benchmark on massive monorepos |
+| AI features < 2s local, < 5s cloud | M | AI doesn't slow down the core experience |
+
+### 1.0C: DCM Migration + Docs (~2 weeks)
+
+| Deliverable | Effort | Why it matters |
+|---|---|---|
+| `falcon migrate-from-dcm` | M | Auto-convert DCM config to falcon.yaml |
+| Rule name mapping (DCM → Falcon) | M | Familiar names for DCM users |
+| Feature gap report | S | "These 5 DCM rules don't have Falcon equivalents yet" |
+| Side-by-side comparison mode | M | Run both, diff results — prove equivalence |
+| Comprehensive docs site (`falcon.dev`) | L | Every rule, metric, config option documented |
+
+### v1.0 Success Metrics
+
+| Metric | Target | How to measure |
+|---|---|---|
+| Rule count | 200+ | Registry count |
+| GitHub stars | 5,000+ | Community traction |
+| Active monthly users | 2,000+ | CLI + IDE telemetry |
+| DCM migration completions | 100+ teams | Track `migrate-from-dcm` runs |
+| Published plugins | 20+ | Plugin marketplace count |
+| Zero known crashers | 0 | Issue tracker |
+
+---
+
+## v0.5–v1.0 Cut List (If Timeline Pressure Hits)
+
+**v0.5 — can defer:**
+- Smart `avoid-late-keyword` (start with magic numbers only)
+- Under-promoted dependency detection (less common)
+
+**v0.6 — can defer to v0.6.1:**
+- IntelliJ plugin (VS Code is 70%+ of Flutter devs)
+- "Show me similar code" command (embeddings infra is complex)
+
+**v0.7 — can defer to v0.7.1:**
+- Semantic code clone detection (embedding infra heavy)
+- Widget rebuild detection (hard to do accurately via static analysis)
+- Build method complexity (cognitive complexity covers most cases)
+
+**v0.8 — can defer:**
+- WASM plugin system (ship Rust API first, WASM later)
+- Rule request voting system (manual curation first)
+
+**v0.9 — can defer:**
+- SonarQube bidirectional sync (push-only first)
+- Slack/Teams bot (webhook notifications cover 80% of use cases)
+- Team/developer statistics (privacy concerns, ship without)
 
 ---
 

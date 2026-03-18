@@ -21,6 +21,9 @@ pub struct FalconConfig {
 
     #[serde(default = "default_excludes")]
     pub exclude: Vec<String>,
+
+    #[serde(default)]
+    pub ai: crate::ai::config::AiConfig,
 }
 
 impl Default for FalconConfig {
@@ -30,6 +33,7 @@ impl Default for FalconConfig {
             rules: default_rules(),
             unused: UnusedConfig::default(),
             exclude: default_excludes(),
+            ai: crate::ai::config::AiConfig::default(),
         }
     }
 }

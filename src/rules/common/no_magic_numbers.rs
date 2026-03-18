@@ -8,6 +8,7 @@ use tree_sitter::Node;
 
 pub struct NoMagicNumbers {
     allowed: Vec<String>,
+    context_aware: bool,
 }
 
 impl Default for NoMagicNumbers {
@@ -21,6 +22,7 @@ impl Default for NoMagicNumbers {
                 "0.0".to_string(),
                 "1.0".to_string(),
             ],
+            context_aware: true,
         }
     }
 }
@@ -45,6 +47,11 @@ impl Rule for NoMagicNumbers {
                     .iter()
                     .filter_map(|v| v.as_str().map(|s| s.to_string()))
                     .collect();
+            }
+        }
+        if let Some(val) = options.get("context_aware") {
+            if let Some(b) = val.as_bool() {
+                self.context_aware = b;
             }
         }
     }
@@ -81,18 +88,108 @@ impl Rule for NoMagicNumbers {
             }
 
             let text = &source[node.byte_range()];
-            if !self.allowed.iter().any(|a| a == text) {
-                issues.push(Issue {
-                    rule: self.name().to_string(),
-                    message: format!("Avoid magic number '{}'. Extract to a named constant.", text),
-                    severity: self.default_severity(),
-                    file: file.to_path_buf(),
-                    line: node_start_line(node),
-                    column: node.start_position().column + 1,
-                });
+            if self.allowed.iter().any(|a| a == text) {
+                return;
             }
+
+            if self.context_aware {
+                if let Ok(num) = text.parse::<i64>() {
+                    if is_http_status_code(num) && is_in_http_context(node, source) {
+                        return;
+                    }
+                    if is_well_known_constant(num) {
+                        return;
+                    }
+                }
+                if is_in_duration_context(node, source) || is_in_edge_insets_context(node, source) {
+                    return;
+                }
+            }
+
+            issues.push(Issue {
+                rule: self.name().to_string(),
+                message: format!("Avoid magic number '{}'. Extract to a named constant.", text),
+                severity: self.default_severity(),
+                file: file.to_path_buf(),
+                line: node_start_line(node),
+                column: node.start_position().column + 1,
+            });
         });
 
         issues
     }
+}
+
+fn is_http_status_code(num: i64) -> bool {
+    (100..=599).contains(&num)
+}
+
+fn is_well_known_constant(num: i64) -> bool {
+    matches!(
+        num,
+        8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024 | 2048 | 4096
+            | 10 | 100 | 1000 | 1000000
+            | 24 | 60 | 360 | 365
+            | 255
+    )
+}
+
+fn is_in_http_context(node: Node, source: &str) -> bool {
+    let mut current = node.parent();
+    for _ in 0..6 {
+        match current {
+            Some(n) => {
+                let text = n.utf8_text(source.as_bytes()).unwrap_or("");
+                let lower = text.to_lowercase();
+                if lower.contains("status")
+                    || lower.contains("response")
+                    || lower.contains("http")
+                    || lower.contains("statuscode")
+                {
+                    return true;
+                }
+                current = n.parent();
+            }
+            None => break,
+        }
+    }
+    false
+}
+
+fn is_in_duration_context(node: Node, source: &str) -> bool {
+    let mut current = node.parent();
+    for _ in 0..4 {
+        match current {
+            Some(n) => {
+                let text = n.utf8_text(source.as_bytes()).unwrap_or("");
+                if text.contains("Duration(")
+                    || text.contains("Duration.") {
+                    return true;
+                }
+                current = n.parent();
+            }
+            None => break,
+        }
+    }
+    false
+}
+
+fn is_in_edge_insets_context(node: Node, source: &str) -> bool {
+    let mut current = node.parent();
+    for _ in 0..4 {
+        match current {
+            Some(n) => {
+                let text = n.utf8_text(source.as_bytes()).unwrap_or("");
+                if text.contains("EdgeInsets")
+                    || text.contains("BorderRadius")
+                    || text.contains("Radius")
+                {
+                    return true;
+                }
+                current = n.parent();
+            }
+            None => break,
+        }
+    }
+    false
 }

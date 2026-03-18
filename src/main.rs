@@ -262,6 +262,67 @@ enum Commands {
         #[arg(short, long, default_value = "falcon-report.html")]
         output: PathBuf,
     },
+
+    /// Explain a rule with examples and context
+    Explain {
+        /// Rule name to explain (or 'list' to show all rules)
+        rule: String,
+    },
+
+    /// AI configuration and tools
+    #[command(name = "ai")]
+    Ai {
+        #[command(subcommand)]
+        action: AiAction,
+    },
+
+    /// Auto-fix lint issues
+    Fix {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Preview fixes without applying
+        #[arg(long)]
+        preview: bool,
+
+        /// Path to falcon.yaml config
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+    },
+
+    /// Score unused code issues with confidence levels
+    #[command(name = "check-unused-confidence")]
+    CheckUnusedConfidence {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Minimum confidence threshold (0-100)
+        #[arg(long, default_value = "0")]
+        min_confidence: u8,
+
+        /// Path to falcon.yaml config
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+    },
+}
+
+#[derive(Subcommand)]
+enum AiAction {
+    /// Interactive AI configuration setup
+    Setup {
+        /// Path containing falcon.yaml
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Show AI configuration status
+    Status {
+        /// Path containing falcon.yaml
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -579,6 +640,86 @@ fn run(cli: Cli) -> Result<()> {
             if !issues.is_empty() {
                 process::exit(1);
             }
+        }
+        Commands::Explain { rule } => {
+            if rule == "list" || rule == "all" {
+                falcon::ai::explain::list_all_rules();
+            } else if let Some(explanation) = falcon::ai::explain::explain_rule(&rule) {
+                falcon::ai::explain::print_explanation(&explanation);
+            } else {
+                eprintln!(
+                    "{}: Unknown rule '{}'. Use 'falcon explain list' to see all rules.",
+                    "error".red(),
+                    rule
+                );
+                process::exit(1);
+            }
+        }
+        Commands::Ai { action } => match action {
+            AiAction::Setup { path } => {
+                falcon::ai::config::generate_ai_setup(&path)?;
+                println!(
+                    "{} AI configuration added to falcon.yaml",
+                    "✓".green().bold()
+                );
+                println!("  Edit falcon.yaml to set your provider and API key.");
+                println!("  Supported providers: openai, anthropic, gemini, local (Ollama)");
+            }
+            AiAction::Status { path } => {
+                let config = FalconConfig::load(&path)?;
+                let ai = &config.ai;
+                println!();
+                println!("  {} AI Configuration Status", "falcon".bright_cyan().bold());
+                println!();
+                println!("  Enabled:   {}", if ai.enabled { "yes".green() } else { "no".red() });
+                println!("  Provider:  {:?}", ai.provider);
+                println!("  Model:     {}", ai.effective_model());
+                println!("  API Key:   {}", if ai.resolve_api_key().is_some() { "configured".green() } else { "not set".yellow() });
+                println!("  Available: {}", if ai.is_available() { "yes".green() } else { "no".red() });
+                println!();
+                println!("  Feature Toggles:");
+                println!("    Confidence scoring:      {}", if ai.features.confidence_scoring { "on" } else { "off" });
+                println!("    Smart fixes:             {}", if ai.features.smart_fixes { "on" } else { "off" });
+                println!("    Explanations:            {}", if ai.features.explanations { "on" } else { "off" });
+                println!("    False positive reduction: {}", if ai.features.false_positive_reduction { "on" } else { "off" });
+                println!();
+            }
+        },
+        Commands::Fix { path, preview, config } => {
+            let config_path = config.as_deref().unwrap_or(&path);
+            let falcon_config = FalconConfig::load(config_path)?;
+            let falcon = Falcon::new(falcon_config)?;
+            let report = falcon.analyze(&path)?;
+
+            let fixes = falcon::ai::fix::generate_fixes(&report.issues, &path);
+
+            if preview {
+                falcon::ai::fix::preview_fixes(&fixes);
+            } else {
+                falcon::ai::fix::preview_fixes(&fixes);
+                let applied = falcon::ai::fix::apply_fixes(&fixes);
+                println!(
+                    "  {} Applied {} fix(es).",
+                    "✓".green().bold(),
+                    applied
+                );
+            }
+        }
+        Commands::CheckUnusedConfidence {
+            path,
+            min_confidence,
+            config,
+        } => {
+            let config_path = config.as_deref().unwrap_or(&path);
+            let falcon_config = FalconConfig::load(config_path)?;
+            let falcon = Falcon::new(falcon_config)?;
+            let report = falcon.analyze(&path)?;
+
+            let results = falcon::ai::confidence::score_unused_issues(&report.issues, &path);
+            falcon::ai::confidence::print_confidence_results(
+                &results,
+                Some(min_confidence),
+            );
         }
     }
 

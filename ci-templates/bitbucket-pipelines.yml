@@ -1,0 +1,47 @@
+# Falcon Static Analysis for Bitbucket Pipelines
+# Add this pipe to your bitbucket-pipelines.yml.
+#
+# Usage in your pipeline:
+#   - step:
+#       name: Static Analysis
+#       script:
+#         - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+#         - source "$HOME/.cargo/env"
+#         - cargo install falcon --locked
+#         - falcon analyze . --format checkstyle --output falcon-report.xml --fail-on error
+#
+# Or use the full template below:
+
+image: dart:stable
+
+pipelines:
+  default:
+    - step:
+        name: Falcon Analysis
+        caches:
+          - cargo
+        script:
+          - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          - source "$HOME/.cargo/env"
+          - cargo install falcon --locked
+          - falcon analyze . --format checkstyle --output falcon-report.xml --fail-on error
+        artifacts:
+          - falcon-report.xml
+
+  pull-requests:
+    '**':
+      - step:
+          name: Falcon PR Analysis
+          caches:
+            - cargo
+          script:
+            - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            - source "$HOME/.cargo/env"
+            - cargo install falcon --locked
+            - falcon analyze . --format checkstyle --output falcon-report.xml --since origin/main --fail-on error
+          artifacts:
+            - falcon-report.xml
+
+definitions:
+  caches:
+    cargo: ~/.cargo

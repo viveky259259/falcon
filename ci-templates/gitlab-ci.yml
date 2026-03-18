@@ -1,0 +1,67 @@
+# Falcon Static Analysis for GitLab CI/CD
+# Add this to your .gitlab-ci.yml or include it as a template.
+#
+# Usage:
+#   include:
+#     - remote: 'https://raw.githubusercontent.com/viveky259259/falcon/master/ci-templates/gitlab-ci.yml'
+#
+# Or copy the jobs you need into your own .gitlab-ci.yml.
+
+stages:
+  - quality
+
+variables:
+  FALCON_VERSION: "latest"
+  FALCON_PATH: "."
+  FALCON_FAIL_ON: "error"
+  FALCON_FORMAT: "gitlab"
+  FALCON_SINCE: ""
+
+.falcon-install: &falcon-install
+  - |
+    if ! command -v falcon &> /dev/null; then
+      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+      source "$HOME/.cargo/env"
+      cargo install falcon --locked
+    fi
+
+falcon:analyze:
+  stage: quality
+  script:
+    - *falcon-install
+    - |
+      ARGS="analyze ${FALCON_PATH} --format ${FALCON_FORMAT} --output falcon-report.json --fail-on ${FALCON_FAIL_ON}"
+      if [ -n "${FALCON_SINCE}" ]; then
+        ARGS="${ARGS} --since ${FALCON_SINCE}"
+      fi
+      falcon ${ARGS}
+  artifacts:
+    reports:
+      codequality: falcon-report.json
+    when: always
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+falcon:analyze:incremental:
+  stage: quality
+  script:
+    - *falcon-install
+    - falcon analyze ${FALCON_PATH} --format gitlab --output falcon-report.json --since origin/${CI_DEFAULT_BRANCH} --fail-on ${FALCON_FAIL_ON}
+  artifacts:
+    reports:
+      codequality: falcon-report.json
+    when: always
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+falcon:unused:
+  stage: quality
+  script:
+    - *falcon-install
+    - falcon check-unused-code ${FALCON_PATH}
+    - falcon check-unused-files ${FALCON_PATH}
+    - falcon check-dependencies ${FALCON_PATH}
+  allow_failure: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

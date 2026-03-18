@@ -1,0 +1,16 @@
+- id: falcon-analyze
+  name: Falcon Static Analysis
+  description: Run Falcon static analysis on staged Dart files
+  entry: falcon analyze . --since HEAD --fail-on error
+  language: system
+  types: [dart]
+  pass_filenames: false
+
+- id: falcon-unused
+  name: Falcon Unused Code Check
+  description: Check for unused code declarations
+  entry: falcon check-unused-code .
+  language: system
+  types: [dart]
+  pass_filenames: false
+  stages: [push]
