@@ -601,6 +601,37 @@ enum Commands {
         config: Option<PathBuf>,
     },
 
+    /// Send webhook notification with analysis results
+    Webhook {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Webhook URL
+        #[arg(long)]
+        url: String,
+
+        /// Event type (analysis, score, drift)
+        #[arg(long, default_value = "analysis")]
+        event: String,
+    },
+
+    /// Record and view AI tool benchmark comparisons
+    #[command(name = "benchmark-db")]
+    BenchmarkDb {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// AI tool name (cursor, copilot, claude, gemini, human)
+        #[arg(long)]
+        tool: Option<String>,
+
+        /// Show benchmark summary instead of recording
+        #[arg(long)]
+        summary: bool,
+    },
+
     /// Start the Falcon HTTP API server
     #[command(name = "api")]
     Api {
@@ -1895,6 +1926,67 @@ fn run(cli: Cli) -> Result<()> {
             }
 
             falcon::ci::pr_comment::write_github_step_summary(&report, &path)?;
+        }
+        Commands::Webhook { path, url, event } => {
+            let config = FalconConfig::load(&path)?;
+            let falcon_inst = Falcon::new(config)?;
+            let report = falcon_inst.analyze(&path)?;
+            let project = path.file_name().and_then(|f| f.to_str()).unwrap_or("project");
+
+            match event.as_str() {
+                "analysis" => {
+                    falcon::ci::webhook::send_analysis_webhook(&url, project, &report)?;
+                    println!(
+                        "  {} Sent analysis webhook to {}",
+                        "✓".green().bold(),
+                        url
+                    );
+                }
+                "score" => {
+                    let score = falcon::ai_score::score::score_from_report(&report)?;
+                    falcon::ci::webhook::send_score_webhook(&url, project, &score, None)?;
+                    println!(
+                        "  {} Sent score webhook ({}/100) to {}",
+                        "✓".green().bold(),
+                        score.overall,
+                        url
+                    );
+                }
+                "drift" => {
+                    let drift = falcon::ai_score::drift::detect_drift(&path, None)?;
+                    falcon::ci::webhook::send_drift_webhook(&url, project, &drift)?;
+                    println!(
+                        "  {} Sent drift webhook ({:.0}% adherence) to {}",
+                        "✓".green().bold(),
+                        drift.drift_score,
+                        url
+                    );
+                }
+                other => {
+                    eprintln!("Unknown event '{}'. Use: analysis, score, drift", other);
+                    process::exit(1);
+                }
+            }
+        }
+        Commands::BenchmarkDb { path, tool, summary } => {
+            if summary {
+                let db = falcon::ai_score::benchmark_db::load_benchmark_db(&path)?;
+                let stats = falcon::ai_score::benchmark_db::compute_tool_stats(&db);
+                falcon::ai_score::benchmark_db::print_benchmark_summary(&stats);
+            } else if let Some(tool_name) = tool {
+                let project = path.file_name().and_then(|f| f.to_str()).unwrap_or("project");
+                let entry = falcon::ai_score::benchmark_db::record_benchmark(&path, project, &tool_name)?;
+                println!(
+                    "  {} Recorded benchmark: {} (tool: {}) — score {}/100",
+                    "✓".green().bold(),
+                    entry.project_name,
+                    entry.ai_tool,
+                    entry.score
+                );
+            } else {
+                eprintln!("Use --tool <name> to record, or --summary to view benchmarks");
+                process::exit(1);
+            }
         }
         Commands::Api { host, port } => {
             falcon::api::server::start_api_server(&host, port)?;

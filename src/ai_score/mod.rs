@@ -1,3 +1,4 @@
+pub mod benchmark_db;
 pub mod convention;
 pub mod drift;
 pub mod provenance;

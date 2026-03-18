@@ -829,8 +829,8 @@ AI Tool Integration Flow:
 - [x] **Falcon MCP Server** — AI coding assistants call Falcon as a tool, self-correction loop closes ✅ (implemented in v2.0)
 - [x] **Falcon SDK (Rust library)** — embeddable analysis engine for AI tool pipelines ✅
 - [x] **Falcon API (HTTP)** — analysis endpoint `POST /analyze`, `POST /score`, `POST /check-file`, `GET /health` ✅
-- [ ] **Falcon LSP Protocol Extensions** — custom messages for AI-specific diagnostics
-- [ ] **Webhook Callbacks** — `on_ai_code_generated → falcon.analyze → feedback_to_ai` pipeline
+- [x] **Falcon LSP Protocol Extensions** — AI provenance hints, AI severity metadata, custom commands ✅
+- [x] **Webhook Callbacks** — analysis.complete, score.changed, drift.detected event webhooks ✅
 
 ### Platform Expansion
 - [ ] Multi-language support (Kotlin, Swift for platform channels)
@@ -863,7 +863,7 @@ AI Code Quality Score: 72/100
 - [x] **AI Code Score (0-100)** — single number for production-readiness ✅ (v1.3)
 - [x] **Score Breakdown** — Resource Safety, Error Handling, Type Safety, Security, Convention Match, Complexity ✅ (v1.3)
 - [x] **Score API** — embeddable badge for READMEs, PR comments, dashboards ✅ (v1.3 `--badge`)
-- [ ] **Benchmark Database** — "Average Cursor-generated Flutter app scores 64. Average human-written scores 78."
+- [x] **Benchmark Database** — `falcon benchmark-db` records per-tool scores, computes avg/min/max by AI tool ✅
 - [x] **Score Trends** — track score over time per project ✅ (v2.0 `score-track`)
 - [x] **Certification** — "Falcon Certified: Production Ready" badge for repos maintaining 85+ ✅ (v1.3)
 
