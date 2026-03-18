@@ -1,0 +1,101 @@
+name: 'Falcon Lint'
+description: 'Run Falcon static analysis on your Flutter/Dart project'
+author: 'Falcon'
+
+branding:
+  icon: 'check-circle'
+  color: 'blue'
+
+inputs:
+  path:
+    description: 'Path to analyze'
+    required: false
+    default: '.'
+  format:
+    description: 'Output format (console, json, sarif, codeclimate, checkstyle, sonar, gitlab)'
+    required: false
+    default: 'console'
+  fail-on:
+    description: 'Minimum severity to fail the action (error, warning, info)'
+    required: false
+    default: 'error'
+  since:
+    description: 'Git ref for incremental analysis (e.g. HEAD~1, main)'
+    required: false
+    default: ''
+  baseline:
+    description: 'Use baseline to only report new violations'
+    required: false
+    default: 'false'
+  config:
+    description: 'Path to falcon.yaml config file'
+    required: false
+    default: ''
+  version:
+    description: 'Falcon version to install'
+    required: false
+    default: 'latest'
+  sarif-upload:
+    description: 'Upload SARIF results to GitHub Code Scanning'
+    required: false
+    default: 'false'
+
+outputs:
+  issues:
+    description: 'Number of issues found'
+  errors:
+    description: 'Number of errors found'
+  warnings:
+    description: 'Number of warnings found'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Falcon
+      shell: bash
+      run: |
+        if [ "${{ inputs.version }}" = "latest" ]; then
+          cargo install falcon --locked || {
+            echo "::warning::cargo install failed, trying from source"
+            cargo install --path . --locked
+          }
+        else
+          cargo install falcon@${{ inputs.version }} --locked
+        fi
+
+    - name: Run Falcon Analysis
+      shell: bash
+      run: |
+        ARGS="analyze ${{ inputs.path }}"
+        ARGS="$ARGS --format ${{ inputs.format }}"
+        ARGS="$ARGS --fail-on ${{ inputs.fail-on }}"
+
+        if [ -n "${{ inputs.since }}" ]; then
+          ARGS="$ARGS --since ${{ inputs.since }}"
+        fi
+
+        if [ "${{ inputs.baseline }}" = "true" ]; then
+          ARGS="$ARGS --baseline"
+        fi
+
+        if [ -n "${{ inputs.config }}" ]; then
+          ARGS="$ARGS --config ${{ inputs.config }}"
+        fi
+
+        falcon $ARGS
+
+    - name: Generate SARIF (if requested)
+      if: inputs.sarif-upload == 'true'
+      shell: bash
+      run: |
+        falcon analyze ${{ inputs.path }} \
+          --format sarif \
+          --output falcon-results.sarif \
+          --fail-on error || true
+
+    - name: Upload SARIF to GitHub
+      if: inputs.sarif-upload == 'true'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: falcon-results.sarif
+        category: falcon-analysis

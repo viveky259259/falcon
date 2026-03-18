@@ -1,6 +1,10 @@
+pub mod checkstyle;
+pub mod codeclimate;
 pub mod console;
 pub mod html;
 pub mod json;
+pub mod sarif;
+pub mod sonar;
 
 use crate::config::Severity;
 use crate::metrics::MetricsResults;

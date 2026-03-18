@@ -1,4 +1,5 @@
 pub mod config;
+pub mod incremental;
 pub mod metrics;
 pub mod parser;
 pub mod reporters;
@@ -117,6 +118,47 @@ impl Falcon {
     pub fn check_dependencies(&self, path: &Path) -> Result<Vec<Issue>> {
         let resolver = ProjectResolver::new(path, &self.config)?;
         resolver.find_unused_dependencies()
+    }
+
+    /// Analyze only a specific subset of files (for incremental mode).
+    pub fn analyze_files(&self, _path: &Path, files: &[PathBuf]) -> Result<AnalysisReport> {
+        let file_count = files.len();
+
+        let file_results: Vec<_> = files
+            .par_iter()
+            .filter_map(|file| {
+                let source = std::fs::read_to_string(file).ok()?;
+                let mut parser = DartParser::new().ok()?;
+                let tree = parser.parse(&source)?;
+                let root = tree.root_node();
+
+                let mut issues = Vec::new();
+
+                let metrics =
+                    metrics::calculate_file_metrics(root, &source, &self.config.metrics);
+                for violation in metrics.violations() {
+                    issues.push(violation);
+                }
+
+                let rule_issues = self.rule_registry.check(root, &source, file);
+                issues.extend(rule_issues);
+
+                Some((file.clone(), issues, metrics))
+            })
+            .collect();
+
+        let mut all_issues = Vec::new();
+        let mut all_metrics = Vec::new();
+        for (file, issues, metrics) in file_results {
+            all_issues.extend(issues);
+            all_metrics.push((file, metrics));
+        }
+
+        Ok(AnalysisReport {
+            issues: all_issues,
+            metrics: all_metrics,
+            file_count,
+        })
     }
 
     fn collect_dart_files(&self, path: &Path) -> Result<Vec<PathBuf>> {
