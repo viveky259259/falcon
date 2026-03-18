@@ -373,6 +373,80 @@ enum Commands {
         #[arg(default_value = ".")]
         path: PathBuf,
     },
+
+    /// Plugin management
+    Plugin {
+        #[command(subcommand)]
+        action: PluginAction,
+    },
+
+    /// Rule presets (recommended, strict, flutter, riverpod, bloc, performance)
+    Preset {
+        #[command(subcommand)]
+        action: PresetAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum PluginAction {
+    /// Create a new plugin scaffold
+    Create {
+        /// Plugin name
+        name: String,
+
+        /// Plugin type (wasm or preset)
+        #[arg(long, default_value = "wasm")]
+        r#type: String,
+
+        /// Directory to create plugin in
+        #[arg(short, long, default_value = ".")]
+        dir: PathBuf,
+    },
+
+    /// List installed plugins
+    List,
+
+    /// Install a plugin from a local path
+    Install {
+        /// Path to plugin directory
+        path: PathBuf,
+    },
+
+    /// Search the plugin registry
+    Search {
+        /// Search query
+        #[arg(default_value = "*")]
+        query: String,
+    },
+
+    /// Test a plugin
+    Test {
+        /// Path to plugin directory
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+}
+
+#[derive(Subcommand)]
+enum PresetAction {
+    /// List available presets
+    List,
+
+    /// Show details for a preset
+    Show {
+        /// Preset name
+        name: String,
+    },
+
+    /// Apply a preset to falcon.yaml
+    Apply {
+        /// Preset name
+        name: String,
+
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1008,9 +1082,106 @@ fn run(cli: Cli) -> Result<()> {
             let report = falcon::review::codebase_intel::analyze_codebase(&path, &config)?;
             falcon::review::codebase_intel::print_codebase_report(&report, &path);
         }
+        Commands::Plugin { action } => match action {
+            PluginAction::Create { name, r#type, dir } => {
+                let plugin_type = match r#type.as_str() {
+                    "wasm" => falcon::plugins::manifest::PluginType::Wasm,
+                    "native" => falcon::plugins::manifest::PluginType::Native,
+                    "preset" => falcon::plugins::manifest::PluginType::Preset,
+                    _ => {
+                        eprintln!("Invalid plugin type '{}'. Use: wasm, native, preset", r#type);
+                        process::exit(1);
+                    }
+                };
+                falcon::plugins::scaffold::create_plugin(&name, &dir, plugin_type)?;
+            }
+            PluginAction::List => {
+                let plugin_dir = get_plugin_dir();
+                let plugins = falcon::plugins::scaffold::list_plugins(&plugin_dir)?;
+                falcon::plugins::scaffold::print_plugins(
+                    &plugins
+                        .iter()
+                        .map(|m| m.clone())
+                        .collect::<Vec<_>>(),
+                );
+            }
+            PluginAction::Install { path } => {
+                let plugin_dir = get_plugin_dir();
+                std::fs::create_dir_all(&plugin_dir)?;
+                let name = falcon::plugins::scaffold::install_plugin(&path, &plugin_dir)?;
+                println!(
+                    "  {} Installed plugin '{}'",
+                    "✓".green().bold(),
+                    name.bright_cyan()
+                );
+            }
+            PluginAction::Search { query } => {
+                let results = falcon::plugins::registry::search_registry(&query);
+                falcon::plugins::registry::print_search_results(&results, &query);
+            }
+            PluginAction::Test { path } => {
+                let manifest = falcon::plugins::manifest::PluginManifest::load(&path)?;
+                println!(
+                    "  {} Plugin '{}' v{} — manifest valid, {} rule(s) defined",
+                    "✓".green().bold(),
+                    manifest.name.bright_cyan(),
+                    manifest.version,
+                    manifest.rules.len()
+                );
+
+                let rules_path = path.join("rules/rules.yaml");
+                if rules_path.exists() {
+                    let rules = falcon::plugins::wasm_runtime::load_wasm_rules(&rules_path)?;
+                    println!(
+                        "  {} Loaded {} rule definition(s) from rules.yaml",
+                        "✓".green().bold(),
+                        rules.len()
+                    );
+                }
+
+                let test_path = path.join("test/test_cases.yaml");
+                if test_path.exists() {
+                    println!(
+                        "  {} Test cases file found at test/test_cases.yaml",
+                        "✓".green().bold()
+                    );
+                }
+            }
+        },
+        Commands::Preset { action } => match action {
+            PresetAction::List => {
+                let presets = falcon::plugins::presets::list_presets();
+                falcon::plugins::presets::print_presets(&presets);
+            }
+            PresetAction::Show { name } => {
+                match falcon::plugins::presets::get_preset(&name) {
+                    Some(preset) => falcon::plugins::presets::print_preset_detail(&preset),
+                    None => {
+                        eprintln!("Unknown preset '{}'. Use: falcon preset list", name);
+                        process::exit(1);
+                    }
+                }
+            }
+            PresetAction::Apply { name, path } => {
+                match falcon::plugins::presets::get_preset(&name) {
+                    Some(preset) => falcon::plugins::presets::apply_preset(&preset, &path)?,
+                    None => {
+                        eprintln!("Unknown preset '{}'. Use: falcon preset list", name);
+                        process::exit(1);
+                    }
+                }
+            }
+        },
     }
 
     Ok(())
+}
+
+fn get_plugin_dir() -> PathBuf {
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".falcon").join("plugins")
 }
 
 fn run_incremental(

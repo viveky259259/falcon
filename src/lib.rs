@@ -6,6 +6,7 @@ pub mod incremental;
 pub mod lsp;
 pub mod metrics;
 pub mod parser;
+pub mod plugins;
 pub mod reporters;
 pub mod resolver;
 pub mod review;

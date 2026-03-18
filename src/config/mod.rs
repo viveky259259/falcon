@@ -130,6 +130,22 @@ impl RuleConfig {
                 .unwrap_or_default(),
         }
     }
+
+    pub fn simple(name: String, severity: Severity) -> Self {
+        if severity == Severity::Warning {
+            RuleConfig::Simple(name)
+        } else {
+            let mut entries = HashMap::new();
+            entries.insert(
+                name,
+                RuleSettings {
+                    severity,
+                    options: HashMap::new(),
+                },
+            );
+            RuleConfig::WithSeverity { entries }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
