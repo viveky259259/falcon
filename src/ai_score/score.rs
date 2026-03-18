@@ -1,7 +1,31 @@
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::Path;
 
+/// Letter grade for an AI code quality score.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum Grade {
+    A,
+    B,
+    C,
+    D,
+    F,
+}
+
+impl std::fmt::Display for Grade {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Grade::A => write!(f, "A"),
+            Grade::B => write!(f, "B"),
+            Grade::C => write!(f, "C"),
+            Grade::D => write!(f, "D"),
+            Grade::F => write!(f, "F"),
+        }
+    }
+}
+
+/// AI Code Quality Score with 6-dimension breakdown.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiCodeScore {
     pub overall: u32,
@@ -13,9 +37,10 @@ pub struct AiCodeScore {
     pub complexity: DimensionScore,
     pub file_count: usize,
     pub total_issues: usize,
-    pub grade: String,
+    pub grade: Grade,
 }
 
+/// Score for a single dimension with detected findings.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DimensionScore {
     pub score: u32,
@@ -28,21 +53,52 @@ impl DimensionScore {
     }
 }
 
-/// Calculate AI Code Quality Score for a project.
+/// Pre-computed issue counts by rule name, built in a single pass.
+struct IssueCounts {
+    counts: HashMap<String, usize>,
+}
+
+impl IssueCounts {
+    fn from_issues(issues: &[crate::reporters::Issue]) -> Self {
+        let mut counts: HashMap<String, usize> = HashMap::new();
+        for issue in issues {
+            *counts.entry(issue.rule.clone()).or_default() += 1;
+        }
+        Self { counts }
+    }
+
+    fn get(&self, rule: &str) -> usize {
+        self.counts.get(rule).copied().unwrap_or(0)
+    }
+}
+
+/// Calculate AI Code Quality Score for a project at `root`.
+/// Returns an error if the path doesn't exist or config is invalid.
 pub fn calculate_ai_score(root: &Path) -> anyhow::Result<AiCodeScore> {
+    if !root.exists() {
+        anyhow::bail!("Path does not exist: {}", root.display());
+    }
+
     let config = crate::config::FalconConfig::load(root)?;
     let falcon = crate::Falcon::new(config)?;
     let report = falcon.analyze(root)?;
 
+    score_from_report(&report)
+}
+
+/// Calculate AI Code Quality Score from a pre-existing analysis report.
+/// Avoids duplicate analysis when the caller already has results.
+pub fn score_from_report(report: &crate::reporters::AnalysisReport) -> anyhow::Result<AiCodeScore> {
     let issues = &report.issues;
     let file_count = report.file_count;
+    let ic = IssueCounts::from_issues(issues);
 
-    let resource_safety = score_resource_safety(issues, file_count);
-    let error_handling = score_error_handling(issues, file_count);
-    let type_safety = score_type_safety(issues, file_count);
-    let security = score_security(issues);
-    let convention_match = score_convention(issues, file_count);
-    let complexity = score_complexity(issues, file_count);
+    let resource_safety = score_resource_safety(&ic);
+    let error_handling = score_error_handling(&ic);
+    let type_safety = score_type_safety(&ic, file_count);
+    let security = score_security(&ic);
+    let convention_match = score_convention(&ic, file_count);
+    let complexity = score_complexity(&ic, file_count);
 
     let overall = (resource_safety.score as f64 * 0.20
         + error_handling.score as f64 * 0.25
@@ -52,11 +108,11 @@ pub fn calculate_ai_score(root: &Path) -> anyhow::Result<AiCodeScore> {
         + complexity.score as f64 * 0.15) as u32;
 
     let grade = match overall {
-        90..=100 => "A".to_string(),
-        80..=89 => "B".to_string(),
-        70..=79 => "C".to_string(),
-        60..=69 => "D".to_string(),
-        _ => "F".to_string(),
+        90..=100 => Grade::A,
+        80..=89 => Grade::B,
+        70..=79 => Grade::C,
+        60..=69 => Grade::D,
+        _ => Grade::F,
     };
 
     Ok(AiCodeScore {
@@ -73,11 +129,11 @@ pub fn calculate_ai_score(root: &Path) -> anyhow::Result<AiCodeScore> {
     })
 }
 
-fn score_resource_safety(issues: &[crate::reporters::Issue], _file_count: usize) -> DimensionScore {
+fn score_resource_safety(ic: &IssueCounts) -> DimensionScore {
     let mut findings = Vec::new();
 
-    let dispose_count = issues.iter().filter(|i| i.rule == "ensure-dispose-lifecycle").count();
-    let stream_count = issues.iter().filter(|i| i.rule == "ensure-stream-subscription-cancel").count();
+    let dispose_count = ic.get("ensure-dispose-lifecycle");
+    let stream_count = ic.get("ensure-stream-subscription-cancel");
 
     if dispose_count > 0 {
         findings.push(format!("{} undisposed controllers/FocusNodes", dispose_count));
@@ -91,13 +147,13 @@ fn score_resource_safety(issues: &[crate::reporters::Issue], _file_count: usize)
     DimensionScore::new(score, findings)
 }
 
-fn score_error_handling(issues: &[crate::reporters::Issue], _file_count: usize) -> DimensionScore {
+fn score_error_handling(ic: &IssueCounts) -> DimensionScore {
     let mut findings = Vec::new();
 
-    let empty_catch = issues.iter().filter(|i| i.rule == "avoid-empty-catch").count();
-    let unawaited = issues.iter().filter(|i| i.rule == "avoid-unawaited-futures").count();
-    let generic_catch = issues.iter().filter(|i| i.rule == "prefer-specific-catch-type").count();
-    let throw_in_catch = issues.iter().filter(|i| i.rule == "avoid-throw-in-catch").count();
+    let empty_catch = ic.get("avoid-empty-catch");
+    let unawaited = ic.get("avoid-unawaited-futures");
+    let generic_catch = ic.get("prefer-specific-catch-type");
+    let throw_in_catch = ic.get("avoid-throw-in-catch");
 
     if empty_catch > 0 {
         findings.push(format!("{} empty catch blocks", empty_catch));
@@ -117,12 +173,12 @@ fn score_error_handling(issues: &[crate::reporters::Issue], _file_count: usize) 
     DimensionScore::new(score, findings)
 }
 
-fn score_type_safety(issues: &[crate::reporters::Issue], file_count: usize) -> DimensionScore {
+fn score_type_safety(ic: &IssueCounts, file_count: usize) -> DimensionScore {
     let mut findings = Vec::new();
 
-    let dynamic_count = issues.iter().filter(|i| i.rule == "avoid-dynamic").count();
-    let type_assert = issues.iter().filter(|i| i.rule == "avoid-unnecessary-type-assertions").count();
-    let type_cast = issues.iter().filter(|i| i.rule == "avoid-unnecessary-type-casts").count();
+    let dynamic_count = ic.get("avoid-dynamic");
+    let type_assert = ic.get("avoid-unnecessary-type-assertions");
+    let type_cast = ic.get("avoid-unnecessary-type-casts");
 
     if dynamic_count > 0 {
         findings.push(format!("{} uses of 'dynamic' type", dynamic_count));
@@ -140,11 +196,11 @@ fn score_type_safety(issues: &[crate::reporters::Issue], file_count: usize) -> D
     DimensionScore::new(score, findings)
 }
 
-fn score_security(issues: &[crate::reporters::Issue]) -> DimensionScore {
+fn score_security(ic: &IssueCounts) -> DimensionScore {
     let mut findings = Vec::new();
 
-    let creds = issues.iter().filter(|i| i.rule == "avoid-hardcoded-credentials").count();
-    let print_prod = issues.iter().filter(|i| i.rule == "avoid-print-in-production").count();
+    let creds = ic.get("avoid-hardcoded-credentials");
+    let print_prod = ic.get("avoid-print-in-production");
 
     if creds > 0 {
         findings.push(format!("{} hardcoded credentials", creds));
@@ -158,13 +214,13 @@ fn score_security(issues: &[crate::reporters::Issue]) -> DimensionScore {
     DimensionScore::new(score, findings)
 }
 
-fn score_convention(issues: &[crate::reporters::Issue], file_count: usize) -> DimensionScore {
+fn score_convention(ic: &IssueCounts, file_count: usize) -> DimensionScore {
     let mut findings = Vec::new();
 
-    let naming = issues.iter().filter(|i| i.rule == "prefer-correct-identifier-length").count();
-    let file_name = issues.iter().filter(|i| i.rule == "prefer-match-file-name").count();
-    let trailing_comma = issues.iter().filter(|i| i.rule == "prefer-trailing-comma").count();
-    let bool_params = issues.iter().filter(|i| i.rule == "prefer-named-boolean-parameters").count();
+    let naming = ic.get("prefer-correct-identifier-length");
+    let file_name = ic.get("prefer-match-file-name");
+    let trailing_comma = ic.get("prefer-trailing-comma");
+    let bool_params = ic.get("prefer-named-boolean-parameters");
 
     if naming > 0 {
         findings.push(format!("{} identifier length issues", naming));
@@ -186,13 +242,13 @@ fn score_convention(issues: &[crate::reporters::Issue], file_count: usize) -> Di
     DimensionScore::new(score, findings)
 }
 
-fn score_complexity(issues: &[crate::reporters::Issue], file_count: usize) -> DimensionScore {
+fn score_complexity(ic: &IssueCounts, file_count: usize) -> DimensionScore {
     let mut findings = Vec::new();
 
-    let long_fn = issues.iter().filter(|i| i.rule == "avoid-long-functions").count();
-    let nested = issues.iter().filter(|i| i.rule == "avoid-nested-conditionals").count();
-    let long_params = issues.iter().filter(|i| i.rule == "avoid-long-parameter-list").count();
-    let widget_nesting = issues.iter().filter(|i| i.rule == "avoid-excessive-widget-nesting").count();
+    let long_fn = ic.get("avoid-long-functions");
+    let nested = ic.get("avoid-nested-conditionals");
+    let long_params = ic.get("avoid-long-parameter-list");
+    let widget_nesting = ic.get("avoid-excessive-widget-nesting");
 
     if long_fn > 0 {
         findings.push(format!("{} overly long functions", long_fn));
@@ -217,6 +273,7 @@ fn score_complexity(issues: &[crate::reporters::Issue], file_count: usize) -> Di
     DimensionScore::new(score, findings)
 }
 
+/// Print an AI Code Quality Score to the console.
 pub fn print_ai_score(score: &AiCodeScore) {
     println!();
     println!(
@@ -225,23 +282,23 @@ pub fn print_ai_score(score: &AiCodeScore) {
     );
     println!();
 
-    let grade_color = match score.grade.as_str() {
-        "A" => score.overall.to_string().bright_green().bold(),
-        "B" => score.overall.to_string().green().bold(),
-        "C" => score.overall.to_string().yellow().bold(),
-        "D" => score.overall.to_string().red(),
-        _ => score.overall.to_string().bright_red().bold(),
+    let grade_color = match score.grade {
+        Grade::A => score.overall.to_string().bright_green().bold(),
+        Grade::B => score.overall.to_string().green().bold(),
+        Grade::C => score.overall.to_string().yellow().bold(),
+        Grade::D => score.overall.to_string().red(),
+        Grade::F => score.overall.to_string().bright_red().bold(),
     };
 
     println!(
         "  AI Code Quality Score: {}/100 (Grade: {})",
         grade_color,
-        match score.grade.as_str() {
-            "A" => "A".bright_green().bold(),
-            "B" => "B".green().bold(),
-            "C" => "C".yellow().bold(),
-            "D" => "D".red(),
-            _ => "F".bright_red().bold(),
+        match score.grade {
+            Grade::A => "A".bright_green().bold(),
+            Grade::B => "B".green().bold(),
+            Grade::C => "C".yellow().bold(),
+            Grade::D => "D".red(),
+            Grade::F => "F".bright_red().bold(),
         }
     );
     println!();
@@ -307,7 +364,7 @@ fn print_dimension(name: &str, dim: &DimensionScore, weight: f64) {
     }
 }
 
-/// Generate a badge string for README embedding.
+/// Generate a shields.io badge markdown string for README embedding.
 pub fn generate_badge(score: &AiCodeScore) -> String {
     let color = match score.overall {
         90..=100 => "brightgreen",

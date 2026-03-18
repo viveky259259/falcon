@@ -36,8 +36,12 @@ pub struct ErrorHandlingConventions {
     pub uses_custom_exceptions: bool,
 }
 
-/// Auto-detect team conventions from the codebase.
+/// Auto-detect team conventions from the codebase at `root`.
 pub fn detect_conventions(root: &Path) -> anyhow::Result<ConventionReport> {
+    if !root.exists() {
+        anyhow::bail!("Path does not exist: {}", root.display());
+    }
+
     let mut file_names = Vec::new();
     let mut class_names = Vec::new();
     let mut dir_names: HashMap<String, usize> = HashMap::new();
@@ -49,7 +53,13 @@ pub fn detect_conventions(root: &Path) -> anyhow::Result<ConventionReport> {
 
     for entry in walkdir::WalkDir::new(root)
         .into_iter()
-        .filter_map(|e| e.ok())
+        .filter_map(|e| match e {
+            Ok(entry) => Some(entry),
+            Err(err) => {
+                log::warn!("Failed to read directory entry: {}", err);
+                None
+            }
+        })
     {
         if entry.file_type().is_dir() {
             if let Some(name) = entry.path().file_name() {

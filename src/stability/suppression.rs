@@ -4,6 +4,10 @@ use std::path::Path;
 
 const SUPPRESSION_FILE: &str = ".falcon-data/suppressions.json";
 
+fn chrono_fallback() -> String {
+    "unknown".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SuppressionEntry {
     pub rule: String,
@@ -61,29 +65,34 @@ pub fn save_suppressions(root: &Path, db: &SuppressionDatabase) -> anyhow::Resul
     Ok(())
 }
 
+/// Parameters for adding a suppression entry.
+pub struct SuppressionRequest<'a> {
+    pub rule: &'a str,
+    pub file: &'a str,
+    pub line: Option<usize>,
+    pub reason: &'a str,
+    pub category: SuppressionCategory,
+}
+
 /// Add a suppression entry.
-pub fn add_suppression(
-    root: &Path,
-    rule: &str,
-    file: &str,
-    line: Option<usize>,
-    reason: &str,
-    category: SuppressionCategory,
-) -> anyhow::Result<()> {
+pub fn add_suppression(root: &Path, req: &SuppressionRequest<'_>) -> anyhow::Result<()> {
     let mut db = load_suppressions(root)?;
 
     let timestamp = std::process::Command::new("date")
         .args(["+%Y-%m-%dT%H:%M:%S"])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_else(|_| "unknown".to_string());
+        .unwrap_or_else(|e| {
+            log::warn!("Failed to get timestamp: {}", e);
+            chrono_fallback()
+        });
 
     db.entries.push(SuppressionEntry {
-        rule: rule.to_string(),
-        file: file.to_string(),
-        line,
-        reason: reason.to_string(),
-        category,
+        rule: req.rule.to_string(),
+        file: req.file.to_string(),
+        line: req.line,
+        reason: req.reason.to_string(),
+        category: req.category.clone(),
         created_at: timestamp,
         created_by: None,
     });

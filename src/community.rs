@@ -88,7 +88,10 @@ pub fn submit_rule_request(
         .args(["+%Y-%m-%dT%H:%M:%S"])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_else(|_| "unknown".to_string());
+        .unwrap_or_else(|e| {
+            log::warn!("Failed to get timestamp: {}", e);
+            "unknown".to_string()
+        });
 
     data.rule_requests.push(RuleRequest {
         id: id.clone(),

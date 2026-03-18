@@ -160,11 +160,13 @@ fn test_suppression_add_and_load() {
 
     falcon::stability::suppression::add_suppression(
         dir.path(),
-        "avoid-dynamic",
-        "lib/main.dart",
-        Some(42),
-        "Legacy API requires dynamic",
-        falcon::stability::suppression::SuppressionCategory::WontFix,
+        &falcon::stability::suppression::SuppressionRequest {
+            rule: "avoid-dynamic",
+            file: "lib/main.dart",
+            line: Some(42),
+            reason: "Legacy API requires dynamic",
+            category: falcon::stability::suppression::SuppressionCategory::WontFix,
+        },
     )
     .unwrap();
 

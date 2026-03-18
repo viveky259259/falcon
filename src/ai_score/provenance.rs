@@ -129,21 +129,36 @@ pub fn analyze_provenance(file_path: &Path, source: &str) -> ProvenanceResult {
     }
 }
 
-/// Analyze all Dart files in a project for provenance.
+/// Analyze all Dart files in a project for provenance using parallel processing.
 pub fn analyze_project_provenance(root: &Path) -> anyhow::Result<Vec<ProvenanceResult>> {
-    let mut results = Vec::new();
+    use rayon::prelude::*;
 
-    for entry in walkdir::WalkDir::new(root)
+    let files: Vec<_> = walkdir::WalkDir::new(root)
         .into_iter()
-        .filter_map(|e| e.ok())
+        .filter_map(|e| match e {
+            Ok(entry) => Some(entry),
+            Err(err) => {
+                log::warn!("Failed to read directory entry: {}", err);
+                None
+            }
+        })
         .filter(|e| e.file_type().is_file())
         .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
-    {
-        if let Ok(source) = std::fs::read_to_string(entry.path()) {
-            let result = analyze_provenance(entry.path(), &source);
-            results.push(result);
-        }
-    }
+        .map(|e| e.path().to_path_buf())
+        .collect();
+
+    let results: Vec<ProvenanceResult> = files
+        .par_iter()
+        .filter_map(|path| {
+            match std::fs::read_to_string(path) {
+                Ok(source) => Some(analyze_provenance(path, &source)),
+                Err(err) => {
+                    log::warn!("Failed to read {}: {}", path.display(), err);
+                    None
+                }
+            }
+        })
+        .collect();
 
     Ok(results)
 }

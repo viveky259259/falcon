@@ -129,8 +129,15 @@ fn suggest_fix(issue: &Issue, _project_root: &Path) -> Option<FixSuggestion> {
     }
 }
 
+/// Fix double literal format issues (e.g. `0.0` → `.0`, remove trailing zeros).
 fn fix_double_literal(text: &str) -> String {
-    let result = text.to_string();
+    let mut result = text.to_string();
+    result = result.replace(" 0.", " .");
+    result = result.replace("(0.", "(.");
+    result = result.replace("=0.", "=.");
+    if result.contains('.') && result.ends_with('0') && !result.ends_with(".0") {
+        result = result.trim_end_matches('0').to_string();
+    }
     result
 }
 

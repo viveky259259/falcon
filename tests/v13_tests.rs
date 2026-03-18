@@ -43,7 +43,7 @@ class MyService {
     assert!(score.security.score <= 100);
     assert!(score.convention_match.score <= 100);
     assert!(score.complexity.score <= 100);
-    assert!(!score.grade.is_empty());
+    assert!(matches!(score.grade, falcon::ai_score::score::Grade::A | falcon::ai_score::score::Grade::B | falcon::ai_score::score::Grade::C | falcon::ai_score::score::Grade::D | falcon::ai_score::score::Grade::F));
 }
 
 #[test]
@@ -96,7 +96,7 @@ fn test_ai_score_grade() {
 
     let score = falcon::ai_score::score::calculate_ai_score(tmp.path()).unwrap();
     assert!(
-        ["A", "B", "C", "D", "F"].contains(&score.grade.as_str()),
+        matches!(score.grade, falcon::ai_score::score::Grade::A | falcon::ai_score::score::Grade::B | falcon::ai_score::score::Grade::C | falcon::ai_score::score::Grade::D | falcon::ai_score::score::Grade::F),
         "Grade should be A-F"
     );
 }
@@ -424,7 +424,7 @@ fn test_print_ai_score_no_panic() {
         complexity: falcon::ai_score::score::DimensionScore { score: 65, findings: vec![] },
         file_count: 10,
         total_issues: 5,
-        grade: "C".to_string(),
+        grade: falcon::ai_score::score::Grade::C,
     };
     falcon::ai_score::score::print_ai_score(&score);
 }

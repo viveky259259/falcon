@@ -423,7 +423,7 @@ enum Commands {
 
         /// Export format
         #[arg(long, default_value = "json")]
-        format: String,
+        format: ExportFormat,
 
         /// Output file (optional, prints to stdout if not specified)
         #[arg(short, long)]
@@ -462,7 +462,7 @@ enum Commands {
     RuleDocs {
         /// Output format (console or markdown)
         #[arg(long, default_value = "console")]
-        format: String,
+        format: DocFormat,
 
         /// Output file for markdown format
         #[arg(short, long)]
@@ -483,7 +483,7 @@ enum Commands {
 
         /// Output format (console or markdown)
         #[arg(long, default_value = "console")]
-        format: String,
+        format: DocFormat,
 
         /// Output file for markdown format
         #[arg(short, long)]
@@ -551,7 +551,7 @@ enum Commands {
 
         /// Output format (console or markdown)
         #[arg(long, default_value = "console")]
-        format: String,
+        format: DocFormat,
 
         /// Output file for markdown format
         #[arg(short, long)]
@@ -805,6 +805,19 @@ enum FailLevel {
     Error,
     Warning,
     Info,
+}
+
+#[derive(Clone, Debug, clap::ValueEnum)]
+enum ExportFormat {
+    Prometheus,
+    Json,
+    Webhook,
+}
+
+#[derive(Clone, Debug, clap::ValueEnum)]
+enum DocFormat {
+    Console,
+    Markdown,
 }
 
 fn main() {
@@ -1576,8 +1589,8 @@ fn run(cli: Cli) -> Result<()> {
             let report = falcon_inst.analyze(&path)?;
             let snapshot = falcon::dashboard::snapshot::AnalysisSnapshot::capture(&report, &path);
 
-            match format.as_str() {
-                "prometheus" => {
+            match format {
+                ExportFormat::Prometheus => {
                     let metrics = falcon::dashboard::exports::export_prometheus(&snapshot);
                     match output {
                         Some(out) => {
@@ -1587,7 +1600,7 @@ fn run(cli: Cli) -> Result<()> {
                         None => print!("{}", metrics),
                     }
                 }
-                "json" => {
+                ExportFormat::Json => {
                     let json = falcon::dashboard::exports::export_json(&snapshot)?;
                     match output {
                         Some(out) => {
@@ -1597,17 +1610,13 @@ fn run(cli: Cli) -> Result<()> {
                         None => println!("{}", json),
                     }
                 }
-                "webhook" => {
+                ExportFormat::Webhook => {
                     let url = webhook_url.as_deref().unwrap_or("http://localhost:9000/webhook");
                     let project = path.file_name().and_then(|f| f.to_str()).unwrap_or("project");
                     let payload = falcon::dashboard::exports::WebhookPayload::from_snapshot(&snapshot, project);
                     let json = payload.to_json()?;
                     println!("{}", json);
                     println!("  Webhook payload generated for {}", url.bright_blue());
-                }
-                other => {
-                    eprintln!("Unknown export format '{}'. Use: prometheus, json, webhook", other);
-                    process::exit(1);
                 }
             }
         }
@@ -1632,12 +1641,12 @@ fn run(cli: Cli) -> Result<()> {
             falcon::benchmark::print_benchmark(&result);
         }
         Commands::RuleDocs { format, output } => {
-            match format.as_str() {
-                "console" => {
+            match format {
+                DocFormat::Console => {
                     let docs = falcon::docs::rule_docs::generate_rule_docs();
                     falcon::docs::rule_docs::print_rule_docs(&docs);
                 }
-                "markdown" => {
+                DocFormat::Markdown => {
                     let docs = falcon::docs::rule_docs::generate_rule_docs();
                     let md = falcon::docs::rule_docs::generate_markdown_docs(&docs);
                     match output {
@@ -1651,10 +1660,6 @@ fn run(cli: Cli) -> Result<()> {
                         }
                         None => print!("{}", md),
                     }
-                }
-                _ => {
-                    eprintln!("Unknown format '{}'. Use: console, markdown", format);
-                    process::exit(1);
                 }
             }
         }
@@ -1682,9 +1687,9 @@ fn run(cli: Cli) -> Result<()> {
 
             let report = falcon::showcase::generate_showcase_report(analyses);
 
-            match format.as_str() {
-                "console" => falcon::showcase::print_showcase_report(&report),
-                "markdown" => {
+            match format {
+                DocFormat::Console => falcon::showcase::print_showcase_report(&report),
+                DocFormat::Markdown => {
                     let md = falcon::showcase::generate_markdown_report(&report);
                     match output {
                         Some(out) => {
@@ -1697,10 +1702,6 @@ fn run(cli: Cli) -> Result<()> {
                         }
                         None => print!("{}", md),
                     }
-                }
-                _ => {
-                    eprintln!("Unknown format '{}'. Use: console, markdown", format);
-                    process::exit(1);
                 }
             }
         }
@@ -1757,7 +1758,13 @@ fn run(cli: Cli) -> Result<()> {
                         process::exit(1);
                     }
                 };
-                falcon::stability::suppression::add_suppression(&path, &rule, &file, line, &reason, cat)?;
+                falcon::stability::suppression::add_suppression(&path, &falcon::stability::suppression::SuppressionRequest {
+                    rule: &rule,
+                    file: &file,
+                    line,
+                    reason: &reason,
+                    category: cat,
+                })?;
                 println!(
                     "  {} Suppression added for '{}' in {}",
                     "✓".green().bold(),
@@ -1789,9 +1796,9 @@ fn run(cli: Cli) -> Result<()> {
         }
         Commands::AiReport { path, format, output } => {
             let report = falcon::ai_score::report::generate_ai_report(&path)?;
-            match format.as_str() {
-                "console" => falcon::ai_score::report::print_ai_report(&report),
-                "markdown" => {
+            match format {
+                DocFormat::Console => falcon::ai_score::report::print_ai_report(&report),
+                DocFormat::Markdown => {
                     let md = falcon::ai_score::report::generate_markdown_report(&report);
                     match output {
                         Some(out) => {
@@ -1804,10 +1811,6 @@ fn run(cli: Cli) -> Result<()> {
                         }
                         None => print!("{}", md),
                     }
-                }
-                _ => {
-                    eprintln!("Unknown format '{}'. Use: console, markdown", format);
-                    process::exit(1);
                 }
             }
         }
@@ -1890,9 +1893,14 @@ fn run(cli: Cli) -> Result<()> {
 
 fn get_plugin_dir() -> PathBuf {
     let home = std::env::var("HOME")
-        .or_else(|_| std::env::var("USERPROFILE"))
-        .unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(".falcon").join("plugins")
+        .or_else(|_| std::env::var("USERPROFILE"));
+    match home {
+        Ok(dir) => PathBuf::from(dir).join(".falcon").join("plugins"),
+        Err(_) => {
+            log::warn!("HOME/USERPROFILE not set, using current directory for plugins");
+            PathBuf::from(".falcon").join("plugins")
+        }
+    }
 }
 
 fn run_incremental(
@@ -1952,7 +1960,7 @@ fn run_incremental(
     );
 
     let mut cache = AnalysisCache::load(path);
-    let report = falcon.analyze_files(path, &affected_vec)?;
+    let report = falcon.analyze_files(&affected_vec)?;
 
     for (file, _) in &report.metrics {
         let file_issues = report.issues.iter().filter(|i| i.file == *file).count();

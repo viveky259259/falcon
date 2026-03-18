@@ -35,19 +35,15 @@ use walkdir::WalkDir;
 
 pub struct Falcon {
     config: FalconConfig,
-    #[allow(dead_code)]
-    parser: DartParser,
     rule_registry: RuleRegistry,
 }
 
 impl Falcon {
     pub fn new(config: FalconConfig) -> Result<Self> {
-        let parser = DartParser::new()?;
         let mut rule_registry = RuleRegistry::new();
         rule_registry.register_defaults(&config);
         Ok(Self {
             config,
-            parser,
             rule_registry,
         })
     }
@@ -59,9 +55,27 @@ impl Falcon {
         let file_results: Vec<_> = files
             .par_iter()
             .filter_map(|file| {
-                let source = std::fs::read_to_string(file).ok()?;
-                let mut parser = DartParser::new().ok()?;
-                let tree = parser.parse(&source)?;
+                let source = match std::fs::read_to_string(file) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        log::warn!("Failed to read {}: {}", file.display(), e);
+                        return None;
+                    }
+                };
+                let mut parser = match DartParser::new() {
+                    Ok(p) => p,
+                    Err(e) => {
+                        log::warn!("Failed to create parser for {}: {}", file.display(), e);
+                        return None;
+                    }
+                };
+                let tree = match parser.parse(&source) {
+                    Some(t) => t,
+                    None => {
+                        log::warn!("Failed to parse {}", file.display());
+                        return None;
+                    }
+                };
                 let root = tree.root_node();
 
                 let mut issues = Vec::new();
@@ -107,9 +121,27 @@ impl Falcon {
         let results: Vec<_> = files
             .par_iter()
             .filter_map(|file| {
-                let source = std::fs::read_to_string(file).ok()?;
-                let mut parser = DartParser::new().ok()?;
-                let tree = parser.parse(&source)?;
+                let source = match std::fs::read_to_string(file) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        log::warn!("Failed to read {}: {}", file.display(), e);
+                        return None;
+                    }
+                };
+                let mut parser = match DartParser::new() {
+                    Ok(p) => p,
+                    Err(e) => {
+                        log::warn!("Failed to create parser: {}", e);
+                        return None;
+                    }
+                };
+                let tree = match parser.parse(&source) {
+                    Some(t) => t,
+                    None => {
+                        log::warn!("Failed to parse {}", file.display());
+                        return None;
+                    }
+                };
                 let root = tree.root_node();
                 let metrics =
                     metrics::calculate_file_metrics(root, &source, &self.config.metrics);
@@ -136,15 +168,33 @@ impl Falcon {
     }
 
     /// Analyze only a specific subset of files (for incremental mode).
-    pub fn analyze_files(&self, _path: &Path, files: &[PathBuf]) -> Result<AnalysisReport> {
+    pub fn analyze_files(&self, files: &[PathBuf]) -> Result<AnalysisReport> {
         let file_count = files.len();
 
         let file_results: Vec<_> = files
             .par_iter()
             .filter_map(|file| {
-                let source = std::fs::read_to_string(file).ok()?;
-                let mut parser = DartParser::new().ok()?;
-                let tree = parser.parse(&source)?;
+                let source = match std::fs::read_to_string(file) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        log::warn!("Failed to read {}: {}", file.display(), e);
+                        return None;
+                    }
+                };
+                let mut parser = match DartParser::new() {
+                    Ok(p) => p,
+                    Err(e) => {
+                        log::warn!("Failed to create parser: {}", e);
+                        return None;
+                    }
+                };
+                let tree = match parser.parse(&source) {
+                    Some(t) => t,
+                    None => {
+                        log::warn!("Failed to parse {}", file.display());
+                        return None;
+                    }
+                };
                 let root = tree.root_node();
 
                 let mut issues = Vec::new();
@@ -186,7 +236,13 @@ impl Falcon {
 
         let files: Vec<PathBuf> = WalkDir::new(path)
             .into_iter()
-            .filter_map(|e| e.ok())
+            .filter_map(|e| match e {
+                Ok(entry) => Some(entry),
+                Err(err) => {
+                    log::warn!("Failed to read directory entry: {}", err);
+                    None
+                }
+            })
             .filter(|e| e.file_type().is_file())
             .filter(|e| {
                 e.path()
