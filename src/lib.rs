@@ -1,6 +1,7 @@
 pub mod ai;
 pub mod analysis;
 pub mod config;
+pub mod dashboard;
 pub mod docs;
 pub mod incremental;
 pub mod lsp;

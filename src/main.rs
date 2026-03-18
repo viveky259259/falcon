@@ -385,6 +385,50 @@ enum Commands {
         #[command(subcommand)]
         action: PresetAction,
     },
+
+    /// Dashboard and analytics
+    Dashboard {
+        #[command(subcommand)]
+        action: DashboardAction,
+    },
+
+    /// Show quality trends from analysis history
+    Trends {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Number of recent snapshots to compare
+        #[arg(long, default_value = "10")]
+        last: usize,
+    },
+
+    /// Analyze rule impact and get auto-tune recommendations
+    #[command(name = "rule-impact")]
+    RuleImpact {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Export metrics (prometheus, json, webhook)
+    Export {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Export format
+        #[arg(long, default_value = "json")]
+        format: String,
+
+        /// Output file (optional, prints to stdout if not specified)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Webhook URL (for webhook format)
+        #[arg(long)]
+        webhook_url: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -446,6 +490,38 @@ enum PresetAction {
         /// Path to project
         #[arg(default_value = ".")]
         path: PathBuf,
+    },
+}
+
+#[derive(Subcommand)]
+enum DashboardAction {
+    /// Capture an analysis snapshot to history
+    Snapshot {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Start the local web dashboard
+    Serve {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Port number
+        #[arg(long, default_value = "8080")]
+        port: u16,
+    },
+
+    /// Show snapshot history
+    History {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Number of entries to show
+        #[arg(long, default_value = "10")]
+        last: usize,
     },
 }
 
@@ -1172,6 +1248,114 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         },
+        Commands::Dashboard { action } => match action {
+            DashboardAction::Snapshot { path } => {
+                let config = FalconConfig::load(&path)?;
+                let falcon = Falcon::new(config)?;
+                let report = falcon.analyze(&path)?;
+                let snapshot = falcon::dashboard::snapshot::AnalysisSnapshot::capture(&report, &path);
+                let saved = falcon::dashboard::snapshot::save_snapshot(&path, &snapshot)?;
+                println!(
+                    "  {} Snapshot saved — health {:.0}/100, {} issues, {} files",
+                    "✓".green().bold(),
+                    snapshot.health_score,
+                    snapshot.issues.total,
+                    snapshot.file_count,
+                );
+                println!("    → {}", saved.display());
+            }
+            DashboardAction::Serve { path, port } => {
+                falcon::dashboard::server::start_dashboard(&path, port)?;
+            }
+            DashboardAction::History { path, last } => {
+                let history = falcon::dashboard::snapshot::load_history(&path)?;
+                if history.is_empty() {
+                    println!("  No snapshots yet. Run: falcon dashboard snapshot");
+                } else {
+                    println!();
+                    println!(
+                        "  {} Analysis History ({} total, showing last {})",
+                        "falcon".bright_cyan().bold(),
+                        history.len(),
+                        last,
+                    );
+                    println!();
+                    for snap in history.iter().rev().take(last) {
+                        let commit = snap.commit_hash.as_deref().unwrap_or("—");
+                        println!(
+                            "  {} │ {} │ health {:.0} │ {} issues │ {} files",
+                            snap.timestamp,
+                            commit.bright_blue(),
+                            snap.health_score,
+                            snap.issues.total,
+                            snap.file_count,
+                        );
+                    }
+                    println!();
+                }
+            }
+        },
+        Commands::Trends { path, last } => {
+            let history = falcon::dashboard::snapshot::load_history(&path)?;
+            match falcon::dashboard::trends::analyze_trends(&history, last) {
+                Some(report) => falcon::dashboard::trends::print_trend_report(&report),
+                None => {
+                    println!("  Need at least 2 snapshots for trends. Run: falcon dashboard snapshot");
+                }
+            }
+        }
+        Commands::RuleImpact { path } => {
+            let history = falcon::dashboard::snapshot::load_history(&path)?;
+            if history.is_empty() {
+                println!("  No snapshots yet. Run: falcon dashboard snapshot");
+            } else {
+                let impacts = falcon::dashboard::rule_impact::measure_rule_impact(&history);
+                falcon::dashboard::rule_impact::print_rule_impact(&impacts);
+                let recs = falcon::dashboard::rule_impact::auto_tune_recommendations(&impacts);
+                falcon::dashboard::rule_impact::print_recommendations(&recs);
+            }
+        }
+        Commands::Export { path, format, output, webhook_url } => {
+            let config = FalconConfig::load(&path)?;
+            let falcon_inst = Falcon::new(config)?;
+            let report = falcon_inst.analyze(&path)?;
+            let snapshot = falcon::dashboard::snapshot::AnalysisSnapshot::capture(&report, &path);
+
+            match format.as_str() {
+                "prometheus" => {
+                    let metrics = falcon::dashboard::exports::export_prometheus(&snapshot);
+                    match output {
+                        Some(out) => {
+                            std::fs::write(&out, &metrics)?;
+                            println!("  {} Prometheus metrics saved to {}", "✓".green().bold(), out.display());
+                        }
+                        None => print!("{}", metrics),
+                    }
+                }
+                "json" => {
+                    let json = falcon::dashboard::exports::export_json(&snapshot)?;
+                    match output {
+                        Some(out) => {
+                            std::fs::write(&out, &json)?;
+                            println!("  {} JSON export saved to {}", "✓".green().bold(), out.display());
+                        }
+                        None => println!("{}", json),
+                    }
+                }
+                "webhook" => {
+                    let url = webhook_url.as_deref().unwrap_or("http://localhost:9000/webhook");
+                    let project = path.file_name().and_then(|f| f.to_str()).unwrap_or("project");
+                    let payload = falcon::dashboard::exports::WebhookPayload::from_snapshot(&snapshot, project);
+                    let json = payload.to_json()?;
+                    println!("{}", json);
+                    println!("  Webhook payload generated for {}", url.bright_blue());
+                }
+                other => {
+                    eprintln!("Unknown export format '{}'. Use: prometheus, json, webhook", other);
+                    process::exit(1);
+                }
+            }
+        }
     }
 
     Ok(())
