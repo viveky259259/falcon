@@ -1,0 +1,118 @@
+{
+  "name": "falcon-lint",
+  "displayName": "Falcon — Flutter/Dart Static Analysis",
+  "description": "Rust-powered static analysis for Flutter/Dart. Real-time diagnostics, quick fixes, and AI-powered code quality.",
+  "version": "0.1.0",
+  "publisher": "falcon-lint",
+  "license": "MIT",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/viveky259259/falcon"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "dart",
+    "flutter",
+    "lint",
+    "static analysis",
+    "code quality"
+  ],
+  "activationEvents": [
+    "onLanguage:dart",
+    "workspaceContains:**/pubspec.yaml"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Falcon",
+      "properties": {
+        "falcon.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Falcon static analysis."
+        },
+        "falcon.executablePath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the falcon-lsp binary. Leave empty to use the one in PATH."
+        },
+        "falcon.autoFixOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically apply Falcon fixes on file save."
+        },
+        "falcon.severity.error": {
+          "type": "string",
+          "default": "Error",
+          "enum": ["Error", "Warning", "Information", "Hint"],
+          "description": "VS Code severity for Falcon errors."
+        },
+        "falcon.severity.warning": {
+          "type": "string",
+          "default": "Warning",
+          "enum": ["Error", "Warning", "Information", "Hint"],
+          "description": "VS Code severity for Falcon warnings."
+        },
+        "falcon.severity.info": {
+          "type": "string",
+          "default": "Information",
+          "enum": ["Error", "Warning", "Information", "Hint"],
+          "description": "VS Code severity for Falcon info messages."
+        },
+        "falcon.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show Falcon issue counts in the status bar."
+        },
+        "falcon.trace.server": {
+          "type": "string",
+          "default": "off",
+          "enum": ["off", "messages", "verbose"],
+          "description": "Traces the communication between VS Code and the Falcon language server."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "falcon.analyzeWorkspace",
+        "title": "Falcon: Analyze Workspace"
+      },
+      {
+        "command": "falcon.fixAll",
+        "title": "Falcon: Fix All Auto-fixable Issues"
+      },
+      {
+        "command": "falcon.restart",
+        "title": "Falcon: Restart Language Server"
+      },
+      {
+        "command": "falcon.showOutput",
+        "title": "Falcon: Show Output"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.0.0",
+    "@vscode/vsce": "^2.22.0"
+  }
+}

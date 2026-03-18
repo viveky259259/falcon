@@ -300,7 +300,7 @@ with context-aware mode.
 
 ---
 
-## v0.6 — IDE Integration
+## v0.6 — IDE Integration (VS Code Complete)
 
 > **Pain points addressed**:
 > - Dart analyzer 70-second lag spikes in IDE (#1)
@@ -310,7 +310,7 @@ with context-aware mode.
 The moment Falcon appears in the editor, it becomes the default tool.
 Everything before this is CLI — this version makes it invisible infrastructure.
 
-### 6A: VS Code Extension (~5 weeks)
+### 6A: VS Code Extension (Complete)
 
 | Deliverable | Effort | Why it matters |
 |---|---|---|

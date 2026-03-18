@@ -2,6 +2,7 @@ pub mod ai;
 pub mod config;
 pub mod docs;
 pub mod incremental;
+pub mod lsp;
 pub mod metrics;
 pub mod parser;
 pub mod reporters;

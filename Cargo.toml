@@ -12,6 +12,10 @@ categories = ["development-tools", "command-line-utilities"]
 name = "falcon"
 path = "src/main.rs"
 
+[[bin]]
+name = "falcon-lsp"
+path = "src/lsp_main.rs"
+
 [lib]
 name = "falcon"
 path = "src/lib.rs"
@@ -31,6 +35,9 @@ anyhow = "1"
 thiserror = "2"
 log = "0.4"
 env_logger = "0.11"
+tower-lsp = "0.20"
+tokio = { version = "1", features = ["full"] }
+dashmap = "6"
 
 [dev-dependencies]
 tempfile = "3"
