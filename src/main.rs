@@ -569,6 +569,12 @@ enum Commands {
         verbose: bool,
     },
 
+    /// Manage Flutter app — health, deps, architecture, maintenance, build
+    Manage {
+        #[command(subcommand)]
+        action: ManageAction,
+    },
+
     /// Start Falcon MCP server (stdio) for AI tool integration
     #[command(name = "mcp")]
     Mcp,
@@ -1159,6 +1165,59 @@ enum EnterpriseAction {
         /// Number of entries to show
         #[arg(long, default_value = "20")]
         last: usize,
+    },
+}
+
+#[derive(Subcommand)]
+enum ManageAction {
+    /// Project health dashboard (unified score across all dimensions)
+    Health {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Dependency health analysis (unused, outdated, security)
+    Deps {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Architecture governance (layer enforcement, violations, hotspots)
+    Arch {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Maintenance advisor (cleanup tasks, tech debt, auto-fix pipeline)
+    Maint {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Build optimization (assets, config, code size)
+    Build {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Run ALL management analyses at once
+    All {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
     },
 }
 
@@ -2135,6 +2194,52 @@ fn run(cli: Cli) -> Result<()> {
             SuppressAction::List { path } => {
                 let db = falcon::stability::suppression::load_suppressions(&path)?;
                 falcon::stability::suppression::print_suppression_list(&db);
+            }
+        },
+        Commands::Manage { action } => match action {
+            ManageAction::Health { path, json } => {
+                let report = falcon::manage::health::generate_health_report(&path)?;
+                if json {
+                    println!("{}", serde_json::to_string_pretty(&report)?);
+                } else {
+                    falcon::manage::health::print_health_report(&report);
+                }
+            }
+            ManageAction::Deps { path } => {
+                let report = falcon::manage::deps::analyze_dependencies(&path)?;
+                falcon::manage::deps::print_dep_report(&report);
+            }
+            ManageAction::Arch { path, json } => {
+                let report = falcon::manage::architect::analyze_architecture(&path)?;
+                if json {
+                    println!("{}", serde_json::to_string_pretty(&report)?);
+                } else {
+                    falcon::manage::architect::print_arch_report(&report);
+                }
+            }
+            ManageAction::Maint { path } => {
+                let report = falcon::manage::maintenance::analyze_maintenance(&path)?;
+                falcon::manage::maintenance::print_maintenance_report(&report);
+            }
+            ManageAction::Build { path } => {
+                let report = falcon::manage::build_opt::analyze_build(&path)?;
+                falcon::manage::build_opt::print_build_report(&report);
+            }
+            ManageAction::All { path } => {
+                let health = falcon::manage::health::generate_health_report(&path)?;
+                falcon::manage::health::print_health_report(&health);
+
+                let deps = falcon::manage::deps::analyze_dependencies(&path)?;
+                falcon::manage::deps::print_dep_report(&deps);
+
+                let arch = falcon::manage::architect::analyze_architecture(&path)?;
+                falcon::manage::architect::print_arch_report(&arch);
+
+                let maint = falcon::manage::maintenance::analyze_maintenance(&path)?;
+                falcon::manage::maintenance::print_maintenance_report(&maint);
+
+                let build = falcon::manage::build_opt::analyze_build(&path)?;
+                falcon::manage::build_opt::print_build_report(&build);
             }
         },
         Commands::Mcp => {

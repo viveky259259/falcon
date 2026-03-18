@@ -11,6 +11,7 @@ pub mod dashboard;
 pub mod docs;
 pub mod incremental;
 pub mod lsp;
+pub mod manage;
 pub mod mcp;
 pub mod metrics;
 pub mod migration;
