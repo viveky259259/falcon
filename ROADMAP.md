@@ -89,49 +89,49 @@ Complete the full set of function and class metrics.
 
 ---
 
-## v0.3 -- Rules Expansion (50+ Rules)
+## v0.3 -- Rules Expansion (43 Total Rules) (Complete)
 
-Grow the rule library significantly with framework-specific rules.
+Grew the rule library to 43 rules with framework-specific rules.
 
 ### Common Dart Rules (+15)
-- [ ] `avoid-unused-parameters`
-- [ ] `prefer-correct-identifier-length`
-- [ ] `avoid-cascade-after-if-null`
-- [ ] `avoid-collection-methods-with-unrelated-types`
-- [ ] `avoid-duplicate-exports`
-- [ ] `avoid-missing-enum-constant-in-map`
-- [ ] `avoid-non-ascii-symbols`
-- [ ] `avoid-throw-in-catch-block`
-- [ ] `avoid-top-level-members-in-tests`
-- [ ] `avoid-unnecessary-type-assertions`
-- [ ] `avoid-unnecessary-type-casts`
-- [ ] `binary-expression-operand-order`
-- [ ] `double-literal-format`
-- [ ] `newline-before-return`
-- [ ] `prefer-first-last`
+- [x] `avoid-unused-parameters`
+- [x] `prefer-correct-identifier-length`
+- [x] `avoid-cascade-after-if-null`
+- [x] `avoid-collection-methods-with-unrelated-types`
+- [x] `avoid-duplicate-exports`
+- [x] `avoid-missing-enum-constant-in-map`
+- [x] `avoid-non-ascii-symbols`
+- [x] `avoid-throw-in-catch-block`
+- [x] `avoid-top-level-members-in-tests`
+- [x] `avoid-unnecessary-type-assertions`
+- [x] `avoid-unnecessary-type-casts`
+- [x] `binary-expression-operand-order`
+- [x] `double-literal-format`
+- [x] `newline-before-return`
+- [x] `prefer-first-last`
 
 ### Provider/Riverpod Rules (+5)
-- [ ] `avoid-ref-read-inside-build`
-- [ ] `avoid-watch-outside-build`
-- [ ] `prefer-async-value-when`
-- [ ] `avoid-public-notifier-properties`
-- [ ] `prefer-ref-read-for-methods`
+- [x] `avoid-ref-read-inside-build`
+- [x] `avoid-watch-outside-build`
+- [x] `prefer-async-value-when`
+- [x] `avoid-public-notifier-properties`
+- [x] `prefer-ref-read-for-methods`
 
 ### BLoC Rules (+5)
-- [ ] `avoid-bloc-public-methods`
-- [ ] `avoid-emit-outside-bloc`
-- [ ] `prefer-multi-bloc-provider`
-- [ ] `avoid-passing-bloc-to-widget`
-- [ ] `prefer-bloc-extensions`
+- [x] `avoid-bloc-public-methods`
+- [x] `avoid-emit-outside-bloc`
+- [x] `prefer-multi-bloc-provider`
+- [x] `avoid-passing-bloc-to-widget`
+- [x] `prefer-bloc-extensions`
 
 ### Equatable Rules (+3)
-- [ ] `always-override-equals-and-hashcode`
-- [ ] `avoid-mutable-equatable`
-- [ ] `prefer-equatable`
+- [x] `always-override-equals-and-hashcode`
+- [x] `avoid-mutable-equatable`
+- [x] `prefer-equatable`
 
 ### Infrastructure
-- [ ] Suppression comments (`// ignore: rule-name`)
-- [ ] `// ignore_for_file:` directive for all rules
+- [x] Suppression comments (`// ignore: rule-name`)
+- [x] `// ignore_for_file:` directive for all rules
 - [ ] Rule documentation generator
 
 ---

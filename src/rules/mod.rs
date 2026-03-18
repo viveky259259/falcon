@@ -1,5 +1,8 @@
+pub mod bloc;
 pub mod common;
+pub mod equatable;
 pub mod flutter;
+pub mod provider;
 pub mod severity;
 
 use crate::config::{FalconConfig, Severity};
@@ -34,6 +37,7 @@ impl RuleRegistry {
                 .collect();
 
         let all_rules: Vec<Box<dyn Rule>> = vec![
+            // v0.1 Dart rules
             Box::new(common::AvoidLongFunctions::default()),
             Box::new(common::AvoidLongParameterList::default()),
             Box::new(common::AvoidNestedConditionals::default()),
@@ -44,11 +48,44 @@ impl RuleRegistry {
             Box::new(common::NoMagicNumbers::default()),
             Box::new(common::PreferMatchFileName),
             Box::new(common::AvoidDoubleNegation),
+            // v0.1 Flutter rules
             Box::new(flutter::AvoidReturningWidgets),
             Box::new(flutter::PreferExtractingCallbacks),
             Box::new(flutter::AvoidUnnecessarySetState),
             Box::new(flutter::AvoidExpandedAsSpacer),
             Box::new(flutter::PreferConstConstructors),
+            // v0.3 Dart rules
+            Box::new(common::AvoidUnusedParameters),
+            Box::new(common::PreferCorrectIdentifierLength::default()),
+            Box::new(common::AvoidCascadeAfterIfNull),
+            Box::new(common::AvoidCollectionMethodsUnrelatedTypes),
+            Box::new(common::AvoidDuplicateExports),
+            Box::new(common::AvoidMissingEnumConstantInMap),
+            Box::new(common::AvoidNonAsciiSymbols),
+            Box::new(common::AvoidThrowInCatch),
+            Box::new(common::AvoidTopLevelMembersInTests),
+            Box::new(common::AvoidUnnecessaryTypeAssertions),
+            Box::new(common::AvoidUnnecessaryTypeCasts),
+            Box::new(common::BinaryExpressionOperandOrder),
+            Box::new(common::DoubleLiteralFormat),
+            Box::new(common::NewlineBeforeReturn),
+            Box::new(common::PreferFirstLast),
+            // v0.3 Provider/Riverpod rules
+            Box::new(provider::AvoidRefReadInsideBuild),
+            Box::new(provider::AvoidWatchOutsideBuild),
+            Box::new(provider::PreferAsyncValueWhen),
+            Box::new(provider::AvoidPublicNotifierProperties),
+            Box::new(provider::PreferRefReadForMethods),
+            // v0.3 BLoC rules
+            Box::new(bloc::AvoidBlocPublicMethods),
+            Box::new(bloc::AvoidEmitOutsideBloc),
+            Box::new(bloc::PreferMultiBlocProvider),
+            Box::new(bloc::AvoidPassingBlocToWidget),
+            Box::new(bloc::PreferBlocExtensions),
+            // v0.3 Equatable rules
+            Box::new(equatable::AlwaysOverrideEqualsHashCode),
+            Box::new(equatable::AvoidMutableEquatable),
+            Box::new(equatable::PreferEquatable),
         ];
 
         for mut rule in all_rules {
