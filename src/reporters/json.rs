@@ -72,6 +72,10 @@ fn metrics_to_json(metrics: &[(PathBuf, MetricsResults)]) -> Vec<Value> {
                         "maintainability_index": f.maintainability_index,
                         "max_nesting_level": f.max_nesting_level,
                         "number_of_parameters": f.number_of_parameters,
+                        "halstead_volume": f.halstead_volume,
+                        "halstead_difficulty": f.halstead_difficulty,
+                        "widgets_nesting_level": f.widgets_nesting_level,
+                        "number_of_used_widgets": f.number_of_used_widgets,
                     })
                 }).collect::<Vec<_>>(),
                 "classes": result.classes.iter().map(|c| {
@@ -80,6 +84,16 @@ fn metrics_to_json(metrics: &[(PathBuf, MetricsResults)]) -> Vec<Value> {
                         "line": c.line,
                         "number_of_methods": c.number_of_methods,
                         "lines_of_code": c.lines_of_code,
+                        "coupling_between_objects": c.coupling_between_objects,
+                        "depth_of_inheritance": c.depth_of_inheritance,
+                        "number_of_added_methods": c.number_of_added_methods,
+                        "number_of_interfaces": c.number_of_interfaces,
+                        "number_of_overridden_methods": c.number_of_overridden_methods,
+                        "response_for_class": c.response_for_class,
+                        "tight_class_cohesion": c.tight_class_cohesion,
+                        "weight_of_class": c.weight_of_class,
+                        "weighted_methods_per_class": c.weighted_methods_per_class,
+                        "lack_of_cohesion": c.lack_of_cohesion,
                     })
                 }).collect::<Vec<_>>(),
             })

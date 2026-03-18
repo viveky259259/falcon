@@ -93,6 +93,18 @@ pub fn get_declaration_name<'a>(node: Node<'a>, source: &'a str) -> Option<&'a s
             return Some(&source[child.byte_range()]);
         }
     }
+    // For method_signature, the name lives inside a nested function_signature
+    let mut cursor2 = node.walk();
+    for child in node.children(&mut cursor2) {
+        if child.kind() == "function_signature" {
+            let mut inner = child.walk();
+            for inner_child in child.children(&mut inner) {
+                if inner_child.kind() == "identifier" {
+                    return Some(&source[inner_child.byte_range()]);
+                }
+            }
+        }
+    }
     None
 }
 

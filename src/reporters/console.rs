@@ -61,34 +61,51 @@ impl Reporter for ConsoleReporter {
             println!("  {}", display_path.bright_white().bold());
 
             for func in &result.functions {
-                let cc_color = if func.cyclomatic_complexity > 20 {
-                    Color::Red
-                } else if func.cyclomatic_complexity > 10 {
-                    Color::Yellow
-                } else {
-                    Color::Green
-                };
+                let cc_color = threshold_color(func.cyclomatic_complexity, 10, 20, 30);
+                let mi_color = threshold_color_inverted(func.maintainability_index, 20.0, 40.0, 60.0);
 
                 println!(
-                    "    {} {} │ CC: {} │ LOC: {} │ SLOC: {} │ Params: {} │ Nesting: {} │ MI: {:.1}",
+                    "    {} {} │ CC: {} │ LOC: {} │ MI: {} │ HV: {:.0} │ Params: {} │ Nesting: {}",
                     "fn".dimmed(),
                     func.name.bright_white(),
                     func.cyclomatic_complexity.to_string().color(cc_color),
                     func.lines_of_code,
-                    func.source_lines_of_code,
+                    format!("{:.1}", func.maintainability_index).color(mi_color),
+                    func.halstead_volume,
                     func.number_of_parameters,
                     func.max_nesting_level,
-                    func.maintainability_index,
                 );
+
+                if func.widgets_nesting_level > 0 || func.number_of_used_widgets > 0 {
+                    println!(
+                        "           {} Widget Nesting: {} │ Widgets Used: {}",
+                        "└".dimmed(),
+                        func.widgets_nesting_level,
+                        func.number_of_used_widgets,
+                    );
+                }
             }
 
             for class in &result.classes {
                 println!(
-                    "    {} {} │ Methods: {} │ LOC: {}",
+                    "    {} {} │ Methods: {} │ WMC: {} │ CBO: {} │ DIT: {} │ RFC: {} │ LCOM: {}",
                     "class".dimmed(),
                     class.name.bright_white(),
                     class.number_of_methods,
-                    class.lines_of_code,
+                    class.weighted_methods_per_class,
+                    class.coupling_between_objects,
+                    class.depth_of_inheritance,
+                    class.response_for_class,
+                    class.lack_of_cohesion,
+                );
+                println!(
+                    "           {} TCC: {:.2} │ WOC: {:.2} │ Interfaces: {} │ Overridden: {} │ Added: {}",
+                    "└".dimmed(),
+                    class.tight_class_cohesion,
+                    class.weight_of_class,
+                    class.number_of_interfaces,
+                    class.number_of_overridden_methods,
+                    class.number_of_added_methods,
                 );
             }
 
@@ -136,6 +153,30 @@ impl Reporter for ConsoleReporter {
         }
 
         println!();
+    }
+}
+
+fn threshold_color(value: u32, noted: u32, warning: u32, alarm: u32) -> Color {
+    if value >= alarm {
+        Color::Red
+    } else if value >= warning {
+        Color::Red
+    } else if value >= noted {
+        Color::Yellow
+    } else {
+        Color::Green
+    }
+}
+
+fn threshold_color_inverted(value: f64, alarm: f64, warning: f64, noted: f64) -> Color {
+    if value <= alarm {
+        Color::Red
+    } else if value <= warning {
+        Color::Yellow
+    } else if value <= noted {
+        Color::Yellow
+    } else {
+        Color::Green
     }
 }
 

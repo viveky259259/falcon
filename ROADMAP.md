@@ -61,31 +61,31 @@ Core infrastructure with essential metrics, lint rules, and unused detection.
 
 ---
 
-## v0.2 -- Metrics Expansion
+## v0.2 -- Metrics Expansion (Complete)
 
 Complete the full set of function and class metrics.
 
 ### Function/Method Metrics (+3)
-- [ ] Halstead volume
-- [ ] Widgets nesting level (Flutter-specific)
-- [ ] Number of used widgets (Flutter-specific)
+- [x] Halstead volume (operators, operands, vocabulary, difficulty, effort)
+- [x] Widgets nesting level (Flutter-specific)
+- [x] Number of used widgets (Flutter-specific)
 
 ### Class Metrics (+10)
-- [ ] Coupling between object classes (CBO)
-- [ ] Depth of inheritance tree (DIT)
-- [ ] Number of added methods
-- [ ] Number of implemented interfaces
-- [ ] Number of overridden methods
-- [ ] Response for class (RFC)
-- [ ] Tight class cohesion (TCC)
-- [ ] Weight of class (WOC)
-- [ ] Weighted methods per class (WMC)
-- [ ] Lack of cohesion of methods (LCOM)
+- [x] Coupling between object classes (CBO)
+- [x] Depth of inheritance tree (DIT)
+- [x] Number of added methods
+- [x] Number of implemented interfaces
+- [x] Number of overridden methods
+- [x] Response for class (RFC)
+- [x] Tight class cohesion (TCC)
+- [x] Weight of class (WOC)
+- [x] Weighted methods per class (WMC)
+- [x] Lack of cohesion of methods (LCOM)
 
 ### Reporting
-- [ ] HTML report output format with interactive charts
-- [ ] Metric threshold levels (noted, warning, alarm)
-- [ ] Per-metric severity configuration
+- [x] HTML report output format with dark theme
+- [x] Metric threshold levels (noted, warning, alarm)
+- [x] Per-metric severity configuration (ThresholdLevel API)
 
 ---
 

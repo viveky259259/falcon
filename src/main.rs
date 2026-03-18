@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use falcon::config::FalconConfig;
 use falcon::reporters::console::ConsoleReporter;
+use falcon::reporters::html::HtmlReporter;
 use falcon::reporters::json::JsonReporter;
 use falcon::reporters::Reporter;
 use falcon::Falcon;
@@ -32,6 +33,10 @@ enum Commands {
         #[arg(short, long, default_value = "console")]
         format: OutputFormat,
 
+        /// Output file path (for HTML format)
+        #[arg(short, long, default_value = "falcon-report.html")]
+        output: PathBuf,
+
         /// Path to falcon.yaml config
         #[arg(short, long)]
         config: Option<PathBuf>,
@@ -46,6 +51,10 @@ enum Commands {
         /// Output format
         #[arg(short, long, default_value = "console")]
         format: OutputFormat,
+
+        /// Output file path (for HTML format)
+        #[arg(short, long, default_value = "falcon-report.html")]
+        output: PathBuf,
 
         /// Path to falcon.yaml config
         #[arg(short, long)]
@@ -62,6 +71,10 @@ enum Commands {
         /// Output format
         #[arg(short, long, default_value = "console")]
         format: OutputFormat,
+
+        /// Output file path (for HTML format)
+        #[arg(short, long, default_value = "falcon-report.html")]
+        output: PathBuf,
     },
 
     /// Check for unused Dart files
@@ -74,6 +87,10 @@ enum Commands {
         /// Output format
         #[arg(short, long, default_value = "console")]
         format: OutputFormat,
+
+        /// Output file path (for HTML format)
+        #[arg(short, long, default_value = "falcon-report.html")]
+        output: PathBuf,
     },
 
     /// Check for unused dependencies in pubspec.yaml
@@ -86,6 +103,10 @@ enum Commands {
         /// Output format
         #[arg(short, long, default_value = "console")]
         format: OutputFormat,
+
+        /// Output file path (for HTML format)
+        #[arg(short, long, default_value = "falcon-report.html")]
+        output: PathBuf,
     },
 
     /// Generate a default falcon.yaml configuration file
@@ -100,6 +121,7 @@ enum Commands {
 enum OutputFormat {
     Console,
     Json,
+    Html,
 }
 
 fn main() {
@@ -117,6 +139,7 @@ fn run(cli: Cli) -> Result<()> {
         Commands::Analyze {
             path,
             format,
+            output,
             config,
         } => {
             let config_path = config.as_deref().unwrap_or(&path);
@@ -125,7 +148,7 @@ fn run(cli: Cli) -> Result<()> {
             let report = falcon.analyze(&path)?;
             let has_errors = report.has_errors();
 
-            get_reporter(&format).report_analysis(&report);
+            get_reporter(&format, &output).report_analysis(&report);
 
             if has_errors {
                 process::exit(1);
@@ -134,6 +157,7 @@ fn run(cli: Cli) -> Result<()> {
         Commands::Metrics {
             path,
             format,
+            output,
             config,
         } => {
             let config_path = config.as_deref().unwrap_or(&path);
@@ -141,36 +165,48 @@ fn run(cli: Cli) -> Result<()> {
             let falcon = Falcon::new(falcon_config)?;
             let metrics = falcon.calculate_metrics(&path)?;
 
-            get_reporter(&format).report_metrics(&metrics);
+            get_reporter(&format, &output).report_metrics(&metrics);
         }
-        Commands::CheckUnusedCode { path, format } => {
+        Commands::CheckUnusedCode {
+            path,
+            format,
+            output,
+        } => {
             let config = FalconConfig::load(&path)?;
             let falcon = Falcon::new(config)?;
             let issues = falcon.check_unused_code(&path)?;
 
-            get_reporter(&format).report_issues(&issues);
+            get_reporter(&format, &output).report_issues(&issues);
 
             if !issues.is_empty() {
                 process::exit(1);
             }
         }
-        Commands::CheckUnusedFiles { path, format } => {
+        Commands::CheckUnusedFiles {
+            path,
+            format,
+            output,
+        } => {
             let config = FalconConfig::load(&path)?;
             let falcon = Falcon::new(config)?;
             let issues = falcon.check_unused_files(&path)?;
 
-            get_reporter(&format).report_issues(&issues);
+            get_reporter(&format, &output).report_issues(&issues);
 
             if !issues.is_empty() {
                 process::exit(1);
             }
         }
-        Commands::CheckDependencies { path, format } => {
+        Commands::CheckDependencies {
+            path,
+            format,
+            output,
+        } => {
             let config = FalconConfig::load(&path)?;
             let falcon = Falcon::new(config)?;
             let issues = falcon.check_dependencies(&path)?;
 
-            get_reporter(&format).report_issues(&issues);
+            get_reporter(&format, &output).report_issues(&issues);
 
             if !issues.is_empty() {
                 process::exit(1);
@@ -185,9 +221,12 @@ fn run(cli: Cli) -> Result<()> {
     Ok(())
 }
 
-fn get_reporter(format: &OutputFormat) -> Box<dyn Reporter> {
+fn get_reporter(format: &OutputFormat, output: &PathBuf) -> Box<dyn Reporter> {
     match format {
         OutputFormat::Console => Box::new(ConsoleReporter),
         OutputFormat::Json => Box::new(JsonReporter),
+        OutputFormat::Html => Box::new(HtmlReporter {
+            output_path: output.clone(),
+        }),
     }
 }

@@ -1,4 +1,5 @@
 pub mod console;
+pub mod html;
 pub mod json;
 
 use crate::config::Severity;
