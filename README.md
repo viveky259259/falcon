@@ -41,23 +41,22 @@ $ falcon ai-score .
 
 | Feature | Command | Description |
 |---|---|---|
-| **AI Score** | `falcon ai-score` | 0-100 score with 6-dimension breakdown |
-| **58+ Rules** | `falcon analyze` | Flutter, BLoC, Riverpod, accessibility rules |
+| **App Manager** | `falcon manage health` | Unified 0-100 health score across 6 dimensions |
+| **Dep Manager** | `falcon manage deps` | Unused deps, version issues, path/git deps |
+| **Architect** | `falcon manage arch` | Architecture governance, layer violations, hotspots |
+| **Maintenance** | `falcon manage maint` | Tech debt score, cleanup tasks, auto-fix pipeline |
+| **AI Score** | `falcon ai-score` | 0-100 AI Code Quality Score with 6-dimension breakdown |
+| **61+ Rules** | `falcon analyze` | Flutter, BLoC, Riverpod, accessibility rules |
 | **MCP Server** | `falcon-mcp` | AI tools call Falcon during code generation |
 | **PR Comments** | `falcon pr-comment` | Auto-post analysis on GitHub PRs |
-| **Provenance** | `falcon provenance` | Detect AI-generated vs human-written files |
-| **Performance** | `falcon check-perf` | DevTools-style rebuild/memory/render analysis |
 | **Vulnerability** | `falcon vuln-scan` | Security radar with CWE classification |
-| **Drift Detection** | `falcon drift` | Convention drift in new code |
 | **Risk Prediction** | `falcon predict` | Predict production issues from patterns |
 | **Test Generation** | `falcon test-gen` | Generate test stubs from code analysis |
 | **Refactoring Sim** | `falcon refactor-sim` | "What if we migrate to Riverpod?" impact |
-| **Upgrade Check** | `falcon upgrade-check` | Deprecated Flutter API detection |
 | **Enterprise** | `falcon enterprise` | Policies, audit logs, compliance |
-| **Certification** | `falcon certify` | Bronze/Silver/Gold/Platinum badges |
 | **HTTP API** | `falcon api` | REST API for integrations |
 
-[See all 74 commands →](docs/cli-reference.md)
+[See all 80+ commands →](docs/cli-reference.md)
 
 ## AI Tool Integration (MCP)
 

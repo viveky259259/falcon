@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Management — Falcon Documentation</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <a href="index.html" class="sidebar-logo">falcon docs</a>
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Getting Started</div>
+                <a href="index.html">Home</a>
+                <a href="getting-started.html">Getting Started</a>
+            </nav>
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Reference</div>
+                <a href="cli-reference.html">CLI Reference</a>
+                <a href="rules.html">Rules</a>
+            </nav>
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">AI Features</div>
+                <a href="ai-features.html">AI Features</a>
+            </nav>
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">App Management</div>
+                <a href="manage.html" class="active">Manage</a>
+            </nav>
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Integration</div>
+                <a href="ci-cd.html">CI/CD</a>
+                <a href="integrations.html">Integrations</a>
+            </nav>
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Platform</div>
+                <a href="enterprise.html">Enterprise</a>
+            </nav>
+        </aside>
+
+        <main class="main">
+            <div class="breadcrumb"><a href="index.html">Docs</a> &gt; App Management</div>
+            <h1>App Management</h1>
+            <p>Falcon goes beyond static analysis — it <strong>manages</strong> your Flutter app. The <code>falcon manage</code> command provides a unified dashboard covering project health, dependencies, architecture, maintenance, and build optimization.</p>
+
+            <div class="callout">
+                <div class="callout-title">Run everything at once</div>
+                <pre><code>falcon manage all /path/to/flutter/app</code></pre>
+            </div>
+
+            <h2>Project Health Dashboard</h2>
+            <p>A unified 0-100 health score combining 6 weighted dimensions into a single number.</p>
+
+            <pre><code><span class="cmd">$</span> falcon manage health .
+
+  falcon manage Project Health — my_app
+  ═══════════════════════════════════════
+
+  Overall Health: 72/100 (Grade: C)
+
+    Code Quality       72/100 ██████████████░░░░░░ (30%)
+    Security          100/100 ████████████████████ (20%)
+    Performance        85/100 █████████████████░░░ (15%)
+    Maintainability    60/100 ████████████░░░░░░░░ (15%)
+    Test Coverage      45/100 █████████░░░░░░░░░░░ (10%)
+    Dependencies       90/100 ██████████████████░░ (10%)
+
+  ▸ Stats
+    Files: 120 | Lines: 15000 | Issues: 230 (5 errors, 225 warnings)
+
+  ▸ Action Items (by priority)
+    1. [Error Handling] Score 45/100 — empty catches, unawaited futures
+       Run: falcon analyze --preset ai-generated
+    2. [Test Coverage] 8 test files for 120 source files
+       Run: falcon test-gen --write</code></pre>
+
+            <h3>Dimension Weights</h3>
+            <table>
+                <tr><th>Dimension</th><th>Weight</th><th>What it Measures</th></tr>
+                <tr><td>Code Quality</td><td>30%</td><td>AI Code Score (error handling, type safety, security, etc.)</td></tr>
+                <tr><td>Security</td><td>20%</td><td>Vulnerability scan results (insecure storage, HTTP, injection)</td></tr>
+                <tr><td>Performance</td><td>15%</td><td>DevTools-style analysis (rebuilds, memory, rendering)</td></tr>
+                <tr><td>Maintainability</td><td>15%</td><td>Long functions, nesting, unused code</td></tr>
+                <tr><td>Test Coverage</td><td>10%</td><td>Ratio of test files to source files</td></tr>
+                <tr><td>Dependencies</td><td>10%</td><td>Unused, outdated, or insecure dependencies</td></tr>
+            </table>
+
+            <p>Use <code>--json</code> to get machine-readable output for CI pipelines:</p>
+            <pre><code>falcon manage health . --json</code></pre>
+
+            <h2>Dependency Manager</h2>
+            <p>Analyzes <code>pubspec.yaml</code> and all Dart imports to find dependency health issues.</p>
+
+            <pre><code><span class="cmd">$</span> falcon manage deps .
+
+  falcon manage Dependency Manager
+
+  Total dependencies: 50 (49 direct, 1 dev)
+
+  ⚠ Unused dependencies:
+    ✗ flutter_animate — not imported in any file
+    ✗ sqflite — not imported in any file
+    ✗ path_provider — not imported in any file
+
+  ▸ Issues:
+    ⚠ [path-dep] 'my_package' uses path dependency — ensure CI can resolve it
+    · [override] dependency_overrides found — not for production</code></pre>
+
+            <h3>Issues Detected</h3>
+            <table>
+                <tr><th>Issue Type</th><th>Description</th></tr>
+                <tr><td><code>unused</code></td><td>Dependency declared in pubspec.yaml but never imported</td></tr>
+                <tr><td><code>permissive</code></td><td>No version constraint (using <code>any</code>) — pin with <code>^x.y.z</code></td></tr>
+                <tr><td><code>pinned</code></td><td>Exact version pin may prevent updates</td></tr>
+                <tr><td><code>git-dep</code></td><td>Git dependency — less stable than published packages</td></tr>
+                <tr><td><code>path-dep</code></td><td>Local path dependency — ensure CI can resolve</td></tr>
+                <tr><td><code>override</code></td><td><code>dependency_overrides</code> found — should be temporary</td></tr>
+            </table>
+
+            <h2>Architecture Governor</h2>
+            <p>Detects your architecture pattern, enforces layer boundaries, and finds complexity hotspots.</p>
+
+            <pre><code><span class="cmd">$</span> falcon manage arch .
+
+  falcon manage Architecture Governor
+
+  Pattern:         Clean Architecture
+  Compliance:      92%
+  Violations:      3
+  Modules:         45
+
+  ▸ Violations:
+    ✗ lib/domain/user_repo.dart — Domain layer imports from data layer
+    ✗ lib/data/api_service.dart — Data layer imports from presentation
+
+  ▸ Complexity Hotspots:
+    ⚠ lib/pages/settings.dart — 1271 lines — split into smaller files
+    ⚠ lib/pages/profile.dart — 810 lines — split into smaller files
+
+  ▸ Suggestions:
+    → 5 files exceed 500 lines — break into focused modules
+    → Enforce with: falcon check-layers in CI</code></pre>
+
+            <h3>Supported Architecture Patterns</h3>
+            <table>
+                <tr><th>Pattern</th><th>Detection Signal</th><th>Layer Enforcement</th></tr>
+                <tr><td>Clean Architecture</td><td><code>domain/</code>, <code>data/</code>, <code>presentation/</code> dirs</td><td>Domain cannot import data/presentation; Data cannot import presentation</td></tr>
+                <tr><td>Feature-First</td><td><code>features/</code> dir</td><td>Features cannot cross-import; use <code>core/</code> or <code>shared/</code></td></tr>
+                <tr><td>MVC/MVVM</td><td><code>models/</code>, <code>views/</code> dirs</td><td>Basic separation checks</td></tr>
+                <tr><td>Flat/Custom</td><td>No recognized pattern</td><td>Suggests adopting Clean Architecture</td></tr>
+            </table>
+
+            <h2>Maintenance Advisor</h2>
+            <p>Identifies cleanup tasks, calculates tech debt score, and shows what can be auto-fixed.</p>
+
+            <pre><code><span class="cmd">$</span> falcon manage maint .
+
+  falcon manage Maintenance Advisor
+
+  Tech Debt Score: 55/100
+  Cleanup tasks:   7 (1 auto-fixable, 6 manual)
+  Est. savings:    ~3740 lines removable
+
+  · [Dead Code] 216 unused declarations can be removed
+     Run: falcon check-unused-code
+  · [Unused Files] 10 files not imported anywhere
+     Run: falcon check-unused-files
+  · [Empty Catch Blocks] 12 silently swallowing errors
+     Run: falcon analyze --preset ai-generated
+  ⚡ [Trailing Commas] 467 missing — auto-fixable
+     Run: falcon fix</code></pre>
+
+            <h3>Cleanup Categories</h3>
+            <table>
+                <tr><th>Category</th><th>Auto-fixable</th><th>Impact</th></tr>
+                <tr><td>Dead Code</td><td>No</td><td>Reduces codebase size, improves readability</td></tr>
+                <tr><td>Unused Files</td><td>No</td><td>Removes confusion, speeds up builds</td></tr>
+                <tr><td>Unused Dependencies</td><td>No</td><td>Reduces app size, fewer vulnerabilities</td></tr>
+                <tr><td>Stale Generated Files</td><td>No</td><td>Prevents build errors from orphaned .g.dart</td></tr>
+                <tr><td>Long Functions</td><td>No</td><td>Improves testability and readability</td></tr>
+                <tr><td>Empty Catch Blocks</td><td>No</td><td>Prevents silent production failures</td></tr>
+                <tr><td>Print Statements</td><td>No</td><td>Use logging framework instead</td></tr>
+                <tr><td>Trailing Commas</td><td><strong>Yes</strong></td><td>Better git diffs, consistent formatting</td></tr>
+            </table>
+
+            <h2>Build Optimizer</h2>
+            <p>Analyzes assets, build configuration, and provides optimization recommendations.</p>
+
+            <pre><code><span class="cmd">$</span> falcon manage build .
+
+  falcon manage Build Optimizer
+
+  Assets: 45 files (2400 KB total, 30 images, 4 fonts)
+  Platforms: 3
+
+  ▸ Large assets:
+    · assets/images/hero.png (850KB)
+    · assets/images/background.png (620KB)
+
+  ▸ Recommendations:
+    → [Assets] 'hero.png' is 850KB — compress or use lower resolution
+    → [Build Config] Enable tree-shaking for icons (~1MB savings)
+    → [Code Size] 200+ Dart files — consider deferred imports</code></pre>
+
+            <h2>Running All Analyses</h2>
+            <p>Use <code>falcon manage all</code> to run health, deps, arch, maint, and build analyses in sequence:</p>
+
+            <pre><code><span class="cmd">$</span> falcon manage all /path/to/app</code></pre>
+
+            <p>This gives you a complete picture of your Flutter app's state in a single command.</p>
+
+            <h2>CI Integration</h2>
+            <p>Add health checks to your CI pipeline:</p>
+
+            <pre><code><span class="comment"># .github/workflows/falcon.yml</span>
+name: Falcon Health Check
+on: [pull_request]
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo install --git https://github.com/viveky259259/falcon
+      - run: falcon manage health . --json > health.json
+      - run: falcon pr-comment .</code></pre>
+
+            <div class="callout">
+                <div class="callout-title">Tip</div>
+                <p>Combine <code>falcon manage health</code> with <code>falcon enterprise check</code> to enforce minimum health scores as a CI gate.</p>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
