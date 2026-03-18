@@ -23,6 +23,10 @@ mod binary_expression_operand_order;
 mod double_literal_format;
 mod newline_before_return;
 mod prefer_first_last;
+mod avoid_empty_catch;
+mod avoid_print_in_production;
+mod avoid_hardcoded_credentials;
+mod prefer_named_bool_params;
 
 pub use avoid_long_functions::AvoidLongFunctions;
 pub use avoid_long_parameter_list::AvoidLongParameterList;
@@ -49,3 +53,7 @@ pub use binary_expression_operand_order::BinaryExpressionOperandOrder;
 pub use double_literal_format::DoubleLiteralFormat;
 pub use newline_before_return::NewlineBeforeReturn;
 pub use prefer_first_last::PreferFirstLast;
+pub use avoid_empty_catch::AvoidEmptyCatch;
+pub use avoid_print_in_production::AvoidPrintInProduction;
+pub use avoid_hardcoded_credentials::AvoidHardcodedCredentials;
+pub use prefer_named_bool_params::PreferNamedBoolParams;

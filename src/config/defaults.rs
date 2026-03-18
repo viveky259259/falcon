@@ -79,5 +79,11 @@ pub fn default_rules() -> Vec<RuleConfig> {
         RuleConfig::Simple("always-override-equals-and-hashcode".to_string()),
         RuleConfig::Simple("avoid-mutable-equatable".to_string()),
         RuleConfig::Simple("prefer-equatable".to_string()),
+        // v1.0 AI-critical rules
+        RuleConfig::Simple("avoid-empty-catch".to_string()),
+        RuleConfig::Simple("avoid-print-in-production".to_string()),
+        RuleConfig::Simple("avoid-hardcoded-credentials".to_string()),
+        RuleConfig::Simple("prefer-named-boolean-parameters".to_string()),
+        RuleConfig::Simple("ensure-dispose-lifecycle".to_string()),
     ]
 }

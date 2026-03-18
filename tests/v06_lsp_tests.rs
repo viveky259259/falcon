@@ -34,7 +34,7 @@ fn test_lsp_diagnostics_clean_code() {
     let source = r#"
 void main() {
   final message = 'Hello';
-  print(message);
+  logger.info(message);
 }
 "#;
 

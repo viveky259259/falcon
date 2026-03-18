@@ -1,3 +1,5 @@
+pub mod rule_docs;
+
 use crate::config::FalconConfig;
 use crate::rules::RuleRegistry;
 use colored::Colorize;

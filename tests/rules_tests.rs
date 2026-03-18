@@ -86,6 +86,7 @@ void hello() {
         .filter(|i| {
             i.rule != "prefer-match-file-name"
                 && i.rule != "no-magic-numbers"
+                && i.rule != "avoid-print-in-production"
         })
         .collect();
 

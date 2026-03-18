@@ -1,11 +1,13 @@
 pub mod ai;
 pub mod analysis;
+pub mod benchmark;
 pub mod config;
 pub mod dashboard;
 pub mod docs;
 pub mod incremental;
 pub mod lsp;
 pub mod metrics;
+pub mod migration;
 pub mod parser;
 pub mod plugins;
 pub mod reporters;

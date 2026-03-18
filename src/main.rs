@@ -429,6 +429,41 @@ enum Commands {
         #[arg(long)]
         webhook_url: Option<String>,
     },
+
+    /// Migrate from DCM (Dart Code Metrics) to Falcon
+    #[command(name = "migrate-from-dcm")]
+    MigrateFromDcm {
+        /// Path to DCM analysis_options.yaml
+        #[arg(default_value = "analysis_options.yaml")]
+        config_path: PathBuf,
+
+        /// Output path for falcon.yaml
+        #[arg(long, default_value = ".")]
+        output: PathBuf,
+    },
+
+    /// Show DCM to Falcon feature gap report
+    #[command(name = "feature-gap")]
+    FeatureGap,
+
+    /// Run performance benchmark on a project
+    Benchmark {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Generate rule documentation
+    #[command(name = "rule-docs")]
+    RuleDocs {
+        /// Output format (console or markdown)
+        #[arg(long, default_value = "console")]
+        format: String,
+
+        /// Output file for markdown format
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1352,6 +1387,53 @@ fn run(cli: Cli) -> Result<()> {
                 }
                 other => {
                     eprintln!("Unknown export format '{}'. Use: prometheus, json, webhook", other);
+                    process::exit(1);
+                }
+            }
+        }
+        Commands::MigrateFromDcm { config_path, output } => {
+            let result = falcon::migration::dcm::migrate_from_dcm(&config_path)?;
+            falcon::migration::dcm::print_migration_result(&result);
+
+            let output_path = output.join("falcon.yaml");
+            std::fs::write(&output_path, &result.falcon_yaml_content)?;
+            println!(
+                "  {} falcon.yaml written to {}",
+                "✓".green().bold(),
+                output_path.display()
+            );
+        }
+        Commands::FeatureGap => {
+            let report = falcon::migration::dcm::feature_gap_report();
+            println!("{}", report);
+        }
+        Commands::Benchmark { path } => {
+            let result = falcon::benchmark::run_benchmark(&path)?;
+            falcon::benchmark::print_benchmark(&result);
+        }
+        Commands::RuleDocs { format, output } => {
+            match format.as_str() {
+                "console" => {
+                    let docs = falcon::docs::rule_docs::generate_rule_docs();
+                    falcon::docs::rule_docs::print_rule_docs(&docs);
+                }
+                "markdown" => {
+                    let docs = falcon::docs::rule_docs::generate_rule_docs();
+                    let md = falcon::docs::rule_docs::generate_markdown_docs(&docs);
+                    match output {
+                        Some(out) => {
+                            std::fs::write(&out, &md)?;
+                            println!(
+                                "  {} Rule docs written to {}",
+                                "✓".green().bold(),
+                                out.display()
+                            );
+                        }
+                        None => print!("{}", md),
+                    }
+                }
+                _ => {
+                    eprintln!("Unknown format '{}'. Use: console, markdown", format);
                     process::exit(1);
                 }
             }

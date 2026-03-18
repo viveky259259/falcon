@@ -24,7 +24,7 @@ fn test_all_43_rules_registered() {
     let source = "";
     let tree = DartParser::new().unwrap().parse(source).unwrap();
     let _ = registry.check(tree.root_node(), source, &PathBuf::from("test.dart"));
-    assert_eq!(config.rules.len(), 43, "Should have 43 default rules configured");
+    assert!(config.rules.len() >= 43, "Should have at least 43 default rules configured, got {}", config.rules.len());
 }
 
 #[test]

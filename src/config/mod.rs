@@ -209,7 +209,7 @@ fn default_unused_excludes() -> Vec<String> {
     ]
 }
 
-fn default_excludes() -> Vec<String> {
+pub fn default_excludes() -> Vec<String> {
     vec![
         "build/**".to_string(),
         ".dart_tool/**".to_string(),

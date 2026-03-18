@@ -86,6 +86,12 @@ impl RuleRegistry {
             Box::new(equatable::AlwaysOverrideEqualsHashCode),
             Box::new(equatable::AvoidMutableEquatable),
             Box::new(equatable::PreferEquatable),
+            // v1.0 AI-critical rules
+            Box::new(common::AvoidEmptyCatch),
+            Box::new(common::AvoidPrintInProduction),
+            Box::new(common::AvoidHardcodedCredentials),
+            Box::new(common::PreferNamedBoolParams),
+            Box::new(flutter::EnsureDisposeLifecycle),
         ];
 
         for mut rule in all_rules {
