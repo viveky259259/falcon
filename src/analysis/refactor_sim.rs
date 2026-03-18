@@ -122,14 +122,20 @@ fn simulate_state_migration(root: &Path, from: &str, to: &str) -> anyhow::Result
         _ => 0.5,
     };
 
-    let migration_steps = match to {
+    let removal_step = match from {
+        "setState" => None,
+        "Provider" => Some("Remove provider dependency from pubspec.yaml".to_string()),
+        "BLoC" => Some("Remove flutter_bloc and bloc dependencies from pubspec.yaml".to_string()),
+        other => Some(format!("Remove {} dependency from pubspec.yaml", other.to_lowercase())),
+    };
+
+    let mut migration_steps: Vec<String> = match to {
         "Riverpod" => vec![
             "Add riverpod and flutter_riverpod to pubspec.yaml".to_string(),
             "Wrap app with ProviderScope".to_string(),
             format!("Convert {} widgets to ConsumerWidget/ConsumerStatefulWidget", files_affected),
             "Replace state with providers (StateNotifier/AsyncNotifier)".to_string(),
             "Update tests to use ProviderContainer".to_string(),
-            format!("Remove {} dependency from pubspec.yaml", from.to_lowercase()),
         ],
         "BLoC" => vec![
             "Add flutter_bloc to pubspec.yaml".to_string(),
@@ -140,6 +146,10 @@ fn simulate_state_migration(root: &Path, from: &str, to: &str) -> anyhow::Result
         ],
         _ => vec![],
     };
+
+    if let Some(step) = removal_step {
+        migration_steps.push(step);
+    }
 
     let risks = vec![
         format!("{} files need changes — risk of regressions", files_affected),

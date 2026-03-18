@@ -67,6 +67,7 @@ fn risk_priority(level: &RiskLevel) -> u8 {
 fn check_insecure_storage(file: &Path, source: &str, findings: &mut Vec<VulnFinding>) {
     for (i, line) in source.lines().enumerate() {
         let trimmed = line.trim();
+        if trimmed.starts_with("//") || trimmed.starts_with("///") { continue; }
 
         if trimmed.contains("SharedPreferences") && (trimmed.contains("password") || trimmed.contains("token") || trimmed.contains("secret")) {
             findings.push(VulnFinding {
@@ -87,7 +88,9 @@ fn check_insecure_network(file: &Path, source: &str, findings: &mut Vec<VulnFind
     for (i, line) in source.lines().enumerate() {
         let trimmed = line.trim();
 
-        if trimmed.contains("http://") && !trimmed.contains("localhost") && !trimmed.contains("127.0.0.1") && !trimmed.contains("//") {
+        if trimmed.starts_with("//") || trimmed.starts_with("///") { continue; }
+
+        if trimmed.contains("http://") && !trimmed.contains("localhost") && !trimmed.contains("127.0.0.1") && !trimmed.contains("10.0.2.2") {
             findings.push(VulnFinding {
                 issue: Issue {
                     rule: "vuln-insecure-http".to_string(),

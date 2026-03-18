@@ -51,10 +51,12 @@ pub fn predict_risks(root: &Path) -> anyhow::Result<Vec<RiskPrediction>> {
         *rule_counts.entry(issue.rule.clone()).or_default() += 1;
     }
 
+    let file_count = report.file_count.max(1) as f64;
+
     let dispose_issues = rule_counts.get("ensure-dispose-lifecycle").copied().unwrap_or(0);
     let stream_issues = rule_counts.get("ensure-stream-subscription-cancel").copied().unwrap_or(0);
     if dispose_issues + stream_issues > 5 {
-        let prob = ((dispose_issues + stream_issues) as f64 / report.file_count as f64).min(0.95);
+        let prob = ((dispose_issues + stream_issues) as f64 / file_count).min(0.95);
         predictions.push(RiskPrediction {
             category: RiskCategory::MemoryLeak,
             probability: prob,
@@ -71,7 +73,7 @@ pub fn predict_risks(root: &Path) -> anyhow::Result<Vec<RiskPrediction>> {
     let empty_catch = rule_counts.get("avoid-empty-catch").copied().unwrap_or(0);
     let unawaited = rule_counts.get("avoid-unawaited-futures").copied().unwrap_or(0);
     if empty_catch + unawaited > 10 {
-        let prob = ((empty_catch + unawaited) as f64 / (report.file_count as f64 * 2.0)).min(0.9);
+        let prob = ((empty_catch + unawaited) as f64 / (file_count * 2.0)).min(0.9);
         predictions.push(RiskPrediction {
             category: RiskCategory::CrashAtScale,
             probability: prob,
@@ -87,7 +89,7 @@ pub fn predict_risks(root: &Path) -> anyhow::Result<Vec<RiskPrediction>> {
 
     let dynamic_count = rule_counts.get("avoid-dynamic").copied().unwrap_or(0);
     if dynamic_count > 20 {
-        let prob = (dynamic_count as f64 / (report.file_count as f64 * 5.0)).min(0.7);
+        let prob = (dynamic_count as f64 / (file_count * 5.0)).min(0.7);
         predictions.push(RiskPrediction {
             category: RiskCategory::StateCorruption,
             probability: prob,

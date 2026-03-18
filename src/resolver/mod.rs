@@ -16,10 +16,6 @@ use walkdir::WalkDir;
 pub struct ProjectResolver {
     root: PathBuf,
     dart_files: Vec<PathBuf>,
-    #[allow(dead_code)]
-    exclude_patterns: Vec<glob::Pattern>,
-    #[allow(dead_code)]
-    unused_exclude_patterns: Vec<glob::Pattern>,
 }
 
 impl ProjectResolver {
@@ -53,8 +49,6 @@ impl ProjectResolver {
         Ok(Self {
             root: root.to_path_buf(),
             dart_files,
-            exclude_patterns,
-            unused_exclude_patterns,
         })
     }
 

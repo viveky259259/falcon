@@ -159,11 +159,11 @@ pub fn default_policies() -> PolicySet {
 /// Check policies against analysis results.
 pub fn check_policies(root: &Path) -> anyhow::Result<Vec<PolicyCheckResult>> {
     let policies = load_policies(root)?;
-    let score = crate::ai_score::score::calculate_ai_score(root)?;
 
     let config = crate::config::FalconConfig::load(root)?;
     let falcon = crate::Falcon::new(config)?;
     let report = falcon.analyze(root)?;
+    let score = crate::ai_score::score::score_from_report(&report)?;
 
     let mut results = Vec::new();
 
@@ -199,7 +199,22 @@ pub fn check_policies(root: &Path) -> anyhow::Result<Vec<PolicyCheckResult>> {
                     let ok = dispose_issues == 0;
                     (ok, format!("{} undisposed controllers", dispose_issues))
                 }
-                PolicyCondition::RequireRules(_) => (true, "OK".to_string()),
+                PolicyCondition::RequireRules(required) => {
+                    let enabled_rules: Vec<String> = {
+                        let cfg = crate::config::FalconConfig::load(root).unwrap_or_default();
+                        cfg.rules.iter().map(|r| r.name().to_string()).collect()
+                    };
+                    let missing: Vec<&str> = required.iter()
+                        .filter(|r| !enabled_rules.iter().any(|er| er == *r))
+                        .map(|r| r.as_str())
+                        .collect();
+                    let ok = missing.is_empty();
+                    (ok, if ok {
+                        "All required rules are enabled".to_string()
+                    } else {
+                        format!("Missing required rules: {}", missing.join(", "))
+                    })
+                }
             };
 
             results.push(PolicyCheckResult {

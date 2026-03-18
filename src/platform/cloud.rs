@@ -184,7 +184,21 @@ pub fn generate_dashboard(root: &Path) -> anyhow::Result<TeamDashboard> {
                                     project.name, alert.name, score.total_issues, threshold));
                             }
                         }
-                        _ => {}
+                        AlertCondition::CriticalVulnerability => {
+                            if score.security.score < 80 {
+                                alerts.push(format!("[{}] {} — security score {}/100, check for hardcoded credentials",
+                                    project.name, alert.name, score.security.score));
+                            }
+                        }
+                        AlertCondition::DriftAboveThreshold(max_drift) => {
+                            if let Ok(drift) = crate::ai_score::drift::detect_drift(&project_path, None) {
+                                let drift_pct = 100.0 - drift.drift_score;
+                                if drift_pct > max_drift {
+                                    alerts.push(format!("[{}] {} — {:.0}% drift exceeds threshold {:.0}%",
+                                        project.name, alert.name, drift_pct, max_drift));
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -200,7 +214,7 @@ pub fn generate_dashboard(root: &Path) -> anyhow::Result<TeamDashboard> {
                 });
 
                 project.last_score = Some(score.overall);
-                project.last_analyzed = Some("now".to_string());
+                project.last_analyzed = Some(get_timestamp());
             }
             Err(e) => {
                 log::warn!("Failed to analyze {}: {}", project.name, e);
@@ -275,4 +289,15 @@ pub fn print_dashboard(dashboard: &TeamDashboard) {
     }
 
     println!();
+}
+
+fn get_timestamp() -> String {
+    std::process::Command::new("date")
+        .args(["+%Y-%m-%dT%H:%M:%S"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_else(|e| {
+            log::warn!("Failed to get timestamp: {}", e);
+            "unknown".to_string()
+        })
 }

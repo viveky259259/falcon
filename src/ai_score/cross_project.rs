@@ -68,11 +68,10 @@ pub fn save_learning_db(root: &Path, db: &LearningDatabase) -> anyhow::Result<()
 pub fn record_project(db_root: &Path, project_root: &Path) -> anyhow::Result<ProjectProfile> {
     let conventions = crate::ai_score::convention::detect_conventions(project_root)?;
 
-    let score = crate::ai_score::score::calculate_ai_score(project_root).ok();
-
     let config = crate::config::FalconConfig::load(project_root)?;
     let falcon = crate::Falcon::new(config)?;
     let report = falcon.analyze(project_root)?;
+    let score = crate::ai_score::score::score_from_report(&report).ok();
 
     let mut rule_violations: HashMap<String, usize> = HashMap::new();
     for issue in &report.issues {
@@ -88,11 +87,11 @@ pub fn record_project(db_root: &Path, project_root: &Path) -> anyhow::Result<Pro
     };
 
     let project_id = format!("proj-{:08x}", {
-        let name = project_root.file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("unknown");
+        let full_path = project_root.canonicalize()
+            .unwrap_or_else(|_| project_root.to_path_buf());
+        let path_str = full_path.to_string_lossy();
         let mut hash: u32 = 0;
-        for b in name.bytes() {
+        for b in path_str.bytes() {
             hash = hash.wrapping_mul(31).wrapping_add(b as u32);
         }
         hash
@@ -126,6 +125,7 @@ pub fn record_project(db_root: &Path, project_root: &Path) -> anyhow::Result<Pro
     };
 
     let mut db = load_learning_db(db_root)?;
+    db.profiles.retain(|p| p.project_id != profile.project_id);
     db.profiles.push(profile.clone());
     rebuild_aggregates(&mut db);
     save_learning_db(db_root, &db)?;
