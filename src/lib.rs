@@ -1,4 +1,5 @@
 pub mod ai;
+pub mod ai_score;
 pub mod analysis;
 pub mod benchmark;
 pub mod benchmark_compare;

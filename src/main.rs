@@ -525,6 +525,60 @@ enum Commands {
         #[command(subcommand)]
         action: CommunityAction,
     },
+
+    /// Calculate AI Code Quality Score (0-100) with 6-dimension breakdown
+    #[command(name = "ai-score")]
+    AiScore {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Show README badge markdown
+        #[arg(long)]
+        badge: bool,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Generate a State of AI-Generated Flutter Code report
+    #[command(name = "ai-report")]
+    AiReport {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output format (console or markdown)
+        #[arg(long, default_value = "console")]
+        format: String,
+
+        /// Output file for markdown format
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Analyze code provenance — detect AI-generated vs human-written code
+    Provenance {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Show per-file details
+        #[arg(long)]
+        verbose: bool,
+    },
+
+    /// Auto-detect team conventions (naming, architecture, state management)
+    Conventions {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1721,6 +1775,81 @@ fn run(cli: Cli) -> Result<()> {
                 falcon::stability::suppression::print_suppression_list(&db);
             }
         },
+        Commands::AiScore { path, badge, json } => {
+            let score = falcon::ai_score::score::calculate_ai_score(&path)?;
+            if json {
+                let j = serde_json::to_string_pretty(&score)?;
+                println!("{}", j);
+            } else {
+                falcon::ai_score::score::print_ai_score(&score);
+            }
+            if badge {
+                println!("{}", falcon::ai_score::score::generate_badge(&score));
+            }
+        }
+        Commands::AiReport { path, format, output } => {
+            let report = falcon::ai_score::report::generate_ai_report(&path)?;
+            match format.as_str() {
+                "console" => falcon::ai_score::report::print_ai_report(&report),
+                "markdown" => {
+                    let md = falcon::ai_score::report::generate_markdown_report(&report);
+                    match output {
+                        Some(out) => {
+                            std::fs::write(&out, &md)?;
+                            println!(
+                                "  {} AI report written to {}",
+                                "✓".green().bold(),
+                                out.display()
+                            );
+                        }
+                        None => print!("{}", md),
+                    }
+                }
+                _ => {
+                    eprintln!("Unknown format '{}'. Use: console, markdown", format);
+                    process::exit(1);
+                }
+            }
+        }
+        Commands::Provenance { path, verbose } => {
+            let results = falcon::ai_score::provenance::analyze_project_provenance(&path)?;
+            let summary = falcon::ai_score::provenance::summarize_provenance(&results);
+            falcon::ai_score::provenance::print_provenance_summary(&summary);
+
+            if verbose {
+                let ai_files: Vec<_> = results
+                    .iter()
+                    .filter(|r| r.origin == falcon::ai_score::provenance::CodeOrigin::LikelyAiGenerated)
+                    .collect();
+                if !ai_files.is_empty() {
+                    println!("  Files with AI-generation signals:");
+                    for f in &ai_files {
+                        let rel = std::path::Path::new(&f.file)
+                            .strip_prefix(&path)
+                            .unwrap_or(std::path::Path::new(&f.file));
+                        println!(
+                            "    {} {} ({:.0}% confidence)",
+                            "→".bright_yellow(),
+                            rel.display(),
+                            f.confidence * 100.0
+                        );
+                        for signal in &f.signals {
+                            println!("      · {}", signal);
+                        }
+                    }
+                    println!();
+                }
+            }
+        }
+        Commands::Conventions { path, json } => {
+            let report = falcon::ai_score::convention::detect_conventions(&path)?;
+            if json {
+                let j = serde_json::to_string_pretty(&report)?;
+                println!("{}", j);
+            } else {
+                falcon::ai_score::convention::print_convention_report(&report);
+            }
+        }
         Commands::Community { action } => match action {
             CommunityAction::Request {
                 name,

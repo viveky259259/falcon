@@ -665,12 +665,42 @@ Prometheus export produces valid scrape-ready metrics.
 
 ---
 
-## v1.3 — AI Code Quality Narrative
+## v1.3 — AI Code Quality Narrative ✅
 
 > **Thesis**: Establish Falcon as the authority on AI-generated Flutter code quality.
 > The data creates the narrative. The narrative creates demand. Demand creates integrations.
 
-### Thought Leadership
+### AI Code Quality Score ✅
+- [x] `falcon ai-score` — single 0-100 score with 6-dimension breakdown (Resource Safety, Error Handling, Type Safety, Security, Convention Match, Complexity)
+- [x] Weighted scoring with dimension-specific penalties based on detected issues
+- [x] Letter grade (A-F) with production-readiness certification (85+ = Falcon Certified)
+- [x] `--badge` flag for README badge markdown (shields.io integration)
+- [x] `--json` flag for CI/CD pipeline integration and machine-readable output
+
+### AI Report Generator ✅
+- [x] `falcon ai-report` — comprehensive "State of AI-Generated Flutter Code" report
+- [x] Combines AI score + provenance analysis + top issues + actionable recommendations
+- [x] `--format markdown` for publishable reports with tables and structured output
+- [x] Automated recommendations based on dimension scores and provenance data
+
+### Provenance Tagging ✅
+- [x] `falcon provenance` — detect AI-generated vs human-written vs code-generated files
+- [x] Heuristic signals: AI comments, TODO density, empty catches, UnimplementedError patterns, comment ratio
+- [x] Code-gen detection: `.g.dart`, `.freezed.dart`, GENERATED CODE markers
+- [x] Per-file confidence scores with signal explanations (`--verbose`)
+- [x] Summary with percentages by origin category
+
+### Convention Engine ✅
+- [x] `falcon conventions` — auto-detect team conventions without manual configuration
+- [x] Naming conventions: file naming (snake_case/mixed), class naming (PascalCase/mixed)
+- [x] Architecture detection: Clean Architecture, Feature-First, MVC/MVVM, Flat/Custom
+- [x] Layer detection: domain, data, presentation, models, services, repositories, features, etc.
+- [x] Error handling patterns: Result type, Either/dartz, try/catch, custom exceptions
+- [x] State management detection: BLoC, Riverpod, Provider, GetX, setState
+- [x] Consistency score (0-100%) based on naming, architecture structure
+- [x] `--json` flag for programmatic access
+
+### Thought Leadership (Content)
 - [ ] "State of AI-Generated Flutter Code" annual report
 - [ ] Dataset: analysis of 10K+ AI-generated Flutter files across tools (Cursor, Copilot, Claude, Gemini)
 - [ ] Blog series: "What [AI Tool] gets wrong in Flutter" (SEO + awareness)

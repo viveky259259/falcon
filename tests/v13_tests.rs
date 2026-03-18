@@ -1,0 +1,443 @@
+use std::path::PathBuf;
+
+// ─── AI Code Score ──────────────────────────────────────────────────────────
+
+#[test]
+fn test_ai_score_dimensions() {
+    let tmp = tempfile::tempdir().unwrap();
+    let lib = tmp.path().join("lib");
+    std::fs::create_dir_all(&lib).unwrap();
+
+    std::fs::write(
+        lib.join("clean.dart"),
+        r#"
+class MyService {
+  final Logger _logger = Logger('MyService');
+
+  Future<void> fetchData() async {
+    try {
+      final response = await http.get(Uri.parse('https://api.example.com'));
+      _logger.info('Got response: ${response.statusCode}');
+    } on HttpException catch (e) {
+      _logger.error('HTTP error: $e');
+    }
+  }
+}
+"#,
+    )
+    .unwrap();
+
+    std::fs::write(
+        tmp.path().join("falcon.yaml"),
+        "metrics:\n  cyclomatic_complexity: 20\n",
+    )
+    .unwrap();
+
+    let score = falcon::ai_score::score::calculate_ai_score(tmp.path()).unwrap();
+
+    assert!(score.overall > 0, "Score should be > 0");
+    assert!(score.overall <= 100, "Score should be <= 100");
+    assert!(score.resource_safety.score <= 100);
+    assert!(score.error_handling.score <= 100);
+    assert!(score.type_safety.score <= 100);
+    assert!(score.security.score <= 100);
+    assert!(score.convention_match.score <= 100);
+    assert!(score.complexity.score <= 100);
+    assert!(!score.grade.is_empty());
+}
+
+#[test]
+fn test_ai_score_penalizes_empty_catch() {
+    let tmp = tempfile::tempdir().unwrap();
+    let lib = tmp.path().join("lib");
+    std::fs::create_dir_all(&lib).unwrap();
+
+    std::fs::write(
+        lib.join("bad.dart"),
+        "class BadService {\n  void doStuff() {\n    try {\n      riskyOperation();\n    } catch (e) {\n    }\n\n    try {\n      anotherRisky();\n    } catch (e) {\n    }\n  }\n}\n",
+    )
+    .unwrap();
+
+    std::fs::write(
+        tmp.path().join("falcon.yaml"),
+        "metrics:\n  cyclomatic_complexity: 20\n",
+    )
+    .unwrap();
+
+    let config = falcon::config::FalconConfig::load(tmp.path()).unwrap();
+    let falcon_inst = falcon::Falcon::new(config).unwrap();
+    let report = falcon_inst.analyze(tmp.path()).unwrap();
+    assert!(
+        !report.issues.is_empty(),
+        "Should detect issues in bad code"
+    );
+
+    let score = falcon::ai_score::score::calculate_ai_score(tmp.path()).unwrap();
+    assert!(score.total_issues > 0, "AI score should reflect total issues > 0");
+}
+
+#[test]
+fn test_ai_score_grade() {
+    let tmp = tempfile::tempdir().unwrap();
+    let lib = tmp.path().join("lib");
+    std::fs::create_dir_all(&lib).unwrap();
+
+    std::fs::write(
+        lib.join("minimal.dart"),
+        "class Hello {\n  String greet() => 'hello';\n}\n",
+    )
+    .unwrap();
+
+    std::fs::write(
+        tmp.path().join("falcon.yaml"),
+        "metrics:\n  cyclomatic_complexity: 20\n",
+    )
+    .unwrap();
+
+    let score = falcon::ai_score::score::calculate_ai_score(tmp.path()).unwrap();
+    assert!(
+        ["A", "B", "C", "D", "F"].contains(&score.grade.as_str()),
+        "Grade should be A-F"
+    );
+}
+
+#[test]
+fn test_ai_score_badge() {
+    let tmp = tempfile::tempdir().unwrap();
+    let lib = tmp.path().join("lib");
+    std::fs::create_dir_all(&lib).unwrap();
+    std::fs::write(lib.join("a.dart"), "class A {}\n").unwrap();
+    std::fs::write(
+        tmp.path().join("falcon.yaml"),
+        "metrics:\n  cyclomatic_complexity: 20\n",
+    )
+    .unwrap();
+
+    let score = falcon::ai_score::score::calculate_ai_score(tmp.path()).unwrap();
+    let badge = falcon::ai_score::score::generate_badge(&score);
+    assert!(badge.contains("Falcon_AI_Score"), "Badge should contain Falcon_AI_Score");
+    assert!(badge.contains("/100"), "Badge should contain /100");
+}
+
+// ─── Provenance Detection ───────────────────────────────────────────────────
+
+#[test]
+fn test_provenance_human_code() {
+    let source = r#"
+class UserRepository {
+  final ApiClient _client;
+
+  UserRepository(this._client);
+
+  Future<User> getUser(int id) async {
+    final response = await _client.get('/users/$id');
+    return User.fromJson(response.data);
+  }
+}
+"#;
+
+    let result = falcon::ai_score::provenance::analyze_provenance(
+        &PathBuf::from("lib/repo.dart"),
+        source,
+    );
+
+    assert_eq!(
+        result.origin,
+        falcon::ai_score::provenance::CodeOrigin::LikelyHuman,
+        "Clean code should be detected as human-written"
+    );
+}
+
+#[test]
+fn test_provenance_codegen() {
+    let source = "// GENERATED CODE - DO NOT MODIFY BY HAND\npart of 'model.dart';\n\nclass _$User {}\n";
+
+    let result = falcon::ai_score::provenance::analyze_provenance(
+        &PathBuf::from("lib/model.g.dart"),
+        source,
+    );
+
+    assert_eq!(
+        result.origin,
+        falcon::ai_score::provenance::CodeOrigin::LikelyGenerated,
+        "Generated code should be detected"
+    );
+}
+
+#[test]
+fn test_provenance_ai_signals() {
+    let source = r#"
+// Generated by AI assistant
+class TodoService {
+  // TODO: implement proper error handling
+  void fetchTodos() {
+    try {
+      riskyCall();
+    } catch (e) {}
+    // TODO: implement caching
+    // TODO: add retry logic
+    // TODO: handle pagination
+    throw UnimplementedError();
+    throw UnimplementedError();
+  }
+}
+"#;
+
+    let result = falcon::ai_score::provenance::analyze_provenance(
+        &PathBuf::from("lib/todo.dart"),
+        source,
+    );
+
+    assert!(
+        result.origin == falcon::ai_score::provenance::CodeOrigin::LikelyAiGenerated
+            || result.origin == falcon::ai_score::provenance::CodeOrigin::Unknown,
+        "Code with many AI signals should be flagged, got {:?}",
+        result.origin
+    );
+    assert!(!result.signals.is_empty(), "Should have detected signals");
+}
+
+#[test]
+fn test_provenance_summary() {
+    let results = vec![
+        falcon::ai_score::provenance::ProvenanceResult {
+            file: "a.dart".to_string(),
+            origin: falcon::ai_score::provenance::CodeOrigin::LikelyHuman,
+            confidence: 0.9,
+            signals: vec![],
+        },
+        falcon::ai_score::provenance::ProvenanceResult {
+            file: "b.dart".to_string(),
+            origin: falcon::ai_score::provenance::CodeOrigin::LikelyAiGenerated,
+            confidence: 0.8,
+            signals: vec!["AI signal".to_string()],
+        },
+        falcon::ai_score::provenance::ProvenanceResult {
+            file: "c.g.dart".to_string(),
+            origin: falcon::ai_score::provenance::CodeOrigin::LikelyGenerated,
+            confidence: 0.95,
+            signals: vec![],
+        },
+    ];
+
+    let summary = falcon::ai_score::provenance::summarize_provenance(&results);
+    assert_eq!(summary.total_files, 3);
+    assert_eq!(summary.human_files, 1);
+    assert_eq!(summary.ai_files, 1);
+    assert_eq!(summary.codegen_files, 1);
+}
+
+// ─── Convention Detection ───────────────────────────────────────────────────
+
+#[test]
+fn test_convention_detection_clean_arch() {
+    let tmp = tempfile::tempdir().unwrap();
+    let lib = tmp.path().join("lib");
+
+    std::fs::create_dir_all(lib.join("domain/entities")).unwrap();
+    std::fs::create_dir_all(lib.join("data/repositories")).unwrap();
+    std::fs::create_dir_all(lib.join("presentation/pages")).unwrap();
+
+    std::fs::write(
+        lib.join("domain/entities/user.dart"),
+        "class User {\n  final String name;\n  User(this.name);\n}\n",
+    )
+    .unwrap();
+    std::fs::write(
+        lib.join("data/repositories/user_repository.dart"),
+        "class UserRepository {\n  Future<User> getUser() async => User('test');\n}\n",
+    )
+    .unwrap();
+    std::fs::write(
+        lib.join("presentation/pages/home_page.dart"),
+        "class HomePage extends StatelessWidget {\n  Widget build(BuildContext context) => Container();\n}\n",
+    )
+    .unwrap();
+
+    let report = falcon::ai_score::convention::detect_conventions(tmp.path()).unwrap();
+    assert_eq!(report.architecture.pattern, "Clean Architecture");
+    assert!(report.architecture.layers_detected.contains(&"domain".to_string()));
+    assert!(report.architecture.layers_detected.contains(&"data".to_string()));
+    assert!(report.architecture.layers_detected.contains(&"presentation".to_string()));
+}
+
+#[test]
+fn test_convention_detection_feature_first() {
+    let tmp = tempfile::tempdir().unwrap();
+    let lib = tmp.path().join("lib");
+
+    std::fs::create_dir_all(lib.join("features/auth")).unwrap();
+    std::fs::create_dir_all(lib.join("features/home")).unwrap();
+
+    std::fs::write(
+        lib.join("features/auth/login_page.dart"),
+        "class LoginPage {}\n",
+    )
+    .unwrap();
+    std::fs::write(
+        lib.join("features/home/home_page.dart"),
+        "class HomePage {}\n",
+    )
+    .unwrap();
+
+    let report = falcon::ai_score::convention::detect_conventions(tmp.path()).unwrap();
+    assert_eq!(report.architecture.pattern, "Feature-First");
+}
+
+#[test]
+fn test_convention_state_management_detection() {
+    let tmp = tempfile::tempdir().unwrap();
+    let lib = tmp.path().join("lib");
+    std::fs::create_dir_all(&lib).unwrap();
+
+    std::fs::write(
+        lib.join("provider.dart"),
+        r#"
+class MyNotifier extends ChangeNotifier {
+  int _count = 0;
+  int get count => _count;
+  void increment() {
+    _count++;
+    notifyListeners();
+  }
+}
+
+class MyWidget extends StatelessWidget {
+  Widget build(BuildContext context) {
+    final count = Provider.of<MyNotifier>(context).count;
+    return Text('$count');
+  }
+}
+"#,
+    )
+    .unwrap();
+
+    let report = falcon::ai_score::convention::detect_conventions(tmp.path()).unwrap();
+    assert_eq!(report.state_management, Some("Provider".to_string()));
+}
+
+#[test]
+fn test_convention_consistency_score() {
+    let tmp = tempfile::tempdir().unwrap();
+    let lib = tmp.path().join("lib");
+    std::fs::create_dir_all(lib.join("domain")).unwrap();
+    std::fs::create_dir_all(lib.join("data")).unwrap();
+    std::fs::create_dir_all(lib.join("presentation")).unwrap();
+    std::fs::write(lib.join("domain/entity.dart"), "class Entity {}\n").unwrap();
+
+    let report = falcon::ai_score::convention::detect_conventions(tmp.path()).unwrap();
+    assert!(report.consistency_score > 0.0);
+    assert!(report.consistency_score <= 100.0);
+}
+
+// ─── AI Report ──────────────────────────────────────────────────────────────
+
+#[test]
+fn test_ai_report_generation() {
+    let tmp = tempfile::tempdir().unwrap();
+    let lib = tmp.path().join("lib");
+    std::fs::create_dir_all(&lib).unwrap();
+
+    std::fs::write(
+        lib.join("app.dart"),
+        r#"
+class App {
+  void run() {
+    try {
+      start();
+    } catch (e) {}
+  }
+}
+"#,
+    )
+    .unwrap();
+
+    std::fs::write(
+        tmp.path().join("falcon.yaml"),
+        "metrics:\n  cyclomatic_complexity: 20\n",
+    )
+    .unwrap();
+
+    let report = falcon::ai_score::report::generate_ai_report(tmp.path()).unwrap();
+    assert!(!report.project_name.is_empty());
+    assert!(report.ai_score.overall > 0);
+    assert!(report.ai_score.overall <= 100);
+    assert!(!report.recommendations.is_empty());
+}
+
+#[test]
+fn test_ai_report_markdown() {
+    let tmp = tempfile::tempdir().unwrap();
+    let lib = tmp.path().join("lib");
+    std::fs::create_dir_all(&lib).unwrap();
+    std::fs::write(lib.join("main.dart"), "class Main {}\n").unwrap();
+
+    std::fs::write(
+        tmp.path().join("falcon.yaml"),
+        "metrics:\n  cyclomatic_complexity: 20\n",
+    )
+    .unwrap();
+
+    let report = falcon::ai_score::report::generate_ai_report(tmp.path()).unwrap();
+    let md = falcon::ai_score::report::generate_markdown_report(&report);
+
+    assert!(md.contains("# State of AI-Generated Flutter Code"));
+    assert!(md.contains("Score Breakdown"));
+    assert!(md.contains("Resource Safety"));
+    assert!(md.contains("Error Handling"));
+    assert!(md.contains("Recommendations"));
+}
+
+#[test]
+fn test_ai_report_provenance_stats() {
+    let tmp = tempfile::tempdir().unwrap();
+    let lib = tmp.path().join("lib");
+    std::fs::create_dir_all(&lib).unwrap();
+    std::fs::write(lib.join("a.dart"), "class A {}\n").unwrap();
+    std::fs::write(
+        lib.join("b.g.dart"),
+        "// GENERATED CODE - DO NOT MODIFY BY HAND\nclass B {}\n",
+    )
+    .unwrap();
+
+    std::fs::write(
+        tmp.path().join("falcon.yaml"),
+        "metrics:\n  cyclomatic_complexity: 20\n",
+    )
+    .unwrap();
+
+    let report = falcon::ai_score::report::generate_ai_report(tmp.path()).unwrap();
+    assert!(report.provenance.total_files >= 2);
+}
+
+// ─── Integration: Print functions don't panic ───────────────────────────────
+
+#[test]
+fn test_print_ai_score_no_panic() {
+    let score = falcon::ai_score::score::AiCodeScore {
+        overall: 75,
+        resource_safety: falcon::ai_score::score::DimensionScore { score: 85, findings: vec!["1 issue".to_string()] },
+        error_handling: falcon::ai_score::score::DimensionScore { score: 60, findings: vec![] },
+        type_safety: falcon::ai_score::score::DimensionScore { score: 90, findings: vec![] },
+        security: falcon::ai_score::score::DimensionScore { score: 100, findings: vec![] },
+        convention_match: falcon::ai_score::score::DimensionScore { score: 70, findings: vec![] },
+        complexity: falcon::ai_score::score::DimensionScore { score: 65, findings: vec![] },
+        file_count: 10,
+        total_issues: 5,
+        grade: "C".to_string(),
+    };
+    falcon::ai_score::score::print_ai_score(&score);
+}
+
+#[test]
+fn test_print_provenance_no_panic() {
+    let summary = falcon::ai_score::provenance::ProvenanceSummary {
+        total_files: 100,
+        human_files: 70,
+        ai_files: 15,
+        codegen_files: 10,
+        unknown_files: 5,
+        ai_percentage: 15.0,
+    };
+    falcon::ai_score::provenance::print_provenance_summary(&summary);
+}
