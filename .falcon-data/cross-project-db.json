@@ -1,0 +1,88 @@
+{
+  "profiles": [
+    {
+      "project_id": "proj-9c1d0a23",
+      "timestamp": "2026-03-18T14:32:52",
+      "file_count": 233,
+      "architecture": "Flat/Custom",
+      "state_management": "setState",
+      "naming_convention": "snake_case",
+      "error_handling_style": "try-catch",
+      "ai_score": 26,
+      "rule_violations": {
+        "no-magic-numbers": 877,
+        "avoid-long-parameter-list": 33,
+        "avoid-long-functions": 443,
+        "prefer-correct-identifier-length": 200,
+        "avoid-public-notifier-properties": 104,
+        "avoid-unused-parameters": 363,
+        "avoid-throw-in-catch-block": 11,
+        "avoid-late-keyword": 268,
+        "prefer-named-boolean-parameters": 2,
+        "avoid-dynamic": 268,
+        "unused-file": 10,
+        "newline-before-return": 468,
+        "unused-dependency": 38,
+        "avoid-print-in-production": 34,
+        "prefer-equatable": 4,
+        "prefer-trailing-comma": 467,
+        "prefer-match-file-name": 33,
+        "avoid-unawaited-futures": 142,
+        "avoid-top-level-members-in-tests": 4,
+        "ensure-dispose-lifecycle": 22,
+        "avoid-hardcoded-credentials": 1,
+        "prefer-extracting-callbacks": 14,
+        "prefer-const-constructors": 1043,
+        "prefer-specific-catch-type": 60,
+        "avoid-excessive-widget-nesting": 10,
+        "avoid-empty-catch": 12,
+        "unused-code": 216
+      },
+      "top_patterns": [
+        "prefer-const-constructors",
+        "no-magic-numbers",
+        "newline-before-return",
+        "prefer-trailing-comma",
+        "avoid-long-functions"
+      ]
+    }
+  ],
+  "convention_frequencies": {
+    "snake_case": 1
+  },
+  "rule_violation_totals": {
+    "prefer-match-file-name": 33,
+    "unused-code": 216,
+    "no-magic-numbers": 877,
+    "avoid-late-keyword": 268,
+    "avoid-unawaited-futures": 142,
+    "avoid-long-functions": 443,
+    "ensure-dispose-lifecycle": 22,
+    "prefer-specific-catch-type": 60,
+    "prefer-named-boolean-parameters": 2,
+    "prefer-extracting-callbacks": 14,
+    "avoid-dynamic": 268,
+    "avoid-empty-catch": 12,
+    "avoid-throw-in-catch-block": 11,
+    "avoid-print-in-production": 34,
+    "avoid-hardcoded-credentials": 1,
+    "prefer-correct-identifier-length": 200,
+    "unused-file": 10,
+    "newline-before-return": 468,
+    "avoid-unused-parameters": 363,
+    "prefer-equatable": 4,
+    "prefer-trailing-comma": 467,
+    "avoid-top-level-members-in-tests": 4,
+    "unused-dependency": 38,
+    "avoid-long-parameter-list": 33,
+    "prefer-const-constructors": 1043,
+    "avoid-excessive-widget-nesting": 10,
+    "avoid-public-notifier-properties": 104
+  },
+  "architecture_distribution": {
+    "Flat/Custom": 1
+  },
+  "state_mgmt_distribution": {
+    "setState": 1
+  }
+}

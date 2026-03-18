@@ -708,6 +708,41 @@ enum Commands {
         report: bool,
     },
 
+    /// Record a project into the cross-project learning database
+    Learn {
+        /// Path to project to record
+        #[arg(default_value = ".")]
+        project: PathBuf,
+
+        /// Path to the learning database (defaults to current dir)
+        #[arg(long, default_value = ".")]
+        db: PathBuf,
+
+        /// Show insights instead of recording
+        #[arg(long)]
+        insights: bool,
+    },
+
+    /// Predict production risks based on code patterns
+    #[command(name = "predict")]
+    Predict {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Check Flutter upgrade compatibility (deprecated APIs)
+    #[command(name = "upgrade-check")]
+    UpgradeCheck {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
     /// Analyze platform channel code (Kotlin/Swift)
     #[command(name = "check-platform")]
     CheckPlatform {
@@ -2161,6 +2196,39 @@ fn run(cli: Cli) -> Result<()> {
                 );
             } else {
                 eprintln!("Use --report to view, or --rule/--outcome/--file to record");
+                process::exit(1);
+            }
+        }
+        Commands::Learn { project, db, insights } => {
+            if insights {
+                let learning_db = falcon::ai_score::cross_project::load_learning_db(&db)?;
+                let ins = falcon::ai_score::cross_project::derive_insights(&learning_db);
+                falcon::ai_score::cross_project::print_insights(&ins);
+            } else {
+                let profile = falcon::ai_score::cross_project::record_project(&db, &project)?;
+                println!(
+                    "  {} Recorded project '{}' — {} files, arch: {}, score: {}",
+                    "✓".green().bold(),
+                    profile.project_id,
+                    profile.file_count,
+                    profile.architecture,
+                    profile.ai_score.map_or("N/A".to_string(), |s| format!("{}/100", s))
+                );
+            }
+        }
+        Commands::Predict { path, json } => {
+            let predictions = falcon::ai_score::regression_predict::predict_risks(&path)?;
+            if json {
+                let j = serde_json::to_string_pretty(&predictions)?;
+                println!("{}", j);
+            } else {
+                falcon::ai_score::regression_predict::print_risk_predictions(&predictions);
+            }
+        }
+        Commands::UpgradeCheck { path } => {
+            let findings = falcon::analysis::upgrade_check::check_upgrade_compatibility(&path);
+            falcon::analysis::upgrade_check::print_compat_report(&findings);
+            if findings.iter().any(|f| f.removed_in.is_some()) {
                 process::exit(1);
             }
         }

@@ -796,8 +796,8 @@ v1.x Architecture:                    v2.0 Architecture:
 - [x] `falcon refactor-sim` — refactoring simulation with impact analysis, migration steps, effort estimation (6 scenarios) ✅
 - [x] `falcon test-gen` — generate meaningful test stubs from code analysis (unit + widget tests, `--write` to save) ✅
 - [x] `falcon vuln-scan` — vulnerability & anti-pattern radar with CWE classification (insecure storage, HTTP, injection, crypto, data exposure) ✅
-- [ ] State management migration assistant (setState → BLoC → Riverpod) — covered by `refactor-sim`
-- [ ] Flutter upgrade compatibility checker (will my code work on Flutter N+1?)
+- [x] State management migration assistant — covered by `falcon refactor-sim` (6 migration scenarios) ✅
+- [x] `falcon upgrade-check` — Flutter upgrade compatibility checker, detects deprecated/removed APIs with migration guidance ✅
 
 ---
 
@@ -874,11 +874,11 @@ AI Code Quality Score: 72/100
 > **Thesis**: Falcon gets smarter with scale. Every project that uses Falcon makes
 > Falcon better for every other project.
 
-- [ ] **Cross-Project Learning** — anonymized patterns from thousands of projects improve convention detection
+- [x] **Cross-Project Learning** — `falcon learn` records projects, `--insights` derives cross-project patterns and recommendations ✅
 - [x] **AI-Tool Profiling** — `falcon ai-profile` builds per-tool error profiles from benchmark database ✅
 - [x] **Auto-Rule Generation** — `falcon discover-rules` proposes new rules from observed code patterns ✅
 - [x] **Fix Effectiveness Tracking** — `falcon fix-track` records accept/reject outcomes per rule ✅
-- [ ] **Regression Prediction** — "Based on similar codebases, this pattern will cause a production issue within 3 months"
+- [x] **Regression Prediction** — `falcon predict` forecasts production risks with probability, timeframe, evidence, and recommendations ✅
 
 ### v2.x Success Metrics
 
