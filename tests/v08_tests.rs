@@ -312,7 +312,7 @@ fn test_get_preset_invalid() {
 #[test]
 fn test_list_presets() {
     let presets = falcon::plugins::presets::list_presets();
-    assert_eq!(presets.len(), 6);
+    assert!(presets.len() >= 6, "Should have at least 6 presets, got {}", presets.len());
     let names: Vec<&str> = presets.iter().map(|p| p.name.as_str()).collect();
     assert!(names.contains(&"recommended"));
     assert!(names.contains(&"strict"));

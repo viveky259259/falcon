@@ -18,6 +18,7 @@ pub fn get_preset(name: &str) -> Option<RulePreset> {
         "riverpod" => Some(preset_riverpod()),
         "bloc" => Some(preset_bloc()),
         "performance" => Some(preset_performance()),
+        "ai-generated" => Some(preset_ai_generated()),
         _ => None,
     }
 }
@@ -30,6 +31,7 @@ pub fn list_presets() -> Vec<RulePreset> {
         preset_riverpod(),
         preset_bloc(),
         preset_performance(),
+        preset_ai_generated(),
     ]
 }
 
@@ -161,6 +163,35 @@ fn preset_performance() -> RulePreset {
             rule("avoid-expanded-as-spacer", Severity::Warning),
             rule("avoid-long-functions", Severity::Warning),
             rule("prefer-trailing-comma", Severity::Info),
+        ],
+    }
+}
+
+fn preset_ai_generated() -> RulePreset {
+    RulePreset {
+        name: "ai-generated".to_string(),
+        description: "Rules targeting the most common issues in AI-generated Flutter code (Cursor, Copilot, Claude, Gemini).".to_string(),
+        rules: vec![
+            rule("avoid-empty-catch", Severity::Error),
+            rule("avoid-print-in-production", Severity::Error),
+            rule("avoid-hardcoded-credentials", Severity::Error),
+            rule("ensure-dispose-lifecycle", Severity::Error),
+            rule("avoid-unawaited-futures", Severity::Error),
+            rule("ensure-stream-subscription-cancel", Severity::Error),
+            rule("prefer-specific-catch-type", Severity::Warning),
+            rule("avoid-excessive-widget-nesting", Severity::Warning),
+            rule("prefer-named-boolean-parameters", Severity::Warning),
+            rule("avoid-dynamic", Severity::Error),
+            rule("avoid-global-state", Severity::Error),
+            rule("avoid-returning-widgets", Severity::Warning),
+            rule("avoid-long-functions", Severity::Warning),
+            rule("avoid-nested-conditionals", Severity::Warning),
+            rule("avoid-unnecessary-set-state", Severity::Error),
+            rule("avoid-unused-parameters", Severity::Warning),
+            rule("avoid-throw-in-catch", Severity::Error),
+            rule("prefer-const-constructors", Severity::Warning),
+            rule("prefer-trailing-comma", Severity::Info),
+            rule("no-magic-numbers", Severity::Warning),
         ],
     }
 }

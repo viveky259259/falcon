@@ -85,5 +85,10 @@ pub fn default_rules() -> Vec<RuleConfig> {
         RuleConfig::Simple("avoid-hardcoded-credentials".to_string()),
         RuleConfig::Simple("prefer-named-boolean-parameters".to_string()),
         RuleConfig::Simple("ensure-dispose-lifecycle".to_string()),
+        // v1.1 AI-critical rules
+        RuleConfig::Simple("avoid-unawaited-futures".to_string()),
+        RuleConfig::Simple("prefer-specific-catch-type".to_string()),
+        RuleConfig::Simple("ensure-stream-subscription-cancel".to_string()),
+        RuleConfig::Simple("avoid-excessive-widget-nesting".to_string()),
     ]
 }

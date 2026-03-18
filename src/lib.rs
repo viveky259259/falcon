@@ -1,6 +1,7 @@
 pub mod ai;
 pub mod analysis;
 pub mod benchmark;
+pub mod benchmark_compare;
 pub mod config;
 pub mod dashboard;
 pub mod docs;
@@ -14,6 +15,7 @@ pub mod reporters;
 pub mod resolver;
 pub mod review;
 pub mod rules;
+pub mod showcase;
 pub mod unused;
 pub mod workspace;
 

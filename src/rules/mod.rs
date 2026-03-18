@@ -92,6 +92,11 @@ impl RuleRegistry {
             Box::new(common::AvoidHardcodedCredentials),
             Box::new(common::PreferNamedBoolParams),
             Box::new(flutter::EnsureDisposeLifecycle),
+            // v1.1 AI-critical rules
+            Box::new(common::AvoidUnawaitedFutures),
+            Box::new(common::PreferSpecificCatchType),
+            Box::new(flutter::EnsureStreamSubscriptionCancel),
+            Box::new(flutter::AvoidExcessiveWidgetNesting),
         ];
 
         for mut rule in all_rules {

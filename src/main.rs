@@ -61,6 +61,10 @@ enum Commands {
         #[arg(long, default_value = "error")]
         fail_on: FailLevel,
 
+        /// Apply a named rule preset (recommended, strict, flutter, riverpod, bloc, performance, ai-generated)
+        #[arg(long)]
+        preset: Option<String>,
+
         /// Exclude public API from analysis
         #[arg(long)]
         exclude_public_api: bool,
@@ -464,6 +468,27 @@ enum Commands {
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
+
+    /// Compare Falcon analysis with dart analyze
+    Compare {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Analyze projects for a showcase report
+    Showcase {
+        /// Paths to projects to analyze
+        paths: Vec<PathBuf>,
+
+        /// Output format (console or markdown)
+        #[arg(long, default_value = "console")]
+        format: String,
+
+        /// Output file for markdown format
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -630,10 +655,33 @@ fn run(cli: Cli) -> Result<()> {
             since,
             baseline,
             fail_on,
+            preset,
             exclude_public_api: _,
         } => {
             let config_path = config.as_deref().unwrap_or(&path);
-            let falcon_config = FalconConfig::load(config_path)?;
+            let mut falcon_config = FalconConfig::load(config_path)?;
+
+            if let Some(ref preset_name) = preset {
+                match falcon::plugins::presets::get_preset(preset_name) {
+                    Some(p) => {
+                        falcon_config.rules = p.rules;
+                        eprintln!(
+                            "  {} Using preset '{}' ({} rules)",
+                            "▸".bright_cyan(),
+                            preset_name.bright_white(),
+                            falcon_config.rules.len()
+                        );
+                    }
+                    None => {
+                        eprintln!(
+                            "Unknown preset '{}'. Available: recommended, strict, flutter, riverpod, bloc, performance, ai-generated",
+                            preset_name
+                        );
+                        process::exit(1);
+                    }
+                }
+            }
+
             let falcon = Falcon::new(falcon_config.clone())?;
 
             let report = if let Some(ref git_ref) = since {
@@ -1425,6 +1473,52 @@ fn run(cli: Cli) -> Result<()> {
                             std::fs::write(&out, &md)?;
                             println!(
                                 "  {} Rule docs written to {}",
+                                "✓".green().bold(),
+                                out.display()
+                            );
+                        }
+                        None => print!("{}", md),
+                    }
+                }
+                _ => {
+                    eprintln!("Unknown format '{}'. Use: console, markdown", format);
+                    process::exit(1);
+                }
+            }
+        }
+        Commands::Compare { path } => {
+            let result = falcon::benchmark_compare::compare_with_dart_analyze(&path)?;
+            falcon::benchmark_compare::print_compare_result(&result);
+        }
+        Commands::Showcase { paths, format, output } => {
+            if paths.is_empty() {
+                eprintln!("Provide at least one project path to analyze.");
+                process::exit(1);
+            }
+
+            let mut analyses = Vec::new();
+            for path in &paths {
+                let name = path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| path.display().to_string());
+                match falcon::showcase::analyze_local_project(path, &name) {
+                    Ok(analysis) => analyses.push(analysis),
+                    Err(e) => eprintln!("  {} Failed to analyze {}: {}", "✗".red(), path.display(), e),
+                }
+            }
+
+            let report = falcon::showcase::generate_showcase_report(analyses);
+
+            match format.as_str() {
+                "console" => falcon::showcase::print_showcase_report(&report),
+                "markdown" => {
+                    let md = falcon::showcase::generate_markdown_report(&report);
+                    match output {
+                        Some(out) => {
+                            std::fs::write(&out, &md)?;
+                            println!(
+                                "  {} Showcase report written to {}",
                                 "✓".green().bold(),
                                 out.display()
                             );

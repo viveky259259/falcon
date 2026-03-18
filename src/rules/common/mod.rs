@@ -27,6 +27,8 @@ mod avoid_empty_catch;
 mod avoid_print_in_production;
 mod avoid_hardcoded_credentials;
 mod prefer_named_bool_params;
+mod avoid_unawaited_futures;
+mod prefer_specific_catch_type;
 
 pub use avoid_long_functions::AvoidLongFunctions;
 pub use avoid_long_parameter_list::AvoidLongParameterList;
@@ -57,3 +59,5 @@ pub use avoid_empty_catch::AvoidEmptyCatch;
 pub use avoid_print_in_production::AvoidPrintInProduction;
 pub use avoid_hardcoded_credentials::AvoidHardcodedCredentials;
 pub use prefer_named_bool_params::PreferNamedBoolParams;
+pub use avoid_unawaited_futures::AvoidUnawaitedFutures;
+pub use prefer_specific_catch_type::PreferSpecificCatchType;
