@@ -1,6 +1,9 @@
+pub mod ai_profiling;
+pub mod auto_rules;
 pub mod benchmark_db;
 pub mod convention;
 pub mod drift;
+pub mod fix_tracking;
 pub mod provenance;
 pub mod report;
 pub mod score;

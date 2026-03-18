@@ -5,4 +5,7 @@ pub mod devtools_bridge;
 pub mod import_rules;
 pub mod layer_enforcement;
 pub mod platform_channels;
+pub mod refactor_sim;
+pub mod test_gen;
+pub mod vuln_radar;
 pub mod widget_rebuild;

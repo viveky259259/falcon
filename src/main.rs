@@ -632,6 +632,82 @@ enum Commands {
         summary: bool,
     },
 
+    /// Simulate a refactoring and analyze impact
+    #[command(name = "refactor-sim")]
+    RefactorSim {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Refactoring scenario
+        #[arg(long)]
+        scenario: falcon::analysis::refactor_sim::RefactorScenario,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Generate test stubs from code analysis
+    #[command(name = "test-gen")]
+    TestGen {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Write test files to disk
+        #[arg(long)]
+        write: bool,
+    },
+
+    /// Scan for security vulnerabilities and anti-patterns
+    #[command(name = "vuln-scan")]
+    VulnScan {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Profile AI tools based on benchmark data
+    #[command(name = "ai-profile")]
+    AiProfile {
+        /// Path to project (reads benchmark-db)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Discover patterns that could become new rules
+    #[command(name = "discover-rules")]
+    DiscoverRules {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Track fix acceptance/rejection effectiveness
+    #[command(name = "fix-track")]
+    FixTrack {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Rule name (for recording)
+        #[arg(long)]
+        rule: Option<String>,
+
+        /// Fix outcome (accepted, rejected, modified)
+        #[arg(long)]
+        outcome: Option<String>,
+
+        /// File where fix was applied
+        #[arg(long)]
+        file: Option<String>,
+
+        /// Show effectiveness report
+        #[arg(long)]
+        report: bool,
+    },
+
     /// Analyze platform channel code (Kotlin/Swift)
     #[command(name = "check-platform")]
     CheckPlatform {
@@ -2009,6 +2085,82 @@ fn run(cli: Cli) -> Result<()> {
                 );
             } else {
                 eprintln!("Use --tool <name> to record, or --summary to view benchmarks");
+                process::exit(1);
+            }
+        }
+        Commands::RefactorSim { path, scenario, json } => {
+            let impact = falcon::analysis::refactor_sim::simulate_refactor(&path, &scenario)?;
+            if json {
+                let j = serde_json::to_string_pretty(&impact)?;
+                println!("{}", j);
+            } else {
+                falcon::analysis::refactor_sim::print_refactor_impact(&impact);
+            }
+        }
+        Commands::TestGen { path, write } => {
+            let stubs = falcon::analysis::test_gen::generate_test_stubs(&path);
+            falcon::analysis::test_gen::print_test_gen_summary(&stubs);
+
+            if write {
+                let mut written = 0;
+                for stub in &stubs {
+                    let test_path = path.join(&stub.test_file);
+                    if !test_path.exists() && !stub.test_cases.is_empty() {
+                        if let Some(parent) = test_path.parent() {
+                            let _ = std::fs::create_dir_all(parent);
+                        }
+                        let content = falcon::analysis::test_gen::render_test_file(stub);
+                        if std::fs::write(&test_path, &content).is_ok() {
+                            written += 1;
+                        }
+                    }
+                }
+                println!(
+                    "  {} Wrote {} test file(s)",
+                    "✓".green().bold(),
+                    written
+                );
+            }
+        }
+        Commands::VulnScan { path } => {
+            let findings = falcon::analysis::vuln_radar::scan_vulnerabilities(&path);
+            falcon::analysis::vuln_radar::print_vuln_report(&findings);
+            if findings.iter().any(|f| f.risk_level == falcon::analysis::vuln_radar::RiskLevel::Critical) {
+                process::exit(1);
+            }
+        }
+        Commands::AiProfile { path } => {
+            let db = falcon::ai_score::benchmark_db::load_benchmark_db(&path)?;
+            let profiles = falcon::ai_score::ai_profiling::build_tool_profiles(&db);
+            falcon::ai_score::ai_profiling::print_tool_profiles(&profiles);
+        }
+        Commands::DiscoverRules { path } => {
+            let rules = falcon::ai_score::auto_rules::discover_patterns(&path);
+            falcon::ai_score::auto_rules::print_proposed_rules(&rules);
+        }
+        Commands::FixTrack { path, rule, outcome, file, report } => {
+            if report {
+                let history = falcon::ai_score::fix_tracking::load_fix_history(&path)?;
+                let eff = falcon::ai_score::fix_tracking::compute_effectiveness(&history);
+                falcon::ai_score::fix_tracking::print_fix_effectiveness(&eff);
+            } else if let (Some(rule), Some(outcome_str), Some(file)) = (rule, outcome, file) {
+                let outcome = match outcome_str.as_str() {
+                    "accepted" | "accept" => falcon::ai_score::fix_tracking::FixOutcome::Accepted,
+                    "rejected" | "reject" => falcon::ai_score::fix_tracking::FixOutcome::Rejected,
+                    "modified" | "modify" => falcon::ai_score::fix_tracking::FixOutcome::Modified,
+                    _ => {
+                        eprintln!("Unknown outcome '{}'. Use: accepted, rejected, modified", outcome_str);
+                        process::exit(1);
+                    }
+                };
+                falcon::ai_score::fix_tracking::record_fix(&path, &rule, &file, outcome)?;
+                println!(
+                    "  {} Recorded fix outcome for '{}' in {}",
+                    "✓".green().bold(),
+                    rule, file
+                );
+            } else {
+                eprintln!("Use --report to view, or --rule/--outcome/--file to record");
                 process::exit(1);
             }
         }
