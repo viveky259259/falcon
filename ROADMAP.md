@@ -832,11 +832,11 @@ AI Tool Integration Flow:
 - [x] **Falcon LSP Protocol Extensions** — AI provenance hints, AI severity metadata, custom commands ✅
 - [x] **Webhook Callbacks** — analysis.complete, score.changed, drift.detected event webhooks ✅
 
-### Platform Expansion
-- [ ] Multi-language support (Kotlin, Swift for platform channels)
-- [ ] Code generation quality analysis (build_runner output)
-- [ ] Accessibility lint rules for Flutter widgets
-- [ ] Performance profiling integration (DevTools bridge)
+### Platform Expansion ✅
+- [x] Multi-language support — `falcon check-platform` analyzes Kotlin/Swift platform channel code for naming, error handling, thread safety ✅
+- [x] Code generation quality — `falcon check-codegen` analyzes .g.dart/.freezed.dart for staleness, size, missing headers ✅
+- [x] Accessibility lint rules — `ensure-semantics-label`, `ensure-image-semantics`, `ensure-touch-target-size` (WCAG 2.5.5) ✅
+- [x] Performance profiling — `falcon check-perf` DevTools-style analysis for rebuilds, memory, rendering, network anti-patterns ✅
 
 ---
 

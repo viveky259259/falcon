@@ -632,6 +632,30 @@ enum Commands {
         summary: bool,
     },
 
+    /// Analyze platform channel code (Kotlin/Swift)
+    #[command(name = "check-platform")]
+    CheckPlatform {
+        /// Path to Flutter project root
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Analyze code generation quality (.g.dart, .freezed.dart, etc.)
+    #[command(name = "check-codegen")]
+    CheckCodegen {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Run DevTools-style performance analysis
+    #[command(name = "check-perf")]
+    CheckPerf {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
     /// Start the Falcon HTTP API server
     #[command(name = "api")]
     Api {
@@ -1987,6 +2011,21 @@ fn run(cli: Cli) -> Result<()> {
                 eprintln!("Use --tool <name> to record, or --summary to view benchmarks");
                 process::exit(1);
             }
+        }
+        Commands::CheckPlatform { path } => {
+            let issues = falcon::analysis::platform_channels::analyze_platform_channels(&path);
+            falcon::analysis::platform_channels::print_platform_summary(&issues);
+            if !issues.is_empty() {
+                get_reporter(&OutputFormat::Console, &PathBuf::from("")).report_issues(&issues);
+            }
+        }
+        Commands::CheckCodegen { path } => {
+            let report = falcon::analysis::codegen_quality::analyze_codegen(&path);
+            falcon::analysis::codegen_quality::print_codegen_report(&report);
+        }
+        Commands::CheckPerf { path } => {
+            let report = falcon::analysis::devtools_bridge::analyze_performance(&path);
+            falcon::analysis::devtools_bridge::print_perf_report(&report);
         }
         Commands::Api { host, port } => {
             falcon::api::server::start_api_server(&host, port)?;

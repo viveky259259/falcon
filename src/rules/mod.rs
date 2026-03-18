@@ -97,6 +97,9 @@ impl RuleRegistry {
             Box::new(common::PreferSpecificCatchType),
             Box::new(flutter::EnsureStreamSubscriptionCancel),
             Box::new(flutter::AvoidExcessiveWidgetNesting),
+            Box::new(flutter::EnsureSemanticsLabel),
+            Box::new(flutter::EnsureImageSemantics),
+            Box::new(flutter::EnsureTouchTargetSize),
         ];
 
         for mut rule in all_rules {

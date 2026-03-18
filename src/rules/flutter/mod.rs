@@ -6,6 +6,7 @@ mod prefer_const_constructors;
 mod ensure_dispose_lifecycle;
 mod ensure_stream_subscription_cancel;
 mod avoid_excessive_widget_nesting;
+pub mod accessibility;
 
 pub use avoid_returning_widgets::AvoidReturningWidgets;
 pub use prefer_extracting_callbacks::PreferExtractingCallbacks;
@@ -15,3 +16,4 @@ pub use prefer_const_constructors::PreferConstConstructors;
 pub use ensure_dispose_lifecycle::EnsureDisposeLifecycle;
 pub use ensure_stream_subscription_cancel::EnsureStreamSubscriptionCancel;
 pub use avoid_excessive_widget_nesting::AvoidExcessiveWidgetNesting;
+pub use accessibility::{EnsureSemanticsLabel, EnsureImageSemantics, EnsureTouchTargetSize};
