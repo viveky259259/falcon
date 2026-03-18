@@ -1,5 +1,9 @@
+pub mod cyclic;
+pub mod dead_code;
 pub mod references;
 pub mod scope;
+pub mod unused_l10n;
+pub mod unused_params;
 
 use crate::config::{FalconConfig, Severity};
 use crate::parser::DartParser;

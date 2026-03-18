@@ -26,7 +26,7 @@ impl DependencyGraph {
                 let rel = e.path().strip_prefix(root).unwrap_or(e.path());
                 !exclude.iter().any(|p| p.matches_path(rel))
             })
-            .map(|e| e.path().to_path_buf())
+            .map(|e| normalize_path(e.path()))
             .collect();
 
         let all_files_index = build_file_index(&dart_files, root);
@@ -66,8 +66,11 @@ impl DependencyGraph {
 
 fn build_file_index(files: &[PathBuf], root: &Path) -> HashMap<String, PathBuf> {
     let mut index = HashMap::new();
+    let canonical_root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
     for file in files {
-        let rel = file.strip_prefix(root).unwrap_or(file);
+        let rel = file.strip_prefix(&canonical_root)
+            .or_else(|_| file.strip_prefix(root))
+            .unwrap_or(file);
         let rel_str = rel.to_string_lossy().replace('\\', "/");
         index.insert(rel_str, file.clone());
 
@@ -128,6 +131,10 @@ fn extract_imports(file: &Path, root: &Path, file_index: &HashMap<String, PathBu
     }
 
     result
+}
+
+fn normalize_path(path: &Path) -> PathBuf {
+    path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
 }
 
 fn extract_uri(line: &str) -> Option<String> {

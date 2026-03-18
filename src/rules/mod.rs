@@ -96,6 +96,10 @@ impl RuleRegistry {
         }
     }
 
+    pub fn rules(&self) -> Vec<&dyn Rule> {
+        self.rules.iter().map(|(r, _)| r.as_ref()).collect()
+    }
+
     pub fn check(&self, root: Node, source: &str, file: &Path) -> Vec<Issue> {
         let mut issues = Vec::new();
 

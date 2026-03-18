@@ -1,4 +1,5 @@
 mod defaults;
+pub mod validator;
 
 pub use defaults::*;
 

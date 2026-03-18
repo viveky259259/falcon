@@ -260,7 +260,7 @@ fn test_cache_detects_changed_files() {
     let changed = cache.changed_files(&[file.clone()]);
     assert!(changed.is_empty(), "File hasn't changed");
 
-    std::thread::sleep(std::time::Duration::from_millis(100));
+    std::thread::sleep(std::time::Duration::from_secs(2));
     std::fs::write(&file, "void main() { print('hi'); }").unwrap();
 
     let changed = cache.changed_files(&[file.clone()]);
