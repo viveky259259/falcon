@@ -306,6 +306,73 @@ enum Commands {
         #[arg(short, long)]
         config: Option<PathBuf>,
     },
+
+    /// Enforce clean architecture layer dependencies
+    #[command(name = "check-layers")]
+    CheckLayers {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Check import restriction rules
+    #[command(name = "check-imports")]
+    CheckImports {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Calculate cognitive complexity for all functions
+    #[command(name = "cognitive-complexity")]
+    CognitiveComplexity {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Threshold above which functions are flagged
+        #[arg(long, default_value = "15")]
+        threshold: u32,
+    },
+
+    /// Detect widget rebuild issues and build method complexity
+    #[command(name = "check-widgets")]
+    CheckWidgets {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Detect async/await anti-patterns
+    #[command(name = "check-async")]
+    CheckAsync {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Review code changes (pattern consistency, naming, error handling)
+    Review {
+        /// Path to project root
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Git ref to diff against (e.g., HEAD~1, main, origin/main)
+        #[arg(long, default_value = "HEAD~1")]
+        diff: String,
+
+        /// Review strictness level
+        #[arg(long, default_value = "standard")]
+        strictness: falcon::review::pr_review::ReviewStrictness,
+    },
+
+    /// Analyze codebase health, god files, tech debt, and hotspots
+    #[command(name = "codebase-intel")]
+    CodebaseIntel {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -720,6 +787,226 @@ fn run(cli: Cli) -> Result<()> {
                 &results,
                 Some(min_confidence),
             );
+        }
+        Commands::CheckLayers { path } => {
+            let config = FalconConfig::load(&path)?;
+            let exclude: Vec<glob::Pattern> = config
+                .exclude
+                .iter()
+                .filter_map(|p| glob::Pattern::new(p).ok())
+                .collect();
+
+            let layers = falcon::analysis::layer_enforcement::detect_architecture(&path);
+            match layers {
+                Some(layers) => {
+                    println!(
+                        "{} Detected architecture: {} layers",
+                        "falcon".bright_cyan().bold(),
+                        layers.len()
+                    );
+                    for l in &layers {
+                        println!(
+                            "  {} → can import: [{}]",
+                            l.name.bright_white(),
+                            if l.allowed_imports.is_empty() {
+                                "none".to_string()
+                            } else {
+                                l.allowed_imports.join(", ")
+                            }
+                        );
+                    }
+                    println!();
+
+                    let issues = falcon::analysis::layer_enforcement::enforce_layers(&path, &layers, &exclude);
+                    get_reporter(&OutputFormat::Console, &PathBuf::from("")).report_issues(&issues);
+
+                    if !issues.is_empty() {
+                        process::exit(1);
+                    }
+                }
+                None => {
+                    println!(
+                        "{} No recognized architecture pattern detected (domain/, data/, presentation/ or core/, features/).",
+                        "info".bright_blue()
+                    );
+                }
+            }
+        }
+        Commands::CheckImports { path } => {
+            let config = FalconConfig::load(&path)?;
+            let exclude: Vec<glob::Pattern> = config
+                .exclude
+                .iter()
+                .filter_map(|p| glob::Pattern::new(p).ok())
+                .collect();
+
+            let boundary_issues = falcon::analysis::import_rules::check_package_boundaries(&path, &exclude);
+            get_reporter(&OutputFormat::Console, &PathBuf::from("")).report_issues(&boundary_issues);
+
+            if !boundary_issues.is_empty() {
+                process::exit(1);
+            }
+        }
+        Commands::CognitiveComplexity { path, threshold } => {
+            let config = FalconConfig::load(&path)?;
+            let exclude: Vec<glob::Pattern> = config
+                .exclude
+                .iter()
+                .filter_map(|p| glob::Pattern::new(p).ok())
+                .collect();
+
+            let mut flagged = 0;
+            for entry in walkdir::WalkDir::new(&path)
+                .into_iter()
+                .filter_map(|e| e.ok())
+                .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+                .filter(|e| {
+                    let rel = e.path().strip_prefix(&path).unwrap_or(e.path());
+                    !exclude.iter().any(|p| p.matches_path(rel))
+                })
+            {
+                let source = match std::fs::read_to_string(entry.path()) {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                };
+                let mut parser = match falcon::parser::DartParser::new() {
+                    Ok(p) => p,
+                    Err(_) => continue,
+                };
+                let tree = match parser.parse(&source) {
+                    Some(t) => t,
+                    None => continue,
+                };
+
+                let results = falcon::analysis::cognitive_complexity::file_cognitive_complexity(
+                    tree.root_node(),
+                    &source,
+                );
+
+                for (name, complexity, line) in &results {
+                    if *complexity > threshold {
+                        let rel = entry.path().strip_prefix(&path).unwrap_or(entry.path());
+                        println!(
+                            "  {} {}:{} {} — cognitive complexity {}",
+                            "⚠".yellow(),
+                            rel.display(),
+                            line,
+                            name.bright_white(),
+                            complexity.to_string().red().bold()
+                        );
+                        flagged += 1;
+                    }
+                }
+            }
+
+            if flagged == 0 {
+                println!(
+                    "  {} All functions below cognitive complexity threshold of {}.",
+                    "✓".green().bold(),
+                    threshold
+                );
+            } else {
+                println!("\n  {} {} function(s) exceed threshold of {}.", "⚠".yellow(), flagged, threshold);
+                process::exit(1);
+            }
+        }
+        Commands::CheckWidgets { path } => {
+            let config = FalconConfig::load(&path)?;
+            let exclude: Vec<glob::Pattern> = config
+                .exclude
+                .iter()
+                .filter_map(|p| glob::Pattern::new(p).ok())
+                .collect();
+
+            let mut all_issues = Vec::new();
+            for entry in walkdir::WalkDir::new(&path)
+                .into_iter()
+                .filter_map(|e| e.ok())
+                .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+                .filter(|e| {
+                    let rel = e.path().strip_prefix(&path).unwrap_or(e.path());
+                    !exclude.iter().any(|p| p.matches_path(rel))
+                })
+            {
+                let source = match std::fs::read_to_string(entry.path()) {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                };
+                let mut parser = match falcon::parser::DartParser::new() {
+                    Ok(p) => p,
+                    Err(_) => continue,
+                };
+                let tree = match parser.parse(&source) {
+                    Some(t) => t,
+                    None => continue,
+                };
+
+                let issues = falcon::analysis::widget_rebuild::detect_widget_issues(
+                    tree.root_node(),
+                    &source,
+                    entry.path(),
+                );
+                all_issues.extend(issues);
+            }
+
+            get_reporter(&OutputFormat::Console, &PathBuf::from("")).report_issues(&all_issues);
+            if !all_issues.is_empty() {
+                process::exit(1);
+            }
+        }
+        Commands::CheckAsync { path } => {
+            let config = FalconConfig::load(&path)?;
+            let exclude: Vec<glob::Pattern> = config
+                .exclude
+                .iter()
+                .filter_map(|p| glob::Pattern::new(p).ok())
+                .collect();
+
+            let mut all_issues = Vec::new();
+            for entry in walkdir::WalkDir::new(&path)
+                .into_iter()
+                .filter_map(|e| e.ok())
+                .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+                .filter(|e| {
+                    let rel = e.path().strip_prefix(&path).unwrap_or(e.path());
+                    !exclude.iter().any(|p| p.matches_path(rel))
+                })
+            {
+                let source = match std::fs::read_to_string(entry.path()) {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                };
+                let mut parser = match falcon::parser::DartParser::new() {
+                    Ok(p) => p,
+                    Err(_) => continue,
+                };
+                let tree = match parser.parse(&source) {
+                    Some(t) => t,
+                    None => continue,
+                };
+
+                let issues = falcon::analysis::async_antipatterns::detect_async_antipatterns(
+                    tree.root_node(),
+                    &source,
+                    entry.path(),
+                );
+                all_issues.extend(issues);
+            }
+
+            get_reporter(&OutputFormat::Console, &PathBuf::from("")).report_issues(&all_issues);
+            if !all_issues.is_empty() {
+                process::exit(1);
+            }
+        }
+        Commands::Review { path, diff, strictness } => {
+            let config = FalconConfig::load(&path)?;
+            let report = falcon::review::pr_review::review_diff(&path, &diff, &config, strictness)?;
+            falcon::review::pr_review::print_review(&report);
+        }
+        Commands::CodebaseIntel { path } => {
+            let config = FalconConfig::load(&path)?;
+            let report = falcon::review::codebase_intel::analyze_codebase(&path, &config)?;
+            falcon::review::codebase_intel::print_codebase_report(&report, &path);
         }
     }
 

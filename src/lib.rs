@@ -1,4 +1,5 @@
 pub mod ai;
+pub mod analysis;
 pub mod config;
 pub mod docs;
 pub mod incremental;
@@ -7,6 +8,7 @@ pub mod metrics;
 pub mod parser;
 pub mod reporters;
 pub mod resolver;
+pub mod review;
 pub mod rules;
 pub mod unused;
 pub mod workspace;
