@@ -9,6 +9,7 @@ pub mod dashboard;
 pub mod docs;
 pub mod incremental;
 pub mod lsp;
+pub mod mcp;
 pub mod metrics;
 pub mod migration;
 pub mod parser;

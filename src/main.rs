@@ -569,6 +569,50 @@ enum Commands {
         verbose: bool,
     },
 
+    /// Start Falcon MCP server (stdio) for AI tool integration
+    #[command(name = "mcp")]
+    Mcp,
+
+    /// Detect convention drift in new or changed code
+    #[command(name = "drift")]
+    Drift {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Only analyze files changed since this git ref (e.g. HEAD~1, main)
+        #[arg(long)]
+        since: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Self-tune rules based on usage patterns and suppression history
+    #[command(name = "self-tune")]
+    SelfTune {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Track AI Code Quality Score over time
+    #[command(name = "score-track")]
+    ScoreTrack {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Show history instead of recording a new snapshot
+        #[arg(long)]
+        history: bool,
+
+        /// Number of recent entries to show
+        #[arg(long, default_value = "20")]
+        last: usize,
+    },
+
     /// Auto-detect team conventions (naming, architecture, state management)
     Conventions {
         /// Path to project
@@ -1782,6 +1826,57 @@ fn run(cli: Cli) -> Result<()> {
                 falcon::stability::suppression::print_suppression_list(&db);
             }
         },
+        Commands::Mcp => {
+            falcon::mcp::server::run_mcp_server()?;
+        }
+        Commands::Drift { path, since, json } => {
+            let report = falcon::ai_score::drift::detect_drift(&path, since.as_deref())?;
+            if json {
+                let j = serde_json::to_string_pretty(&report)?;
+                println!("{}", j);
+            } else {
+                falcon::ai_score::drift::print_drift_report(&report);
+            }
+        }
+        Commands::SelfTune { path } => {
+            let history = falcon::ai_score::self_tune::record_analysis(&path)?;
+            let recs = falcon::ai_score::self_tune::generate_recommendations(&history);
+            falcon::ai_score::self_tune::print_tune_recommendations(&recs, &history);
+        }
+        Commands::ScoreTrack { path, history, last } => {
+            if history {
+                let hist = falcon::ai_score::score_trends::load_score_history(&path)?;
+                falcon::ai_score::score_trends::print_score_history(&hist, last);
+            } else {
+                let snapshot = falcon::ai_score::score_trends::record_score(&path)?;
+                println!(
+                    "  {} Score snapshot recorded: {}/100 (Grade: {}), {} issues",
+                    "✓".green().bold(),
+                    snapshot.overall,
+                    snapshot.grade,
+                    snapshot.total_issues
+                );
+
+                let hist = falcon::ai_score::score_trends::load_score_history(&path)?;
+                if hist.snapshots.len() >= 2 {
+                    let prev = &hist.snapshots[hist.snapshots.len() - 2];
+                    let delta = falcon::ai_score::score_trends::compare_scores(prev, &snapshot);
+                    if delta.overall > 0 {
+                        println!(
+                            "    {} Score improved by {} points",
+                            "↑".bright_green(),
+                            delta.overall
+                        );
+                    } else if delta.overall < 0 {
+                        println!(
+                            "    {} Score dropped by {} points",
+                            "↓".red(),
+                            delta.overall.abs()
+                        );
+                    }
+                }
+            }
+        }
         Commands::AiScore { path, badge, json } => {
             let score = falcon::ai_score::score::calculate_ai_score(&path)?;
             if json {

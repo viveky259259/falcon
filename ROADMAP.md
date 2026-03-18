@@ -753,17 +753,46 @@ v1.x Architecture:                    v2.0 Architecture:
                                      └─────────────────────────────┘
 ```
 
-### Core Capabilities
+### Core Capabilities ✅
 
-| Capability | What It Does |
-|---|---|
-| **Codebase Model** | Semantic model of the entire codebase — not just AST, but intent, patterns, conventions |
-| **Convention Engine** | Auto-discovers team patterns (naming, error handling, architecture) without manual config |
-| **Drift Detector** | Detects when new code (especially AI-generated) drifts from established patterns |
-| **Self-Tuning Rules** | Rules adjust thresholds based on team behavior (suppress patterns, fix acceptance) |
-| **Provenance Tagging** | Optionally tag code as AI-generated vs. human-written, analyze differently |
+| Capability | What It Does | Status |
+|---|---|---|
+| **Codebase Model** | Semantic model of the entire codebase — not just AST, but intent, patterns, conventions | 🔜 Future |
+| **Convention Engine** | Auto-discovers team patterns (naming, error handling, architecture) without manual config | ✅ v1.3 |
+| **Drift Detector** | Detects when new code (especially AI-generated) drifts from established patterns | ✅ v2.0 |
+| **Self-Tuning Rules** | Rules adjust thresholds based on team behavior (suppress patterns, fix acceptance) | ✅ v2.0 |
+| **Provenance Tagging** | Optionally tag code as AI-generated vs. human-written, analyze differently | ✅ v1.3 |
 
-### AI-Native Analysis
+### MCP Server (AI Tool Integration) ✅
+- [x] `falcon mcp` / `falcon-mcp` — stdio MCP server following the 2024-11-05 protocol
+- [x] 7 MCP tools: `falcon_analyze`, `falcon_ai_score`, `falcon_check_file`, `falcon_explain_rule`, `falcon_fix`, `falcon_conventions`, `falcon_provenance`
+- [x] Single-file analysis via `falcon_check_file` with optional source code parameter (for in-flight AI code checking)
+- [x] Full JSON-RPC protocol: `initialize`, `tools/list`, `tools/call`, `ping`
+- [x] Preset support in `falcon_analyze` for AI-generated code presets
+
+### Drift Detector ✅
+- [x] `falcon drift` — detect convention drift in new or changed code
+- [x] `--since` flag for analyzing only files changed since a git ref
+- [x] 4 drift categories: Naming, Architecture, ErrorHandling, StateManagement
+- [x] Drift score (0-100%) measuring convention adherence
+- [x] Architecture drift detection (Clean Architecture, Feature-First layer violations)
+- [x] Mixed state management detection (e.g. BLoC project using GetX)
+- [x] `--json` flag for CI/CD integration
+
+### Self-Tuning Rules ✅
+- [x] `falcon self-tune` — auto-adjust rule recommendations based on usage patterns
+- [x] Signal ratio tracking: triggers vs. suppressions per rule
+- [x] Auto-recommendations: UPGRADE (high-value rules), DOWNGRADE (noisy rules), DISABLE (mostly suppressed)
+- [x] Tune history persistence (`.falcon-data/tune-history.json`)
+
+### AI Score Trends ✅
+- [x] `falcon score-track` — record AI Code Quality Score snapshots over time
+- [x] `--history` flag to view score history with per-dimension breakdown
+- [x] Score deltas between snapshots (↑ improved / ↓ regressed)
+- [x] Git commit tracking per snapshot
+- [x] Score history persistence (`.falcon-data/score-history.json`)
+
+### AI-Native Analysis (Future)
 - [ ] Refactoring simulation ("what if we migrate checkout/ to Riverpod?")
 - [ ] State management migration assistant (setState → BLoC → Riverpod)
 - [ ] Flutter upgrade compatibility checker (will my code work on Flutter N+1?)
@@ -797,7 +826,7 @@ AI Tool Integration Flow:
        └── Clean? ──► Code delivered to user
 ```
 
-- [ ] **Falcon MCP Server** — AI coding assistants call Falcon as a tool, self-correction loop closes
+- [x] **Falcon MCP Server** — AI coding assistants call Falcon as a tool, self-correction loop closes ✅ (implemented in v2.0)
 - [ ] **Falcon SDK (Rust library)** — embeddable analysis engine for AI tool pipelines
 - [ ] **Falcon API (HTTP)** — cloud-hosted analysis endpoint (`POST /analyze`)
 - [ ] **Falcon LSP Protocol Extensions** — custom messages for AI-specific diagnostics
@@ -831,12 +860,12 @@ AI Code Quality Score: 72/100
   Duplication:         55/100  (4 semantic clones detected)
 ```
 
-- [ ] **AI Code Score (0-100)** — single number for production-readiness
-- [ ] **Score Breakdown** — Resource Safety, Error Handling, Type Safety, Security, Convention Match, Duplication
-- [ ] **Score API** — embeddable badge for READMEs, PR comments, dashboards
+- [x] **AI Code Score (0-100)** — single number for production-readiness ✅ (v1.3)
+- [x] **Score Breakdown** — Resource Safety, Error Handling, Type Safety, Security, Convention Match, Complexity ✅ (v1.3)
+- [x] **Score API** — embeddable badge for READMEs, PR comments, dashboards ✅ (v1.3 `--badge`)
 - [ ] **Benchmark Database** — "Average Cursor-generated Flutter app scores 64. Average human-written scores 78."
-- [ ] **Score Trends** — track score over time per project
-- [ ] **Certification** — "Falcon Certified: Production Ready" badge for repos maintaining 85+
+- [x] **Score Trends** — track score over time per project ✅ (v2.0 `score-track`)
+- [x] **Certification** — "Falcon Certified: Production Ready" badge for repos maintaining 85+ ✅ (v1.3)
 
 ---
 
