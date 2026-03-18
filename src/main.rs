@@ -743,6 +743,35 @@ enum Commands {
         path: PathBuf,
     },
 
+    /// Falcon Cloud — team dashboards and multi-project tracking
+    Cloud {
+        #[command(subcommand)]
+        action: CloudAction,
+    },
+
+    /// Enterprise features — policies, audit, compliance
+    Enterprise {
+        #[command(subcommand)]
+        action: EnterpriseAction,
+    },
+
+    /// Browse the Falcon marketplace
+    Marketplace {
+        /// Search query
+        #[arg(default_value = "")]
+        query: String,
+    },
+
+    /// Evaluate project for Falcon certification
+    Certify {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// View Falcon partner integrations
+    Partners,
+
     /// Analyze platform channel code (Kotlin/Swift)
     #[command(name = "check-platform")]
     CheckPlatform {
@@ -1055,6 +1084,82 @@ enum FailLevel {
     Error,
     Warning,
     Info,
+}
+
+#[derive(Subcommand)]
+enum CloudAction {
+    /// Initialize cloud config for a team
+    Init {
+        /// Team name
+        #[arg(long)]
+        team: String,
+
+        /// Config root path
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Register a project
+    #[command(name = "add-project")]
+    AddProject {
+        /// Project name
+        #[arg(long)]
+        name: String,
+
+        /// Path to the project
+        #[arg(long)]
+        project_path: String,
+
+        /// Config root path
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Show team dashboard
+    Dashboard {
+        /// Config root path
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+}
+
+#[derive(Subcommand)]
+enum EnterpriseAction {
+    /// Initialize enterprise policies
+    Init {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Check policies against project
+    Check {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Generate compliance report
+    Compliance {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output file
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Show audit log
+    Audit {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Number of entries to show
+        #[arg(long, default_value = "20")]
+        last: usize,
+    },
 }
 
 #[derive(Clone, Debug, clap::ValueEnum)]
@@ -2231,6 +2336,99 @@ fn run(cli: Cli) -> Result<()> {
             if findings.iter().any(|f| f.removed_in.is_some()) {
                 process::exit(1);
             }
+        }
+        Commands::Cloud { action } => match action {
+            CloudAction::Init { team, path } => {
+                falcon::platform::cloud::init_cloud(&path, &team)?;
+                println!(
+                    "  {} Cloud initialized for team '{}'",
+                    "✓".green().bold(),
+                    team
+                );
+            }
+            CloudAction::AddProject { name, project_path, path } => {
+                falcon::platform::cloud::register_project(&path, &name, &project_path)?;
+                println!(
+                    "  {} Project '{}' registered",
+                    "✓".green().bold(),
+                    name
+                );
+            }
+            CloudAction::Dashboard { path } => {
+                let dashboard = falcon::platform::cloud::generate_dashboard(&path)?;
+                falcon::platform::cloud::print_dashboard(&dashboard);
+            }
+        },
+        Commands::Enterprise { action } => match action {
+            EnterpriseAction::Init { path } => {
+                let policies = falcon::platform::enterprise::default_policies();
+                falcon::platform::enterprise::save_policies(&path, &policies)?;
+                println!(
+                    "  {} Enterprise policies initialized ({} policies)",
+                    "✓".green().bold(),
+                    policies.policies.len()
+                );
+                falcon::platform::enterprise::record_audit(
+                    &path, "system", "init", "policies", "Default enterprise policies created"
+                )?;
+            }
+            EnterpriseAction::Check { path } => {
+                let results = falcon::platform::enterprise::check_policies(&path)?;
+                falcon::platform::enterprise::print_policy_results(&results);
+                falcon::platform::enterprise::record_audit(
+                    &path, "system", "policy-check", "project",
+                    &format!("{} passed, {} failed",
+                        results.iter().filter(|r| r.passed).count(),
+                        results.iter().filter(|r| !r.passed).count())
+                )?;
+                if results.iter().any(|r| !r.passed) {
+                    process::exit(1);
+                }
+            }
+            EnterpriseAction::Compliance { path, output } => {
+                let report = falcon::platform::enterprise::generate_compliance_report(&path)?;
+                match output {
+                    Some(out) => {
+                        std::fs::write(&out, &report)?;
+                        println!(
+                            "  {} Compliance report written to {}",
+                            "✓".green().bold(),
+                            out.display()
+                        );
+                    }
+                    None => print!("{}", report),
+                }
+            }
+            EnterpriseAction::Audit { path, last } => {
+                let log = falcon::platform::enterprise::load_audit_log(&path)?;
+                println!();
+                println!("  {} Audit Log ({} entries)", "falcon".bright_cyan().bold(), log.entries.len());
+                println!();
+                for entry in log.entries.iter().rev().take(last) {
+                    println!(
+                        "  {} {} {} → {} ({})",
+                        entry.timestamp.dimmed(),
+                        entry.user.bright_white(),
+                        entry.action.bright_yellow(),
+                        entry.target,
+                        entry.details.dimmed()
+                    );
+                }
+                println!();
+            }
+        },
+        Commands::Marketplace { query } => {
+            let q = if query.is_empty() { None } else { Some(query.as_str()) };
+            let listings = falcon::platform::marketplace::browse_marketplace(q);
+            falcon::platform::marketplace::print_marketplace(&listings, q);
+        }
+        Commands::Certify { path } => {
+            let result = falcon::platform::certification::evaluate_certification(&path)?;
+            falcon::platform::certification::print_certification(&result);
+        }
+        Commands::Partners => {
+            let partners = falcon::platform::partner::list_partners();
+            falcon::platform::partner::print_partners(&partners);
         }
         Commands::CheckPlatform { path } => {
             let issues = falcon::analysis::platform_channels::analyze_platform_channels(&path);

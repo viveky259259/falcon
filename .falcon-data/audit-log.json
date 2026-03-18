@@ -1,0 +1,18 @@
+{
+  "entries": [
+    {
+      "timestamp": "2026-03-18T14:41:28",
+      "user": "system",
+      "action": "init",
+      "target": "policies",
+      "details": "Default enterprise policies created"
+    },
+    {
+      "timestamp": "2026-03-18T14:41:28",
+      "user": "system",
+      "action": "policy-check",
+      "target": "project",
+      "details": "4 passed, 0 failed"
+    }
+  ]
+}

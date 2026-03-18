@@ -1,0 +1,48 @@
+{
+  "policies": [
+    {
+      "name": "production-readiness",
+      "description": "Code must score 70+ to merge",
+      "conditions": [
+        {
+          "MinScore": 70
+        }
+      ],
+      "action": "Block",
+      "enabled": true
+    },
+    {
+      "name": "no-credentials",
+      "description": "No hardcoded credentials allowed",
+      "conditions": [
+        {
+          "ForbidRules": [
+            "avoid-hardcoded-credentials"
+          ]
+        }
+      ],
+      "action": "Block",
+      "enabled": true
+    },
+    {
+      "name": "resource-safety",
+      "description": "All controllers must be disposed",
+      "conditions": [
+        "RequireDispose"
+      ],
+      "action": "Warn",
+      "enabled": true
+    },
+    {
+      "name": "type-safety",
+      "description": "Max 10 dynamic usages",
+      "conditions": [
+        {
+          "MaxDynamic": 10
+        }
+      ],
+      "action": "Warn",
+      "enabled": true
+    }
+  ]
+}
