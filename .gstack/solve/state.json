@@ -1,0 +1,17 @@
+{
+  "problem": "Build the missing items to sell Falcon: landing page, docs, pub.dev package, GitHub App scaffold",
+  "type": "feature",
+  "started_at": "2026-03-18T15:00:00Z",
+  "current_phase": 3,
+  "phases": {
+    "think": { "status": "completed", "artifact": "think-output.md" },
+    "plan": { "status": "completed", "artifact": "plan-output.md" },
+    "build": { "status": "in_progress" },
+    "review": { "status": "pending" },
+    "test": { "status": "pending" },
+    "ship": { "status": "pending" }
+  },
+  "decisions": [],
+  "loop_count": { "build": 0, "review": 0, "test": 0 },
+  "branch": "master"
+}

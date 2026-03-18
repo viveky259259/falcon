@@ -1,0 +1,18 @@
+{
+  "name": "falcon-github-app",
+  "version": "1.0.0",
+  "description": "Falcon GitHub App — auto-analyze Flutter PRs",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "probot": "^13.0.0",
+    "stripe": "^14.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  },
+  "license": "MIT"
+}

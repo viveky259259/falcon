@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Falcon — AI-Powered Static Analysis for Flutter</title>
+    <meta name="description" content="Rust-powered static analysis for Flutter/Dart. 58+ rules, AI Code Score, MCP server. Free and open source.">
+    <meta property="og:title" content="Falcon — AI-Powered Static Analysis for Flutter">
+    <meta property="og:description" content="The only Flutter linter designed for AI-generated code. 10-100x faster. Free forever.">
+    <meta property="og:type" content="website">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --cyan: #06b6d4;
+            --dark: #0f172a;
+            --darker: #020617;
+            --gray: #94a3b8;
+            --white: #f8fafc;
+            --green: #22c55e;
+            --yellow: #eab308;
+            --red: #ef4444;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--darker); color: var(--white); line-height: 1.6; }
+        a { color: var(--cyan); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+        /* Nav */
+        nav { padding: 20px 0; border-bottom: 1px solid #1e293b; }
+        nav .container { display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 24px; font-weight: 800; color: var(--cyan); }
+        .nav-links { display: flex; gap: 32px; }
+        .nav-links a { color: var(--gray); font-size: 14px; }
+        .nav-links a:hover { color: var(--white); text-decoration: none; }
+
+        /* Hero */
+        .hero { text-align: center; padding: 100px 0 80px; }
+        .hero h1 { font-size: 56px; font-weight: 800; line-height: 1.1; margin-bottom: 24px; }
+        .hero h1 span { color: var(--cyan); }
+        .hero p { font-size: 20px; color: var(--gray); max-width: 640px; margin: 0 auto 40px; }
+        .hero-cta { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+        .btn { display: inline-block; padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 16px; transition: all 0.2s; }
+        .btn-primary { background: var(--cyan); color: var(--dark); }
+        .btn-primary:hover { background: #22d3ee; text-decoration: none; }
+        .btn-secondary { background: #1e293b; color: var(--white); border: 1px solid #334155; }
+        .btn-secondary:hover { border-color: var(--cyan); text-decoration: none; }
+
+        /* Terminal */
+        .terminal { background: var(--dark); border: 1px solid #1e293b; border-radius: 12px; padding: 24px; text-align: left; max-width: 700px; margin: 60px auto 0; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 14px; overflow-x: auto; }
+        .terminal .prompt { color: var(--green); }
+        .terminal .cmd { color: var(--white); }
+        .terminal .output { color: var(--gray); }
+        .terminal .score { color: var(--yellow); font-weight: bold; }
+        .terminal .good { color: var(--green); }
+        .terminal .bad { color: var(--red); }
+
+        /* Features */
+        .features { padding: 100px 0; }
+        .features h2 { text-align: center; font-size: 36px; margin-bottom: 16px; }
+        .features .subtitle { text-align: center; color: var(--gray); margin-bottom: 60px; font-size: 18px; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+        .feature-card { background: var(--dark); border: 1px solid #1e293b; border-radius: 12px; padding: 32px; }
+        .feature-card h3 { font-size: 20px; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+        .feature-card p { color: var(--gray); font-size: 15px; }
+        .feature-icon { font-size: 24px; }
+
+        /* Stats */
+        .stats { padding: 60px 0; border-top: 1px solid #1e293b; border-bottom: 1px solid #1e293b; }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; text-align: center; }
+        .stat-number { font-size: 48px; font-weight: 800; color: var(--cyan); }
+        .stat-label { color: var(--gray); font-size: 14px; margin-top: 4px; }
+
+        /* Pricing */
+        .pricing { padding: 100px 0; }
+        .pricing h2 { text-align: center; font-size: 36px; margin-bottom: 16px; }
+        .pricing .subtitle { text-align: center; color: var(--gray); margin-bottom: 60px; font-size: 18px; }
+        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; }
+        .price-card { background: var(--dark); border: 1px solid #1e293b; border-radius: 12px; padding: 32px; }
+        .price-card.featured { border-color: var(--cyan); }
+        .price-card h3 { font-size: 22px; margin-bottom: 8px; }
+        .price-amount { font-size: 40px; font-weight: 800; margin: 16px 0; }
+        .price-amount span { font-size: 16px; color: var(--gray); font-weight: 400; }
+        .price-features { list-style: none; margin: 24px 0; }
+        .price-features li { padding: 8px 0; color: var(--gray); font-size: 14px; border-bottom: 1px solid #1e293b; }
+        .price-features li::before { content: "✓ "; color: var(--green); }
+
+        /* CTA */
+        .cta-section { padding: 100px 0; text-align: center; }
+        .cta-section h2 { font-size: 36px; margin-bottom: 16px; }
+        .cta-section p { color: var(--gray); max-width: 500px; margin: 0 auto 32px; font-size: 18px; }
+        .install-cmd { background: var(--dark); display: inline-block; padding: 16px 32px; border-radius: 8px; font-family: monospace; font-size: 16px; border: 1px solid #334155; }
+
+        /* Footer */
+        footer { padding: 40px 0; border-top: 1px solid #1e293b; text-align: center; color: var(--gray); font-size: 14px; }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 36px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .nav-links { gap: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="container">
+        <div class="logo">falcon</div>
+        <div class="nav-links">
+            <a href="#features">Features</a>
+            <a href="#pricing">Pricing</a>
+            <a href="docs/">Docs</a>
+            <a href="https://github.com/viveky259259/falcon">GitHub</a>
+        </div>
+    </div>
+</nav>
+
+<section class="hero">
+    <div class="container">
+        <h1>AI-powered static analysis<br>for <span>Flutter</span></h1>
+        <p>The only Flutter linter designed for AI-generated code. 58+ rules, AI Code Score, MCP integration. 10-100x faster than alternatives. Free and open source.</p>
+        <div class="hero-cta">
+            <a href="#install" class="btn btn-primary">Get Started</a>
+            <a href="https://github.com/viveky259259/falcon" class="btn btn-secondary">Star on GitHub</a>
+        </div>
+
+        <div class="terminal">
+            <div><span class="prompt">$</span> <span class="cmd">falcon ai-score .</span></div>
+            <br>
+            <div><span class="output">  falcon AI Code Quality Score</span></div>
+            <br>
+            <div><span class="output">  AI Code Quality Score: </span><span class="score">72/100</span><span class="output"> (Grade: C)</span></div>
+            <br>
+            <div><span class="output">    Resource Safety      </span><span class="good"> 85/100</span></div>
+            <div><span class="output">    Error Handling       </span><span class="bad"> 45/100</span><span class="output"> · 8 empty catch blocks</span></div>
+            <div><span class="output">    Type Safety          </span><span class="good"> 90/100</span></div>
+            <div><span class="output">    Security             </span><span class="good">100/100</span></div>
+            <div><span class="output">    Convention Match     </span><span class="score"> 68/100</span><span class="output"> · 6 naming issues</span></div>
+            <div><span class="output">    Complexity           </span><span class="score"> 55/100</span><span class="output"> · 4 long functions</span></div>
+        </div>
+    </div>
+</section>
+
+<section class="stats">
+    <div class="container">
+        <div class="stats-grid">
+            <div><div class="stat-number">58+</div><div class="stat-label">Lint Rules</div></div>
+            <div><div class="stat-number">74</div><div class="stat-label">CLI Commands</div></div>
+            <div><div class="stat-number">&lt;2s</div><div class="stat-label">Analysis Time</div></div>
+            <div><div class="stat-number">MIT</div><div class="stat-label">License</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="features" id="features">
+    <div class="container">
+        <h2>Built for the AI era</h2>
+        <p class="subtitle">AI-generated Flutter code fails in predictable ways. Falcon catches them all.</p>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3><span class="feature-icon">🎯</span> AI Code Score</h3>
+                <p>Single 0-100 score with 6-dimension breakdown. Know exactly where your AI-generated code needs work.</p>
+            </div>
+            <div class="feature-card">
+                <h3><span class="feature-icon">🔌</span> MCP Server</h3>
+                <p>AI coding tools call Falcon during generation. Self-correction loop closes — bugs fixed before you see them.</p>
+            </div>
+            <div class="feature-card">
+                <h3><span class="feature-icon">⚡</span> Rust-Powered</h3>
+                <p>10-100x faster than alternatives. Analyze 200+ files in under 2 seconds. No JVM, no Node.</p>
+            </div>
+            <div class="feature-card">
+                <h3><span class="feature-icon">🔍</span> AI Provenance</h3>
+                <p>Detect which files are AI-generated vs human-written. Apply stricter rules where it matters.</p>
+            </div>
+            <div class="feature-card">
+                <h3><span class="feature-icon">📊</span> PR Comments</h3>
+                <p>Auto-post analysis results on every PR. Score tracking over time. CI/CD integration in one line.</p>
+            </div>
+            <div class="feature-card">
+                <h3><span class="feature-icon">🏢</span> Enterprise Ready</h3>
+                <p>Custom policies, audit logs, compliance reports, team dashboards. SOC2/HIPAA-ready enforcement.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="pricing" id="pricing">
+    <div class="container">
+        <h2>Simple pricing</h2>
+        <p class="subtitle">The tool that makes AI code safe is free. The platform that proves it to your boss is paid.</p>
+        <div class="pricing-grid">
+            <div class="price-card">
+                <h3>Core CLI</h3>
+                <div class="price-amount">Free<span> forever</span></div>
+                <ul class="price-features">
+                    <li>All 74 CLI commands</li>
+                    <li>58+ lint rules</li>
+                    <li>AI Code Score</li>
+                    <li>MCP Server</li>
+                    <li>LSP (VS Code)</li>
+                    <li>HTTP API</li>
+                    <li>Community support</li>
+                </ul>
+                <a href="#install" class="btn btn-secondary" style="width:100%;text-align:center;">Install Now</a>
+            </div>
+            <div class="price-card featured">
+                <h3>Team</h3>
+                <div class="price-amount">$9<span>/seat/month</span></div>
+                <ul class="price-features">
+                    <li>Everything in Free</li>
+                    <li>GitHub App (auto PR analysis)</li>
+                    <li>Team dashboard</li>
+                    <li>Score trends</li>
+                    <li>Shared conventions</li>
+                    <li>Priority support (48hr)</li>
+                </ul>
+                <a href="mailto:vivek.yad259@gmail.com?subject=Falcon Team" class="btn btn-primary" style="width:100%;text-align:center;">Contact Us</a>
+            </div>
+            <div class="price-card">
+                <h3>Enterprise</h3>
+                <div class="price-amount">$29<span>/seat/month</span></div>
+                <ul class="price-features">
+                    <li>Everything in Team</li>
+                    <li>SSO (SAML/OIDC)</li>
+                    <li>Audit logs</li>
+                    <li>Custom policies</li>
+                    <li>Compliance reports</li>
+                    <li>Dedicated support (24hr)</li>
+                </ul>
+                <a href="mailto:vivek.yad259@gmail.com?subject=Falcon Enterprise" class="btn btn-secondary" style="width:100%;text-align:center;">Contact Sales</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="cta-section" id="install">
+    <div class="container">
+        <h2>Get started in 30 seconds</h2>
+        <p>Install Falcon and score your Flutter project right now.</p>
+        <div class="install-cmd">
+            <span class="prompt">$</span> cargo install --git https://github.com/viveky259259/falcon
+        </div>
+        <br><br>
+        <div class="install-cmd">
+            <span class="prompt">$</span> falcon ai-score .
+        </div>
+    </div>
+</section>
+
+<footer>
+    <div class="container">
+        <p>Falcon is open source (MIT) — built by <a href="https://github.com/viveky259259">Vivek Yadav</a></p>
+        <p style="margin-top:8px;"><a href="https://github.com/viveky259259/falcon">GitHub</a> · <a href="docs/">Docs</a> · <a href="mailto:vivek.yad259@gmail.com">Contact</a></p>
+    </div>
+</footer>
+
+</body>
+</html>

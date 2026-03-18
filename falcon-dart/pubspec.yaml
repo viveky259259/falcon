@@ -1,0 +1,19 @@
+name: falcon_cli
+description: >
+  Rust-powered static analysis for Flutter/Dart. AI Code Score, 58+ rules,
+  MCP server, and CI integration. The only linter designed for AI-generated code.
+version: 0.1.0
+homepage: https://github.com/viveky259259/falcon
+repository: https://github.com/viveky259259/falcon
+issue_tracker: https://github.com/viveky259259/falcon/issues
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+executables:
+  falcon: falcon
+
+platforms:
+  linux:
+  macos:
+  windows:
