@@ -204,7 +204,7 @@ is money saved — and Falcon does it for free.
 
 ### CI Integration
 - [x] GitHub Actions action (`falcon-lint/action`)
-- [ ] PR comment bot (post analysis results as PR comments)
+- [x] PR comment bot (`falcon pr-comment`) — posts analysis results as GitHub PR comments ✅
 - [x] GitLab CI template
 - [x] Bitbucket Pipelines pipe
 - [x] Pre-commit hook support (shell hook + pre-commit framework)
@@ -827,8 +827,8 @@ AI Tool Integration Flow:
 ```
 
 - [x] **Falcon MCP Server** — AI coding assistants call Falcon as a tool, self-correction loop closes ✅ (implemented in v2.0)
-- [ ] **Falcon SDK (Rust library)** — embeddable analysis engine for AI tool pipelines
-- [ ] **Falcon API (HTTP)** — cloud-hosted analysis endpoint (`POST /analyze`)
+- [x] **Falcon SDK (Rust library)** — embeddable analysis engine for AI tool pipelines ✅
+- [x] **Falcon API (HTTP)** — analysis endpoint `POST /analyze`, `POST /score`, `POST /check-file`, `GET /health` ✅
 - [ ] **Falcon LSP Protocol Extensions** — custom messages for AI-specific diagnostics
 - [ ] **Webhook Callbacks** — `on_ai_code_generated → falcon.analyze → feedback_to_ai` pipeline
 

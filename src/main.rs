@@ -573,6 +573,46 @@ enum Commands {
     #[command(name = "mcp")]
     Mcp,
 
+    /// Post analysis results as a GitHub PR comment
+    #[command(name = "pr-comment")]
+    PrComment {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// GitHub repository owner
+        #[arg(long)]
+        owner: Option<String>,
+
+        /// GitHub repository name
+        #[arg(long)]
+        repo: Option<String>,
+
+        /// PR number
+        #[arg(long)]
+        pr: Option<u32>,
+
+        /// Only print the comment body without posting
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Path to falcon.yaml config
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+    },
+
+    /// Start the Falcon HTTP API server
+    #[command(name = "api")]
+    Api {
+        /// Host to bind to
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+
+        /// Port to listen on
+        #[arg(long, default_value = "8090")]
+        port: u16,
+    },
+
     /// Detect convention drift in new or changed code
     #[command(name = "drift")]
     Drift {
@@ -1828,6 +1868,36 @@ fn run(cli: Cli) -> Result<()> {
         },
         Commands::Mcp => {
             falcon::mcp::server::run_mcp_server()?;
+        }
+        Commands::PrComment { path, owner, repo, pr, dry_run, config } => {
+            let config_path = config.as_deref().unwrap_or(&path);
+            let falcon_config = FalconConfig::load(config_path)?;
+            let falcon = Falcon::new(falcon_config)?;
+            let report = falcon.analyze(&path)?;
+
+            let comment = falcon::ci::pr_comment::format_pr_comment(&report, &path);
+
+            if dry_run {
+                println!("{}", comment);
+            } else if let (Some(owner), Some(repo), Some(pr)) = (owner, repo, pr) {
+                falcon::ci::pr_comment::post_pr_comment(&owner, &repo, pr, &comment)?;
+                println!(
+                    "  {} Posted analysis to {}/{}#{}",
+                    "✓".green().bold(),
+                    owner, repo, pr
+                );
+            } else {
+                falcon::ci::pr_comment::post_comment_auto(&comment)?;
+                println!(
+                    "  {} Posted analysis to PR (auto-detected)",
+                    "✓".green().bold()
+                );
+            }
+
+            falcon::ci::pr_comment::write_github_step_summary(&report, &path)?;
+        }
+        Commands::Api { host, port } => {
+            falcon::api::server::start_api_server(&host, port)?;
         }
         Commands::Drift { path, since, json } => {
             let report = falcon::ai_score::drift::detect_drift(&path, since.as_deref())?;

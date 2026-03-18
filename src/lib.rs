@@ -1,6 +1,8 @@
 pub mod ai;
 pub mod ai_score;
 pub mod analysis;
+pub mod api;
+pub mod ci;
 pub mod benchmark;
 pub mod benchmark_compare;
 pub mod community;
@@ -18,6 +20,7 @@ pub mod reporters;
 pub mod resolver;
 pub mod review;
 pub mod rules;
+pub mod sdk;
 pub mod showcase;
 pub mod stability;
 pub mod unused;
