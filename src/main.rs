@@ -489,6 +489,124 @@ enum Commands {
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
+
+    /// Show Falcon's stability contract and guarantees
+    #[command(name = "stability-contract")]
+    StabilityContract,
+
+    /// Show rule deprecation status
+    #[command(name = "deprecation-status")]
+    DeprecationStatus,
+
+    /// Track performance over time
+    #[command(name = "perf-track")]
+    PerfTrack {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Show history instead of recording a new snapshot
+        #[arg(long)]
+        history: bool,
+
+        /// Number of recent entries to show
+        #[arg(long, default_value = "20")]
+        last: usize,
+    },
+
+    /// Manage issue suppressions and false-positive tracking
+    Suppress {
+        #[command(subcommand)]
+        action: SuppressAction,
+    },
+
+    /// Community features — rule requests, voting, contributed rules
+    Community {
+        #[command(subcommand)]
+        action: CommunityAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum SuppressAction {
+    /// Add a suppression for a rule
+    Add {
+        /// Rule name
+        #[arg(long)]
+        rule: String,
+
+        /// File path
+        #[arg(long)]
+        file: String,
+
+        /// Line number (optional)
+        #[arg(long)]
+        line: Option<usize>,
+
+        /// Reason for suppression
+        #[arg(long)]
+        reason: String,
+
+        /// Category: false-positive, wont-fix, acknowledged, deferred
+        #[arg(long, default_value = "acknowledged")]
+        category: String,
+
+        /// Project root
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Show suppression statistics
+    Stats {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// List all suppressions
+    List {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+}
+
+#[derive(Subcommand)]
+enum CommunityAction {
+    /// Submit a rule request
+    Request {
+        /// Rule name
+        #[arg(long)]
+        name: String,
+
+        /// Description
+        #[arg(long)]
+        desc: String,
+
+        /// Category (dart, flutter, riverpod, bloc, etc.)
+        #[arg(long, default_value = "dart")]
+        category: String,
+
+        /// Project root for storing requests
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Vote on a rule request
+    Vote {
+        /// Request ID
+        id: String,
+
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// List rule requests
+    Requests {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Show community-contributed rules
+    Contributed,
 }
 
 #[derive(Subcommand)]
@@ -1532,6 +1650,110 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
+        Commands::StabilityContract => {
+            let contract = falcon::stability::contract::StabilityContract::default();
+            falcon::stability::contract::print_stability_contract(&contract);
+        }
+        Commands::DeprecationStatus => {
+            falcon::stability::deprecation::print_deprecation_status();
+        }
+        Commands::PerfTrack { path, history, last } => {
+            if history {
+                let hist = falcon::stability::perf_track::load_perf_history(&path)?;
+                falcon::stability::perf_track::print_perf_history(&hist, last);
+            } else {
+                let snapshot = falcon::stability::perf_track::capture_perf_snapshot(&path)?;
+                falcon::stability::perf_track::save_perf_snapshot(&path, &snapshot)?;
+                println!(
+                    "  {} Performance snapshot recorded: {} files, {} lines, {}ms",
+                    "✓".green().bold(),
+                    snapshot.file_count,
+                    snapshot.total_lines,
+                    snapshot.analysis_time_ms
+                );
+
+                let hist = falcon::stability::perf_track::load_perf_history(&path)?;
+                if let Some(regression) = falcon::stability::perf_track::check_regression(&hist) {
+                    if regression.is_regression {
+                        eprintln!(
+                            "  {} Performance regression: {:.1}% slower",
+                            "⚠".yellow(),
+                            regression.time_change_pct
+                        );
+                    }
+                }
+            }
+        }
+        Commands::Suppress { action } => match action {
+            SuppressAction::Add {
+                rule,
+                file,
+                line,
+                reason,
+                category,
+                path,
+            } => {
+                let cat = match category.as_str() {
+                    "false-positive" | "fp" => falcon::stability::suppression::SuppressionCategory::FalsePositive,
+                    "wont-fix" | "wf" => falcon::stability::suppression::SuppressionCategory::WontFix,
+                    "acknowledged" | "ack" => falcon::stability::suppression::SuppressionCategory::Acknowledged,
+                    "deferred" | "defer" => falcon::stability::suppression::SuppressionCategory::Deferred,
+                    _ => {
+                        eprintln!("Unknown category '{}'. Use: false-positive, wont-fix, acknowledged, deferred", category);
+                        process::exit(1);
+                    }
+                };
+                falcon::stability::suppression::add_suppression(&path, &rule, &file, line, &reason, cat)?;
+                println!(
+                    "  {} Suppression added for '{}' in {}",
+                    "✓".green().bold(),
+                    rule,
+                    file
+                );
+            }
+            SuppressAction::Stats { path } => {
+                let db = falcon::stability::suppression::load_suppressions(&path)?;
+                let stats = falcon::stability::suppression::suppression_stats(&db);
+                falcon::stability::suppression::print_suppression_stats(&stats);
+            }
+            SuppressAction::List { path } => {
+                let db = falcon::stability::suppression::load_suppressions(&path)?;
+                falcon::stability::suppression::print_suppression_list(&db);
+            }
+        },
+        Commands::Community { action } => match action {
+            CommunityAction::Request {
+                name,
+                desc,
+                category,
+                path,
+            } => {
+                let id = falcon::community::submit_rule_request(&path, &name, &desc, &category)?;
+                println!(
+                    "  {} Rule request submitted: {} ({})",
+                    "✓".green().bold(),
+                    name,
+                    id
+                );
+            }
+            CommunityAction::Vote { id, path } => {
+                let votes = falcon::community::vote_rule_request(&path, &id)?;
+                println!(
+                    "  {} Voted on {}. Total votes: {}",
+                    "✓".green().bold(),
+                    id,
+                    votes
+                );
+            }
+            CommunityAction::Requests { path } => {
+                let data = falcon::community::load_community(&path)?;
+                falcon::community::print_rule_requests(&data.rule_requests);
+            }
+            CommunityAction::Contributed => {
+                let rules = falcon::community::sample_contributed_rules();
+                falcon::community::print_contributed_rules(&rules);
+            }
+        },
     }
 
     Ok(())

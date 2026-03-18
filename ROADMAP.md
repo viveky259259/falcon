@@ -643,21 +643,25 @@ Prometheus export produces valid scrape-ready metrics.
 
 ---
 
-## v1.2 — Developer Trust
+## v1.2 — Developer Trust ✅
 
 > **Thesis**: Trust is earned through predictability and transparency. Teams won't
 > make Falcon a CI gate unless they trust it won't break their workflow.
 
-### Stability & Predictability
-- [ ] Stability guarantees (no breaking config changes without migration path)
-- [ ] Rule deprecation policy (6-month notice before removal)
-- [ ] Performance regression tests (public dashboard)
-- [ ] Comprehensive false-positive database with resolution status
+### Stability & Predictability ✅
+- [x] `falcon stability-contract` — 6 guarantees covering config, naming, exit codes, formats, performance, behavior
+- [x] Rule deprecation policy — 4-stage process with 6-month notice period
+- [x] Migration policy — auto-migration, backwards-compatible configs, migration guides
+- [x] `falcon deprecation-status` — view currently deprecated rules (none yet)
+- [x] `falcon perf-track` — record & track performance over time with regression detection (>20% = alert)
+- [x] `falcon suppress` — false-positive database with categories (FP, won't-fix, acknowledged, deferred)
+- [x] Suppression statistics with per-rule breakdown and false-positive rate
 
-### Community Ownership
-- [ ] Public roadmap with community voting
-- [ ] Rule request and voting system
-- [ ] Community-contributed rule showcase
+### Community Ownership ✅
+- [x] `falcon community request` — submit rule requests with descriptions
+- [x] `falcon community vote` — vote on rule requests (ranked by votes)
+- [x] `falcon community requests` — view all rule requests sorted by popularity
+- [x] `falcon community contributed` — browse community-contributed rule plugins with ratings
 
 ---
 
