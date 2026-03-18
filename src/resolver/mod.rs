@@ -5,7 +5,7 @@ use crate::config::{FalconConfig, Severity};
 use crate::parser::DartParser;
 use crate::reporters::Issue;
 use anyhow::Result;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
@@ -97,7 +97,7 @@ impl ProjectResolver {
     pub fn find_unused_code(&self) -> Result<Vec<Issue>> {
         let mut issues = Vec::new();
         let mut all_declarations: Vec<(String, PathBuf, usize)> = Vec::new();
-        let mut all_references: HashSet<String> = HashSet::new();
+        let mut all_references: HashMap<String, HashSet<PathBuf>> = HashMap::new();
 
         for file in &self.dart_files {
             let source = match std::fs::read_to_string(file) {
@@ -119,18 +119,28 @@ impl ProjectResolver {
                 }
             }
 
-            let refs = references::collect_references(root, &source);
-            all_references.extend(refs);
+            let refs = references::collect_references_by_file(root, &source, file);
+            for (name, files) in refs {
+                all_references.entry(name).or_default().extend(files);
+            }
         }
 
-        for (name, file, line) in &all_declarations {
-            if !all_references.contains(name) {
-                let _rel = file.strip_prefix(&self.root).unwrap_or(file);
+        let skip_names: HashSet<&str> =
+            ["main", "build", "createState", "initState", "dispose", "didChangeDependencies"]
+                .into_iter()
+                .collect();
+
+        for (name, decl_file, line) in &all_declarations {
+            if skip_names.contains(name.as_str()) {
+                continue;
+            }
+
+            if !all_references.contains_key(name) {
                 issues.push(Issue {
                     rule: "unused-code".to_string(),
                     message: format!("Declaration '{}' appears to be unused.", name),
                     severity: Severity::Warning,
-                    file: file.clone(),
+                    file: decl_file.clone(),
                     line: *line,
                     column: 1,
                 });
