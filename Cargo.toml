@@ -1,0 +1,42 @@
+[package]
+name = "falcon"
+version = "0.1.0"
+edition = "2021"
+description = "Rust-powered static analysis CLI for Flutter/Dart"
+license = "MIT"
+repository = "https://github.com/falcon-lint/falcon"
+keywords = ["dart", "flutter", "linter", "static-analysis"]
+categories = ["development-tools", "command-line-utilities"]
+
+[[bin]]
+name = "falcon"
+path = "src/main.rs"
+
+[lib]
+name = "falcon"
+path = "src/lib.rs"
+
+[dependencies]
+tree-sitter = "0.25"
+tree-sitter-dart = "0.1"
+clap = { version = "4", features = ["derive"] }
+rayon = "1.10"
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+serde_json = "1"
+colored = "2"
+walkdir = "2"
+glob = "0.3"
+anyhow = "1"
+thiserror = "2"
+log = "0.4"
+env_logger = "0.11"
+
+[dev-dependencies]
+tempfile = "3"
+pretty_assertions = "1"
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
