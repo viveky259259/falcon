@@ -1,6 +1,20 @@
+## 0.2.0
+
+- Enterprise HTML reports with dashboard layout, charts, and dark/light theme
+- Project properties from pubspec.yaml in report header
+- Level of Concern breakdown across 8 categories
+- Test coverage section mapping source to test files
+- Branch comparison: `falcon compare-branches --base main --branch dev`
+- Report history with auto-save after every analysis
+- `falcon history` to view stored runs
+- `falcon compare-reports --run1 N --run2 M` for run comparison
+- Self-update: `falcon update` / `falcon update --version X`
+- Rich console icons for improved UX
+- 61+ lint rules, 470+ tests
+
 ## 0.1.0
 
 - Initial release
 - Dart wrapper for the Falcon Rust-powered CLI
 - Delegates to `falcon` binary on PATH or in `~/.cargo/bin/`
-- Supports all 74 Falcon commands
+- Supports all Falcon commands
