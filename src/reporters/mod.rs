@@ -25,6 +25,7 @@ pub struct AnalysisReport {
     pub issues: Vec<Issue>,
     pub metrics: Vec<(PathBuf, MetricsResults)>,
     pub file_count: usize,
+    pub project_path: Option<PathBuf>,
 }
 
 impl AnalysisReport {

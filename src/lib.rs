@@ -118,6 +118,7 @@ impl Falcon {
             issues: all_issues,
             metrics: all_metrics,
             file_count,
+            project_path: Some(path.to_path_buf()),
         })
     }
 
@@ -229,6 +230,7 @@ impl Falcon {
             issues: all_issues,
             metrics: all_metrics,
             file_count,
+            project_path: None,
         })
     }
 

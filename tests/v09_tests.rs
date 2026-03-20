@@ -268,6 +268,7 @@ fn create_test_report() -> falcon::reporters::AnalysisReport {
         issues,
         metrics: vec![(PathBuf::from("test.dart"), metrics)],
         file_count: 1,
+        project_path: None,
     }
 }
 

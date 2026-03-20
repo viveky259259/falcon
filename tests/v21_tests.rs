@@ -6,6 +6,7 @@ fn test_pr_comment_format_clean() {
         issues: vec![],
         metrics: vec![],
         file_count: 10,
+        project_path: None,
     };
 
     let comment = falcon::ci::pr_comment::format_pr_comment(
@@ -51,6 +52,7 @@ fn test_pr_comment_format_with_errors() {
         issues,
         metrics: vec![],
         file_count: 5,
+        project_path: None,
     };
 
     let comment = falcon::ci::pr_comment::format_pr_comment(
@@ -82,6 +84,7 @@ fn test_pr_comment_format_warnings_only() {
         issues,
         metrics: vec![],
         file_count: 3,
+        project_path: None,
     };
 
     let comment = falcon::ci::pr_comment::format_pr_comment(
@@ -108,6 +111,7 @@ fn test_ci_summary_format() {
         ],
         metrics: vec![],
         file_count: 5,
+        project_path: None,
     };
 
     let summary = falcon::ci::pr_comment::format_ci_summary(&report);
@@ -121,6 +125,7 @@ fn test_ci_summary_pass() {
         issues: vec![],
         metrics: vec![],
         file_count: 10,
+        project_path: None,
     };
 
     let summary = falcon::ci::pr_comment::format_ci_summary(&report);

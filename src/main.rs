@@ -476,6 +476,55 @@ enum Commands {
         path: PathBuf,
     },
 
+    /// Compare two stored analysis runs
+    CompareReports {
+        /// Path to project (where .falcon-data/ lives)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Run number for baseline (1-based, from `falcon history`)
+        #[arg(long, default_value = "0")]
+        run1: usize,
+
+        /// Run number for comparison (1-based, 0 = latest)
+        #[arg(long, default_value = "0")]
+        run2: usize,
+
+        /// Output HTML comparison report
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Compare analysis results between two git branches
+    CompareBranches {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Base branch (e.g. main)
+        #[arg(long)]
+        base: String,
+
+        /// Branch to compare against base
+        #[arg(long)]
+        branch: String,
+
+        /// Output HTML comparison report
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Path to falcon.yaml config
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+    },
+
+    /// Show analysis run history
+    History {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
     /// Analyze projects for a showcase report
     Showcase {
         /// Paths to projects to analyze
@@ -1300,9 +1349,17 @@ fn run(cli: Cli) -> Result<()> {
                 issues,
                 metrics: report.metrics,
                 file_count: report.file_count,
+                project_path: report.project_path,
             };
 
             get_reporter(&format, &output).report_analysis(&final_report);
+
+            // Auto-save snapshot for history tracking
+            let snap_root = if path.is_dir() { path.clone() } else { path.parent().unwrap_or(&path).to_path_buf() };
+            let snapshot = falcon::dashboard::snapshot::AnalysisSnapshot::capture(&final_report, &snap_root);
+            if let Err(e) = falcon::dashboard::snapshot::save_snapshot(&snap_root, &snapshot) {
+                log::debug!("Could not save snapshot: {}", e);
+            }
 
             if should_fail(&final_report, &fail_on) {
                 process::exit(1);
@@ -2081,6 +2138,49 @@ fn run(cli: Cli) -> Result<()> {
             let result = falcon::benchmark_compare::compare_with_dart_analyze(&path)?;
             falcon::benchmark_compare::print_compare_result(&result);
         }
+        Commands::CompareReports { path, run1, run2, output } => {
+            let history = falcon::dashboard::snapshot::load_history(&path)?;
+            if history.len() < 2 {
+                eprintln!("  ❌ {} Need at least 2 analysis runs to compare. Run {} first.",
+                    "error:".bright_red(), "falcon analyze".bright_blue());
+                process::exit(1);
+            }
+
+            let idx1 = if run1 == 0 { history.len() - 2 } else { (run1 - 1).min(history.len() - 1) };
+            let idx2 = if run2 == 0 { history.len() - 1 } else { (run2 - 1).min(history.len() - 1) };
+
+            let snap1 = &history[idx1];
+            let snap2 = &history[idx2];
+
+            let result = falcon::dashboard::compare_reports::compare_snapshots(snap1, snap2);
+            falcon::dashboard::compare_reports::print_comparison(&result);
+
+            if let Some(out) = output {
+                falcon::dashboard::compare_reports::generate_html_comparison(&result, &out)?;
+            }
+        }
+        Commands::CompareBranches { path, base, branch, output, config } => {
+            let config_path = config.as_deref().unwrap_or(&path);
+            let falcon_config = FalconConfig::load(config_path)?;
+
+            let html_out = output.unwrap_or_else(|| path.join("falcon-branch-comparison.html"));
+
+            println!();
+            println!("  🦅 {} {}", "falcon".bright_blue().bold(), "Branch Comparison".bold());
+            println!("  🌿 {} {} {}", base.bright_cyan(), "vs".dimmed(), branch.bright_cyan());
+            println!();
+
+            match falcon::dashboard::compare_reports::compare_branches(&path, &base, &branch, &falcon_config, &html_out) {
+                Ok(_) => {},
+                Err(e) => {
+                    eprintln!("  ❌ {} {}", "error:".bright_red(), e);
+                    process::exit(1);
+                }
+            }
+        }
+        Commands::History { path } => {
+            falcon::dashboard::compare_reports::list_history(&path)?;
+        }
         Commands::Showcase { paths, format, output } => {
             if paths.is_empty() {
                 eprintln!("Provide at least one project path to analyze.");
@@ -2757,6 +2857,7 @@ fn run_incremental(
             issues: Vec::new(),
             metrics: Vec::new(),
             file_count: 0,
+            project_path: None,
         });
     }
 

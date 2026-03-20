@@ -44,6 +44,7 @@ fn sample_report() -> AnalysisReport {
         issues: sample_issues(),
         metrics: Vec::new(),
         file_count: 2,
+        project_path: None,
     }
 }
 

@@ -356,11 +356,11 @@ fn test_score_grade_boundaries() {
             severity: falcon::config::Severity::Warning,
             file: "f.dart".into(), line: 1, column: 1,
         }; n],
-        metrics: vec![], file_count: 100,
+        metrics: vec![], file_count: 100, project_path: None,
     };
 
     let score_0_issues = falcon::ai_score::score::score_from_report(
-        &falcon::reporters::AnalysisReport { issues: vec![], metrics: vec![], file_count: 10 }
+        &falcon::reporters::AnalysisReport { issues: vec![], metrics: vec![], file_count: 10, project_path: None }
     ).unwrap();
     assert_eq!(score_0_issues.grade, Grade::A);
     assert_eq!(score_0_issues.overall, 100);

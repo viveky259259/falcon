@@ -222,6 +222,7 @@ fn test_score_from_empty_report() {
         issues: vec![],
         metrics: vec![],
         file_count: 0,
+        project_path: None,
     };
     let score = falcon::ai_score::score::score_from_report(&report).unwrap();
     assert_eq!(score.overall, 100);
@@ -244,6 +245,7 @@ fn test_score_from_report_with_errors() {
         issues,
         metrics: vec![],
         file_count: 10,
+        project_path: None,
     };
     let score = falcon::ai_score::score::score_from_report(&report).unwrap();
     assert!(score.overall < 100);
@@ -255,7 +257,7 @@ fn test_score_from_report_with_errors() {
 #[test]
 fn test_analysis_report_counts_empty() {
     let report = falcon::reporters::AnalysisReport {
-        issues: vec![], metrics: vec![], file_count: 0,
+        issues: vec![], metrics: vec![], file_count: 0, project_path: None,
     };
     assert_eq!(report.error_count(), 0);
     assert_eq!(report.warning_count(), 0);
@@ -274,6 +276,7 @@ fn test_analysis_report_counts_mixed() {
         ],
         metrics: vec![],
         file_count: 1,
+        project_path: None,
     };
     assert_eq!(report.error_count(), 1);
     assert_eq!(report.warning_count(), 2);
