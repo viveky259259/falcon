@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Branch Comparison — Falcon Documentation</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <a href="index.html" class="sidebar-logo">falcon docs</a>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Getting Started</div>
+                <a href="index.html">Home</a>
+                <a href="getting-started.html">Getting Started</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Reference</div>
+                <a href="cli-reference.html">CLI Reference</a>
+                <a href="rules.html">Rules</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Reports &amp; Comparison</div>
+                <a href="reports.html">HTML Reports</a>
+                <a href="comparison.html" class="active">Branch Comparison</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">AI Features</div>
+                <a href="ai-features.html">AI Features</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">App Management</div>
+                <a href="manage.html">Manage</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Integration</div>
+                <a href="ci-cd.html">CI/CD</a>
+                <a href="integrations.html">Integrations</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Platform</div>
+                <a href="enterprise.html">Enterprise</a>
+            </nav>
+        </aside>
+
+        <main class="main">
+            <h1>Comparison &amp; history</h1>
+            <p><strong>v0.2.0</strong> — Falcon keeps analysis snapshots so you can list past runs, diff two stored runs, or compare two git branches side by side.</p>
+
+            <h2><code>falcon history</code></h2>
+            <p>List stored analysis runs for a project (timestamp, branch, files, health score, issues, commit).</p>
+            <pre><code><span class="cmd">$</span> falcon history /path/to/project</code></pre>
+            <p>Snapshots are saved automatically after <code>falcon analyze</code> and <code>falcon compare-branches</code>.</p>
+
+            <h2><code>falcon compare-reports</code></h2>
+            <p>Compare two numbered runs from history and optionally write an HTML diff.</p>
+            <pre><code><span class="cmd">$</span> falcon compare-reports /path/to/project --run1 1 --run2 3
+<span class="cmd">$</span> falcon compare-reports /path/to/project --run1 1 --run2 3 --output comparison.html</code></pre>
+            <table>
+                <thead>
+                    <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>--run1</code></td><td>Baseline run (1-based index)</td><td>Second-to-last</td></tr>
+                    <tr><td><code>--run2</code></td><td>Comparison run</td><td>Latest</td></tr>
+                    <tr><td><code>--output</code></td><td>HTML comparison report path</td><td>None (console only)</td></tr>
+                </tbody>
+            </table>
+
+            <h2><code>falcon compare-branches</code></h2>
+            <p>Checks out each branch in turn, runs full analysis, restores your original branch, and produces a delta report.</p>
+            <pre><code><span class="cmd">$</span> falcon compare-branches /path/to/project --base main --branch feature/my-feature
+<span class="cmd">$</span> falcon compare-branches . --base main --branch dev --output comparison.html</code></pre>
+            <table>
+                <thead>
+                    <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>--base</code></td><td>Base branch</td><td>Required</td></tr>
+                    <tr><td><code>--branch</code></td><td>Branch to compare</td><td>Required</td></tr>
+                    <tr><td><code>--output</code></td><td>HTML report path</td><td><code>falcon-branch-comparison.html</code></td></tr>
+                    <tr><td><code>--config</code></td><td>Path to <code>falcon.yaml</code></td><td>Auto-detect</td></tr>
+                </tbody>
+            </table>
+
+            <h2>What the comparison shows</h2>
+            <ul>
+                <li>Health score delta with direction</li>
+                <li>File count, lines of code, and total issues delta</li>
+                <li>Error / warning / info breakdown</li>
+                <li>Metrics delta (e.g. complexity, maintainability, god files)</li>
+                <li>Top rule changes, new rules, and resolved rules</li>
+            </ul>
+            <p>Both branch analyses are saved to history for later use with <code>compare-reports</code>. For the HTML analysis dashboard, see <a href="reports.html">HTML Reports</a>.</p>
+        </main>
+    </div>
+</body>
+</html>

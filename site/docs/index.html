@@ -24,6 +24,12 @@
             </nav>
 
             <nav class="sidebar-section">
+                <div class="sidebar-section-title">Reports &amp; Comparison</div>
+                <a href="reports.html">HTML Reports</a>
+                <a href="comparison.html">Branch Comparison</a>
+            </nav>
+
+            <nav class="sidebar-section">
                 <div class="sidebar-section-title">AI Features</div>
                 <a href="ai-features.html">AI Features</a>
             </nav>
@@ -74,6 +80,8 @@
                 <li><a href="getting-started.html"><strong>Getting Started</strong></a> — Install Falcon, run your first analysis, configure falcon.yaml</li>
                 <li><a href="cli-reference.html"><strong>CLI Reference</strong></a> — All 80+ commands organized by category with examples</li>
                 <li><a href="rules.html"><strong>Rule Catalog</strong></a> — 61+ lint rules with severity, descriptions, and code examples</li>
+                <li><a href="reports.html"><strong>HTML Reports</strong></a> — Enterprise dashboard with health gauge, charts, test coverage, and project properties</li>
+                <li><a href="comparison.html"><strong>Branch Comparison</strong></a> — Compare branches, view history, and track quality over time</li>
                 <li><a href="ai-features.html"><strong>AI Features</strong></a> — AI Score, provenance detection, drift analysis, risk prediction</li>
                 <li><a href="manage.html"><strong>App Management</strong></a> — Health dashboard, dependency manager, architecture governor, maintenance advisor</li>
                 <li><a href="ci-cd.html"><strong>CI/CD</strong></a> — GitHub Actions, GitLab CI, PR comments, webhooks</li>
@@ -84,13 +92,15 @@
             <h2>Key Commands</h2>
             <table>
                 <tr><th>Command</th><th>Description</th></tr>
-                <tr><td><code>falcon manage health</code></td><td>Unified project health dashboard (0-100)</td></tr>
-                <tr><td><code>falcon manage all</code></td><td>Run ALL management analyses at once</td></tr>
+                <tr><td><code>falcon analyze</code></td><td>Full static analysis (61+ rules) with auto-save to history</td></tr>
+                <tr><td><code>falcon analyze --format html</code></td><td>Enterprise HTML report with dashboard, charts, and dark/light theme</td></tr>
+                <tr><td><code>falcon compare-branches</code></td><td>Compare two git branches side-by-side with delta report</td></tr>
+                <tr><td><code>falcon history</code></td><td>View all stored analysis runs</td></tr>
+                <tr><td><code>falcon compare-reports</code></td><td>Compare any two stored runs from history</td></tr>
                 <tr><td><code>falcon ai-score</code></td><td>AI Code Quality Score with 6-dimension breakdown</td></tr>
-                <tr><td><code>falcon analyze</code></td><td>Full static analysis (61+ rules)</td></tr>
-                <tr><td><code>falcon predict</code></td><td>Predict production risks from code patterns</td></tr>
-                <tr><td><code>falcon vuln-scan</code></td><td>Security vulnerability radar with CWE</td></tr>
-                <tr><td><code>falcon pr-comment</code></td><td>Post analysis results on GitHub PRs</td></tr>
+                <tr><td><code>falcon codebase-intel</code></td><td>Health score, god files, hotspots, tech debt estimate</td></tr>
+                <tr><td><code>falcon manage health</code></td><td>Unified project health dashboard (0-100)</td></tr>
+                <tr><td><code>falcon update</code></td><td>Self-update to latest or specific version</td></tr>
                 <tr><td><code>falcon mcp</code></td><td>MCP server for AI tool integration</td></tr>
             </table>
 

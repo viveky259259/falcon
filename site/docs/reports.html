@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Reports — Falcon Documentation</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <a href="index.html" class="sidebar-logo">falcon docs</a>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Getting Started</div>
+                <a href="index.html">Home</a>
+                <a href="getting-started.html">Getting Started</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Reference</div>
+                <a href="cli-reference.html">CLI Reference</a>
+                <a href="rules.html">Rules</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Reports &amp; Comparison</div>
+                <a href="reports.html" class="active">HTML Reports</a>
+                <a href="comparison.html">Branch Comparison</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">AI Features</div>
+                <a href="ai-features.html">AI Features</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">App Management</div>
+                <a href="manage.html">Manage</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Integration</div>
+                <a href="ci-cd.html">CI/CD</a>
+                <a href="integrations.html">Integrations</a>
+            </nav>
+
+            <nav class="sidebar-section">
+                <div class="sidebar-section-title">Platform</div>
+                <a href="enterprise.html">Enterprise</a>
+            </nav>
+        </aside>
+
+        <main class="main">
+            <h1>HTML Reports</h1>
+            <p><strong>v0.2.0</strong> — Falcon can emit a self-contained HTML dashboard from <code>falcon analyze</code>, ideal for sharing results, archiving runs, and CI artifacts.</p>
+
+            <h2>Generate a report</h2>
+            <pre><code><span class="cmd">$</span> falcon analyze . --format html --output report.html</code></pre>
+            <p>Default output path when omitted is <code>falcon-report.html</code>. See <a href="cli-reference.html">CLI Reference</a> for <code>--config</code>, <code>--since</code>, <code>--baseline</code>, and <code>--fail-on</code>.</p>
+
+            <h2>What’s in the report</h2>
+            <ul>
+                <li>Project properties from <code>pubspec.yaml</code> (name, version, SDK, dependencies)</li>
+                <li>Health score with an at-a-glance gauge</li>
+                <li>Level of concern breakdown (security, error handling, type safety, and related dimensions)</li>
+                <li>Severity distribution and top rules</li>
+                <li>Complexity hotspots and test coverage mapping (source ↔ test files)</li>
+                <li>Issues grouped by file with search and severity filters</li>
+                <li>Function and class metrics tables</li>
+                <li>Dark / light theme toggle in the generated page</li>
+            </ul>
+
+            <p>Each successful <code>falcon analyze</code> also stores a snapshot under your project for history and comparison commands described on <a href="comparison.html">Branch Comparison</a>.</p>
+        </main>
+    </div>
+</body>
+</html>
