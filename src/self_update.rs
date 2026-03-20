@@ -39,6 +39,15 @@ fn platform_asset_name() -> String {
 }
 
 fn fetch_json(url: &str) -> Result<String> {
+    if let Ok(output) = std::process::Command::new("gh")
+        .args(["api", url.trim_start_matches("https://api.github.com/")])
+        .output()
+    {
+        if output.status.success() {
+            return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+        }
+    }
+
     let output = std::process::Command::new("curl")
         .args(["-sL", "-H", "Accept: application/vnd.github+json", url])
         .output()
@@ -180,13 +189,40 @@ fn current_exe_path() -> Result<PathBuf> {
 }
 
 fn download_binary(url: &str, dest: &PathBuf) -> Result<()> {
-    let status = std::process::Command::new("curl")
-        .args(["-sL", "-o", &dest.display().to_string(), url])
-        .status()
-        .context("Failed to download binary")?;
+    let dest_str = dest.display().to_string();
 
-    if !status.success() {
-        bail!("Download failed from {}", url);
+    let gh_success = if let Some(api_path) = url.strip_prefix("https://api.github.com/") {
+        std::process::Command::new("gh")
+            .args(["api", api_path, "--method", "GET", "-H", "Accept: application/octet-stream"])
+            .stdout(std::fs::File::create(dest).context("Cannot create temp file")?)
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
+    } else {
+        let token = std::process::Command::new("gh")
+            .args(["auth", "token"])
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
+
+        let mut cmd = std::process::Command::new("curl");
+        cmd.args(["-sL", "-o", &dest_str]);
+        if let Some(t) = &token {
+            cmd.args(["-H", &format!("Authorization: token {}", t)]);
+        }
+        cmd.arg(url);
+        cmd.status().map(|s| s.success()).unwrap_or(false)
+    };
+
+    if !gh_success {
+        let status = std::process::Command::new("curl")
+            .args(["-sL", "-o", &dest_str, url])
+            .status()
+            .context("Failed to download binary")?;
+        if !status.success() {
+            bail!("Download failed from {}", url);
+        }
     }
 
     #[cfg(unix)]
