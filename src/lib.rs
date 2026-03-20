@@ -23,6 +23,7 @@ pub mod resolver;
 pub mod review;
 pub mod rules;
 pub mod sdk;
+pub mod self_update;
 pub mod showcase;
 pub mod stability;
 pub mod unused;

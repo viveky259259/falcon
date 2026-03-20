@@ -525,6 +525,17 @@ enum Commands {
         path: PathBuf,
     },
 
+    /// Update Falcon to the latest or a specific version
+    Update {
+        /// Target version (e.g. 0.2.0). Omit for latest.
+        #[arg(long)]
+        version: Option<String>,
+
+        /// List all available versions
+        #[arg(long)]
+        list: bool,
+    },
+
     /// Analyze projects for a showcase report
     Showcase {
         /// Paths to projects to analyze
@@ -2180,6 +2191,19 @@ fn run(cli: Cli) -> Result<()> {
         }
         Commands::History { path } => {
             falcon::dashboard::compare_reports::list_history(&path)?;
+        }
+        Commands::Update { version, list } => {
+            if list {
+                falcon::self_update::print_version_info();
+                if let Err(e) = falcon::self_update::print_available_versions() {
+                    eprintln!("  ❌ {} {}", "error:".bright_red(), e);
+                }
+            } else {
+                if let Err(e) = falcon::self_update::run_update(version.as_deref()) {
+                    eprintln!("  ❌ {} {}", "error:".bright_red(), e);
+                    process::exit(1);
+                }
+            }
         }
         Commands::Showcase { paths, format, output } => {
             if paths.is_empty() {
