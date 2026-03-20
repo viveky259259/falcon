@@ -22,16 +22,40 @@ use std::process;
     name = "falcon",
     version,
     about = "Falcon — Rust-powered static analysis for Flutter/Dart",
-    long_about = "A blazing-fast static analysis tool for Flutter and Dart projects.\nAnalyzes code metrics, enforces lint rules, and detects unused code."
+    long_about = "A blazing-fast static analysis tool for Flutter and Dart projects.\nAnalyzes code metrics, enforces lint rules, and detects unused code.",
+    after_long_help = GROUPED_HELP,
 )]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
 }
 
+const GROUPED_HELP: &str = r#"
+SEMANTIC COMMAND GROUPS:
+
+  Analysis          analyze, metrics, ai-score, cognitive-complexity, codebase-intel
+  Code Checks       check-unused-code, check-unused-files, check-cycles, check-async,
+                    check-widgets, check-dead-code, check-layers, check-imports,
+                    check-platform, check-codegen, check-perf, check-unused-params,
+                    check-unused-l10n, check-dependencies, check-promoted-deps
+  Comparison        compare-branches, compare-reports, compare, history
+  AI Intelligence   ai-score, ai-report, provenance, conventions, drift, predict,
+                    discover-rules, refactor-sim, test-gen, vuln-scan
+  CI/CD             pr-comment, webhook, export, fix
+  Tracking          trends, history, benchmark, score-track, perf-track, fix-track
+  Configuration     init, validate, explain, preset, suppress, baseline, self-tune
+  App Management    manage, review, watch, workspace
+  Integration       mcp, api
+  Enterprise        cloud, enterprise, certify, marketplace
+  Setup             init, update
+
+Use 'falcon <command> --help' for details on any command.
+"#;
+
 #[derive(Subcommand)]
 enum Commands {
     /// Run full analysis (metrics + rules + unused detection)
+    #[command(display_order = 1)]
     Analyze {
         /// Path to analyze (defaults to current directory)
         #[arg(default_value = ".")]
@@ -71,6 +95,7 @@ enum Commands {
     },
 
     /// Calculate code metrics only
+    #[command(display_order = 1)]
     Metrics {
         /// Path to analyze
         #[arg(default_value = ".")]
@@ -90,7 +115,7 @@ enum Commands {
     },
 
     /// Check for unused code declarations
-    #[command(name = "check-unused-code")]
+    #[command(name = "check-unused-code", display_order = 2)]
     CheckUnusedCode {
         /// Path to analyze
         #[arg(default_value = ".")]
@@ -106,7 +131,7 @@ enum Commands {
     },
 
     /// Check for unused Dart files
-    #[command(name = "check-unused-files")]
+    #[command(name = "check-unused-files", display_order = 2)]
     CheckUnusedFiles {
         /// Path to analyze
         #[arg(default_value = ".")]
@@ -122,7 +147,7 @@ enum Commands {
     },
 
     /// Check for unused dependencies in pubspec.yaml
-    #[command(name = "check-dependencies")]
+    #[command(name = "check-dependencies", display_order = 2)]
     CheckDependencies {
         /// Path to analyze
         #[arg(default_value = ".")]
@@ -138,6 +163,7 @@ enum Commands {
     },
 
     /// Generate a default falcon.yaml configuration file
+    #[command(display_order = 7)]
     Init {
         /// Path where to create falcon.yaml
         #[arg(default_value = ".")]
@@ -145,6 +171,7 @@ enum Commands {
     },
 
     /// Watch for file changes and re-analyze continuously
+    #[command(display_order = 8)]
     Watch {
         /// Path to watch
         #[arg(default_value = ".")]
@@ -156,13 +183,14 @@ enum Commands {
     },
 
     /// Manage analysis baselines
+    #[command(display_order = 7)]
     Baseline {
         #[command(subcommand)]
         action: BaselineAction,
     },
 
     /// Show file dependency graph
-    #[command(name = "dep-graph")]
+    #[command(name = "dep-graph", display_order = 12)]
     DepGraph {
         /// Path to analyze
         #[arg(default_value = ".")]
@@ -174,7 +202,7 @@ enum Commands {
     },
 
     /// Analyze all packages in a monorepo workspace
-    #[command(name = "workspace")]
+    #[command(name = "workspace", display_order = 8)]
     Workspace {
         /// Workspace root path
         #[arg(default_value = ".")]
@@ -182,6 +210,7 @@ enum Commands {
     },
 
     /// Generate rule documentation
+    #[command(display_order = 12)]
     Docs {
         /// Output directory for generated docs
         #[arg(default_value = "docs")]
@@ -189,6 +218,7 @@ enum Commands {
     },
 
     /// Validate falcon.yaml configuration
+    #[command(display_order = 7)]
     Validate {
         /// Path containing falcon.yaml
         #[arg(default_value = ".")]
@@ -196,7 +226,7 @@ enum Commands {
     },
 
     /// Detect cyclic import dependencies
-    #[command(name = "check-cycles")]
+    #[command(name = "check-cycles", display_order = 2)]
     CheckCycles {
         /// Path to analyze
         #[arg(default_value = ".")]
@@ -204,7 +234,7 @@ enum Commands {
     },
 
     /// Detect unused method/function parameters
-    #[command(name = "check-unused-params")]
+    #[command(name = "check-unused-params", display_order = 2)]
     CheckUnusedParams {
         /// Path to analyze
         #[arg(default_value = ".")]
@@ -220,7 +250,7 @@ enum Commands {
     },
 
     /// Detect dead code paths (unreachable code after return/throw)
-    #[command(name = "check-dead-code")]
+    #[command(name = "check-dead-code", display_order = 2)]
     CheckDeadCode {
         /// Path to analyze
         #[arg(default_value = ".")]
@@ -236,7 +266,7 @@ enum Commands {
     },
 
     /// Detect unused localization keys in ARB files
-    #[command(name = "check-unused-l10n")]
+    #[command(name = "check-unused-l10n", display_order = 2)]
     CheckUnusedL10n {
         /// Path to analyze
         #[arg(default_value = ".")]
@@ -252,7 +282,7 @@ enum Commands {
     },
 
     /// Detect over-promoted and under-promoted dependencies
-    #[command(name = "check-promoted-deps")]
+    #[command(name = "check-promoted-deps", display_order = 2)]
     CheckPromotedDeps {
         /// Path to analyze
         #[arg(default_value = ".")]
@@ -268,19 +298,21 @@ enum Commands {
     },
 
     /// Explain a rule with examples and context
+    #[command(display_order = 7)]
     Explain {
         /// Rule name to explain (or 'list' to show all rules)
         rule: String,
     },
 
     /// AI configuration and tools
-    #[command(name = "ai")]
+    #[command(name = "ai", display_order = 4)]
     Ai {
         #[command(subcommand)]
         action: AiAction,
     },
 
     /// Auto-fix lint issues
+    #[command(display_order = 5)]
     Fix {
         /// Path to analyze
         #[arg(default_value = ".")]
@@ -296,7 +328,7 @@ enum Commands {
     },
 
     /// Score unused code issues with confidence levels
-    #[command(name = "check-unused-confidence")]
+    #[command(name = "check-unused-confidence", display_order = 2)]
     CheckUnusedConfidence {
         /// Path to analyze
         #[arg(default_value = ".")]
@@ -312,7 +344,7 @@ enum Commands {
     },
 
     /// Enforce clean architecture layer dependencies
-    #[command(name = "check-layers")]
+    #[command(name = "check-layers", display_order = 2)]
     CheckLayers {
         /// Path to analyze
         #[arg(default_value = ".")]
@@ -320,7 +352,7 @@ enum Commands {
     },
 
     /// Check import restriction rules
-    #[command(name = "check-imports")]
+    #[command(name = "check-imports", display_order = 2)]
     CheckImports {
         /// Path to analyze
         #[arg(default_value = ".")]
@@ -328,7 +360,7 @@ enum Commands {
     },
 
     /// Calculate cognitive complexity for all functions
-    #[command(name = "cognitive-complexity")]
+    #[command(name = "cognitive-complexity", display_order = 1)]
     CognitiveComplexity {
         /// Path to analyze
         #[arg(default_value = ".")]
@@ -340,7 +372,7 @@ enum Commands {
     },
 
     /// Detect widget rebuild issues and build method complexity
-    #[command(name = "check-widgets")]
+    #[command(name = "check-widgets", display_order = 2)]
     CheckWidgets {
         /// Path to analyze
         #[arg(default_value = ".")]
@@ -348,7 +380,7 @@ enum Commands {
     },
 
     /// Detect async/await anti-patterns
-    #[command(name = "check-async")]
+    #[command(name = "check-async", display_order = 2)]
     CheckAsync {
         /// Path to analyze
         #[arg(default_value = ".")]
@@ -356,6 +388,7 @@ enum Commands {
     },
 
     /// Review code changes (pattern consistency, naming, error handling)
+    #[command(display_order = 8)]
     Review {
         /// Path to project root
         #[arg(default_value = ".")]
@@ -371,7 +404,7 @@ enum Commands {
     },
 
     /// Analyze codebase health, god files, tech debt, and hotspots
-    #[command(name = "codebase-intel")]
+    #[command(name = "codebase-intel", display_order = 1)]
     CodebaseIntel {
         /// Path to analyze
         #[arg(default_value = ".")]
@@ -379,24 +412,28 @@ enum Commands {
     },
 
     /// Plugin management
+    #[command(display_order = 12)]
     Plugin {
         #[command(subcommand)]
         action: PluginAction,
     },
 
     /// Rule presets (recommended, strict, flutter, riverpod, bloc, performance)
+    #[command(display_order = 7)]
     Preset {
         #[command(subcommand)]
         action: PresetAction,
     },
 
     /// Dashboard and analytics
+    #[command(display_order = 6)]
     Dashboard {
         #[command(subcommand)]
         action: DashboardAction,
     },
 
     /// Show quality trends from analysis history
+    #[command(display_order = 6)]
     Trends {
         /// Path to project
         #[arg(default_value = ".")]
@@ -408,7 +445,7 @@ enum Commands {
     },
 
     /// Analyze rule impact and get auto-tune recommendations
-    #[command(name = "rule-impact")]
+    #[command(name = "rule-impact", display_order = 7)]
     RuleImpact {
         /// Path to project
         #[arg(default_value = ".")]
@@ -416,6 +453,7 @@ enum Commands {
     },
 
     /// Export metrics (prometheus, json, webhook)
+    #[command(display_order = 5)]
     Export {
         /// Path to project
         #[arg(default_value = ".")]
@@ -435,7 +473,7 @@ enum Commands {
     },
 
     /// Migrate from DCM (Dart Code Metrics) to Falcon
-    #[command(name = "migrate-from-dcm")]
+    #[command(name = "migrate-from-dcm", display_order = 11)]
     MigrateFromDcm {
         /// Path to DCM analysis_options.yaml
         #[arg(default_value = "analysis_options.yaml")]
@@ -447,10 +485,11 @@ enum Commands {
     },
 
     /// Show DCM to Falcon feature gap report
-    #[command(name = "feature-gap")]
+    #[command(name = "feature-gap", display_order = 11)]
     FeatureGap,
 
     /// Run performance benchmark on a project
+    #[command(display_order = 6)]
     Benchmark {
         /// Path to project
         #[arg(default_value = ".")]
@@ -458,7 +497,7 @@ enum Commands {
     },
 
     /// Generate rule documentation
-    #[command(name = "rule-docs")]
+    #[command(name = "rule-docs", display_order = 12)]
     RuleDocs {
         /// Output format (console or markdown)
         #[arg(long, default_value = "console")]
@@ -470,6 +509,7 @@ enum Commands {
     },
 
     /// Compare Falcon analysis with dart analyze
+    #[command(display_order = 3)]
     Compare {
         /// Path to project
         #[arg(default_value = ".")]
@@ -477,6 +517,7 @@ enum Commands {
     },
 
     /// Compare two stored analysis runs
+    #[command(display_order = 3)]
     CompareReports {
         /// Path to project (where .falcon-data/ lives)
         #[arg(default_value = ".")]
@@ -496,6 +537,7 @@ enum Commands {
     },
 
     /// Compare analysis results between two git branches
+    #[command(display_order = 3)]
     CompareBranches {
         /// Path to project
         #[arg(default_value = ".")]
@@ -519,6 +561,7 @@ enum Commands {
     },
 
     /// Show analysis run history
+    #[command(display_order = 3)]
     History {
         /// Path to project
         #[arg(default_value = ".")]
@@ -526,6 +569,7 @@ enum Commands {
     },
 
     /// Update Falcon to the latest or a specific version
+    #[command(display_order = 11)]
     Update {
         /// Target version (e.g. 0.2.0). Omit for latest.
         #[arg(long)]
@@ -537,6 +581,7 @@ enum Commands {
     },
 
     /// Analyze projects for a showcase report
+    #[command(display_order = 12)]
     Showcase {
         /// Paths to projects to analyze
         paths: Vec<PathBuf>,
@@ -551,15 +596,15 @@ enum Commands {
     },
 
     /// Show Falcon's stability contract and guarantees
-    #[command(name = "stability-contract")]
+    #[command(name = "stability-contract", display_order = 11)]
     StabilityContract,
 
     /// Show rule deprecation status
-    #[command(name = "deprecation-status")]
+    #[command(name = "deprecation-status", display_order = 11)]
     DeprecationStatus,
 
     /// Track performance over time
-    #[command(name = "perf-track")]
+    #[command(name = "perf-track", display_order = 6)]
     PerfTrack {
         /// Path to project
         #[arg(default_value = ".")]
@@ -575,19 +620,21 @@ enum Commands {
     },
 
     /// Manage issue suppressions and false-positive tracking
+    #[command(display_order = 7)]
     Suppress {
         #[command(subcommand)]
         action: SuppressAction,
     },
 
     /// Community features — rule requests, voting, contributed rules
+    #[command(display_order = 10)]
     Community {
         #[command(subcommand)]
         action: CommunityAction,
     },
 
     /// Calculate AI Code Quality Score (0-100) with 6-dimension breakdown
-    #[command(name = "ai-score")]
+    #[command(name = "ai-score", display_order = 1)]
     AiScore {
         /// Path to project
         #[arg(default_value = ".")]
@@ -603,7 +650,7 @@ enum Commands {
     },
 
     /// Generate a State of AI-Generated Flutter Code report
-    #[command(name = "ai-report")]
+    #[command(name = "ai-report", display_order = 4)]
     AiReport {
         /// Path to project
         #[arg(default_value = ".")]
@@ -619,6 +666,7 @@ enum Commands {
     },
 
     /// Analyze code provenance — detect AI-generated vs human-written code
+    #[command(display_order = 4)]
     Provenance {
         /// Path to project
         #[arg(default_value = ".")]
@@ -630,17 +678,18 @@ enum Commands {
     },
 
     /// Manage Flutter app — health, deps, architecture, maintenance, build
+    #[command(display_order = 8)]
     Manage {
         #[command(subcommand)]
         action: ManageAction,
     },
 
     /// Start Falcon MCP server (stdio) for AI tool integration
-    #[command(name = "mcp")]
+    #[command(name = "mcp", display_order = 9)]
     Mcp,
 
     /// Post analysis results as a GitHub PR comment
-    #[command(name = "pr-comment")]
+    #[command(name = "pr-comment", display_order = 5)]
     PrComment {
         /// Path to project
         #[arg(default_value = ".")]
@@ -668,6 +717,7 @@ enum Commands {
     },
 
     /// Send webhook notification with analysis results
+    #[command(display_order = 5)]
     Webhook {
         /// Path to project
         #[arg(default_value = ".")]
@@ -683,7 +733,7 @@ enum Commands {
     },
 
     /// Record and view AI tool benchmark comparisons
-    #[command(name = "benchmark-db")]
+    #[command(name = "benchmark-db", display_order = 6)]
     BenchmarkDb {
         /// Path to project
         #[arg(default_value = ".")]
@@ -699,7 +749,7 @@ enum Commands {
     },
 
     /// Simulate a refactoring and analyze impact
-    #[command(name = "refactor-sim")]
+    #[command(name = "refactor-sim", display_order = 4)]
     RefactorSim {
         /// Path to project
         #[arg(default_value = ".")]
@@ -715,7 +765,7 @@ enum Commands {
     },
 
     /// Generate test stubs from code analysis
-    #[command(name = "test-gen")]
+    #[command(name = "test-gen", display_order = 4)]
     TestGen {
         /// Path to project
         #[arg(default_value = ".")]
@@ -727,7 +777,7 @@ enum Commands {
     },
 
     /// Scan for security vulnerabilities and anti-patterns
-    #[command(name = "vuln-scan")]
+    #[command(name = "vuln-scan", display_order = 4)]
     VulnScan {
         /// Path to project
         #[arg(default_value = ".")]
@@ -735,7 +785,7 @@ enum Commands {
     },
 
     /// Profile AI tools based on benchmark data
-    #[command(name = "ai-profile")]
+    #[command(name = "ai-profile", display_order = 4)]
     AiProfile {
         /// Path to project (reads benchmark-db)
         #[arg(default_value = ".")]
@@ -743,7 +793,7 @@ enum Commands {
     },
 
     /// Discover patterns that could become new rules
-    #[command(name = "discover-rules")]
+    #[command(name = "discover-rules", display_order = 4)]
     DiscoverRules {
         /// Path to project
         #[arg(default_value = ".")]
@@ -751,7 +801,7 @@ enum Commands {
     },
 
     /// Track fix acceptance/rejection effectiveness
-    #[command(name = "fix-track")]
+    #[command(name = "fix-track", display_order = 6)]
     FixTrack {
         /// Path to project
         #[arg(default_value = ".")]
@@ -775,6 +825,7 @@ enum Commands {
     },
 
     /// Record a project into the cross-project learning database
+    #[command(display_order = 12)]
     Learn {
         /// Path to project to record
         #[arg(default_value = ".")]
@@ -790,7 +841,7 @@ enum Commands {
     },
 
     /// Predict production risks based on code patterns
-    #[command(name = "predict")]
+    #[command(name = "predict", display_order = 4)]
     Predict {
         /// Path to project
         #[arg(default_value = ".")]
@@ -810,18 +861,21 @@ enum Commands {
     },
 
     /// Falcon Cloud — team dashboards and multi-project tracking
+    #[command(display_order = 10)]
     Cloud {
         #[command(subcommand)]
         action: CloudAction,
     },
 
     /// Enterprise features — policies, audit, compliance
+    #[command(display_order = 10)]
     Enterprise {
         #[command(subcommand)]
         action: EnterpriseAction,
     },
 
     /// Browse the Falcon marketplace
+    #[command(display_order = 10)]
     Marketplace {
         /// Search query
         #[arg(default_value = "")]
@@ -829,6 +883,7 @@ enum Commands {
     },
 
     /// Evaluate project for Falcon certification
+    #[command(display_order = 10)]
     Certify {
         /// Path to project
         #[arg(default_value = ".")]
@@ -836,10 +891,11 @@ enum Commands {
     },
 
     /// View Falcon partner integrations
+    #[command(display_order = 10)]
     Partners,
 
     /// Analyze platform channel code (Kotlin/Swift)
-    #[command(name = "check-platform")]
+    #[command(name = "check-platform", display_order = 2)]
     CheckPlatform {
         /// Path to Flutter project root
         #[arg(default_value = ".")]
@@ -847,7 +903,7 @@ enum Commands {
     },
 
     /// Analyze code generation quality (.g.dart, .freezed.dart, etc.)
-    #[command(name = "check-codegen")]
+    #[command(name = "check-codegen", display_order = 2)]
     CheckCodegen {
         /// Path to project
         #[arg(default_value = ".")]
@@ -855,7 +911,7 @@ enum Commands {
     },
 
     /// Run DevTools-style performance analysis
-    #[command(name = "check-perf")]
+    #[command(name = "check-perf", display_order = 2)]
     CheckPerf {
         /// Path to project
         #[arg(default_value = ".")]
@@ -863,7 +919,7 @@ enum Commands {
     },
 
     /// Start the Falcon HTTP API server
-    #[command(name = "api")]
+    #[command(name = "api", display_order = 9)]
     Api {
         /// Host to bind to
         #[arg(long, default_value = "127.0.0.1")]
@@ -875,7 +931,7 @@ enum Commands {
     },
 
     /// Detect convention drift in new or changed code
-    #[command(name = "drift")]
+    #[command(name = "drift", display_order = 4)]
     Drift {
         /// Path to project
         #[arg(default_value = ".")]
@@ -891,7 +947,7 @@ enum Commands {
     },
 
     /// Self-tune rules based on usage patterns and suppression history
-    #[command(name = "self-tune")]
+    #[command(name = "self-tune", display_order = 7)]
     SelfTune {
         /// Path to project
         #[arg(default_value = ".")]
@@ -899,7 +955,7 @@ enum Commands {
     },
 
     /// Track AI Code Quality Score over time
-    #[command(name = "score-track")]
+    #[command(name = "score-track", display_order = 6)]
     ScoreTrack {
         /// Path to project
         #[arg(default_value = ".")]
@@ -915,6 +971,7 @@ enum Commands {
     },
 
     /// Auto-detect team conventions (naming, architecture, state management)
+    #[command(display_order = 4)]
     Conventions {
         /// Path to project
         #[arg(default_value = ".")]
