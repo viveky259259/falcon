@@ -44,7 +44,9 @@ SEMANTIC COMMAND GROUPS:
   CI/CD             pr-comment, webhook, export, fix
   Tracking          trends, history, benchmark, score-track, perf-track, fix-track
   Configuration     init, validate, explain, preset, suppress, baseline, self-tune
-  App Management    manage, review, watch, workspace
+  App Management    manage, review, watch, runtime-check, workspace
+  Flutter Quality   asset-audit, theme-audit, l10n-coverage, deeplink-validate,
+                    animation-audit, golden-gen
   Integration       mcp, api
   Enterprise        cloud, enterprise, certify, marketplace
   Setup             init, update
@@ -180,6 +182,146 @@ enum Commands {
         /// Path to falcon.yaml config
         #[arg(short, long)]
         config: Option<PathBuf>,
+    },
+
+    /// Run runtime diagnostics on a Flutter app (memory, rendering, network, CPU)
+    #[command(name = "runtime-check", display_order = 8)]
+    RuntimeCheck {
+        /// Path to the Flutter project (used for `flutter run`)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Attach to an already-running app by VM Service URI instead of launching
+        #[arg(long)]
+        attach: Option<String>,
+
+        /// Duration in seconds to collect diagnostics
+        #[arg(short, long, default_value = "30")]
+        duration: u64,
+
+        /// Output file path for the HTML dashboard report
+        #[arg(short, long, default_value = "falcon-runtime-report.html")]
+        output: PathBuf,
+
+        /// Memory warning threshold in MB
+        #[arg(long, default_value = "150")]
+        memory_warn_mb: f64,
+
+        /// Frame build time warning threshold in ms
+        #[arg(long, default_value = "16")]
+        frame_warn_ms: f64,
+
+        /// Skip HTML report generation (CLI output only)
+        #[arg(long)]
+        no_html: bool,
+    },
+
+    /// Audit Flutter project assets — find unused, oversized, and WebP-convertible files
+    #[command(name = "asset-audit", display_order = 9)]
+    AssetAudit {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output HTML report path
+        #[arg(short, long, default_value = "falcon-asset-report.html")]
+        output: PathBuf,
+
+        /// Size threshold in KB above which an image is flagged (default 200)
+        #[arg(long, default_value = "200")]
+        size_threshold_kb: u64,
+
+        /// Skip HTML report
+        #[arg(long)]
+        no_html: bool,
+    },
+
+    /// Audit Flutter theme consistency — hardcoded colors, fonts, missing dark mode
+    #[command(name = "theme-audit", display_order = 9)]
+    ThemeAudit {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output HTML report path
+        #[arg(short, long, default_value = "falcon-theme-report.html")]
+        output: PathBuf,
+
+        /// Skip HTML report
+        #[arg(long)]
+        no_html: bool,
+    },
+
+    /// Analyze localization coverage across all ARB locales
+    #[command(name = "l10n-coverage", display_order = 9)]
+    L10nCoverage {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output HTML report path
+        #[arg(short, long, default_value = "falcon-l10n-report.html")]
+        output: PathBuf,
+
+        /// Skip HTML report
+        #[arg(long)]
+        no_html: bool,
+    },
+
+    /// Validate deep link configuration across Android, iOS, and Flutter routes
+    #[command(name = "deeplink-validate", display_order = 9)]
+    DeeplinkValidate {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output HTML report path
+        #[arg(short, long, default_value = "falcon-deeplink-report.html")]
+        output: PathBuf,
+
+        /// Skip HTML report
+        #[arg(long)]
+        no_html: bool,
+    },
+
+    /// Audit Flutter animations for anti-patterns, missing disposal, and jank risks
+    #[command(name = "animation-audit", display_order = 9)]
+    AnimationAudit {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output HTML report path
+        #[arg(short, long, default_value = "falcon-animation-report.html")]
+        output: PathBuf,
+
+        /// Skip HTML report
+        #[arg(long)]
+        no_html: bool,
+    },
+
+    /// Generate golden (snapshot) test stubs for all discoverable widgets
+    #[command(name = "golden-gen", display_order = 9)]
+    GoldenGen {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Directory to write generated test files into
+        #[arg(short, long, default_value = "test/golden_generated")]
+        output_dir: PathBuf,
+
+        /// Preview what would be generated without writing files
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Output HTML report path
+        #[arg(long, default_value = "falcon-golden-report.html")]
+        html_output: PathBuf,
+
+        /// Skip HTML report
+        #[arg(long)]
+        no_html: bool,
     },
 
     /// Manage analysis baselines
@@ -1500,6 +1642,126 @@ fn run(cli: Cli) -> Result<()> {
             let falcon_config = FalconConfig::load(config_path)?;
             falcon::incremental::watcher::watch(&path, falcon_config)?;
         }
+        Commands::RuntimeCheck {
+            path,
+            attach,
+            duration,
+            output,
+            memory_warn_mb,
+            frame_warn_ms,
+            no_html,
+        } => {
+            let config = falcon::runtime::RuntimeCheckConfig {
+                project_path: path.clone(),
+                duration: std::time::Duration::from_secs(duration),
+                attach_uri: attach,
+                html_output: if no_html { None } else { Some(output.clone()) },
+                thresholds: falcon::runtime::RuntimeThresholds {
+                    memory_warn_mb,
+                    frame_warn_ms,
+                    ..Default::default()
+                },
+            };
+
+            let rt = tokio::runtime::Runtime::new()?;
+            let report = rt.block_on(falcon::runtime::run_runtime_check(&config))?;
+
+            // Console output.
+            falcon::runtime::print_console_report(&report);
+
+            // HTML output.
+            if !no_html {
+                falcon::runtime::write_html_report(&report, &output)?;
+                eprintln!(
+                    "  {} HTML report written to {}",
+                    "✓".green().bold(),
+                    output.display().to_string().bright_white()
+                );
+            }
+
+            if report.error_count() > 0 {
+                process::exit(1);
+            }
+        }
+        Commands::AssetAudit { path, output, size_threshold_kb, no_html } => {
+            eprintln!("  {} Scanning assets in {} …", "▸".bright_cyan(), path.display());
+            let report = falcon::asset_audit::audit_assets_with_threshold(&path, size_threshold_kb)?;
+            falcon::asset_audit::print_asset_report(&report);
+            if !no_html {
+                falcon::asset_audit::write_asset_html_report(&report, &output)?;
+                eprintln!("  {} HTML report → {}", "✓".green().bold(), output.display());
+            }
+            if report.score < 60 {
+                process::exit(1);
+            }
+        }
+
+        Commands::ThemeAudit { path, output, no_html } => {
+            eprintln!("  {} Auditing theme consistency in {} …", "▸".bright_cyan(), path.display());
+            let report = falcon::theme_audit::audit_theme(&path)?;
+            falcon::theme_audit::print_theme_report(&report);
+            if !no_html {
+                falcon::theme_audit::write_theme_html_report(&report, &output)?;
+                eprintln!("  {} HTML report → {}", "✓".green().bold(), output.display());
+            }
+            if report.score < 60 {
+                process::exit(1);
+            }
+        }
+
+        Commands::L10nCoverage { path, output, no_html } => {
+            eprintln!("  {} Analysing localization coverage in {} …", "▸".bright_cyan(), path.display());
+            let report = falcon::l10n_coverage::analyze_l10n_coverage(&path)?;
+            falcon::l10n_coverage::print_l10n_report(&report);
+            if !no_html {
+                falcon::l10n_coverage::write_l10n_html_report(&report, &output)?;
+                eprintln!("  {} HTML report → {}", "✓".green().bold(), output.display());
+            }
+            if report.score < 60 {
+                process::exit(1);
+            }
+        }
+
+        Commands::DeeplinkValidate { path, output, no_html } => {
+            eprintln!("  {} Validating deep links in {} …", "▸".bright_cyan(), path.display());
+            let report = falcon::deeplink::validate_deeplinks(&path)?;
+            falcon::deeplink::print_deeplink_report(&report);
+            if !no_html {
+                falcon::deeplink::write_deeplink_html_report(&report, &output)?;
+                eprintln!("  {} HTML report → {}", "✓".green().bold(), output.display());
+            }
+            if report.score < 60 {
+                process::exit(1);
+            }
+        }
+
+        Commands::AnimationAudit { path, output, no_html } => {
+            eprintln!("  {} Auditing animations in {} …", "▸".bright_cyan(), path.display());
+            let report = falcon::animation_audit::audit_animations(&path)?;
+            falcon::animation_audit::print_animation_report(&report);
+            if !no_html {
+                falcon::animation_audit::write_animation_html_report(&report, &output)?;
+                eprintln!("  {} HTML report → {}", "✓".green().bold(), output.display());
+            }
+            if report.score < 60 {
+                process::exit(1);
+            }
+        }
+
+        Commands::GoldenGen { path, output_dir, dry_run, html_output, no_html } => {
+            if dry_run {
+                eprintln!("  {} Dry-run: discovering widgets in {} …", "▸".bright_cyan(), path.display());
+            } else {
+                eprintln!("  {} Generating golden tests in {} …", "▸".bright_cyan(), path.display());
+            }
+            let report = falcon::golden_gen::generate_golden_tests(&path, &output_dir, dry_run)?;
+            falcon::golden_gen::print_golden_report(&report);
+            if !no_html {
+                falcon::golden_gen::write_golden_html_report(&report, &html_output)?;
+                eprintln!("  {} HTML report → {}", "✓".green().bold(), html_output.display());
+            }
+        }
+
         Commands::Baseline { action } => match action {
             BaselineAction::Create { path, config } => {
                 let config_path = config.as_deref().unwrap_or(&path);
