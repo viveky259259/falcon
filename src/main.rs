@@ -44,7 +44,7 @@ SEMANTIC COMMAND GROUPS:
   CI/CD             pr-comment, webhook, export, fix
   Tracking          trends, history, benchmark, score-track, perf-track, fix-track
   Configuration     init, validate, explain, preset, suppress, baseline, self-tune
-  App Management    manage, review, watch, runtime-check, workspace
+  App Management    manage, review, watch, runtime-check, devtools, workspace
   Flutter Quality   asset-audit, theme-audit, l10n-coverage, deeplink-validate,
                     animation-audit, golden-gen
   Integration       mcp, api
@@ -184,6 +184,34 @@ enum Commands {
         config: Option<PathBuf>,
     },
 
+    /// Run a Flutter app and capture any errors to numbered error_N.md files
+    #[command(name = "run", display_order = 7)]
+    Run {
+        /// Path to the Flutter project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Directory where error_N.md files are written (defaults to project root)
+        #[arg(long, default_value = ".")]
+        output_dir: PathBuf,
+
+        /// Target device ID passed to `flutter run -d`
+        #[arg(long)]
+        device: Option<String>,
+
+        /// Build flavor passed to `flutter run --flavor`
+        #[arg(long)]
+        flavor: Option<String>,
+
+        /// Send an OS desktop notification when errors are found
+        #[arg(long)]
+        notify: bool,
+
+        /// POST a JSON summary to this webhook URL when errors are found
+        #[arg(long)]
+        webhook: Option<String>,
+    },
+
     /// Run runtime diagnostics on a Flutter app (memory, rendering, network, CPU)
     #[command(name = "runtime-check", display_order = 8)]
     RuntimeCheck {
@@ -214,6 +242,13 @@ enum Commands {
         /// Skip HTML report generation (CLI output only)
         #[arg(long)]
         no_html: bool,
+    },
+
+    /// Query DevTools-backed runtime APIs directly
+    #[command(name = "devtools", display_order = 8)]
+    Devtools {
+        #[command(subcommand)]
+        action: DevtoolsAction,
     },
 
     /// Audit Flutter project assets — find unused, oversized, and WebP-convertible files
@@ -1332,6 +1367,119 @@ enum BaselineAction {
     },
 }
 
+#[derive(Subcommand)]
+enum DevtoolsAction {
+    /// Fetch a memory snapshot and allocation summary
+    Memory {
+        /// Path to the Flutter project (used for `flutter run` when not attaching)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Attach to an already-running app by VM Service URI instead of launching
+        #[arg(long)]
+        attach: Option<String>,
+
+        /// Print machine-readable JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Collect network activity through the DevTools HTTP/socket APIs
+    Network {
+        /// Path to the Flutter project (used for `flutter run` when not attaching)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Attach to an already-running app by VM Service URI instead of launching
+        #[arg(long)]
+        attach: Option<String>,
+
+        /// Duration in seconds to record network traffic
+        #[arg(short, long, default_value = "10")]
+        duration: u64,
+
+        /// Print machine-readable JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Collect timeline-based performance data
+    Performance {
+        /// Path to the Flutter project (used for `flutter run` when not attaching)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Attach to an already-running app by VM Service URI instead of launching
+        #[arg(long)]
+        attach: Option<String>,
+
+        /// Duration in seconds to record timeline data
+        #[arg(short, long, default_value = "10")]
+        duration: u64,
+
+        /// Print machine-readable JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Collect CPU profiler data
+    Profiler {
+        /// Path to the Flutter project (used for `flutter run` when not attaching)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Attach to an already-running app by VM Service URI instead of launching
+        #[arg(long)]
+        attach: Option<String>,
+
+        /// Duration in seconds to record CPU samples
+        #[arg(short, long, default_value = "10")]
+        duration: u64,
+
+        /// Print machine-readable JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Inspect debugger state and optionally trigger a debugger action
+    Debugger {
+        /// Path to the Flutter project (used for `flutter run` when not attaching)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Attach to an already-running app by VM Service URI instead of launching
+        #[arg(long)]
+        attach: Option<String>,
+
+        /// Optional debugger action: pause, resume, step-over, step-in, step-out
+        #[arg(long)]
+        action: Option<DebuggerActionArg>,
+
+        /// Print machine-readable JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Collect stdout, stderr, developer log, GC, and extension stream events
+    Logging {
+        /// Path to the Flutter project (used for `flutter run` when not attaching)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Attach to an already-running app by VM Service URI instead of launching
+        #[arg(long)]
+        attach: Option<String>,
+
+        /// Duration in seconds to collect log events
+        #[arg(short, long, default_value = "10")]
+        duration: u64,
+
+        /// Print machine-readable JSON
+        #[arg(long)]
+        json: bool,
+    },
+}
+
 #[derive(Clone, Debug, clap::ValueEnum)]
 enum OutputFormat {
     Console,
@@ -1349,6 +1497,15 @@ enum FailLevel {
     Error,
     Warning,
     Info,
+}
+
+#[derive(Clone, Debug, clap::ValueEnum)]
+enum DebuggerActionArg {
+    Pause,
+    Resume,
+    StepOver,
+    StepIn,
+    StepOut,
 }
 
 #[derive(Subcommand)]
@@ -1565,8 +1722,13 @@ fn run(cli: Cli) -> Result<()> {
             get_reporter(&format, &output).report_analysis(&final_report);
 
             // Auto-save snapshot for history tracking
-            let snap_root = if path.is_dir() { path.clone() } else { path.parent().unwrap_or(&path).to_path_buf() };
-            let snapshot = falcon::dashboard::snapshot::AnalysisSnapshot::capture(&final_report, &snap_root);
+            let snap_root = if path.is_dir() {
+                path.clone()
+            } else {
+                path.parent().unwrap_or(&path).to_path_buf()
+            };
+            let snapshot =
+                falcon::dashboard::snapshot::AnalysisSnapshot::capture(&final_report, &snap_root);
             if let Err(e) = falcon::dashboard::snapshot::save_snapshot(&snap_root, &snapshot) {
                 log::debug!("Could not save snapshot: {}", e);
             }
@@ -1642,6 +1804,37 @@ fn run(cli: Cli) -> Result<()> {
             let falcon_config = FalconConfig::load(config_path)?;
             falcon::incremental::watcher::watch(&path, falcon_config)?;
         }
+        Commands::Run {
+            path,
+            output_dir,
+            device,
+            flavor,
+            notify,
+            webhook,
+        } => {
+            // Resolve output_dir relative to path when it is the default "."
+            let resolved_output = if output_dir == PathBuf::from(".") {
+                path.clone()
+            } else {
+                output_dir
+            };
+
+            let config = falcon::flutter_run::FlutterRunConfig {
+                project_path: path,
+                output_dir: resolved_output,
+                device,
+                flavor,
+                notify,
+                webhook,
+            };
+
+            let report = falcon::flutter_run::run_flutter_app(&config)?;
+
+            if report.has_errors() {
+                process::exit(1);
+            }
+        }
+
         Commands::RuntimeCheck {
             path,
             attach,
@@ -1683,82 +1876,296 @@ fn run(cli: Cli) -> Result<()> {
                 process::exit(1);
             }
         }
-        Commands::AssetAudit { path, output, size_threshold_kb, no_html } => {
-            eprintln!("  {} Scanning assets in {} …", "▸".bright_cyan(), path.display());
-            let report = falcon::asset_audit::audit_assets_with_threshold(&path, size_threshold_kb)?;
+        Commands::Devtools { action } => {
+            let rt = tokio::runtime::Runtime::new()?;
+            match action {
+                DevtoolsAction::Memory { path, attach, json } => {
+                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                        &path,
+                        attach.as_deref(),
+                    ))?;
+                    let report = rt.block_on(falcon::runtime::tools::collect_memory_report(
+                        &client, &vm_uri,
+                    ))?;
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&report)?);
+                    } else {
+                        falcon::runtime::tools::print_memory_report(&report);
+                    }
+                }
+                DevtoolsAction::Network {
+                    path,
+                    attach,
+                    duration,
+                    json,
+                } => {
+                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                        &path,
+                        attach.as_deref(),
+                    ))?;
+                    let report = rt.block_on(falcon::runtime::tools::collect_network_report(
+                        &client,
+                        &vm_uri,
+                        std::time::Duration::from_secs(duration),
+                    ))?;
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&report)?);
+                    } else {
+                        falcon::runtime::tools::print_network_report(&report);
+                    }
+                }
+                DevtoolsAction::Performance {
+                    path,
+                    attach,
+                    duration,
+                    json,
+                } => {
+                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                        &path,
+                        attach.as_deref(),
+                    ))?;
+                    let report =
+                        rt.block_on(falcon::runtime::tools::collect_performance_report(
+                            &client,
+                            &vm_uri,
+                            std::time::Duration::from_secs(duration),
+                        ))?;
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&report)?);
+                    } else {
+                        falcon::runtime::tools::print_performance_report(&report);
+                    }
+                }
+                DevtoolsAction::Profiler {
+                    path,
+                    attach,
+                    duration,
+                    json,
+                } => {
+                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                        &path,
+                        attach.as_deref(),
+                    ))?;
+                    let report = rt.block_on(falcon::runtime::tools::collect_profiler_report(
+                        &client,
+                        &vm_uri,
+                        std::time::Duration::from_secs(duration),
+                    ))?;
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&report)?);
+                    } else {
+                        falcon::runtime::tools::print_profiler_report(&report);
+                    }
+                }
+                DevtoolsAction::Debugger {
+                    path,
+                    attach,
+                    action,
+                    json,
+                } => {
+                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                        &path,
+                        attach.as_deref(),
+                    ))?;
+                    let action = action.map(|action| match action {
+                        DebuggerActionArg::Pause => falcon::runtime::tools::DebuggerAction::Pause,
+                        DebuggerActionArg::Resume => falcon::runtime::tools::DebuggerAction::Resume,
+                        DebuggerActionArg::StepOver => {
+                            falcon::runtime::tools::DebuggerAction::StepOver
+                        }
+                        DebuggerActionArg::StepIn => falcon::runtime::tools::DebuggerAction::StepIn,
+                        DebuggerActionArg::StepOut => {
+                            falcon::runtime::tools::DebuggerAction::StepOut
+                        }
+                    });
+                    let report = rt.block_on(falcon::runtime::tools::collect_debugger_report(
+                        &client, &vm_uri, action,
+                    ))?;
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&report)?);
+                    } else {
+                        falcon::runtime::tools::print_debugger_report(&report);
+                    }
+                }
+                DevtoolsAction::Logging {
+                    path,
+                    attach,
+                    duration,
+                    json,
+                } => {
+                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                        &path,
+                        attach.as_deref(),
+                    ))?;
+                    let report = rt.block_on(falcon::runtime::tools::collect_logging_report(
+                        &client,
+                        &vm_uri,
+                        std::time::Duration::from_secs(duration),
+                    ))?;
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&report)?);
+                    } else {
+                        falcon::runtime::tools::print_logging_report(&report);
+                    }
+                }
+            }
+        }
+        Commands::AssetAudit {
+            path,
+            output,
+            size_threshold_kb,
+            no_html,
+        } => {
+            eprintln!(
+                "  {} Scanning assets in {} …",
+                "▸".bright_cyan(),
+                path.display()
+            );
+            let report =
+                falcon::asset_audit::audit_assets_with_threshold(&path, size_threshold_kb)?;
             falcon::asset_audit::print_asset_report(&report);
             if !no_html {
                 falcon::asset_audit::write_asset_html_report(&report, &output)?;
-                eprintln!("  {} HTML report → {}", "✓".green().bold(), output.display());
+                eprintln!(
+                    "  {} HTML report → {}",
+                    "✓".green().bold(),
+                    output.display()
+                );
             }
             if report.score < 60 {
                 process::exit(1);
             }
         }
 
-        Commands::ThemeAudit { path, output, no_html } => {
-            eprintln!("  {} Auditing theme consistency in {} …", "▸".bright_cyan(), path.display());
+        Commands::ThemeAudit {
+            path,
+            output,
+            no_html,
+        } => {
+            eprintln!(
+                "  {} Auditing theme consistency in {} …",
+                "▸".bright_cyan(),
+                path.display()
+            );
             let report = falcon::theme_audit::audit_theme(&path)?;
             falcon::theme_audit::print_theme_report(&report);
             if !no_html {
                 falcon::theme_audit::write_theme_html_report(&report, &output)?;
-                eprintln!("  {} HTML report → {}", "✓".green().bold(), output.display());
+                eprintln!(
+                    "  {} HTML report → {}",
+                    "✓".green().bold(),
+                    output.display()
+                );
             }
             if report.score < 60 {
                 process::exit(1);
             }
         }
 
-        Commands::L10nCoverage { path, output, no_html } => {
-            eprintln!("  {} Analysing localization coverage in {} …", "▸".bright_cyan(), path.display());
+        Commands::L10nCoverage {
+            path,
+            output,
+            no_html,
+        } => {
+            eprintln!(
+                "  {} Analysing localization coverage in {} …",
+                "▸".bright_cyan(),
+                path.display()
+            );
             let report = falcon::l10n_coverage::analyze_l10n_coverage(&path)?;
             falcon::l10n_coverage::print_l10n_report(&report);
             if !no_html {
                 falcon::l10n_coverage::write_l10n_html_report(&report, &output)?;
-                eprintln!("  {} HTML report → {}", "✓".green().bold(), output.display());
+                eprintln!(
+                    "  {} HTML report → {}",
+                    "✓".green().bold(),
+                    output.display()
+                );
             }
             if report.score < 60 {
                 process::exit(1);
             }
         }
 
-        Commands::DeeplinkValidate { path, output, no_html } => {
-            eprintln!("  {} Validating deep links in {} …", "▸".bright_cyan(), path.display());
+        Commands::DeeplinkValidate {
+            path,
+            output,
+            no_html,
+        } => {
+            eprintln!(
+                "  {} Validating deep links in {} …",
+                "▸".bright_cyan(),
+                path.display()
+            );
             let report = falcon::deeplink::validate_deeplinks(&path)?;
             falcon::deeplink::print_deeplink_report(&report);
             if !no_html {
                 falcon::deeplink::write_deeplink_html_report(&report, &output)?;
-                eprintln!("  {} HTML report → {}", "✓".green().bold(), output.display());
+                eprintln!(
+                    "  {} HTML report → {}",
+                    "✓".green().bold(),
+                    output.display()
+                );
             }
             if report.score < 60 {
                 process::exit(1);
             }
         }
 
-        Commands::AnimationAudit { path, output, no_html } => {
-            eprintln!("  {} Auditing animations in {} …", "▸".bright_cyan(), path.display());
+        Commands::AnimationAudit {
+            path,
+            output,
+            no_html,
+        } => {
+            eprintln!(
+                "  {} Auditing animations in {} …",
+                "▸".bright_cyan(),
+                path.display()
+            );
             let report = falcon::animation_audit::audit_animations(&path)?;
             falcon::animation_audit::print_animation_report(&report);
             if !no_html {
                 falcon::animation_audit::write_animation_html_report(&report, &output)?;
-                eprintln!("  {} HTML report → {}", "✓".green().bold(), output.display());
+                eprintln!(
+                    "  {} HTML report → {}",
+                    "✓".green().bold(),
+                    output.display()
+                );
             }
             if report.score < 60 {
                 process::exit(1);
             }
         }
 
-        Commands::GoldenGen { path, output_dir, dry_run, html_output, no_html } => {
+        Commands::GoldenGen {
+            path,
+            output_dir,
+            dry_run,
+            html_output,
+            no_html,
+        } => {
             if dry_run {
-                eprintln!("  {} Dry-run: discovering widgets in {} …", "▸".bright_cyan(), path.display());
+                eprintln!(
+                    "  {} Dry-run: discovering widgets in {} …",
+                    "▸".bright_cyan(),
+                    path.display()
+                );
             } else {
-                eprintln!("  {} Generating golden tests in {} …", "▸".bright_cyan(), path.display());
+                eprintln!(
+                    "  {} Generating golden tests in {} …",
+                    "▸".bright_cyan(),
+                    path.display()
+                );
             }
             let report = falcon::golden_gen::generate_golden_tests(&path, &output_dir, dry_run)?;
             falcon::golden_gen::print_golden_report(&report);
             if !no_html {
                 falcon::golden_gen::write_golden_html_report(&report, &html_output)?;
-                eprintln!("  {} HTML report → {}", "✓".green().bold(), html_output.display());
+                eprintln!(
+                    "  {} HTML report → {}",
+                    "✓".green().bold(),
+                    html_output.display()
+                );
             }
         }
 
@@ -1795,7 +2202,11 @@ fn run(cli: Cli) -> Result<()> {
                     path.join(&target)
                 };
 
-                println!("{} Dependencies for: {}", "→".bright_cyan(), target.display());
+                println!(
+                    "{} Dependencies for: {}",
+                    "→".bright_cyan(),
+                    target.display()
+                );
 
                 if let Some(imports) = graph.imports.get(&abs) {
                     println!("\n  {} ({}):", "Imports".bright_green(), imports.len());
@@ -1833,7 +2244,10 @@ fn run(cli: Cli) -> Result<()> {
                     .collect();
                 stats.sort_by(|a, b| b.0.cmp(&a.0));
 
-                println!("  {} (by number of dependents):", "Most depended-on files".bright_green());
+                println!(
+                    "  {} (by number of dependents):",
+                    "Most depended-on files".bright_green()
+                );
                 for (count, file) in stats.iter().take(20) {
                     let rel = file.strip_prefix(&path).unwrap_or(file);
                     println!("    {:>4} ← {}", count, rel.display());
@@ -1852,7 +2266,12 @@ fn run(cli: Cli) -> Result<()> {
         Commands::Validate { path } => {
             let errors = falcon::config::validator::validate_config(&path);
             falcon::config::validator::print_validation_results(&errors);
-            if errors.iter().any(|e| matches!(e.severity, falcon::config::validator::ConfigErrorSeverity::Error)) {
+            if errors.iter().any(|e| {
+                matches!(
+                    e.severity,
+                    falcon::config::validator::ConfigErrorSeverity::Error
+                )
+            }) {
                 process::exit(1);
             }
         }
@@ -1867,14 +2286,25 @@ fn run(cli: Cli) -> Result<()> {
             let graph = DependencyGraph::build(&path, &exclude);
             let (issues, cycles) = falcon::resolver::cyclic::detect_cycles(&graph, &path);
 
-            println!("{}", falcon::resolver::cyclic::format_cycles(&cycles, &path));
+            println!(
+                "{}",
+                falcon::resolver::cyclic::format_cycles(&cycles, &path)
+            );
 
             if !issues.is_empty() {
-                println!("{} {} files involved in cycles", "⚠".yellow().bold(), issues.len());
+                println!(
+                    "{} {} files involved in cycles",
+                    "⚠".yellow().bold(),
+                    issues.len()
+                );
                 process::exit(1);
             }
         }
-        Commands::CheckUnusedParams { path, format, output } => {
+        Commands::CheckUnusedParams {
+            path,
+            format,
+            output,
+        } => {
             let config = FalconConfig::load(&path)?;
             let exclude: Vec<glob::Pattern> = config
                 .exclude
@@ -1889,7 +2319,11 @@ fn run(cli: Cli) -> Result<()> {
                 process::exit(1);
             }
         }
-        Commands::CheckDeadCode { path, format, output } => {
+        Commands::CheckDeadCode {
+            path,
+            format,
+            output,
+        } => {
             let config = FalconConfig::load(&path)?;
             let exclude: Vec<glob::Pattern> = config
                 .exclude
@@ -1904,7 +2338,11 @@ fn run(cli: Cli) -> Result<()> {
                 process::exit(1);
             }
         }
-        Commands::CheckUnusedL10n { path, format, output } => {
+        Commands::CheckUnusedL10n {
+            path,
+            format,
+            output,
+        } => {
             let config = FalconConfig::load(&path)?;
             let exclude: Vec<glob::Pattern> = config
                 .exclude
@@ -1919,7 +2357,11 @@ fn run(cli: Cli) -> Result<()> {
                 process::exit(1);
             }
         }
-        Commands::CheckPromotedDeps { path, format, output } => {
+        Commands::CheckPromotedDeps {
+            path,
+            format,
+            output,
+        } => {
             let issues = falcon::resolver::cyclic::detect_promoted_deps(&path);
             get_reporter(&format, &output).report_issues(&issues);
 
@@ -1955,23 +2397,75 @@ fn run(cli: Cli) -> Result<()> {
                 let config = FalconConfig::load(&path)?;
                 let ai = &config.ai;
                 println!();
-                println!("  {} AI Configuration Status", "falcon".bright_cyan().bold());
+                println!(
+                    "  {} AI Configuration Status",
+                    "falcon".bright_cyan().bold()
+                );
                 println!();
-                println!("  Enabled:   {}", if ai.enabled { "yes".green() } else { "no".red() });
+                println!(
+                    "  Enabled:   {}",
+                    if ai.enabled {
+                        "yes".green()
+                    } else {
+                        "no".red()
+                    }
+                );
                 println!("  Provider:  {:?}", ai.provider);
                 println!("  Model:     {}", ai.effective_model());
-                println!("  API Key:   {}", if ai.resolve_api_key().is_some() { "configured".green() } else { "not set".yellow() });
-                println!("  Available: {}", if ai.is_available() { "yes".green() } else { "no".red() });
+                println!(
+                    "  API Key:   {}",
+                    if ai.resolve_api_key().is_some() {
+                        "configured".green()
+                    } else {
+                        "not set".yellow()
+                    }
+                );
+                println!(
+                    "  Available: {}",
+                    if ai.is_available() {
+                        "yes".green()
+                    } else {
+                        "no".red()
+                    }
+                );
                 println!();
                 println!("  Feature Toggles:");
-                println!("    Confidence scoring:      {}", if ai.features.confidence_scoring { "on" } else { "off" });
-                println!("    Smart fixes:             {}", if ai.features.smart_fixes { "on" } else { "off" });
-                println!("    Explanations:            {}", if ai.features.explanations { "on" } else { "off" });
-                println!("    False positive reduction: {}", if ai.features.false_positive_reduction { "on" } else { "off" });
+                println!(
+                    "    Confidence scoring:      {}",
+                    if ai.features.confidence_scoring {
+                        "on"
+                    } else {
+                        "off"
+                    }
+                );
+                println!(
+                    "    Smart fixes:             {}",
+                    if ai.features.smart_fixes { "on" } else { "off" }
+                );
+                println!(
+                    "    Explanations:            {}",
+                    if ai.features.explanations {
+                        "on"
+                    } else {
+                        "off"
+                    }
+                );
+                println!(
+                    "    False positive reduction: {}",
+                    if ai.features.false_positive_reduction {
+                        "on"
+                    } else {
+                        "off"
+                    }
+                );
                 println!();
             }
         },
-        Commands::Fix { path, preview, config } => {
+        Commands::Fix {
+            path,
+            preview,
+            config,
+        } => {
             let config_path = config.as_deref().unwrap_or(&path);
             let falcon_config = FalconConfig::load(config_path)?;
             let falcon = Falcon::new(falcon_config)?;
@@ -1984,11 +2478,7 @@ fn run(cli: Cli) -> Result<()> {
             } else {
                 falcon::ai::fix::preview_fixes(&fixes);
                 let applied = falcon::ai::fix::apply_fixes(&fixes);
-                println!(
-                    "  {} Applied {} fix(es).",
-                    "✓".green().bold(),
-                    applied
-                );
+                println!("  {} Applied {} fix(es).", "✓".green().bold(), applied);
             }
         }
         Commands::CheckUnusedConfidence {
@@ -2002,10 +2492,7 @@ fn run(cli: Cli) -> Result<()> {
             let report = falcon.analyze(&path)?;
 
             let results = falcon::ai::confidence::score_unused_issues(&report.issues, &path);
-            falcon::ai::confidence::print_confidence_results(
-                &results,
-                Some(min_confidence),
-            );
+            falcon::ai::confidence::print_confidence_results(&results, Some(min_confidence));
         }
         Commands::CheckLayers { path } => {
             let config = FalconConfig::load(&path)?;
@@ -2036,7 +2523,9 @@ fn run(cli: Cli) -> Result<()> {
                     }
                     println!();
 
-                    let issues = falcon::analysis::layer_enforcement::enforce_layers(&path, &layers, &exclude);
+                    let issues = falcon::analysis::layer_enforcement::enforce_layers(
+                        &path, &layers, &exclude,
+                    );
                     get_reporter(&OutputFormat::Console, &PathBuf::from("")).report_issues(&issues);
 
                     if !issues.is_empty() {
@@ -2059,8 +2548,10 @@ fn run(cli: Cli) -> Result<()> {
                 .filter_map(|p| glob::Pattern::new(p).ok())
                 .collect();
 
-            let boundary_issues = falcon::analysis::import_rules::check_package_boundaries(&path, &exclude);
-            get_reporter(&OutputFormat::Console, &PathBuf::from("")).report_issues(&boundary_issues);
+            let boundary_issues =
+                falcon::analysis::import_rules::check_package_boundaries(&path, &exclude);
+            get_reporter(&OutputFormat::Console, &PathBuf::from(""))
+                .report_issues(&boundary_issues);
 
             if !boundary_issues.is_empty() {
                 process::exit(1);
@@ -2125,7 +2616,12 @@ fn run(cli: Cli) -> Result<()> {
                     threshold
                 );
             } else {
-                println!("\n  {} {} function(s) exceed threshold of {}.", "⚠".yellow(), flagged, threshold);
+                println!(
+                    "\n  {} {} function(s) exceed threshold of {}.",
+                    "⚠".yellow(),
+                    flagged,
+                    threshold
+                );
                 process::exit(1);
             }
         }
@@ -2217,7 +2713,11 @@ fn run(cli: Cli) -> Result<()> {
                 process::exit(1);
             }
         }
-        Commands::Review { path, diff, strictness } => {
+        Commands::Review {
+            path,
+            diff,
+            strictness,
+        } => {
             let config = FalconConfig::load(&path)?;
             let report = falcon::review::pr_review::review_diff(&path, &diff, &config, strictness)?;
             falcon::review::pr_review::print_review(&report);
@@ -2234,7 +2734,10 @@ fn run(cli: Cli) -> Result<()> {
                     "native" => falcon::plugins::manifest::PluginType::Native,
                     "preset" => falcon::plugins::manifest::PluginType::Preset,
                     _ => {
-                        eprintln!("Invalid plugin type '{}'. Use: wasm, native, preset", r#type);
+                        eprintln!(
+                            "Invalid plugin type '{}'. Use: wasm, native, preset",
+                            r#type
+                        );
                         process::exit(1);
                     }
                 };
@@ -2244,10 +2747,7 @@ fn run(cli: Cli) -> Result<()> {
                 let plugin_dir = get_plugin_dir();
                 let plugins = falcon::plugins::scaffold::list_plugins(&plugin_dir)?;
                 falcon::plugins::scaffold::print_plugins(
-                    &plugins
-                        .iter()
-                        .map(|m| m.clone())
-                        .collect::<Vec<_>>(),
+                    &plugins.iter().map(|m| m.clone()).collect::<Vec<_>>(),
                 );
             }
             PluginAction::Install { path } => {
@@ -2298,15 +2798,13 @@ fn run(cli: Cli) -> Result<()> {
                 let presets = falcon::plugins::presets::list_presets();
                 falcon::plugins::presets::print_presets(&presets);
             }
-            PresetAction::Show { name } => {
-                match falcon::plugins::presets::get_preset(&name) {
-                    Some(preset) => falcon::plugins::presets::print_preset_detail(&preset),
-                    None => {
-                        eprintln!("Unknown preset '{}'. Use: falcon preset list", name);
-                        process::exit(1);
-                    }
+            PresetAction::Show { name } => match falcon::plugins::presets::get_preset(&name) {
+                Some(preset) => falcon::plugins::presets::print_preset_detail(&preset),
+                None => {
+                    eprintln!("Unknown preset '{}'. Use: falcon preset list", name);
+                    process::exit(1);
                 }
-            }
+            },
             PresetAction::Apply { name, path } => {
                 match falcon::plugins::presets::get_preset(&name) {
                     Some(preset) => falcon::plugins::presets::apply_preset(&preset, &path)?,
@@ -2322,7 +2820,8 @@ fn run(cli: Cli) -> Result<()> {
                 let config = FalconConfig::load(&path)?;
                 let falcon = Falcon::new(config)?;
                 let report = falcon.analyze(&path)?;
-                let snapshot = falcon::dashboard::snapshot::AnalysisSnapshot::capture(&report, &path);
+                let snapshot =
+                    falcon::dashboard::snapshot::AnalysisSnapshot::capture(&report, &path);
                 let saved = falcon::dashboard::snapshot::save_snapshot(&path, &snapshot)?;
                 println!(
                     "  {} Snapshot saved — health {:.0}/100, {} issues, {} files",
@@ -2369,7 +2868,9 @@ fn run(cli: Cli) -> Result<()> {
             match falcon::dashboard::trends::analyze_trends(&history, last) {
                 Some(report) => falcon::dashboard::trends::print_trend_report(&report),
                 None => {
-                    println!("  Need at least 2 snapshots for trends. Run: falcon dashboard snapshot");
+                    println!(
+                        "  Need at least 2 snapshots for trends. Run: falcon dashboard snapshot"
+                    );
                 }
             }
         }
@@ -2384,7 +2885,12 @@ fn run(cli: Cli) -> Result<()> {
                 falcon::dashboard::rule_impact::print_recommendations(&recs);
             }
         }
-        Commands::Export { path, format, output, webhook_url } => {
+        Commands::Export {
+            path,
+            format,
+            output,
+            webhook_url,
+        } => {
             let config = FalconConfig::load(&path)?;
             let falcon_inst = Falcon::new(config)?;
             let report = falcon_inst.analyze(&path)?;
@@ -2396,7 +2902,11 @@ fn run(cli: Cli) -> Result<()> {
                     match output {
                         Some(out) => {
                             std::fs::write(&out, &metrics)?;
-                            println!("  {} Prometheus metrics saved to {}", "✓".green().bold(), out.display());
+                            println!(
+                                "  {} Prometheus metrics saved to {}",
+                                "✓".green().bold(),
+                                out.display()
+                            );
                         }
                         None => print!("{}", metrics),
                     }
@@ -2406,22 +2916,36 @@ fn run(cli: Cli) -> Result<()> {
                     match output {
                         Some(out) => {
                             std::fs::write(&out, &json)?;
-                            println!("  {} JSON export saved to {}", "✓".green().bold(), out.display());
+                            println!(
+                                "  {} JSON export saved to {}",
+                                "✓".green().bold(),
+                                out.display()
+                            );
                         }
                         None => println!("{}", json),
                     }
                 }
                 ExportFormat::Webhook => {
-                    let url = webhook_url.as_deref().unwrap_or("http://localhost:9000/webhook");
-                    let project = path.file_name().and_then(|f| f.to_str()).unwrap_or("project");
-                    let payload = falcon::dashboard::exports::WebhookPayload::from_snapshot(&snapshot, project);
+                    let url = webhook_url
+                        .as_deref()
+                        .unwrap_or("http://localhost:9000/webhook");
+                    let project = path
+                        .file_name()
+                        .and_then(|f| f.to_str())
+                        .unwrap_or("project");
+                    let payload = falcon::dashboard::exports::WebhookPayload::from_snapshot(
+                        &snapshot, project,
+                    );
                     let json = payload.to_json()?;
                     println!("{}", json);
                     println!("  Webhook payload generated for {}", url.bright_blue());
                 }
             }
         }
-        Commands::MigrateFromDcm { config_path, output } => {
+        Commands::MigrateFromDcm {
+            config_path,
+            output,
+        } => {
             let result = falcon::migration::dcm::migrate_from_dcm(&config_path)?;
             falcon::migration::dcm::print_migration_result(&result);
 
@@ -2441,43 +2965,57 @@ fn run(cli: Cli) -> Result<()> {
             let result = falcon::benchmark::run_benchmark(&path)?;
             falcon::benchmark::print_benchmark(&result);
         }
-        Commands::RuleDocs { format, output } => {
-            match format {
-                DocFormat::Console => {
-                    let docs = falcon::docs::rule_docs::generate_rule_docs();
-                    falcon::docs::rule_docs::print_rule_docs(&docs);
-                }
-                DocFormat::Markdown => {
-                    let docs = falcon::docs::rule_docs::generate_rule_docs();
-                    let md = falcon::docs::rule_docs::generate_markdown_docs(&docs);
-                    match output {
-                        Some(out) => {
-                            std::fs::write(&out, &md)?;
-                            println!(
-                                "  {} Rule docs written to {}",
-                                "✓".green().bold(),
-                                out.display()
-                            );
-                        }
-                        None => print!("{}", md),
+        Commands::RuleDocs { format, output } => match format {
+            DocFormat::Console => {
+                let docs = falcon::docs::rule_docs::generate_rule_docs();
+                falcon::docs::rule_docs::print_rule_docs(&docs);
+            }
+            DocFormat::Markdown => {
+                let docs = falcon::docs::rule_docs::generate_rule_docs();
+                let md = falcon::docs::rule_docs::generate_markdown_docs(&docs);
+                match output {
+                    Some(out) => {
+                        std::fs::write(&out, &md)?;
+                        println!(
+                            "  {} Rule docs written to {}",
+                            "✓".green().bold(),
+                            out.display()
+                        );
                     }
+                    None => print!("{}", md),
                 }
             }
-        }
+        },
         Commands::Compare { path } => {
             let result = falcon::benchmark_compare::compare_with_dart_analyze(&path)?;
             falcon::benchmark_compare::print_compare_result(&result);
         }
-        Commands::CompareReports { path, run1, run2, output } => {
+        Commands::CompareReports {
+            path,
+            run1,
+            run2,
+            output,
+        } => {
             let history = falcon::dashboard::snapshot::load_history(&path)?;
             if history.len() < 2 {
-                eprintln!("  ❌ {} Need at least 2 analysis runs to compare. Run {} first.",
-                    "error:".bright_red(), "falcon analyze".bright_blue());
+                eprintln!(
+                    "  ❌ {} Need at least 2 analysis runs to compare. Run {} first.",
+                    "error:".bright_red(),
+                    "falcon analyze".bright_blue()
+                );
                 process::exit(1);
             }
 
-            let idx1 = if run1 == 0 { history.len() - 2 } else { (run1 - 1).min(history.len() - 1) };
-            let idx2 = if run2 == 0 { history.len() - 1 } else { (run2 - 1).min(history.len() - 1) };
+            let idx1 = if run1 == 0 {
+                history.len() - 2
+            } else {
+                (run1 - 1).min(history.len() - 1)
+            };
+            let idx2 = if run2 == 0 {
+                history.len() - 1
+            } else {
+                (run2 - 1).min(history.len() - 1)
+            };
 
             let snap1 = &history[idx1];
             let snap2 = &history[idx2];
@@ -2489,19 +3027,40 @@ fn run(cli: Cli) -> Result<()> {
                 falcon::dashboard::compare_reports::generate_html_comparison(&result, &out)?;
             }
         }
-        Commands::CompareBranches { path, base, branch, output, config } => {
+        Commands::CompareBranches {
+            path,
+            base,
+            branch,
+            output,
+            config,
+        } => {
             let config_path = config.as_deref().unwrap_or(&path);
             let falcon_config = FalconConfig::load(config_path)?;
 
             let html_out = output.unwrap_or_else(|| path.join("falcon-branch-comparison.html"));
 
             println!();
-            println!("  🦅 {} {}", "falcon".bright_blue().bold(), "Branch Comparison".bold());
-            println!("  🌿 {} {} {}", base.bright_cyan(), "vs".dimmed(), branch.bright_cyan());
+            println!(
+                "  🦅 {} {}",
+                "falcon".bright_blue().bold(),
+                "Branch Comparison".bold()
+            );
+            println!(
+                "  🌿 {} {} {}",
+                base.bright_cyan(),
+                "vs".dimmed(),
+                branch.bright_cyan()
+            );
             println!();
 
-            match falcon::dashboard::compare_reports::compare_branches(&path, &base, &branch, &falcon_config, &html_out) {
-                Ok(_) => {},
+            match falcon::dashboard::compare_reports::compare_branches(
+                &path,
+                &base,
+                &branch,
+                &falcon_config,
+                &html_out,
+            ) {
+                Ok(_) => {}
                 Err(e) => {
                     eprintln!("  ❌ {} {}", "error:".bright_red(), e);
                     process::exit(1);
@@ -2524,7 +3083,11 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
-        Commands::Showcase { paths, format, output } => {
+        Commands::Showcase {
+            paths,
+            format,
+            output,
+        } => {
             if paths.is_empty() {
                 eprintln!("Provide at least one project path to analyze.");
                 process::exit(1);
@@ -2538,7 +3101,12 @@ fn run(cli: Cli) -> Result<()> {
                     .unwrap_or_else(|| path.display().to_string());
                 match falcon::showcase::analyze_local_project(path, &name) {
                     Ok(analysis) => analyses.push(analysis),
-                    Err(e) => eprintln!("  {} Failed to analyze {}: {}", "✗".red(), path.display(), e),
+                    Err(e) => eprintln!(
+                        "  {} Failed to analyze {}: {}",
+                        "✗".red(),
+                        path.display(),
+                        e
+                    ),
                 }
             }
 
@@ -2569,7 +3137,11 @@ fn run(cli: Cli) -> Result<()> {
         Commands::DeprecationStatus => {
             falcon::stability::deprecation::print_deprecation_status();
         }
-        Commands::PerfTrack { path, history, last } => {
+        Commands::PerfTrack {
+            path,
+            history,
+            last,
+        } => {
             if history {
                 let hist = falcon::stability::perf_track::load_perf_history(&path)?;
                 falcon::stability::perf_track::print_perf_history(&hist, last);
@@ -2606,22 +3178,33 @@ fn run(cli: Cli) -> Result<()> {
                 path,
             } => {
                 let cat = match category.as_str() {
-                    "false-positive" | "fp" => falcon::stability::suppression::SuppressionCategory::FalsePositive,
-                    "wont-fix" | "wf" => falcon::stability::suppression::SuppressionCategory::WontFix,
-                    "acknowledged" | "ack" => falcon::stability::suppression::SuppressionCategory::Acknowledged,
-                    "deferred" | "defer" => falcon::stability::suppression::SuppressionCategory::Deferred,
+                    "false-positive" | "fp" => {
+                        falcon::stability::suppression::SuppressionCategory::FalsePositive
+                    }
+                    "wont-fix" | "wf" => {
+                        falcon::stability::suppression::SuppressionCategory::WontFix
+                    }
+                    "acknowledged" | "ack" => {
+                        falcon::stability::suppression::SuppressionCategory::Acknowledged
+                    }
+                    "deferred" | "defer" => {
+                        falcon::stability::suppression::SuppressionCategory::Deferred
+                    }
                     _ => {
                         eprintln!("Unknown category '{}'. Use: false-positive, wont-fix, acknowledged, deferred", category);
                         process::exit(1);
                     }
                 };
-                falcon::stability::suppression::add_suppression(&path, &falcon::stability::suppression::SuppressionRequest {
-                    rule: &rule,
-                    file: &file,
-                    line,
-                    reason: &reason,
-                    category: cat,
-                })?;
+                falcon::stability::suppression::add_suppression(
+                    &path,
+                    &falcon::stability::suppression::SuppressionRequest {
+                        rule: &rule,
+                        file: &file,
+                        line,
+                        reason: &reason,
+                        category: cat,
+                    },
+                )?;
                 println!(
                     "  {} Suppression added for '{}' in {}",
                     "✓".green().bold(),
@@ -2688,7 +3271,14 @@ fn run(cli: Cli) -> Result<()> {
         Commands::Mcp => {
             falcon::mcp::server::run_mcp_server()?;
         }
-        Commands::PrComment { path, owner, repo, pr, dry_run, config } => {
+        Commands::PrComment {
+            path,
+            owner,
+            repo,
+            pr,
+            dry_run,
+            config,
+        } => {
             let config_path = config.as_deref().unwrap_or(&path);
             let falcon_config = FalconConfig::load(config_path)?;
             let falcon = Falcon::new(falcon_config)?;
@@ -2703,7 +3293,9 @@ fn run(cli: Cli) -> Result<()> {
                 println!(
                     "  {} Posted analysis to {}/{}#{}",
                     "✓".green().bold(),
-                    owner, repo, pr
+                    owner,
+                    repo,
+                    pr
                 );
             } else {
                 falcon::ci::pr_comment::post_comment_auto(&comment)?;
@@ -2719,16 +3311,15 @@ fn run(cli: Cli) -> Result<()> {
             let config = FalconConfig::load(&path)?;
             let falcon_inst = Falcon::new(config)?;
             let report = falcon_inst.analyze(&path)?;
-            let project = path.file_name().and_then(|f| f.to_str()).unwrap_or("project");
+            let project = path
+                .file_name()
+                .and_then(|f| f.to_str())
+                .unwrap_or("project");
 
             match event.as_str() {
                 "analysis" => {
                     falcon::ci::webhook::send_analysis_webhook(&url, project, &report)?;
-                    println!(
-                        "  {} Sent analysis webhook to {}",
-                        "✓".green().bold(),
-                        url
-                    );
+                    println!("  {} Sent analysis webhook to {}", "✓".green().bold(), url);
                 }
                 "score" => {
                     let score = falcon::ai_score::score::score_from_report(&report)?;
@@ -2756,14 +3347,22 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
-        Commands::BenchmarkDb { path, tool, summary } => {
+        Commands::BenchmarkDb {
+            path,
+            tool,
+            summary,
+        } => {
             if summary {
                 let db = falcon::ai_score::benchmark_db::load_benchmark_db(&path)?;
                 let stats = falcon::ai_score::benchmark_db::compute_tool_stats(&db);
                 falcon::ai_score::benchmark_db::print_benchmark_summary(&stats);
             } else if let Some(tool_name) = tool {
-                let project = path.file_name().and_then(|f| f.to_str()).unwrap_or("project");
-                let entry = falcon::ai_score::benchmark_db::record_benchmark(&path, project, &tool_name)?;
+                let project = path
+                    .file_name()
+                    .and_then(|f| f.to_str())
+                    .unwrap_or("project");
+                let entry =
+                    falcon::ai_score::benchmark_db::record_benchmark(&path, project, &tool_name)?;
                 println!(
                     "  {} Recorded benchmark: {} (tool: {}) — score {}/100",
                     "✓".green().bold(),
@@ -2776,7 +3375,11 @@ fn run(cli: Cli) -> Result<()> {
                 process::exit(1);
             }
         }
-        Commands::RefactorSim { path, scenario, json } => {
+        Commands::RefactorSim {
+            path,
+            scenario,
+            json,
+        } => {
             let impact = falcon::analysis::refactor_sim::simulate_refactor(&path, &scenario)?;
             if json {
                 let j = serde_json::to_string_pretty(&impact)?;
@@ -2803,17 +3406,16 @@ fn run(cli: Cli) -> Result<()> {
                         }
                     }
                 }
-                println!(
-                    "  {} Wrote {} test file(s)",
-                    "✓".green().bold(),
-                    written
-                );
+                println!("  {} Wrote {} test file(s)", "✓".green().bold(), written);
             }
         }
         Commands::VulnScan { path } => {
             let findings = falcon::analysis::vuln_radar::scan_vulnerabilities(&path);
             falcon::analysis::vuln_radar::print_vuln_report(&findings);
-            if findings.iter().any(|f| f.risk_level == falcon::analysis::vuln_radar::RiskLevel::Critical) {
+            if findings
+                .iter()
+                .any(|f| f.risk_level == falcon::analysis::vuln_radar::RiskLevel::Critical)
+            {
                 process::exit(1);
             }
         }
@@ -2826,7 +3428,13 @@ fn run(cli: Cli) -> Result<()> {
             let rules = falcon::ai_score::auto_rules::discover_patterns(&path);
             falcon::ai_score::auto_rules::print_proposed_rules(&rules);
         }
-        Commands::FixTrack { path, rule, outcome, file, report } => {
+        Commands::FixTrack {
+            path,
+            rule,
+            outcome,
+            file,
+            report,
+        } => {
             if report {
                 let history = falcon::ai_score::fix_tracking::load_fix_history(&path)?;
                 let eff = falcon::ai_score::fix_tracking::compute_effectiveness(&history);
@@ -2837,7 +3445,10 @@ fn run(cli: Cli) -> Result<()> {
                     "rejected" | "reject" => falcon::ai_score::fix_tracking::FixOutcome::Rejected,
                     "modified" | "modify" => falcon::ai_score::fix_tracking::FixOutcome::Modified,
                     _ => {
-                        eprintln!("Unknown outcome '{}'. Use: accepted, rejected, modified", outcome_str);
+                        eprintln!(
+                            "Unknown outcome '{}'. Use: accepted, rejected, modified",
+                            outcome_str
+                        );
                         process::exit(1);
                     }
                 };
@@ -2845,14 +3456,19 @@ fn run(cli: Cli) -> Result<()> {
                 println!(
                     "  {} Recorded fix outcome for '{}' in {}",
                     "✓".green().bold(),
-                    rule, file
+                    rule,
+                    file
                 );
             } else {
                 eprintln!("Use --report to view, or --rule/--outcome/--file to record");
                 process::exit(1);
             }
         }
-        Commands::Learn { project, db, insights } => {
+        Commands::Learn {
+            project,
+            db,
+            insights,
+        } => {
             if insights {
                 let learning_db = falcon::ai_score::cross_project::load_learning_db(&db)?;
                 let ins = falcon::ai_score::cross_project::derive_insights(&learning_db);
@@ -2865,7 +3481,9 @@ fn run(cli: Cli) -> Result<()> {
                     profile.project_id,
                     profile.file_count,
                     profile.architecture,
-                    profile.ai_score.map_or("N/A".to_string(), |s| format!("{}/100", s))
+                    profile
+                        .ai_score
+                        .map_or("N/A".to_string(), |s| format!("{}/100", s))
                 );
             }
         }
@@ -2894,13 +3512,13 @@ fn run(cli: Cli) -> Result<()> {
                     team
                 );
             }
-            CloudAction::AddProject { name, project_path, path } => {
+            CloudAction::AddProject {
+                name,
+                project_path,
+                path,
+            } => {
                 falcon::platform::cloud::register_project(&path, &name, &project_path)?;
-                println!(
-                    "  {} Project '{}' registered",
-                    "✓".green().bold(),
-                    name
-                );
+                println!("  {} Project '{}' registered", "✓".green().bold(), name);
             }
             CloudAction::Dashboard { path } => {
                 let dashboard = falcon::platform::cloud::generate_dashboard(&path)?;
@@ -2917,17 +3535,26 @@ fn run(cli: Cli) -> Result<()> {
                     policies.policies.len()
                 );
                 falcon::platform::enterprise::record_audit(
-                    &path, "system", "init", "policies", "Default enterprise policies created"
+                    &path,
+                    "system",
+                    "init",
+                    "policies",
+                    "Default enterprise policies created",
                 )?;
             }
             EnterpriseAction::Check { path } => {
                 let results = falcon::platform::enterprise::check_policies(&path)?;
                 falcon::platform::enterprise::print_policy_results(&results);
                 falcon::platform::enterprise::record_audit(
-                    &path, "system", "policy-check", "project",
-                    &format!("{} passed, {} failed",
+                    &path,
+                    "system",
+                    "policy-check",
+                    "project",
+                    &format!(
+                        "{} passed, {} failed",
                         results.iter().filter(|r| r.passed).count(),
-                        results.iter().filter(|r| !r.passed).count())
+                        results.iter().filter(|r| !r.passed).count()
+                    ),
                 )?;
                 if results.iter().any(|r| !r.passed) {
                     process::exit(1);
@@ -2950,7 +3577,11 @@ fn run(cli: Cli) -> Result<()> {
             EnterpriseAction::Audit { path, last } => {
                 let log = falcon::platform::enterprise::load_audit_log(&path)?;
                 println!();
-                println!("  {} Audit Log ({} entries)", "falcon".bright_cyan().bold(), log.entries.len());
+                println!(
+                    "  {} Audit Log ({} entries)",
+                    "falcon".bright_cyan().bold(),
+                    log.entries.len()
+                );
                 println!();
                 for entry in log.entries.iter().rev().take(last) {
                     println!(
@@ -2966,7 +3597,11 @@ fn run(cli: Cli) -> Result<()> {
             }
         },
         Commands::Marketplace { query } => {
-            let q = if query.is_empty() { None } else { Some(query.as_str()) };
+            let q = if query.is_empty() {
+                None
+            } else {
+                Some(query.as_str())
+            };
             let listings = falcon::platform::marketplace::browse_marketplace(q);
             falcon::platform::marketplace::print_marketplace(&listings, q);
         }
@@ -3010,7 +3645,11 @@ fn run(cli: Cli) -> Result<()> {
             let recs = falcon::ai_score::self_tune::generate_recommendations(&history);
             falcon::ai_score::self_tune::print_tune_recommendations(&recs, &history);
         }
-        Commands::ScoreTrack { path, history, last } => {
+        Commands::ScoreTrack {
+            path,
+            history,
+            last,
+        } => {
             if history {
                 let hist = falcon::ai_score::score_trends::load_score_history(&path)?;
                 falcon::ai_score::score_trends::print_score_history(&hist, last);
@@ -3056,7 +3695,11 @@ fn run(cli: Cli) -> Result<()> {
                 println!("{}", falcon::ai_score::score::generate_badge(&score));
             }
         }
-        Commands::AiReport { path, format, output } => {
+        Commands::AiReport {
+            path,
+            format,
+            output,
+        } => {
             let report = falcon::ai_score::report::generate_ai_report(&path)?;
             match format {
                 DocFormat::Console => falcon::ai_score::report::print_ai_report(&report),
@@ -3084,7 +3727,9 @@ fn run(cli: Cli) -> Result<()> {
             if verbose {
                 let ai_files: Vec<_> = results
                     .iter()
-                    .filter(|r| r.origin == falcon::ai_score::provenance::CodeOrigin::LikelyAiGenerated)
+                    .filter(|r| {
+                        r.origin == falcon::ai_score::provenance::CodeOrigin::LikelyAiGenerated
+                    })
                     .collect();
                 if !ai_files.is_empty() {
                     println!("  Files with AI-generation signals:");
@@ -3154,8 +3799,7 @@ fn run(cli: Cli) -> Result<()> {
 }
 
 fn get_plugin_dir() -> PathBuf {
-    let home = std::env::var("HOME")
-        .or_else(|_| std::env::var("USERPROFILE"));
+    let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE"));
     match home {
         Ok(dir) => PathBuf::from(dir).join(".falcon").join("plugins"),
         Err(_) => {

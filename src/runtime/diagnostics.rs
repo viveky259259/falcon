@@ -40,30 +40,34 @@ impl DiagnosticCollector {
         }
     }
 
-    /// Collect a single snapshot by querying all VM Service endpoints.
+    /// Collect a lightweight snapshot suitable for repeated polling.
     pub async fn collect_snapshot(&self) -> Result<RuntimeSnapshot> {
-        // Run all diagnostic queries concurrently.
-        let (memory, rendering, cpu_samples, http_profile, timeline, alloc_profile, rebuilds) =
-            tokio::join!(
-                self.client.get_memory_usage(),
-                self.client.get_rendering_stats(),
-                self.client.get_cpu_samples(),
-                self.client.get_http_timeline(),
-                self.client.get_vm_timeline(),
-                self.client.get_allocation_profile(),
-                self.client.get_rebuild_counts(),
-            );
+        let memory = self.client.get_memory_usage().await?;
+        let rendering = self.client.get_rendering_stats().await?;
+        let http_profile = self.client.get_http_timeline().await.unwrap_or_default();
+        let rebuilds = self.client.get_rebuild_counts().await.unwrap_or_default();
 
         Ok(RuntimeSnapshot {
             elapsed_secs: self.start.elapsed().as_secs_f64(),
-            memory: memory?,
-            rendering: rendering?,
-            cpu_samples: cpu_samples.unwrap_or_default(),
-            http_profile: http_profile.unwrap_or_default(),
-            timeline_events: timeline.unwrap_or_default(),
-            allocation_profile: alloc_profile.unwrap_or_default(),
-            rebuild_counts: rebuilds.unwrap_or_default(),
+            memory,
+            rendering,
+            cpu_samples: Value::Null,
+            http_profile,
+            timeline_events: Value::Null,
+            allocation_profile: Value::Null,
+            rebuild_counts: rebuilds,
         })
+    }
+
+    /// Populate the last snapshot with expensive one-shot diagnostics.
+    pub async fn enrich_snapshot(&self, snapshot: &mut RuntimeSnapshot) {
+        snapshot.cpu_samples = self.client.get_cpu_samples().await.unwrap_or_default();
+        snapshot.timeline_events = self.client.get_vm_timeline().await.unwrap_or_default();
+        snapshot.allocation_profile = self
+            .client
+            .get_allocation_profile()
+            .await
+            .unwrap_or_default();
     }
 }
 
@@ -133,7 +137,10 @@ pub fn analyze_memory(snapshots: &[RuntimeSnapshot]) -> MemoryTrend {
     }
 
     let heaps: Vec<f64> = snapshots.iter().map(|s| s.memory.heap_usage_mb()).collect();
-    let externals: Vec<f64> = snapshots.iter().map(|s| s.memory.external_usage_mb()).collect();
+    let externals: Vec<f64> = snapshots
+        .iter()
+        .map(|s| s.memory.external_usage_mb())
+        .collect();
 
     let min = heaps.iter().cloned().fold(f64::INFINITY, f64::min);
     let max = heaps.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
@@ -142,8 +149,7 @@ pub fn analyze_memory(snapshots: &[RuntimeSnapshot]) -> MemoryTrend {
     let peak_ext = externals.iter().cloned().fold(0.0f64, f64::max);
 
     // Check monotonic growth (allow small dips from GC).
-    let monotonic = heaps.windows(2).filter(|w| w[1] < w[0] - 0.5).count() == 0
-        && growth > 5.0;
+    let monotonic = heaps.windows(2).filter(|w| w[1] < w[0] - 0.5).count() == 0 && growth > 5.0;
 
     let samples = snapshots
         .iter()
@@ -181,21 +187,35 @@ pub fn analyze_rendering(snapshots: &[RuntimeSnapshot]) -> RenderingSummary {
     let last = snapshots.last().unwrap();
     let first = snapshots.first().unwrap();
 
-    let total = last.rendering.total_frames.saturating_sub(first.rendering.total_frames).max(last.rendering.total_frames);
-    let dropped = last.rendering.dropped_frames.saturating_sub(first.rendering.dropped_frames).max(last.rendering.dropped_frames);
+    let total = last
+        .rendering
+        .total_frames
+        .saturating_sub(first.rendering.total_frames)
+        .max(last.rendering.total_frames);
+    let dropped = last
+        .rendering
+        .dropped_frames
+        .saturating_sub(first.rendering.dropped_frames)
+        .max(last.rendering.dropped_frames);
     let dropped_pct = if total > 0 {
         (dropped as f64 / total as f64) * 100.0
     } else {
         0.0
     };
 
-    let avg_build: f64 = snapshots.iter().map(|s| s.rendering.avg_frame_build_time_ms).sum::<f64>()
+    let avg_build: f64 = snapshots
+        .iter()
+        .map(|s| s.rendering.avg_frame_build_time_ms)
+        .sum::<f64>()
         / snapshots.len() as f64;
     let max_build = snapshots
         .iter()
         .map(|s| s.rendering.max_frame_build_time_ms)
         .fold(0.0f64, f64::max);
-    let avg_raster: f64 = snapshots.iter().map(|s| s.rendering.avg_frame_raster_time_ms).sum::<f64>()
+    let avg_raster: f64 = snapshots
+        .iter()
+        .map(|s| s.rendering.avg_frame_raster_time_ms)
+        .sum::<f64>()
         / snapshots.len() as f64;
     let max_raster = snapshots
         .iter()

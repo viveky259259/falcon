@@ -36,12 +36,17 @@ colored = "2"
 walkdir = "2"
 glob = "0.3"
 anyhow = "1"
+base64 = "0.22"
 regex = "1"
 log = "0.4"
 env_logger = "0.11"
 tower-lsp = "0.20"
 tokio = { version = "1", features = ["full"] }
 dashmap = "6"
+futures-util = "0.3"
+tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
+url = "2"
+percent-encoding = "2"
 
 [dev-dependencies]
 tempfile = "3"

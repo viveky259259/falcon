@@ -7,11 +7,12 @@
 pub mod connection;
 pub mod diagnostics;
 pub mod report;
+pub mod tools;
 
 use anyhow::Result;
 use connection::VmServiceClient;
 use diagnostics::{DiagnosticCollector, RuntimeSnapshot};
-use report::{RuntimeReport, RuntimeSeverity};
+use report::RuntimeReport;
 use std::time::{Duration, Instant};
 
 /// Configuration for a runtime check session.
@@ -72,18 +73,15 @@ pub async fn run_runtime_check(config: &RuntimeCheckConfig) -> Result<RuntimeRep
     println!();
     println!(
         "{}",
-        "╔══════════════════════════════════════════════════╗"
-            .bright_cyan()
+        "╔══════════════════════════════════════════════════╗".bright_cyan()
     );
     println!(
         "{}",
-        "║         FALCON Runtime Check                    ║"
-            .bright_cyan()
+        "║         FALCON Runtime Check                    ║".bright_cyan()
     );
     println!(
         "{}",
-        "╚══════════════════════════════════════════════════╝"
-            .bright_cyan()
+        "╚══════════════════════════════════════════════════╝".bright_cyan()
     );
     println!();
 
@@ -105,10 +103,7 @@ pub async fn run_runtime_check(config: &RuntimeCheckConfig) -> Result<RuntimeRep
     };
 
     let client = VmServiceClient::connect(&vm_uri).await?;
-    eprintln!(
-        "  {} Connected to Dart VM Service",
-        "✓".green().bold()
-    );
+    eprintln!("  {} Connected to Dart VM Service", "✓".green().bold());
 
     // ── Step 2: Enable extensions ────────────────────────────────────
     client.enable_extensions().await?;
@@ -147,6 +142,11 @@ pub async fn run_runtime_check(config: &RuntimeCheckConfig) -> Result<RuntimeRep
         }
     }
     eprintln!();
+
+    if let Some(last_snapshot) = snapshots.last_mut() {
+        collector.enrich_snapshot(last_snapshot).await;
+    }
+
     eprintln!(
         "  {} Collected {} snapshots in {:.1}s",
         "✓".green().bold(),
