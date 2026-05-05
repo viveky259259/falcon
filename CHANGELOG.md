@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.3.0 (2026-05-05)
+
+### Stats
+- 55 lint rules
+- 460 tests passing
+- 93 CLI commands
+- 214 source files (45480 lines of Rust)
+
+### Changes
+- 306ae3e chore: gitignore .claude/ (per-user editor config)
+- 3f49c02 chore: cargo fmt sweep across rules, analysis, ai_score, tests
+- 0bd69dd feat(cli): wire smells, agents, live, flutter, fvm subcommands
+- 4900b29 feat(flutter_run): VM service URI capture for flutter run -d chrome
+- 99906eb feat(runtime): add live mode and tighten memory leak scoring
+- fb1cd62 feat(agents): generate AGENTS.md for Codex/Cursor/Aider parity with Claude
+- 0bc752c feat(smells): categorize findings into dead code, code smells, security smells
+- 7a8d835 Add DevTools runtime commands
+- 7512051 feat: add 7 new Flutter-quality analysis commands
+- 7f2258c chore: update gstack solve state for branch comparison feature
+- e451e86 feat: organize CLI commands into semantic groups
+- 5ebfe75 docs: comprehensive v0.2.0 developer documentation update
+- 11684c3 feat: update falcon_cli Dart package to v0.2.0 for pub.dev
+- 9ceb967 fix: self-update uses gh CLI auth for private repos
+
+# Changelog
+
 All notable changes to Falcon are documented in this file.
 
 ## [0.2.0] - 2026-03-20

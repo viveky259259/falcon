@@ -1,3 +1,8 @@
+## 0.3.0
+
+- Updated to Falcon 0.3.0
+- 55 lint rules, 93 commands
+
 ## 0.2.0
 
 - Enterprise HTML reports with dashboard layout, charts, and dark/light theme
