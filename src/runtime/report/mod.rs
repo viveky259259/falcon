@@ -82,7 +82,10 @@ impl RuntimeReport {
 // ──────────────────────────────────────────────────────────────────────
 
 /// Analyse collected snapshots and produce a scored `RuntimeReport`.
-pub fn build_report(snapshots: &[RuntimeSnapshot], thresholds: &RuntimeThresholds) -> RuntimeReport {
+pub fn build_report(
+    snapshots: &[RuntimeSnapshot],
+    thresholds: &RuntimeThresholds,
+) -> RuntimeReport {
     let memory = analyze_memory(snapshots);
     let rendering = analyze_rendering(snapshots);
     let network = analyze_network(snapshots);
@@ -103,7 +106,7 @@ pub fn build_report(snapshots: &[RuntimeSnapshot], thresholds: &RuntimeThreshold
     let cpu_score = score_cpu(&cpu, thresholds, &mut issues);
 
     // ── Stability (lack of crashes / isolate errors) ─────────────────
-    let stability_score = 100u32; // TODO: detect isolate errors from timeline
+    let stability_score = score_stability(snapshots, &mut issues);
 
     let scores = RuntimeScores {
         memory: memory_score,
@@ -128,10 +131,7 @@ pub fn build_report(snapshots: &[RuntimeSnapshot], thresholds: &RuntimeThreshold
         _ => "F",
     };
 
-    let duration_secs = snapshots
-        .last()
-        .map(|s| s.elapsed_secs)
-        .unwrap_or(0.0);
+    let duration_secs = snapshots.last().map(|s| s.elapsed_secs).unwrap_or(0.0);
 
     RuntimeReport {
         overall_score: overall,
@@ -157,7 +157,7 @@ fn score_memory(
     let mut score = 100i32;
 
     if mem.max_heap_mb > thresholds.memory_error_mb {
-        score -= 40;
+        score -= 50;
         issues.push(RuntimeIssue {
             severity: RuntimeSeverity::Error,
             category: "Memory",
@@ -186,7 +186,7 @@ fn score_memory(
     }
 
     if mem.monotonic_growth {
-        score -= 25;
+        score -= 35;
         issues.push(RuntimeIssue {
             severity: RuntimeSeverity::Error,
             category: "Memory",
@@ -241,7 +241,10 @@ fn score_rendering(
         issues.push(RuntimeIssue {
             severity: RuntimeSeverity::Error,
             category: "Rendering",
-            title: format!("Average frame build time {:.1} ms (target <16 ms)", ren.avg_build_ms),
+            title: format!(
+                "Average frame build time {:.1} ms (target <16 ms)",
+                ren.avg_build_ms
+            ),
             detail: "Frames are building significantly slower than the 16 ms budget, \
                      causing visible jank."
                 .to_string(),
@@ -296,12 +299,69 @@ fn score_rendering(
             category: "Rendering",
             title: format!("{} jank events detected", ren.jank_events),
             detail: "Multiple samples exceeded the 16 ms frame budget.".to_string(),
-            suggestion: "Run in profile mode and use the Flutter Performance overlay."
-                .to_string(),
+            suggestion: "Run in profile mode and use the Flutter Performance overlay.".to_string(),
         });
     }
 
     score.max(0) as u32
+}
+
+/// Detect isolate errors / exception events in the timeline and score stability.
+/// Each error event costs 10 points; each pause-on-exception state costs 25 points.
+fn score_stability(snapshots: &[RuntimeSnapshot], issues: &mut Vec<RuntimeIssue>) -> u32 {
+    let mut error_events = 0u32;
+    let mut paused_on_exception = false;
+
+    for snap in snapshots {
+        if let Some(events) = snap.timeline_events["traceEvents"].as_array() {
+            for event in events {
+                let name = event["name"].as_str().unwrap_or("");
+                let cat = event["cat"].as_str().unwrap_or("");
+                let phase = event["ph"].as_str().unwrap_or("");
+                let is_error = name.contains("Error")
+                    || name.contains("Exception")
+                    || name.contains("Crash")
+                    || cat == "Embedder/Error"
+                    || phase == "i" && name.eq_ignore_ascii_case("error");
+                if is_error {
+                    error_events += 1;
+                }
+            }
+        }
+        // CPU samples response sometimes carries a `pauseEvent` for the isolate.
+        if snap.cpu_samples["pauseEvent"]["kind"]
+            .as_str()
+            .map(|k| k.contains("Exception"))
+            .unwrap_or(false)
+        {
+            paused_on_exception = true;
+        }
+    }
+
+    let mut score: i32 = 100;
+    if error_events > 0 {
+        score -= (error_events as i32) * 10;
+        issues.push(RuntimeIssue {
+            severity: RuntimeSeverity::Error,
+            category: "stability",
+            title: format!("{} runtime error event(s) on the timeline", error_events),
+            detail: "Errors / exceptions appeared in the VM timeline during the sample window."
+                .to_string(),
+            suggestion: "Inspect `falcon devtools logging --duration 30` and the issue stream for the underlying stack traces.".to_string(),
+        });
+    }
+    if paused_on_exception {
+        score -= 25;
+        issues.push(RuntimeIssue {
+            severity: RuntimeSeverity::Error,
+            category: "stability",
+            title: "Isolate paused on uncaught exception".to_string(),
+            detail: "The Dart isolate is in a PauseException state.".to_string(),
+            suggestion: "Resume the app with `falcon devtools debugger --action resume` after fixing the throwing code.".to_string(),
+        });
+    }
+
+    score.clamp(0, 100) as u32
 }
 
 fn score_network(net: &NetworkSummary, issues: &mut Vec<RuntimeIssue>) -> u32 {
@@ -371,8 +431,7 @@ fn score_cpu(
             title: format!("Estimated CPU usage: {:.0}%", cpu.estimated_usage_pct),
             detail: "CPU usage is high, which will drain battery and may cause thermal throttling."
                 .to_string(),
-            suggestion: "Move expensive computation to isolates. Avoid polling timers."
-                .to_string(),
+            suggestion: "Move expensive computation to isolates. Avoid polling timers.".to_string(),
         });
     }
 
@@ -391,4 +450,70 @@ fn score_cpu(
     }
 
     score.max(0) as u32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::runtime::connection::{MemoryUsage, RenderingStats};
+    use serde_json::json;
+
+    fn snap_with(timeline: serde_json::Value, cpu: serde_json::Value) -> RuntimeSnapshot {
+        RuntimeSnapshot {
+            elapsed_secs: 0.0,
+            memory: MemoryUsage {
+                heap_usage_bytes: 0,
+                heap_capacity_bytes: 0,
+                external_usage_bytes: 0,
+            },
+            rendering: RenderingStats {
+                total_frames: 0,
+                dropped_frames: 0,
+                avg_frame_build_time_ms: 0.0,
+                max_frame_build_time_ms: 0.0,
+                avg_frame_raster_time_ms: 0.0,
+                max_frame_raster_time_ms: 0.0,
+            },
+            cpu_samples: cpu,
+            http_profile: json!({}),
+            timeline_events: timeline,
+            allocation_profile: json!({}),
+            rebuild_counts: json!({}),
+        }
+    }
+
+    #[test]
+    fn stability_score_is_100_when_no_errors() {
+        let snaps = vec![snap_with(json!({"traceEvents": []}), json!({}))];
+        let mut issues = Vec::new();
+        assert_eq!(score_stability(&snaps, &mut issues), 100);
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn stability_score_drops_per_error_event() {
+        let snaps = vec![snap_with(
+            json!({"traceEvents": [
+                {"name": "DartError", "cat": "Dart"},
+                {"name": "UncaughtException", "cat": "Embedder"},
+            ]}),
+            json!({}),
+        )];
+        let mut issues = Vec::new();
+        let score = score_stability(&snaps, &mut issues);
+        assert_eq!(score, 80); // 100 - 2*10
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].category, "stability");
+    }
+
+    #[test]
+    fn stability_score_penalises_pause_on_exception() {
+        let snaps = vec![snap_with(
+            json!({"traceEvents": []}),
+            json!({"pauseEvent": {"kind": "PauseException"}}),
+        )];
+        let mut issues = Vec::new();
+        assert_eq!(score_stability(&snaps, &mut issues), 75); // 100 - 25
+        assert_eq!(issues.len(), 1);
+    }
 }

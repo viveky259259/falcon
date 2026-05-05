@@ -52,7 +52,10 @@ fn test_memory_trend_healthy() {
     ];
 
     let trend = analyze_memory(&snapshots);
-    assert!(!trend.monotonic_growth, "Should not flag monotonic growth with GC reclaim");
+    assert!(
+        !trend.monotonic_growth,
+        "Should not flag monotonic growth with GC reclaim"
+    );
     assert!(trend.avg_heap_mb > 48.0 && trend.avg_heap_mb < 53.0);
     assert_eq!(trend.samples.len(), 4);
 }
@@ -68,7 +71,10 @@ fn test_memory_trend_leak_detected() {
     ];
 
     let trend = analyze_memory(&snapshots);
-    assert!(trend.monotonic_growth, "Should detect monotonic heap growth");
+    assert!(
+        trend.monotonic_growth,
+        "Should detect monotonic heap growth"
+    );
     assert!(trend.heap_growth_mb > 15.0);
 }
 
@@ -154,8 +160,16 @@ fn test_report_healthy_app() {
     let thresholds = RuntimeThresholds::default();
     let report = build_report(&snapshots, &thresholds);
 
-    assert!(report.overall_score >= 80, "Healthy app should score well: got {}", report.overall_score);
-    assert_eq!(report.error_count(), 0, "No errors expected for healthy app");
+    assert!(
+        report.overall_score >= 80,
+        "Healthy app should score well: got {}",
+        report.overall_score
+    );
+    assert_eq!(
+        report.error_count(),
+        0,
+        "No errors expected for healthy app"
+    );
     assert_eq!(report.snapshot_count, 3);
 }
 
@@ -174,8 +188,10 @@ fn test_report_memory_leak() {
 
     assert!(report.overall_score < 80, "Leaking app should score lower");
     assert!(
-        report.issues.iter().any(|i| i.category == "Memory"
-            && i.severity == RuntimeSeverity::Error),
+        report
+            .issues
+            .iter()
+            .any(|i| i.category == "Memory" && i.severity == RuntimeSeverity::Error),
         "Should have a memory error"
     );
 }

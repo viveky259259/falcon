@@ -171,6 +171,60 @@ pub enum DebuggerAction {
     StepOut,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct RebuildEntry {
+    pub widget: String,
+    pub count: u64,
+    pub location: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RebuildsToolReport {
+    pub vm_service_uri: String,
+    pub isolate_id: String,
+    pub total_widgets: usize,
+    pub total_rebuilds: u64,
+    pub top_widgets: Vec<RebuildEntry>,
+    pub stats_enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct InspectorNode {
+    pub widget: String,
+    pub description: Option<String>,
+    pub creation_location: Option<String>,
+    pub child_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct InspectorToolReport {
+    pub vm_service_uri: String,
+    pub isolate_id: String,
+    pub total_nodes: usize,
+    pub max_depth: usize,
+    pub root: Option<InspectorNode>,
+    pub top_widgets: Vec<RebuildEntry>,
+    pub selected: Option<InspectorNode>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ReloadMode {
+    HotReload,
+    HotRestart,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ReloadToolReport {
+    pub vm_service_uri: String,
+    pub isolate_id: String,
+    pub mode: String,
+    pub success: bool,
+    pub reason: Option<String>,
+    pub reloaded_libraries: Option<u64>,
+    pub elapsed_ms: u128,
+    pub reassembled: bool,
+}
+
 pub async fn connect_client(
     project_path: &Path,
     attach_uri: Option<&str>,
@@ -276,9 +330,10 @@ pub async fn collect_profiler_report(
     duration: Duration,
 ) -> Result<ProfilerToolReport> {
     let _ = client.set_flag("profiler", "true").await;
+    let _ = client.set_flag("profile_period", "250").await;
     let _ = client.clear_cpu_samples().await;
     tokio::time::sleep(duration).await;
-    let cpu_samples = client.get_cpu_samples().await.unwrap_or(Value::Null);
+    let cpu_samples = client.get_cpu_samples().await?;
     let cpu_summary = summarize_cpu_samples(&cpu_samples);
 
     Ok(ProfilerToolReport {
@@ -342,6 +397,92 @@ pub async fn collect_debugger_report(
     })
 }
 
+pub async fn collect_rebuilds_report(
+    client: &VmServiceClient,
+    vm_service_uri: &str,
+) -> Result<RebuildsToolReport> {
+    let _ = client
+        .set_flag("ext.flutter.profileWidgetBuilds", "true")
+        .await;
+    let raw = client.get_rebuild_counts().await.unwrap_or(Value::Null);
+    let summary = summarize_rebuilds(&raw);
+    Ok(RebuildsToolReport {
+        vm_service_uri: vm_service_uri.to_string(),
+        isolate_id: client.isolate_id.clone(),
+        total_widgets: summary.total_widgets,
+        total_rebuilds: summary.total_rebuilds,
+        top_widgets: summary.top_widgets,
+        stats_enabled: summary.stats_enabled,
+    })
+}
+
+pub async fn collect_inspector_report(
+    client: &VmServiceClient,
+    vm_service_uri: &str,
+) -> Result<InspectorToolReport> {
+    let tree = client.get_root_widget_tree().await.unwrap_or(Value::Null);
+    let selected = client.get_selected_widget().await.unwrap_or(Value::Null);
+    let rebuilds = client.get_rebuild_counts().await.unwrap_or(Value::Null);
+
+    let tree_summary = summarize_inspector_tree(&tree);
+    let selected_summary = summarize_inspector_node(&selected);
+    let rebuild_summary = summarize_rebuilds(&rebuilds);
+
+    Ok(InspectorToolReport {
+        vm_service_uri: vm_service_uri.to_string(),
+        isolate_id: client.isolate_id.clone(),
+        total_nodes: tree_summary.total_nodes,
+        max_depth: tree_summary.max_depth,
+        root: tree_summary.root,
+        top_widgets: rebuild_summary.top_widgets,
+        selected: selected_summary,
+    })
+}
+
+pub async fn collect_reload_report(
+    client: &VmServiceClient,
+    vm_service_uri: &str,
+    mode: ReloadMode,
+) -> Result<ReloadToolReport> {
+    let start = std::time::Instant::now();
+    let (force, pause) = match mode {
+        ReloadMode::HotReload => (false, false),
+        ReloadMode::HotRestart => (true, false),
+    };
+    let resp = client.reload_sources(force, pause).await?;
+    let success = resp["success"].as_bool().unwrap_or(false);
+    let reason = resp["notices"]
+        .as_array()
+        .and_then(|n| n.first())
+        .and_then(|n| n["message"].as_str())
+        .map(|s| s.to_string())
+        .or_else(|| resp["reason"].as_str().map(|s| s.to_string()));
+    let reloaded_libraries = resp["details"]["loadedLibraryCount"]
+        .as_u64()
+        .or_else(|| resp["loadedLibraryCount"].as_u64());
+
+    let mut reassembled = false;
+    if success {
+        if client.flutter_reassemble().await.is_ok() {
+            reassembled = true;
+        }
+    }
+
+    Ok(ReloadToolReport {
+        vm_service_uri: vm_service_uri.to_string(),
+        isolate_id: client.isolate_id.clone(),
+        mode: match mode {
+            ReloadMode::HotReload => "reload".into(),
+            ReloadMode::HotRestart => "restart".into(),
+        },
+        success,
+        reason,
+        reloaded_libraries,
+        elapsed_ms: start.elapsed().as_millis(),
+        reassembled,
+    })
+}
+
 pub async fn collect_logging_report(
     client: &VmServiceClient,
     vm_service_uri: &str,
@@ -349,7 +490,7 @@ pub async fn collect_logging_report(
 ) -> Result<LoggingToolReport> {
     let events = client
         .collect_stream_events(
-            &["Stdout", "Stderr", "Logging", "GC", "Extension"],
+            &["Stdout", "Stderr", "Logging", "GC", "Extension", "Timer"],
             duration,
             DEFAULT_LOG_EVENT_LIMIT,
         )
@@ -559,6 +700,117 @@ pub fn print_debugger_report(report: &DebuggerToolReport) {
                 frame.script_uri.as_deref().unwrap_or("?")
             );
         }
+    }
+}
+
+pub fn print_rebuilds_report(report: &RebuildsToolReport) {
+    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
+    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
+    if !report.stats_enabled {
+        println!(
+            "{}",
+            "  Note: rebuild profiling is off — start the app with `--profile-widget-builds` or call `WidgetsBinding.instance.deferFirstFrame` in profile mode for accurate counts."
+                .yellow()
+        );
+    }
+    println!(
+        "{} {}",
+        "Tracked widgets:".bright_cyan(),
+        report.total_widgets
+    );
+    println!(
+        "{} {}",
+        "Total rebuilds:".bright_cyan(),
+        report.total_rebuilds
+    );
+    if !report.top_widgets.is_empty() {
+        println!();
+        println!("{}", "Hot rebuilders".bright_white().bold());
+        for entry in &report.top_widgets {
+            match &entry.location {
+                Some(loc) => println!("  - {} × {}  ({})", entry.widget, entry.count, loc),
+                None => println!("  - {} × {}", entry.widget, entry.count),
+            }
+        }
+    }
+}
+
+pub fn print_inspector_report(report: &InspectorToolReport) {
+    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
+    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
+    println!(
+        "{} {}",
+        "Widget tree nodes:".bright_cyan(),
+        report.total_nodes
+    );
+    println!("{} {}", "Max depth:".bright_cyan(), report.max_depth);
+    if let Some(root) = &report.root {
+        println!(
+            "{} {} ({} children)",
+            "Root:".bright_cyan(),
+            root.widget,
+            root.child_count
+        );
+        if let Some(loc) = &root.creation_location {
+            println!("  at {}", loc.dimmed());
+        }
+    }
+    if let Some(selected) = &report.selected {
+        println!();
+        println!("{}", "Selected widget".bright_white().bold());
+        println!("  - {}", selected.widget);
+        if let Some(desc) = &selected.description {
+            println!("    {}", desc.dimmed());
+        }
+        if let Some(loc) = &selected.creation_location {
+            println!("    at {}", loc.dimmed());
+        }
+    }
+    if !report.top_widgets.is_empty() {
+        println!();
+        println!("{}", "Top rebuilders".bright_white().bold());
+        for entry in &report.top_widgets {
+            println!("  - {} × {}", entry.widget, entry.count);
+        }
+    }
+}
+
+pub fn print_reload_report(report: &ReloadToolReport) {
+    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
+    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
+    println!("{} {}", "Mode:".bright_cyan(), report.mode);
+    if report.success {
+        println!(
+            "{} {} in {} ms",
+            "Result:".bright_cyan(),
+            "success".green().bold(),
+            report.elapsed_ms
+        );
+    } else {
+        println!(
+            "{} {} in {} ms",
+            "Result:".bright_cyan(),
+            "failed".red().bold(),
+            report.elapsed_ms
+        );
+    }
+    if let Some(reason) = &report.reason {
+        println!("{} {}", "Reason:".bright_cyan(), reason);
+    }
+    if let Some(libs) = report.reloaded_libraries {
+        println!("{} {}", "Libraries reloaded:".bright_cyan(), libs);
+    }
+    println!(
+        "{} {}",
+        "Widgets reassembled:".bright_cyan(),
+        report.reassembled
+    );
+    if report.mode == "restart" {
+        println!(
+            "{}",
+            "  Note: full hot restart (state reset) requires `flutter run` to be the controlling process. \
+This forces a reload of all sources and reassembles the widget tree, but constructor state is preserved.".dimmed()
+        );
     }
 }
 
@@ -821,18 +1073,32 @@ fn summarize_performance(timeline: &Value) -> PerformanceSummaryData {
 }
 
 fn summarize_cpu_samples(cpu_samples: &Value) -> CpuSummaryData {
+    let functions = cpu_samples["functions"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
     let mut function_counts: HashMap<String, u64> = HashMap::new();
     if let Some(samples) = cpu_samples["samples"].as_array() {
         for sample in samples {
-            if let Some(stack) = sample["stack"].as_array() {
-                if let Some(top_frame) = stack.first() {
-                    let name = top_frame["function"]["name"]
-                        .as_str()
-                        .unwrap_or("<unknown>")
-                        .to_string();
-                    *function_counts.entry(name).or_insert(0) += 1;
-                }
-            }
+            let resolved_name = sample["stack"]
+                .as_array()
+                .and_then(|stack| stack.first())
+                .and_then(|top_frame| {
+                    frame_index_from_value(top_frame)
+                        .and_then(|index| resolve_profile_function_name(&functions, index))
+                        .or_else(|| {
+                            top_frame["function"]["name"]
+                                .as_str()
+                                .or_else(|| top_frame["name"].as_str())
+                                .map(ToString::to_string)
+                        })
+                })
+                .or_else(|| sample["vmTag"].as_str().map(ToString::to_string));
+            // Skip samples with neither a resolvable top frame nor a vmTag —
+            // counting them as "<unknown>" pollutes hot-function rankings and
+            // makes ordering non-deterministic when ties form.
+            let Some(name) = resolved_name else { continue };
+            *function_counts.entry(name).or_insert(0) += 1;
         }
     }
 
@@ -844,11 +1110,37 @@ fn summarize_cpu_samples(cpu_samples: &Value) -> CpuSummaryData {
     hot_functions.truncate(DEFAULT_TOP_HOT_FUNCTIONS_LIMIT);
 
     CpuSummaryData {
-        sample_count: cpu_samples["sampleCount"].as_u64().unwrap_or(0),
+        sample_count: cpu_samples["sampleCount"].as_u64().unwrap_or_else(|| {
+            cpu_samples["samples"]
+                .as_array()
+                .map_or(0, |samples| samples.len() as u64)
+        }),
         sample_period_micros: cpu_samples["samplePeriod"].as_u64(),
-        max_stack_depth: cpu_samples["maxStackDepth"].as_u64(),
+        max_stack_depth: cpu_samples["maxStackDepth"].as_u64().or_else(|| {
+            cpu_samples["samples"].as_array().and_then(|samples| {
+                samples
+                    .iter()
+                    .filter_map(|sample| sample["stack"].as_array().map(|stack| stack.len() as u64))
+                    .max()
+            })
+        }),
         hot_functions,
     }
+}
+
+fn frame_index_from_value(value: &Value) -> Option<usize> {
+    value
+        .as_u64()
+        .map(|index| index as usize)
+        .or_else(|| value.as_i64().map(|index| index as usize))
+}
+
+fn resolve_profile_function_name(functions: &[Value], index: usize) -> Option<String> {
+    let function = functions.get(index)?;
+    function["function"]["name"]
+        .as_str()
+        .or_else(|| function["name"].as_str())
+        .map(ToString::to_string)
 }
 
 fn summarize_debugger(isolate: &Value, stack: Option<&Value>) -> DebuggerSummaryData {
@@ -987,6 +1279,159 @@ fn bytes_to_mb(bytes: u64) -> f64 {
     bytes as f64 / (1024.0 * 1024.0)
 }
 
+#[derive(Debug)]
+struct RebuildSummary {
+    total_widgets: usize,
+    total_rebuilds: u64,
+    top_widgets: Vec<RebuildEntry>,
+    stats_enabled: bool,
+}
+
+fn summarize_rebuilds(raw: &Value) -> RebuildSummary {
+    // The inspector returns either {"events": [{"name", "count", "location"}, ...]}
+    // or {"data": [...]} depending on Flutter version. Be lenient about shape.
+    let entries_array = raw["events"]
+        .as_array()
+        .or_else(|| raw["data"].as_array())
+        .or_else(|| raw["counts"].as_array());
+
+    let mut entries: Vec<RebuildEntry> = Vec::new();
+    let mut stats_enabled = false;
+    let mut total_rebuilds: u64 = 0;
+
+    if let Some(arr) = entries_array {
+        stats_enabled = !arr.is_empty();
+        for item in arr {
+            let widget = item["name"]
+                .as_str()
+                .or_else(|| item["widget"].as_str())
+                .unwrap_or("<unknown>")
+                .to_string();
+            let count = item["count"].as_u64().unwrap_or(0);
+            total_rebuilds += count;
+            let location = item["location"]["file"]
+                .as_str()
+                .map(|f| {
+                    let line = item["location"]["line"].as_i64().unwrap_or(0);
+                    format!("{}:{}", f, line)
+                })
+                .or_else(|| item["location"].as_str().map(String::from));
+            entries.push(RebuildEntry {
+                widget,
+                count,
+                location,
+            });
+        }
+    } else if raw.is_object() {
+        // Fallback: object keyed by widget name → count
+        if let Some(obj) = raw.as_object() {
+            stats_enabled = !obj.is_empty();
+            for (k, v) in obj {
+                let count = v.as_u64().unwrap_or(0);
+                total_rebuilds += count;
+                entries.push(RebuildEntry {
+                    widget: k.clone(),
+                    count,
+                    location: None,
+                });
+            }
+        }
+    }
+
+    entries.sort_by(|a, b| b.count.cmp(&a.count));
+    let total_widgets = entries.len();
+    entries.truncate(DEFAULT_TOP_HOT_FUNCTIONS_LIMIT);
+
+    RebuildSummary {
+        total_widgets,
+        total_rebuilds,
+        top_widgets: entries,
+        stats_enabled,
+    }
+}
+
+#[derive(Debug)]
+struct InspectorTreeSummary {
+    total_nodes: usize,
+    max_depth: usize,
+    root: Option<InspectorNode>,
+}
+
+fn summarize_inspector_tree(tree: &Value) -> InspectorTreeSummary {
+    let root_value = if tree.get("type").is_some() || tree.get("children").is_some() {
+        tree
+    } else if let Some(result) = tree.get("result") {
+        result
+    } else {
+        tree
+    };
+
+    if root_value.is_null() || !root_value.is_object() {
+        return InspectorTreeSummary {
+            total_nodes: 0,
+            max_depth: 0,
+            root: None,
+        };
+    }
+
+    let mut total_nodes = 0usize;
+    let mut max_depth = 0usize;
+    walk_inspector(root_value, 1, &mut total_nodes, &mut max_depth);
+
+    InspectorTreeSummary {
+        total_nodes,
+        max_depth,
+        root: summarize_inspector_node(root_value),
+    }
+}
+
+fn walk_inspector(node: &Value, depth: usize, total: &mut usize, max_depth: &mut usize) {
+    if !node.is_object() {
+        return;
+    }
+    *total += 1;
+    if depth > *max_depth {
+        *max_depth = depth;
+    }
+    if let Some(children) = node["children"].as_array() {
+        for child in children {
+            walk_inspector(child, depth + 1, total, max_depth);
+        }
+    }
+}
+
+fn summarize_inspector_node(node: &Value) -> Option<InspectorNode> {
+    if node.is_null() || !node.is_object() {
+        return None;
+    }
+    let widget = node["type"]
+        .as_str()
+        .or_else(|| node["widgetRuntimeType"].as_str())
+        .or_else(|| node["description"].as_str())
+        .unwrap_or("<unknown>")
+        .to_string();
+    let description = node["description"].as_str().map(String::from);
+    let creation_location = node["creationLocation"]["file"]
+        .as_str()
+        .map(|file| {
+            let line = node["creationLocation"]["line"].as_i64().unwrap_or(0);
+            format!("{}:{}", file, line)
+        })
+        .or_else(|| {
+            node["createdByLocalProject"]
+                .as_bool()
+                .filter(|b| *b)
+                .and_then(|_| node["creationLocation"].as_str().map(String::from))
+        });
+    let child_count = node["children"].as_array().map(|c| c.len()).unwrap_or(0);
+    Some(InspectorNode {
+        widget,
+        description,
+        creation_location,
+        child_count,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1084,6 +1529,29 @@ mod tests {
         assert_eq!(summary.sample_count, 3);
         assert_eq!(summary.sample_period_micros, Some(1000));
         assert_eq!(summary.hot_functions[0].name, "foo");
+        assert_eq!(summary.hot_functions[0].samples, 2);
+    }
+
+    #[test]
+    fn summarize_cpu_samples_resolves_function_indexes_from_profile_table() {
+        let summary = summarize_cpu_samples(&json!({
+            "sampleCount": 2,
+            "samplePeriod": 250,
+            "functions": [
+                { "function": { "name": "root" } },
+                { "function": { "name": "renderFrame" } },
+                { "function": { "name": "fetchRepo" } }
+            ],
+            "samples": [
+                { "stack": [2, 1, 0], "vmTag": "Dart" },
+                { "stack": [2, 0], "vmTag": "Dart" }
+            ]
+        }));
+
+        assert_eq!(summary.sample_count, 2);
+        assert_eq!(summary.sample_period_micros, Some(250));
+        assert_eq!(summary.max_stack_depth, Some(3));
+        assert_eq!(summary.hot_functions[0].name, "fetchRepo");
         assert_eq!(summary.hot_functions[0].samples, 2);
     }
 

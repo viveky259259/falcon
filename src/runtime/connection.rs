@@ -14,11 +14,13 @@ use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::Mutex;
-use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::tungstenite::{protocol::WebSocketConfig, Message};
+use tokio_tungstenite::{connect_async_with_config, MaybeTlsStream, WebSocketStream};
 use url::Url;
 
 type WsStream = WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>;
+const VM_SERVICE_MAX_MESSAGE_SIZE: usize = 256 << 20;
+const VM_SERVICE_MAX_FRAME_SIZE: usize = 64 << 20;
 
 // ──────────────────────────────────────────────────────────────────────
 // Launch helpers
@@ -136,6 +138,7 @@ pub fn convert_to_websocket_url(service_protocol_url: &Url) -> Url {
 
 pub struct VmServiceClient {
     socket: Mutex<WsStream>,
+    notification_buffer: Mutex<Vec<Value>>,
     next_id: AtomicU64,
     /// The main isolate ID discovered at connect time.
     pub isolate_id: String,
@@ -148,12 +151,19 @@ impl VmServiceClient {
         let normalized_uri = normalize_vm_service_uri(uri)?;
         let websocket_uri = convert_to_websocket_url(&normalized_uri);
 
-        let (socket, _) = connect_async(websocket_uri.as_str())
+        let config = WebSocketConfig {
+            max_message_size: Some(VM_SERVICE_MAX_MESSAGE_SIZE),
+            max_frame_size: Some(VM_SERVICE_MAX_FRAME_SIZE),
+            ..WebSocketConfig::default()
+        };
+
+        let (socket, _) = connect_async_with_config(websocket_uri.as_str(), Some(config), false)
             .await
             .with_context(|| format!("Cannot connect to VM Service at {}", websocket_uri))?;
 
         let client = Self {
             socket: Mutex::new(socket),
+            notification_buffer: Mutex::new(Vec::new()),
             next_id: AtomicU64::new(1),
             isolate_id: String::new(),
         };
@@ -168,6 +178,7 @@ impl VmServiceClient {
 
         Ok(Self {
             socket: client.socket,
+            notification_buffer: client.notification_buffer,
             next_id: client.next_id,
             isolate_id,
         })
@@ -299,6 +310,67 @@ impl VmServiceClient {
         .or_else(|_| Ok(json!({})))
     }
 
+    /// Fetch the root widget tree from the Flutter inspector.
+    /// Tries the new `getRootWidgetTree` first, falling back to `getRootWidgetSummaryTree`
+    /// for older Flutter SDKs.
+    pub async fn get_root_widget_tree(&self) -> Result<Value> {
+        if let Ok(value) = self
+            .call(
+                "ext.flutter.inspector.getRootWidgetTree",
+                json!({
+                    "isolateId": self.isolate_id,
+                    "groupName": "falcon",
+                    "isSummaryTree": true,
+                    "withPreviews": false,
+                }),
+            )
+            .await
+        {
+            return Ok(value);
+        }
+        self.call(
+            "ext.flutter.inspector.getRootWidgetSummaryTree",
+            json!({"isolateId": self.isolate_id, "groupName": "falcon"}),
+        )
+        .await
+        .or_else(|_| Ok(json!({})))
+    }
+
+    /// Fetch the currently-selected widget node from the inspector, if any.
+    pub async fn get_selected_widget(&self) -> Result<Value> {
+        self.call(
+            "ext.flutter.inspector.getSelectedWidget",
+            json!({"isolateId": self.isolate_id, "groupName": "falcon"}),
+        )
+        .await
+        .or_else(|_| Ok(json!({})))
+    }
+
+    /// Trigger a hot reload via `reloadSources`. When `force` is true, the VM reloads
+    /// even if no source changes are detected; `pause` keeps execution paused after reload.
+    pub async fn reload_sources(&self, force: bool, pause: bool) -> Result<Value> {
+        self.call(
+            "reloadSources",
+            json!({
+                "isolateId": self.isolate_id,
+                "force": force,
+                "pause": pause,
+            }),
+        )
+        .await
+    }
+
+    /// Re-runs `build` for every dirty widget — call after `reload_sources` for a
+    /// real hot reload. Implemented as the standard Flutter `ext.flutter.reassemble` extension.
+    pub async fn flutter_reassemble(&self) -> Result<Value> {
+        self.call(
+            "ext.flutter.reassemble",
+            json!({"isolateId": self.isolate_id}),
+        )
+        .await
+        .or_else(|_| Ok(json!({})))
+    }
+
     // ── CPU / timeline diagnostics ──────────────────────────────────
 
     pub async fn get_cpu_samples(&self) -> Result<Value> {
@@ -311,7 +383,6 @@ impl VmServiceClient {
             }),
         )
         .await
-        .or_else(|_| Ok(json!({})))
     }
 
     pub async fn clear_cpu_samples(&self) -> Result<Value> {
@@ -469,7 +540,7 @@ impl VmServiceClient {
                 .await;
         }
 
-        let mut events = Vec::new();
+        let mut events = self.drain_buffered_notifications(max_events).await;
         while Instant::now() < deadline && events.len() < max_events {
             let remaining = deadline.saturating_duration_since(Instant::now());
             let next = match tokio::time::timeout(remaining, socket.next()).await {
@@ -507,6 +578,16 @@ impl VmServiceClient {
         Ok(events)
     }
 
+    async fn drain_buffered_notifications(&self, max_events: usize) -> Vec<Value> {
+        let mut buffered = self.notification_buffer.lock().await;
+        if max_events == 0 || buffered.is_empty() {
+            return Vec::new();
+        }
+
+        let take_count = buffered.len().min(max_events);
+        buffered.drain(..take_count).collect()
+    }
+
     // ── Low-level RPC ───────────────────────────────────────────────
 
     async fn call(&self, method: &str, params: Value) -> Result<Value> {
@@ -540,11 +621,17 @@ impl VmServiceClient {
                     if let Some(result) = parse_response(&text, id)? {
                         return Ok(result);
                     }
+                    if let Some(event) = parse_stream_notification(&text)? {
+                        self.notification_buffer.lock().await.push(event);
+                    }
                 }
                 Message::Binary(bytes) => {
                     if let Ok(text) = String::from_utf8(bytes.to_vec()) {
                         if let Some(result) = parse_response(&text, id)? {
                             return Ok(result);
+                        }
+                        if let Some(event) = parse_stream_notification(&text)? {
+                            self.notification_buffer.lock().await.push(event);
                         }
                     }
                 }
@@ -635,7 +722,8 @@ impl RenderingStats {
 
 #[cfg(test)]
 mod tests {
-    use super::{convert_to_websocket_url, normalize_vm_service_uri};
+    use super::{convert_to_websocket_url, normalize_vm_service_uri, parse_stream_notification};
+    use serde_json::json;
 
     #[test]
     fn normalize_vm_service_uri_handles_devtools_query_param() {
@@ -660,5 +748,25 @@ mod tests {
         let input = normalize_vm_service_uri("http://localhost:123/ABCDEF=").unwrap();
         let output = convert_to_websocket_url(&input);
         assert_eq!(output.as_str(), "ws://localhost:123/ABCDEF=/ws");
+    }
+
+    #[test]
+    fn parse_stream_notification_extracts_stream_notify_payload() {
+        let payload = json!({
+            "jsonrpc": "2.0",
+            "method": "streamNotify",
+            "params": {
+                "streamId": "Stdout",
+                "event": {
+                    "kind": "WriteEvent",
+                    "bytes": "aGVsbG8="
+                }
+            }
+        })
+        .to_string();
+
+        let notification = parse_stream_notification(&payload).unwrap().unwrap();
+        assert_eq!(notification["streamId"].as_str(), Some("Stdout"));
+        assert_eq!(notification["event"]["kind"].as_str(), Some("WriteEvent"));
     }
 }

@@ -84,13 +84,7 @@ fn build_html(report: &RuntimeReport) -> String {
         .top_functions
         .iter()
         .take(10)
-        .map(|(name, count)| {
-            format!(
-                "<tr><td>{}</td><td>{}</td></tr>",
-                html_escape(name),
-                count
-            )
-        })
+        .map(|(name, count)| format!("<tr><td>{}</td><td>{}</td></tr>", html_escape(name), count))
         .collect();
 
     format!(
