@@ -14,7 +14,7 @@ use falcon::reporters::sarif::SarifReporter;
 use falcon::reporters::sonar::SonarReporter;
 use falcon::reporters::Reporter;
 use falcon::Falcon;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process;
 
 #[derive(Parser)]
@@ -44,10 +44,11 @@ SEMANTIC COMMAND GROUPS:
   CI/CD             pr-comment, webhook, export, fix
   Tracking          trends, history, benchmark, score-track, perf-track, fix-track
   Configuration     init, validate, explain, preset, suppress, baseline, self-tune
-  App Management    manage, review, watch, runtime-check, devtools, workspace
+  App Management    manage, review, watch, runtime-check, live, devtools, workspace
   Flutter Quality   asset-audit, theme-audit, l10n-coverage, deeplink-validate,
                     animation-audit, golden-gen
   Integration       mcp, api
+  Flutter SDK       flutter (passthrough — every flutter subcommand: run, build, test, pub, doctor, …)
   Enterprise        cloud, enterprise, certify, marketplace
   Setup             init, update
 
@@ -94,6 +95,30 @@ enum Commands {
         /// Exclude public API from analysis
         #[arg(long)]
         exclude_public_api: bool,
+    },
+
+    /// Categorized smells report: Dead Code, Code Smells, Security Smells.
+    #[command(display_order = 1)]
+    Smells {
+        /// Path to analyze (defaults to current directory)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output format
+        #[arg(short, long, default_value = "console")]
+        format: OutputFormat,
+
+        /// Output file path (for file-based formats)
+        #[arg(short, long, default_value = "falcon-report.html")]
+        output: PathBuf,
+
+        /// Path to falcon.yaml config
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+
+        /// Maximum issues to print per category in console output
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
     },
 
     /// Calculate code metrics only
@@ -212,6 +237,43 @@ enum Commands {
         webhook: Option<String>,
     },
 
+    /// Proxy to the Flutter SDK — exposes every `flutter` subcommand (run, build, test, pub, doctor, …)
+    #[command(
+        name = "flutter",
+        display_order = 7,
+        trailing_var_arg = true,
+        allow_hyphen_values = true,
+        disable_help_flag = true,
+        disable_help_subcommand = true,
+    )]
+    Flutter {
+        /// Arguments forwarded verbatim to the `flutter` CLI (e.g. `falcon flutter build apk --release`)
+        #[arg(num_args = 0.., value_name = "ARGS")]
+        args: Vec<String>,
+    },
+
+    /// Generate AGENTS.md files (root + per-feature) so Codex/Cursor/Aider follow the same rules
+    #[command(display_order = 7)]
+    Agents {
+        #[command(subcommand)]
+        action: AgentsAction,
+    },
+
+    /// Proxy to FVM — manage Flutter SDK versions (`falcon fvm install 3.24.0`, `falcon fvm use stable`, …)
+    #[command(
+        name = "fvm",
+        display_order = 7,
+        trailing_var_arg = true,
+        allow_hyphen_values = true,
+        disable_help_flag = true,
+        disable_help_subcommand = true,
+    )]
+    Fvm {
+        /// Arguments forwarded verbatim to the `fvm` CLI
+        #[arg(num_args = 0.., value_name = "ARGS")]
+        args: Vec<String>,
+    },
+
     /// Run runtime diagnostics on a Flutter app (memory, rendering, network, CPU)
     #[command(name = "runtime-check", display_order = 8)]
     RuntimeCheck {
@@ -242,6 +304,30 @@ enum Commands {
         /// Skip HTML report generation (CLI output only)
         #[arg(long)]
         no_html: bool,
+    },
+
+    /// Watch a running Flutter app and surface runtime issues in realtime
+    #[command(name = "live", display_order = 8)]
+    Live {
+        /// Path to the Flutter project (used for `flutter run` when not attaching)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Attach to an already-running app by VM Service URI instead of launching
+        #[arg(long)]
+        attach: Option<String>,
+
+        /// Total session duration in seconds
+        #[arg(short, long, default_value = "30")]
+        duration: u64,
+
+        /// Collection window in seconds for each iteration
+        #[arg(long, default_value = "10")]
+        interval: u64,
+
+        /// Print machine-readable JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Query DevTools-backed runtime APIs directly
@@ -1368,6 +1454,20 @@ enum BaselineAction {
 }
 
 #[derive(Subcommand)]
+enum AgentsAction {
+    /// Write AGENTS.md at the given path (and per-feature files inside Flutter apps)
+    Init {
+        /// Project root (Flutter app or generic repo)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Overwrite existing AGENTS.md files
+        #[arg(long)]
+        force: bool,
+    },
+}
+
+#[derive(Subcommand)]
 enum DevtoolsAction {
     /// Fetch a memory snapshot and allocation summary
     Memory {
@@ -1475,6 +1575,46 @@ enum DevtoolsAction {
         duration: u64,
 
         /// Print machine-readable JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Show widget rebuild counts (which widgets rebuild most often)
+    Rebuilds {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long)]
+        attach: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Inspect the live widget tree (depth, root, currently-selected widget)
+    Inspector {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long)]
+        attach: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Trigger a hot reload of the running Flutter app
+    Reload {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long)]
+        attach: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Trigger a forced reload of all sources (state-preserving "hot restart")
+    Restart {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long)]
+        attach: Option<String>,
         #[arg(long)]
         json: bool,
     },
@@ -1737,6 +1877,51 @@ fn run(cli: Cli) -> Result<()> {
                 process::exit(1);
             }
         }
+        Commands::Smells {
+            path,
+            format,
+            output,
+            config,
+            limit,
+        } => {
+            let config_path = config.as_deref().unwrap_or(&path);
+            let falcon_config = FalconConfig::load(config_path)?;
+            let falcon = Falcon::new(falcon_config.clone())?;
+
+            // 1. Full analysis (rules + metrics)
+            let report = falcon.analyze(&path)?;
+            let mut all_issues = report.issues;
+
+            // 2. Dead-code-path detector (in case the rule is gated off)
+            let exclude: Vec<glob::Pattern> = falcon_config
+                .exclude
+                .iter()
+                .filter_map(|p| glob::Pattern::new(p).ok())
+                .collect();
+            all_issues.extend(falcon::resolver::dead_code::detect_dead_code(
+                &path, &exclude,
+            ));
+
+            // 3. Unused files (so dead-folder rollup has data to work from)
+            let resolver = falcon::resolver::ProjectResolver::new(&path, &falcon_config)?;
+            let unused_file_issues = resolver.find_unused_files().unwrap_or_default();
+            let unused_set: std::collections::HashSet<std::path::PathBuf> = unused_file_issues
+                .iter()
+                .map(|i| i.file.clone())
+                .collect();
+            all_issues.extend(unused_file_issues);
+
+            // 4. Dead-folder rollup
+            let dead_folders = falcon::smells::dead_folders::find_dead_folders(&path, &unused_set);
+
+            // 5. Categorize and print
+            let summary = falcon::smells::SmellsSummary::from_issues(&all_issues, dead_folders);
+            print_smells_summary(&summary, &path, limit, &format, &output);
+
+            if !summary.security_smells.is_empty() {
+                process::exit(1);
+            }
+        }
         Commands::Metrics {
             path,
             format,
@@ -1835,6 +2020,53 @@ fn run(cli: Cli) -> Result<()> {
             }
         }
 
+        Commands::Flutter { args } => {
+            let status = std::process::Command::new("flutter")
+                .args(&args)
+                .status()
+                .map_err(|e| anyhow::anyhow!("failed to invoke `flutter`: {e}. Is the Flutter SDK on your PATH?"))?;
+            process::exit(status.code().unwrap_or(1));
+        }
+
+        Commands::Fvm { args } => {
+            let status = std::process::Command::new("fvm")
+                .args(&args)
+                .status()
+                .map_err(|e| anyhow::anyhow!("failed to invoke `fvm`: {e}. Install FVM (https://fvm.app) or ensure it is on your PATH."))?;
+            process::exit(status.code().unwrap_or(1));
+        }
+
+        Commands::Agents { action } => match action {
+            AgentsAction::Init { path, force } => {
+                let report = falcon::agents::run_init(&path, force)?;
+                println!();
+                println!("  {} Agents", "falcon".bright_cyan().bold());
+                println!();
+                if let Some(root) = &report.root_written {
+                    println!("    {} {}", "✓".green(), root.display());
+                }
+                for f in &report.feature_files {
+                    println!("    {} {}", "✓".green(), f.display());
+                }
+                for s in &report.skipped {
+                    println!(
+                        "    {} {} (already exists — pass --force to overwrite)",
+                        "·".dimmed(),
+                        s.display()
+                    );
+                }
+                println!();
+                println!(
+                    "  {} root: {}, features: {}, skipped: {}",
+                    "■".bright_white(),
+                    if report.root_written.is_some() { 1 } else { 0 },
+                    report.feature_files.len(),
+                    report.skipped.len()
+                );
+                println!();
+            }
+        },
+
         Commands::RuntimeCheck {
             path,
             attach,
@@ -1873,6 +2105,35 @@ fn run(cli: Cli) -> Result<()> {
             }
 
             if report.error_count() > 0 {
+                process::exit(1);
+            }
+        }
+        Commands::Live {
+            path,
+            attach,
+            duration,
+            interval,
+            json,
+        } => {
+            let config = falcon::runtime::live::LiveConfig {
+                project_path: path,
+                attach_uri: attach,
+                duration: std::time::Duration::from_secs(duration),
+                interval: std::time::Duration::from_secs(interval.max(1)),
+                ..Default::default()
+            };
+
+            let rt = tokio::runtime::Runtime::new()?;
+            let report = rt.block_on(falcon::runtime::live::run_live_session(&config))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            }
+
+            if report
+                .issues
+                .iter()
+                .any(|issue| issue.severity == falcon::runtime::live::LiveIssueSeverity::Error)
+            {
                 process::exit(1);
             }
         }
@@ -2006,6 +2267,72 @@ fn run(cli: Cli) -> Result<()> {
                         println!("{}", serde_json::to_string_pretty(&report)?);
                     } else {
                         falcon::runtime::tools::print_logging_report(&report);
+                    }
+                }
+                DevtoolsAction::Rebuilds { path, attach, json } => {
+                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                        &path,
+                        attach.as_deref(),
+                    ))?;
+                    let report = rt.block_on(falcon::runtime::tools::collect_rebuilds_report(
+                        &client, &vm_uri,
+                    ))?;
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&report)?);
+                    } else {
+                        falcon::runtime::tools::print_rebuilds_report(&report);
+                    }
+                }
+                DevtoolsAction::Inspector { path, attach, json } => {
+                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                        &path,
+                        attach.as_deref(),
+                    ))?;
+                    let report = rt.block_on(falcon::runtime::tools::collect_inspector_report(
+                        &client, &vm_uri,
+                    ))?;
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&report)?);
+                    } else {
+                        falcon::runtime::tools::print_inspector_report(&report);
+                    }
+                }
+                DevtoolsAction::Reload { path, attach, json } => {
+                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                        &path,
+                        attach.as_deref(),
+                    ))?;
+                    let report = rt.block_on(falcon::runtime::tools::collect_reload_report(
+                        &client,
+                        &vm_uri,
+                        falcon::runtime::tools::ReloadMode::HotReload,
+                    ))?;
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&report)?);
+                    } else {
+                        falcon::runtime::tools::print_reload_report(&report);
+                    }
+                    if !report.success {
+                        process::exit(1);
+                    }
+                }
+                DevtoolsAction::Restart { path, attach, json } => {
+                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                        &path,
+                        attach.as_deref(),
+                    ))?;
+                    let report = rt.block_on(falcon::runtime::tools::collect_reload_report(
+                        &client,
+                        &vm_uri,
+                        falcon::runtime::tools::ReloadMode::HotRestart,
+                    ))?;
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&report)?);
+                    } else {
+                        falcon::runtime::tools::print_reload_report(&report);
+                    }
+                    if !report.success {
+                        process::exit(1);
                     }
                 }
             }
@@ -3888,6 +4215,131 @@ fn should_fail(report: &falcon::reporters::AnalysisReport, level: &FailLevel) ->
         FailLevel::Warning => report.error_count() > 0 || report.warning_count() > 0,
         FailLevel::Info => !report.issues.is_empty(),
     }
+}
+
+fn print_smells_summary(
+    summary: &falcon::smells::SmellsSummary,
+    root: &Path,
+    limit: usize,
+    format: &OutputFormat,
+    output: &PathBuf,
+) {
+    if matches!(format, OutputFormat::Json) {
+        let payload = serde_json::json!({
+            "dead_code": summary.dead_code.iter().map(issue_to_json).collect::<Vec<_>>(),
+            "code_smells": summary.code_smells.iter().map(issue_to_json).collect::<Vec<_>>(),
+            "security_smells": summary.security_smells.iter().map(issue_to_json).collect::<Vec<_>>(),
+            "other": summary.other.iter().map(issue_to_json).collect::<Vec<_>>(),
+            "dead_folders": summary.dead_folders.iter()
+                .map(|p| p.to_string_lossy().to_string())
+                .collect::<Vec<_>>(),
+            "total": summary.total(),
+        });
+        let s = serde_json::to_string_pretty(&payload).unwrap_or_default();
+        if matches!(format, OutputFormat::Console) {
+            println!("{}", s);
+        } else {
+            let _ = std::fs::write(output, s);
+        }
+        return;
+    }
+
+    println!();
+    println!("  {} Smells", "falcon".bright_cyan().bold());
+    println!();
+    println!(
+        "  {} {}",
+        "▸".bright_red(),
+        format!("Security Smells ({})", summary.security_smells.len())
+            .bright_white()
+            .bold()
+    );
+    print_issue_block(&summary.security_smells, root, limit);
+
+    println!(
+        "  {} {}",
+        "▸".bright_yellow(),
+        format!(
+            "Dead Code ({} issues, {} dead folders)",
+            summary.dead_code.len(),
+            summary.dead_folders.len()
+        )
+        .bright_white()
+        .bold()
+    );
+    print_issue_block(&summary.dead_code, root, limit);
+    if !summary.dead_folders.is_empty() {
+        println!("    {} Dead folders:", "└".dimmed());
+        for folder in summary.dead_folders.iter().take(limit) {
+            let rel = folder.strip_prefix(root).unwrap_or(folder);
+            println!("      {}/", rel.display().to_string().bright_yellow());
+        }
+        if summary.dead_folders.len() > limit {
+            println!(
+                "      ... and {} more",
+                summary.dead_folders.len() - limit
+            );
+        }
+        println!();
+    }
+
+    println!(
+        "  {} {}",
+        "▸".bright_blue(),
+        format!("Code Smells ({})", summary.code_smells.len())
+            .bright_white()
+            .bold()
+    );
+    print_issue_block(&summary.code_smells, root, limit);
+
+    if !summary.other.is_empty() {
+        println!(
+            "  {} {}",
+            "▸".dimmed(),
+            format!("Other ({})", summary.other.len()).dimmed()
+        );
+    }
+
+    println!();
+    println!(
+        "  {} {} total smells",
+        "■".bright_white(),
+        summary.total().to_string().bright_white().bold()
+    );
+    println!();
+}
+
+fn print_issue_block(issues: &[falcon::reporters::Issue], root: &Path, limit: usize) {
+    if issues.is_empty() {
+        println!("    {} none", "✓".green());
+        println!();
+        return;
+    }
+    for issue in issues.iter().take(limit) {
+        let rel = issue.file.strip_prefix(root).unwrap_or(&issue.file);
+        println!(
+            "    {}:{}  [{}] {}",
+            rel.display().to_string().bright_white(),
+            issue.line,
+            issue.rule.dimmed(),
+            issue.message
+        );
+    }
+    if issues.len() > limit {
+        println!("    ... and {} more", issues.len() - limit);
+    }
+    println!();
+}
+
+fn issue_to_json(issue: &falcon::reporters::Issue) -> serde_json::Value {
+    serde_json::json!({
+        "rule": issue.rule,
+        "message": issue.message,
+        "severity": format!("{:?}", issue.severity),
+        "file": issue.file.to_string_lossy(),
+        "line": issue.line,
+        "column": issue.column,
+    })
 }
 
 fn get_reporter(format: &OutputFormat, output: &PathBuf) -> Box<dyn Reporter> {

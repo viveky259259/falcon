@@ -1,17 +1,19 @@
+pub mod agents;
 pub mod ai;
 pub mod ai_score;
 pub mod analysis;
 pub mod animation_audit;
 pub mod api;
 pub mod asset_audit;
-pub mod ci;
 pub mod benchmark;
 pub mod benchmark_compare;
+pub mod ci;
 pub mod community;
 pub mod config;
 pub mod dashboard;
 pub mod deeplink;
 pub mod docs;
+pub mod flutter_run;
 pub mod golden_gen;
 pub mod incremental;
 pub mod l10n_coverage;
@@ -27,13 +29,14 @@ pub mod reporters;
 pub mod resolver;
 pub mod review;
 pub mod rules;
+pub mod runtime;
 pub mod sdk;
 pub mod self_update;
 pub mod showcase;
+pub mod smells;
 pub mod stability;
 pub mod theme_audit;
 pub mod unused;
-pub mod runtime;
 pub mod workspace;
 
 use anyhow::Result;
@@ -94,8 +97,7 @@ impl Falcon {
 
                 let mut issues = Vec::new();
 
-                let metrics =
-                    metrics::calculate_file_metrics(root, &source, &self.config.metrics);
+                let metrics = metrics::calculate_file_metrics(root, &source, &self.config.metrics);
                 for violation in metrics.violations() {
                     issues.push(violation);
                 }
@@ -158,8 +160,7 @@ impl Falcon {
                     }
                 };
                 let root = tree.root_node();
-                let metrics =
-                    metrics::calculate_file_metrics(root, &source, &self.config.metrics);
+                let metrics = metrics::calculate_file_metrics(root, &source, &self.config.metrics);
                 Some((file.clone(), metrics))
             })
             .collect();
@@ -214,8 +215,7 @@ impl Falcon {
 
                 let mut issues = Vec::new();
 
-                let metrics =
-                    metrics::calculate_file_metrics(root, &source, &self.config.metrics);
+                let metrics = metrics::calculate_file_metrics(root, &source, &self.config.metrics);
                 for violation in metrics.violations() {
                     issues.push(violation);
                 }
@@ -260,19 +260,10 @@ impl Falcon {
                 }
             })
             .filter(|e| e.file_type().is_file())
+            .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
             .filter(|e| {
-                e.path()
-                    .extension()
-                    .map_or(false, |ext| ext == "dart")
-            })
-            .filter(|e| {
-                let rel = e
-                    .path()
-                    .strip_prefix(path)
-                    .unwrap_or(e.path());
-                !exclude_patterns
-                    .iter()
-                    .any(|p| p.matches_path(rel))
+                let rel = e.path().strip_prefix(path).unwrap_or(e.path());
+                !exclude_patterns.iter().any(|p| p.matches_path(rel))
             })
             .map(|e| e.path().to_path_buf())
             .collect();
