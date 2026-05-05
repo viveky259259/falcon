@@ -3,7 +3,7 @@ description: >
   Rust-powered static analysis for Flutter/Dart. 61+ rules, AI Code Score,
   enterprise HTML reports, branch comparison, MCP server, and CI integration.
   The only linter designed for AI-generated code.
-version: 0.3.0
+version: 0.4.0
 homepage: https://github.com/viveky259259/falcon
 repository: https://github.com/viveky259259/falcon
 issue_tracker: https://github.com/viveky259259/falcon/issues

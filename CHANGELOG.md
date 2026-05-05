@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0 (2026-05-05)
+
+### Stats
+- 55 lint rules
+- 460 tests passing
+- 93 CLI commands
+- 214 source files (45480 lines of Rust)
+
+### Changes
+- 
+
+# Changelog
+
 ## 0.3.0 (2026-05-05)
 
 ### Stats

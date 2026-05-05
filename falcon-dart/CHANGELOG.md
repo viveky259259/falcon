@@ -1,3 +1,8 @@
+## 0.4.0
+
+- Updated to Falcon 0.4.0
+- 55 lint rules, 93 commands
+
 ## 0.3.0
 
 - Updated to Falcon 0.3.0
