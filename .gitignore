@@ -14,6 +14,7 @@ pubspec.lock
 .vscode/
 *.iml
 .cursor/
+.claude/
 
 # OS
 .DS_Store
