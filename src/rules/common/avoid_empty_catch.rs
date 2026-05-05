@@ -39,10 +39,7 @@ fn find_empty_catches(node: Node, source: &str, file: &Path, issues: &mut Vec<Is
             if children[i].kind() == "catch_clause" {
                 if let Some(body_node) = children.get(i + 1) {
                     if body_node.kind() == "block" {
-                        let body_text = body_node
-                            .utf8_text(source.as_bytes())
-                            .unwrap_or("")
-                            .trim();
+                        let body_text = body_node.utf8_text(source.as_bytes()).unwrap_or("").trim();
                         let inner = body_text
                             .strip_prefix('{')
                             .and_then(|s| s.strip_suffix('}'))

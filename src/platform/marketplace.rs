@@ -42,9 +42,11 @@ pub fn browse_marketplace(query: Option<&str>) -> Vec<MarketplaceListing> {
         Some(q) => {
             let q_lower = q.to_lowercase();
             all.into_iter()
-                .filter(|l| l.name.to_lowercase().contains(&q_lower)
-                    || l.description.to_lowercase().contains(&q_lower)
-                    || l.author.to_lowercase().contains(&q_lower))
+                .filter(|l| {
+                    l.name.to_lowercase().contains(&q_lower)
+                        || l.description.to_lowercase().contains(&q_lower)
+                        || l.author.to_lowercase().contains(&q_lower)
+                })
                 .collect()
         }
         None => all,
@@ -172,7 +174,11 @@ pub fn print_marketplace(listings: &[MarketplaceListing], query: Option<&str>) {
             listing.author,
             listing.downloads,
             listing.rating,
-            if listing.rules_count > 0 { format!(" · {} rules", listing.rules_count) } else { String::new() }
+            if listing.rules_count > 0 {
+                format!(" · {} rules", listing.rules_count)
+            } else {
+                String::new()
+            }
         );
         println!();
     }

@@ -126,10 +126,14 @@ fn handle_request(request: &JsonRpcRequest) -> JsonRpcResponse {
         }
 
         "tools/call" => {
-            let tool_name = request.params.get("name")
+            let tool_name = request
+                .params
+                .get("name")
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
-            let arguments = request.params.get("arguments")
+            let arguments = request
+                .params
+                .get("arguments")
                 .cloned()
                 .unwrap_or(Value::Object(serde_json::Map::new()));
 

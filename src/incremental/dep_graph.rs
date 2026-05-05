@@ -34,12 +34,18 @@ impl DependencyGraph {
         for file in &dart_files {
             let file_imports = extract_imports(file, root, &all_files_index);
             for imp in &file_imports {
-                dependents.entry(imp.clone()).or_default().insert(file.clone());
+                dependents
+                    .entry(imp.clone())
+                    .or_default()
+                    .insert(file.clone());
             }
             imports.insert(file.clone(), file_imports);
         }
 
-        DependencyGraph { imports, dependents }
+        DependencyGraph {
+            imports,
+            dependents,
+        }
     }
 
     /// Given a set of changed files, return all files that need re-analysis:
@@ -68,20 +74,27 @@ fn build_file_index(files: &[PathBuf], root: &Path) -> HashMap<String, PathBuf> 
     let mut index = HashMap::new();
     let canonical_root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
     for file in files {
-        let rel = file.strip_prefix(&canonical_root)
+        let rel = file
+            .strip_prefix(&canonical_root)
             .or_else(|_| file.strip_prefix(root))
             .unwrap_or(file);
         let rel_str = rel.to_string_lossy().replace('\\', "/");
         index.insert(rel_str, file.clone());
 
         if let Some(name) = file.file_name().and_then(|n| n.to_str()) {
-            index.entry(name.to_string()).or_insert_with(|| file.clone());
+            index
+                .entry(name.to_string())
+                .or_insert_with(|| file.clone());
         }
     }
     index
 }
 
-fn extract_imports(file: &Path, root: &Path, file_index: &HashMap<String, PathBuf>) -> HashSet<PathBuf> {
+fn extract_imports(
+    file: &Path,
+    root: &Path,
+    file_index: &HashMap<String, PathBuf>,
+) -> HashSet<PathBuf> {
     let mut result = HashSet::new();
 
     let source = match std::fs::read_to_string(file) {
@@ -93,7 +106,10 @@ fn extract_imports(file: &Path, root: &Path, file_index: &HashMap<String, PathBu
 
     for line in source.lines() {
         let trimmed = line.trim();
-        if !trimmed.starts_with("import") && !trimmed.starts_with("part") && !trimmed.starts_with("export") {
+        if !trimmed.starts_with("import")
+            && !trimmed.starts_with("part")
+            && !trimmed.starts_with("export")
+        {
             continue;
         }
 

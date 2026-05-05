@@ -72,10 +72,7 @@ impl ProjectResolver {
                 continue;
             }
 
-            let file_name = file
-                .file_name()
-                .and_then(|f| f.to_str())
-                .unwrap_or("");
+            let file_name = file.file_name().and_then(|f| f.to_str()).unwrap_or("");
 
             if !imported_files.contains(file_name) && !imported_files.contains(&rel_str) {
                 issues.push(Issue {
@@ -123,10 +120,16 @@ impl ProjectResolver {
             }
         }
 
-        let skip_names: HashSet<&str> =
-            ["main", "build", "createState", "initState", "dispose", "didChangeDependencies"]
-                .into_iter()
-                .collect();
+        let skip_names: HashSet<&str> = [
+            "main",
+            "build",
+            "createState",
+            "initState",
+            "dispose",
+            "didChangeDependencies",
+        ]
+        .into_iter()
+        .collect();
 
         for (name, decl_file, line) in &all_declarations {
             if skip_names.contains(name.as_str()) {
@@ -206,7 +209,10 @@ impl ProjectResolver {
 
             for line in source.lines() {
                 let trimmed = line.trim();
-                if trimmed.starts_with("import") || trimmed.starts_with("part") || trimmed.starts_with("export") {
+                if trimmed.starts_with("import")
+                    || trimmed.starts_with("part")
+                    || trimmed.starts_with("export")
+                {
                     if let Some(uri) = extract_import_uri(trimmed) {
                         imports.insert(uri.clone());
                         if let Some(file_name) = Path::new(&uri).file_name() {

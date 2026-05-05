@@ -153,7 +153,10 @@ pub fn generate_dashboard(root: &Path) -> anyhow::Result<TeamDashboard> {
         if !project_path.exists() {
             summaries.push(ProjectSummary {
                 name: project.name.clone(),
-                score: 0, grade: "?".to_string(), issues: 0, files: 0,
+                score: 0,
+                grade: "?".to_string(),
+                issues: 0,
+                files: 0,
                 trend: "unavailable".to_string(),
             });
             continue;
@@ -170,18 +173,24 @@ pub fn generate_dashboard(root: &Path) -> anyhow::Result<TeamDashboard> {
                 };
 
                 for alert in &config.alerts {
-                    if !alert.enabled { continue; }
+                    if !alert.enabled {
+                        continue;
+                    }
                     match alert.condition {
                         AlertCondition::ScoreDropBelow(threshold) => {
                             if score.overall < threshold {
-                                alerts.push(format!("[{}] {} — score {}/100 below threshold {}",
-                                    project.name, alert.name, score.overall, threshold));
+                                alerts.push(format!(
+                                    "[{}] {} — score {}/100 below threshold {}",
+                                    project.name, alert.name, score.overall, threshold
+                                ));
                             }
                         }
                         AlertCondition::NewErrors(threshold) => {
                             if score.total_issues > threshold {
-                                alerts.push(format!("[{}] {} — {} issues exceed threshold {}",
-                                    project.name, alert.name, score.total_issues, threshold));
+                                alerts.push(format!(
+                                    "[{}] {} — {} issues exceed threshold {}",
+                                    project.name, alert.name, score.total_issues, threshold
+                                ));
                             }
                         }
                         AlertCondition::CriticalVulnerability => {
@@ -191,11 +200,15 @@ pub fn generate_dashboard(root: &Path) -> anyhow::Result<TeamDashboard> {
                             }
                         }
                         AlertCondition::DriftAboveThreshold(max_drift) => {
-                            if let Ok(drift) = crate::ai_score::drift::detect_drift(&project_path, None) {
+                            if let Ok(drift) =
+                                crate::ai_score::drift::detect_drift(&project_path, None)
+                            {
                                 let drift_pct = 100.0 - drift.drift_score;
                                 if drift_pct > max_drift {
-                                    alerts.push(format!("[{}] {} — {:.0}% drift exceeds threshold {:.0}%",
-                                        project.name, alert.name, drift_pct, max_drift));
+                                    alerts.push(format!(
+                                        "[{}] {} — {:.0}% drift exceeds threshold {:.0}%",
+                                        project.name, alert.name, drift_pct, max_drift
+                                    ));
                                 }
                             }
                         }
@@ -220,7 +233,10 @@ pub fn generate_dashboard(root: &Path) -> anyhow::Result<TeamDashboard> {
                 log::warn!("Failed to analyze {}: {}", project.name, e);
                 summaries.push(ProjectSummary {
                     name: project.name.clone(),
-                    score: 0, grade: "?".to_string(), issues: 0, files: 0,
+                    score: 0,
+                    grade: "?".to_string(),
+                    issues: 0,
+                    files: 0,
                     trend: "error".to_string(),
                 });
             }
@@ -229,8 +245,16 @@ pub fn generate_dashboard(root: &Path) -> anyhow::Result<TeamDashboard> {
 
     save_cloud_config(root, &config)?;
 
-    let scores: Vec<f64> = summaries.iter().filter(|s| s.score > 0).map(|s| s.score as f64).collect();
-    let avg = if scores.is_empty() { 0.0 } else { scores.iter().sum::<f64>() / scores.len() as f64 };
+    let scores: Vec<f64> = summaries
+        .iter()
+        .filter(|s| s.score > 0)
+        .map(|s| s.score as f64)
+        .collect();
+    let avg = if scores.is_empty() {
+        0.0
+    } else {
+        scores.iter().sum::<f64>() / scores.len() as f64
+    };
 
     Ok(TeamDashboard {
         team_name: config.team_name.clone(),
@@ -275,7 +299,12 @@ pub fn print_dashboard(dashboard: &TeamDashboard) {
 
             println!(
                 "  {:<25} {:<8} {:<6} {:<8} {:<8} {}",
-                p.name.bright_white(), score_color, p.grade, p.issues, p.files, p.trend
+                p.name.bright_white(),
+                score_color,
+                p.grade,
+                p.issues,
+                p.files,
+                p.trend
             );
         }
     }

@@ -48,7 +48,8 @@ impl Rule for BinaryExpressionOperandOrder {
                         if !is_literal(right) {
                             issues.push(Issue {
                                 rule: self.name().to_string(),
-                                message: "Place the literal on the right side of the comparison.".to_string(),
+                                message: "Place the literal on the right side of the comparison."
+                                    .to_string(),
                                 severity: self.default_severity(),
                                 file: file.to_path_buf(),
                                 line: node_start_line(node),

@@ -1,5 +1,5 @@
-use crate::reporters::Issue;
 use crate::config::Severity;
+use crate::reporters::Issue;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -28,7 +28,10 @@ pub fn detect_unused_l10n(root: &Path, exclude: &[glob::Pattern]) -> Vec<Issue> 
         if !used_identifiers.contains(key.as_str()) {
             issues.push(Issue {
                 rule: "unused-l10n-key".to_string(),
-                message: format!("Localization key '{}' is defined but not used in any Dart file.", key),
+                message: format!(
+                    "Localization key '{}' is defined but not used in any Dart file.",
+                    key
+                ),
                 severity: Severity::Info,
                 file: arb_file.clone(),
                 line: 1,

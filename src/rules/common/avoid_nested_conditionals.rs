@@ -48,8 +48,8 @@ impl Rule for AvoidNestedConditionals {
             if let Some(body) = dart_ast::get_function_body(node) {
                 let depth = nesting::calculate(body);
                 if depth > self.max_depth {
-                    let name = dart_ast::get_declaration_name(node, source)
-                        .unwrap_or("<anonymous>");
+                    let name =
+                        dart_ast::get_declaration_name(node, source).unwrap_or("<anonymous>");
                     issues.push(Issue {
                         rule: self.name().to_string(),
                         message: format!(

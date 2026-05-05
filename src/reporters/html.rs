@@ -39,7 +39,11 @@ fn build_full_report(report: &AnalysisReport) -> String {
     let warnings = report.warning_count();
     let infos = report.info_count();
     let total_issues = errors + warnings + infos;
-    let total_lines: u32 = report.metrics.iter().map(|(_, m)| m.file_lines_of_code).sum();
+    let total_lines: u32 = report
+        .metrics
+        .iter()
+        .map(|(_, m)| m.file_lines_of_code)
+        .sum();
     let total_functions: usize = report.metrics.iter().map(|(_, m)| m.functions.len()).sum();
     let total_classes: usize = report.metrics.iter().map(|(_, m)| m.classes.len()).sum();
 
@@ -77,11 +81,13 @@ fn build_full_report(report: &AnalysisReport) -> String {
     html.push_str(&top_bar_with_project(&project_name, report.file_count));
 
     // Tab navigation
-    html.push_str(r#"<div class="tab-nav">
+    html.push_str(
+        r#"<div class="tab-nav">
       <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
       <button class="tab-btn" onclick="switchTab('issues')">Issues</button>
       <button class="tab-btn" onclick="switchTab('metrics')">Metrics</button>
-    </div>"#);
+    </div>"#,
+    );
 
     // === OVERVIEW TAB ===
     html.push_str(r#"<div id="tab-overview" class="tab-content active">"#);
@@ -93,7 +99,12 @@ fn build_full_report(report: &AnalysisReport) -> String {
     html.push_str(r#"<div class="overview-top">"#);
     html.push_str(&health_score_card(health_score));
     html.push_str(r#"<div class="kpi-grid">"#);
-    html.push_str(&kpi_card("Files", &report.file_count.to_string(), "icon-files", ""));
+    html.push_str(&kpi_card(
+        "Files",
+        &report.file_count.to_string(),
+        "icon-files",
+        "",
+    ));
     html.push_str(&kpi_card(
         "Lines of Code",
         &format_number(total_lines as usize),
@@ -180,9 +191,18 @@ fn build_metrics_report(metrics: &[(PathBuf, MetricsResults)]) -> String {
 
 fn build_issues_report(issues: &[Issue]) -> String {
     let mut html = String::new();
-    let errors = issues.iter().filter(|i| i.severity == Severity::Error).count();
-    let warnings = issues.iter().filter(|i| i.severity == Severity::Warning).count();
-    let infos = issues.iter().filter(|i| i.severity == Severity::Info).count();
+    let errors = issues
+        .iter()
+        .filter(|i| i.severity == Severity::Error)
+        .count();
+    let warnings = issues
+        .iter()
+        .filter(|i| i.severity == Severity::Warning)
+        .count();
+    let infos = issues
+        .iter()
+        .filter(|i| i.severity == Severity::Info)
+        .count();
     html.push_str(&html_header("Falcon Issues Report"));
     html.push_str(&sidebar(errors, warnings, infos));
     html.push_str(r#"<main class="main-content">"#);
@@ -355,7 +375,11 @@ fn project_properties_section(info: &ProjectInfo, project_name: &str) -> String 
             html.push_str(&prop_item("Dependencies", &dep_count.to_string(), "deps"));
         }
         if dev_dep_count > 0 {
-            html.push_str(&prop_item("Dev Dependencies", &dev_dep_count.to_string(), "dev-deps"));
+            html.push_str(&prop_item(
+                "Dev Dependencies",
+                &dev_dep_count.to_string(),
+                "dev-deps",
+            ));
         }
         if !info.homepage.is_empty() {
             html.push_str(&prop_item("Homepage", &info.homepage, "homepage"));
@@ -522,15 +546,37 @@ struct ConcernArea {
 
 fn classify_concern(rule: &str) -> &'static str {
     match rule {
-        r if r.contains("credential") || r.contains("security") || r.contains("hardcoded") => "Security",
-        r if r.contains("catch") || r.contains("async-void") || r.contains("unawaited")
-            || r.contains("specific-catch") => "Error Handling",
-        r if r.contains("dynamic") || r.contains("type") || r.contains("equatable") => "Type Safety",
-        r if r.contains("long-function") || r.contains("long-parameter")
-            || r.contains("complexity") || r.contains("nesting") => "Complexity",
-        r if r.contains("widget") || r.contains("rebuild") || r.contains("build-method")
-            || r.contains("const-constructor") || r.contains("await-in-loop") => "Performance",
-        r if r.contains("dispose") || r.contains("unused") || r.contains("dead-code") => "Resource Safety",
+        r if r.contains("credential") || r.contains("security") || r.contains("hardcoded") => {
+            "Security"
+        }
+        r if r.contains("catch")
+            || r.contains("async-void")
+            || r.contains("unawaited")
+            || r.contains("specific-catch") =>
+        {
+            "Error Handling"
+        }
+        r if r.contains("dynamic") || r.contains("type") || r.contains("equatable") => {
+            "Type Safety"
+        }
+        r if r.contains("long-function")
+            || r.contains("long-parameter")
+            || r.contains("complexity")
+            || r.contains("nesting") =>
+        {
+            "Complexity"
+        }
+        r if r.contains("widget")
+            || r.contains("rebuild")
+            || r.contains("build-method")
+            || r.contains("const-constructor")
+            || r.contains("await-in-loop") =>
+        {
+            "Performance"
+        }
+        r if r.contains("dispose") || r.contains("unused") || r.contains("dead-code") => {
+            "Resource Safety"
+        }
         r if r.contains("late") || r.contains("avoid-") => "Code Smells",
         _ => "Conventions",
     }
@@ -560,14 +606,46 @@ fn level_of_concern_section(issues: &[Issue], file_count: usize) -> String {
     let fc = if file_count == 0 { 1 } else { file_count };
 
     let concern_defs: Vec<(&str, &str, &str)> = vec![
-        ("Security", "&#128274;", "Hardcoded credentials, sensitive data exposure"),
-        ("Error Handling", "&#9888;", "Empty catches, unhandled futures, async void"),
-        ("Type Safety", "&#128295;", "Dynamic types, missing type annotations"),
-        ("Complexity", "&#129518;", "Long functions, deep nesting, high cyclomatic complexity"),
-        ("Performance", "&#9889;", "Widget rebuilds, missing const, unawaited futures"),
-        ("Resource Safety", "&#128451;", "Missing dispose, unused code, dead code"),
-        ("Code Smells", "&#128065;", "Late keywords, avoidable patterns"),
-        ("Conventions", "&#128221;", "Naming, formatting, trailing commas"),
+        (
+            "Security",
+            "&#128274;",
+            "Hardcoded credentials, sensitive data exposure",
+        ),
+        (
+            "Error Handling",
+            "&#9888;",
+            "Empty catches, unhandled futures, async void",
+        ),
+        (
+            "Type Safety",
+            "&#128295;",
+            "Dynamic types, missing type annotations",
+        ),
+        (
+            "Complexity",
+            "&#129518;",
+            "Long functions, deep nesting, high cyclomatic complexity",
+        ),
+        (
+            "Performance",
+            "&#9889;",
+            "Widget rebuilds, missing const, unawaited futures",
+        ),
+        (
+            "Resource Safety",
+            "&#128451;",
+            "Missing dispose, unused code, dead code",
+        ),
+        (
+            "Code Smells",
+            "&#128065;",
+            "Late keywords, avoidable patterns",
+        ),
+        (
+            "Conventions",
+            "&#128221;",
+            "Naming, formatting, trailing commas",
+        ),
     ];
 
     let mut concern_areas: Vec<ConcernArea> = concern_defs
@@ -590,7 +668,12 @@ fn level_of_concern_section(issues: &[Issue], file_count: usize) -> String {
         b_score.cmp(&a_score)
     });
 
-    let max_count = concern_areas.iter().map(|a| a.count).max().unwrap_or(1).max(1);
+    let max_count = concern_areas
+        .iter()
+        .map(|a| a.count)
+        .max()
+        .unwrap_or(1)
+        .max(1);
 
     let mut html = String::from(
         r#"<div class="section-card concern-section">
@@ -635,7 +718,11 @@ fn level_of_concern_section(issues: &[Issue], file_count: usize) -> String {
             count = area.count,
             s = if area.count != 1 { "s" } else { "" },
             err_badge = if area.error_count > 0 {
-                format!(r#"<span class="concern-err">{} error{}</span>"#, area.error_count, if area.error_count != 1 { "s" } else { "" })
+                format!(
+                    r#"<span class="concern-err">{} error{}</span>"#,
+                    area.error_count,
+                    if area.error_count != 1 { "s" } else { "" }
+                )
             } else {
                 String::new()
             }
@@ -663,7 +750,9 @@ fn kpi_card(label: &str, value: &str, icon_class: &str, extra_class: &str) -> St
 fn severity_donut(errors: usize, warnings: usize, infos: usize) -> String {
     let total = (errors + warnings + infos) as f64;
     if total == 0.0 {
-        return String::from(r#"<div class="chart-card"><h3>Severity Distribution</h3><div class="empty-state">No issues</div></div>"#);
+        return String::from(
+            r#"<div class="chart-card"><h3>Severity Distribution</h3><div class="empty-state">No issues</div></div>"#,
+        );
     }
 
     let r = 80.0;
@@ -703,11 +792,19 @@ fn severity_donut(errors: usize, warnings: usize, infos: usize) -> String {
   </div>
 </div>"##,
         r = r,
-        e_dash = e_dash, e_gap = circumference - e_dash, e_off = e_offset,
-        w_dash = w_dash, w_gap = circumference - w_dash, w_off = w_offset,
-        i_dash = i_dash, i_gap = circumference - i_dash, i_off = i_offset,
+        e_dash = e_dash,
+        e_gap = circumference - e_dash,
+        e_off = e_offset,
+        w_dash = w_dash,
+        w_gap = circumference - w_dash,
+        w_off = w_offset,
+        i_dash = i_dash,
+        i_gap = circumference - i_dash,
+        i_off = i_offset,
         total = total as usize,
-        errors = errors, warnings = warnings, infos = infos,
+        errors = errors,
+        warnings = warnings,
+        infos = infos,
         e_pct_d = (e_pct * 100.0) as u32,
         w_pct_d = (w_pct * 100.0) as u32,
         i_pct_d = (i_pct * 100.0) as u32
@@ -755,9 +852,18 @@ fn hotspots_section(metrics: &[(PathBuf, MetricsResults)]) -> String {
     let mut file_scores: Vec<(&PathBuf, u32, u32, f64)> = Vec::new();
 
     for (path, result) in metrics {
-        let max_cc = result.functions.iter().map(|f| f.cyclomatic_complexity).max().unwrap_or(0);
+        let max_cc = result
+            .functions
+            .iter()
+            .map(|f| f.cyclomatic_complexity)
+            .max()
+            .unwrap_or(0);
         let total_loc = result.file_lines_of_code;
-        let min_mi = result.functions.iter().map(|f| f.maintainability_index).fold(f64::MAX, f64::min);
+        let min_mi = result
+            .functions
+            .iter()
+            .map(|f| f.maintainability_index)
+            .fold(f64::MAX, f64::min);
         let min_mi = if min_mi == f64::MAX { 100.0 } else { min_mi };
         if max_cc > 5 || total_loc > 200 {
             file_scores.push((path, max_cc, total_loc, min_mi));
@@ -784,7 +890,10 @@ fn hotspots_section(metrics: &[(PathBuf, MetricsResults)]) -> String {
         } else {
             r#"<span class="risk-badge risk-low">Low</span>"#
         };
-        let file_name = path.file_name().and_then(|f| f.to_str()).unwrap_or("unknown");
+        let file_name = path
+            .file_name()
+            .and_then(|f| f.to_str())
+            .unwrap_or("unknown");
         let cc_class = metric_class(*cc, 10, 20, 30);
         let mi_class = metric_class_inverted(*mi, 20.0, 40.0, 60.0);
 
@@ -810,7 +919,9 @@ fn detect_project_root(metrics: &[(PathBuf, MetricsResults)]) -> Option<PathBuf>
             return Some(PathBuf::from(&path_str[..idx]));
         }
     }
-    metrics.first().and_then(|(p, _)| p.parent().map(|pp| pp.to_path_buf()))
+    metrics
+        .first()
+        .and_then(|(p, _)| p.parent().map(|pp| pp.to_path_buf()))
 }
 
 struct TestCoverageInfo {
@@ -985,11 +1096,22 @@ fn test_coverage_section(metrics: &[(PathBuf, MetricsResults)]) -> String {
     <table class="data-table"><thead><tr>
       <th>Source File</th><th>LOC</th><th>Status</th><th>Test File</th>
     </tr></thead><tbody>"##,
-        fc = file_color, fcirc = file_circ, foff = file_offset, fpct = file_pct,
-        tested = tested_files, total = total_files, flabel = file_label,
-        lc = loc_color, lcirc = loc_circ, loff = loc_offset, lpct = loc_pct,
-        tloc = tested_loc, aloc = total_loc, llabel = loc_label,
-        untested = untested_files, uloc = untested_loc,
+        fc = file_color,
+        fcirc = file_circ,
+        foff = file_offset,
+        fpct = file_pct,
+        tested = tested_files,
+        total = total_files,
+        flabel = file_label,
+        lc = loc_color,
+        lcirc = loc_circ,
+        loff = loc_offset,
+        lpct = loc_pct,
+        tloc = tested_loc,
+        aloc = total_loc,
+        llabel = loc_label,
+        untested = untested_files,
+        uloc = untested_loc,
         upct = 100u32.saturating_sub(loc_pct),
     );
 
@@ -1066,9 +1188,18 @@ fn issues_section(issues: &[Issue], total: usize) -> String {
     );
 
     for (idx, (file_name, file_issues)) in file_groups.iter().enumerate() {
-        let errs = file_issues.iter().filter(|i| i.severity == Severity::Error).count();
-        let warns = file_issues.iter().filter(|i| i.severity == Severity::Warning).count();
-        let infs = file_issues.iter().filter(|i| i.severity == Severity::Info).count();
+        let errs = file_issues
+            .iter()
+            .filter(|i| i.severity == Severity::Error)
+            .count();
+        let warns = file_issues
+            .iter()
+            .filter(|i| i.severity == Severity::Warning)
+            .count();
+        let infs = file_issues
+            .iter()
+            .filter(|i| i.severity == Severity::Info)
+            .count();
 
         let open = if idx < 3 { "open" } else { "" };
 
@@ -1154,7 +1285,10 @@ fn metrics_section(metrics: &[(PathBuf, MetricsResults)]) -> String {
   </tr></thead><tbody>"#);
 
     for (file, result) in metrics {
-        let file_name = file.file_name().and_then(|f| f.to_str()).unwrap_or("unknown");
+        let file_name = file
+            .file_name()
+            .and_then(|f| f.to_str())
+            .unwrap_or("unknown");
         for func in &result.functions {
             let cc_class = metric_class(func.cyclomatic_complexity, 10, 20, 30);
             let mi_class = metric_class_inverted(func.maintainability_index, 20.0, 40.0, 60.0);
@@ -1186,7 +1320,10 @@ fn metrics_section(metrics: &[(PathBuf, MetricsResults)]) -> String {
   </tr></thead><tbody>"#);
 
     for (file, result) in metrics {
-        let file_name = file.file_name().and_then(|f| f.to_str()).unwrap_or("unknown");
+        let file_name = file
+            .file_name()
+            .and_then(|f| f.to_str())
+            .unwrap_or("unknown");
         for class in &result.classes {
             let cbo_class = metric_class(class.coupling_between_objects, 5, 10, 15);
             let wmc_class = metric_class(class.weighted_methods_per_class, 10, 20, 30);

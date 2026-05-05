@@ -18,7 +18,10 @@ impl Reporter for JsonReporter {
             "metrics": metrics_to_json(&report.metrics),
         });
 
-        println!("{}", serde_json::to_string_pretty(&output).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&output).unwrap_or_default()
+        );
     }
 
     fn report_metrics(&self, metrics: &[(PathBuf, MetricsResults)]) {
@@ -26,7 +29,10 @@ impl Reporter for JsonReporter {
             "metrics": metrics_to_json(metrics),
         });
 
-        println!("{}", serde_json::to_string_pretty(&output).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&output).unwrap_or_default()
+        );
     }
 
     fn report_issues(&self, issues: &[Issue]) {
@@ -34,7 +40,10 @@ impl Reporter for JsonReporter {
             "issues": issues_to_json(issues),
         });
 
-        println!("{}", serde_json::to_string_pretty(&output).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&output).unwrap_or_default()
+        );
     }
 }
 

@@ -67,7 +67,9 @@ pub fn generate_ai_report(root: &Path) -> anyhow::Result<AiReport> {
 
     let mut rule_counts: HashMap<String, (usize, Severity)> = HashMap::new();
     for issue in &analysis.issues {
-        let entry = rule_counts.entry(issue.rule.clone()).or_insert((0, issue.severity));
+        let entry = rule_counts
+            .entry(issue.rule.clone())
+            .or_insert((0, issue.severity));
         entry.0 += 1;
         if issue.severity as u8 > entry.1 as u8 {
             entry.1 = issue.severity;
@@ -76,7 +78,11 @@ pub fn generate_ai_report(root: &Path) -> anyhow::Result<AiReport> {
 
     let mut top_issues: Vec<IssueSummary> = rule_counts
         .into_iter()
-        .map(|(rule, (count, severity))| IssueSummary { rule, count, severity })
+        .map(|(rule, (count, severity))| IssueSummary {
+            rule,
+            count,
+            severity,
+        })
         .collect();
     top_issues.sort_by(|a, b| b.count.cmp(&a.count));
     top_issues.truncate(10);
@@ -115,7 +121,8 @@ fn generate_recommendations(
     }
     if score.type_safety.score < 80 {
         recs.push(
-            "Type Safety: reduce usage of 'dynamic' type — use explicit types or generics instead.".to_string()
+            "Type Safety: reduce usage of 'dynamic' type — use explicit types or generics instead."
+                .to_string(),
         );
     }
     if score.complexity.score < 70 {
@@ -182,23 +189,56 @@ pub fn print_ai_report(report: &AiReport) {
 /// Generate a markdown report suitable for blog posts or documentation.
 pub fn generate_markdown_report(report: &AiReport) -> String {
     let mut md = String::new();
-    md.push_str(&format!("# State of AI-Generated Flutter Code — {}\n\n", report.project_name));
-    md.push_str(&format!("**AI Code Quality Score: {}/100 (Grade: {})**\n\n", report.ai_score.overall, report.ai_score.grade));
+    md.push_str(&format!(
+        "# State of AI-Generated Flutter Code — {}\n\n",
+        report.project_name
+    ));
+    md.push_str(&format!(
+        "**AI Code Quality Score: {}/100 (Grade: {})**\n\n",
+        report.ai_score.overall, report.ai_score.grade
+    ));
 
     md.push_str("## Score Breakdown\n\n");
     md.push_str("| Dimension | Score | Weight |\n");
     md.push_str("|---|---|---|\n");
-    md.push_str(&format!("| Resource Safety | {}/100 | 20% |\n", report.ai_score.resource_safety.score));
-    md.push_str(&format!("| Error Handling | {}/100 | 25% |\n", report.ai_score.error_handling.score));
-    md.push_str(&format!("| Type Safety | {}/100 | 15% |\n", report.ai_score.type_safety.score));
-    md.push_str(&format!("| Security | {}/100 | 15% |\n", report.ai_score.security.score));
-    md.push_str(&format!("| Convention Match | {}/100 | 10% |\n", report.ai_score.convention_match.score));
-    md.push_str(&format!("| Complexity | {}/100 | 15% |\n", report.ai_score.complexity.score));
+    md.push_str(&format!(
+        "| Resource Safety | {}/100 | 20% |\n",
+        report.ai_score.resource_safety.score
+    ));
+    md.push_str(&format!(
+        "| Error Handling | {}/100 | 25% |\n",
+        report.ai_score.error_handling.score
+    ));
+    md.push_str(&format!(
+        "| Type Safety | {}/100 | 15% |\n",
+        report.ai_score.type_safety.score
+    ));
+    md.push_str(&format!(
+        "| Security | {}/100 | 15% |\n",
+        report.ai_score.security.score
+    ));
+    md.push_str(&format!(
+        "| Convention Match | {}/100 | 10% |\n",
+        report.ai_score.convention_match.score
+    ));
+    md.push_str(&format!(
+        "| Complexity | {}/100 | 15% |\n",
+        report.ai_score.complexity.score
+    ));
 
     md.push_str("\n## Code Provenance\n\n");
-    md.push_str(&format!("- Human-written: {:.1}%\n", report.provenance.human_pct));
-    md.push_str(&format!("- AI-generated: {:.1}%\n", report.provenance.ai_pct));
-    md.push_str(&format!("- Code-generated: {:.1}%\n", report.provenance.codegen_pct));
+    md.push_str(&format!(
+        "- Human-written: {:.1}%\n",
+        report.provenance.human_pct
+    ));
+    md.push_str(&format!(
+        "- AI-generated: {:.1}%\n",
+        report.provenance.ai_pct
+    ));
+    md.push_str(&format!(
+        "- Code-generated: {:.1}%\n",
+        report.provenance.codegen_pct
+    ));
 
     if !report.top_issues.is_empty() {
         md.push_str("\n## Top Issues\n\n");

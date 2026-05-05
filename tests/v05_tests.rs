@@ -83,7 +83,10 @@ fn test_cyclic_dependency_detection() {
     let graph = DependencyGraph::build(dir.path(), &[]);
     let (issues, cycles) = cyclic::detect_cycles(&graph, dir.path());
 
-    assert!(!cycles.is_empty(), "Should detect cycle between a.dart and b.dart");
+    assert!(
+        !cycles.is_empty(),
+        "Should detect cycle between a.dart and b.dart"
+    );
     assert!(!issues.is_empty());
 }
 
@@ -180,7 +183,10 @@ fn test_unused_l10n_detection() {
         .iter()
         .filter(|i| i.message.contains("unused_key"))
         .collect();
-    assert!(!unused.is_empty(), "unused_key should be detected as unused l10n key");
+    assert!(
+        !unused.is_empty(),
+        "unused_key should be detected as unused l10n key"
+    );
 }
 
 // --- Unused Parameters Tests ---
@@ -270,7 +276,12 @@ fn test_config_validation_valid() {
     let errors = falcon::config::validator::validate_config(dir.path());
     let error_count = errors
         .iter()
-        .filter(|e| matches!(e.severity, falcon::config::validator::ConfigErrorSeverity::Error))
+        .filter(|e| {
+            matches!(
+                e.severity,
+                falcon::config::validator::ConfigErrorSeverity::Error
+            )
+        })
         .count();
     assert_eq!(error_count, 0);
 }
@@ -285,7 +296,10 @@ fn test_config_validation_unknown_key() {
     .unwrap();
 
     let errors = falcon::config::validator::validate_config(dir.path());
-    assert!(!errors.is_empty(), "Should warn about unknown key 'foo_bar'");
+    assert!(
+        !errors.is_empty(),
+        "Should warn about unknown key 'foo_bar'"
+    );
 }
 
 #[test]
@@ -312,7 +326,10 @@ fn test_rule_docs_generation() {
     let index = std::fs::read_to_string(docs_dir.join("RULES.md")).unwrap();
     assert!(index.contains("Falcon Lint Rules"));
     assert!(index.contains("avoid-dynamic"));
-    assert!(index.contains("rules"), "RULES.md should mention rule count");
+    assert!(
+        index.contains("rules"),
+        "RULES.md should mention rule count"
+    );
 
     let rule_files: Vec<_> = std::fs::read_dir(docs_dir.join("rules"))
         .unwrap()

@@ -50,8 +50,13 @@ impl PluginManifest {
             path.join("falcon-plugin.yaml")
         };
 
-        let content = std::fs::read_to_string(&manifest_path)
-            .map_err(|e| anyhow::anyhow!("Failed to read plugin manifest at {}: {}", manifest_path.display(), e))?;
+        let content = std::fs::read_to_string(&manifest_path).map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to read plugin manifest at {}: {}",
+                manifest_path.display(),
+                e
+            )
+        })?;
 
         let manifest: PluginManifest = serde_yaml::from_str(&content)?;
         manifest.validate()?;
@@ -65,8 +70,14 @@ impl PluginManifest {
         if self.version.is_empty() {
             anyhow::bail!("Plugin version cannot be empty");
         }
-        if !self.name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
-            anyhow::bail!("Plugin name can only contain alphanumeric characters, underscores, and hyphens");
+        if !self
+            .name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+        {
+            anyhow::bail!(
+                "Plugin name can only contain alphanumeric characters, underscores, and hyphens"
+            );
         }
         Ok(())
     }

@@ -45,10 +45,7 @@ pub struct PackageSnapshot {
 }
 
 impl AnalysisSnapshot {
-    pub fn capture(
-        report: &crate::reporters::AnalysisReport,
-        root: &Path,
-    ) -> Self {
+    pub fn capture(report: &crate::reporters::AnalysisReport, root: &Path) -> Self {
         let commit_info = get_git_info(root);
         let total_lines: usize = report
             .metrics
@@ -197,9 +194,7 @@ fn chrono_now() -> String {
         .args(["+%Y-%m-%dT%H:%M:%S"])
         .output();
     match output {
-        Ok(o) if o.status.success() => {
-            String::from_utf8_lossy(&o.stdout).trim().to_string()
-        }
+        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).trim().to_string(),
         _ => "unknown".to_string(),
     }
 }

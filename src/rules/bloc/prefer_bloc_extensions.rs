@@ -39,7 +39,9 @@ impl Rule for PreferBlocExtensions {
                 if pt.contains("BlocProvider.of") {
                     issues.push(Issue {
                         rule: self.name().to_string(),
-                        message: "Use 'context.read<T>()' instead of 'BlocProvider.of<T>(context)'.".to_string(),
+                        message:
+                            "Use 'context.read<T>()' instead of 'BlocProvider.of<T>(context)'."
+                                .to_string(),
                         severity: self.default_severity(),
                         file: file.to_path_buf(),
                         line: node_start_line(node),

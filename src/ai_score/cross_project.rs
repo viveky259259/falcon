@@ -87,7 +87,8 @@ pub fn record_project(db_root: &Path, project_root: &Path) -> anyhow::Result<Pro
     };
 
     let project_id = format!("proj-{:08x}", {
-        let full_path = project_root.canonicalize()
+        let full_path = project_root
+            .canonicalize()
             .unwrap_or_else(|_| project_root.to_path_buf());
         let path_str = full_path.to_string_lossy();
         let mut hash: u32 = 0;
@@ -106,7 +107,8 @@ pub fn record_project(db_root: &Path, project_root: &Path) -> anyhow::Result<Pro
             "unknown".to_string()
         });
 
-    let mut top_violations: Vec<(String, usize)> = rule_violations.iter()
+    let mut top_violations: Vec<(String, usize)> = rule_violations
+        .iter()
         .map(|(k, v)| (k.clone(), *v))
         .collect();
     top_violations.sort_by(|a, b| b.1.cmp(&a.1));
@@ -121,7 +123,11 @@ pub fn record_project(db_root: &Path, project_root: &Path) -> anyhow::Result<Pro
         error_handling_style: error_style.to_string(),
         ai_score: score.map(|s| s.overall),
         rule_violations,
-        top_patterns: top_violations.iter().take(5).map(|(r, _)| r.clone()).collect(),
+        top_patterns: top_violations
+            .iter()
+            .take(5)
+            .map(|(r, _)| r.clone())
+            .collect(),
     };
 
     let mut db = load_learning_db(db_root)?;
@@ -140,11 +146,15 @@ fn rebuild_aggregates(db: &mut LearningDatabase) {
     db.state_mgmt_distribution.clear();
 
     for profile in &db.profiles {
-        *db.architecture_distribution.entry(profile.architecture.clone()).or_default() += 1;
+        *db.architecture_distribution
+            .entry(profile.architecture.clone())
+            .or_default() += 1;
         if let Some(ref sm) = profile.state_management {
             *db.state_mgmt_distribution.entry(sm.clone()).or_default() += 1;
         }
-        *db.convention_frequencies.entry(profile.naming_convention.clone()).or_default() += 1;
+        *db.convention_frequencies
+            .entry(profile.naming_convention.clone())
+            .or_default() += 1;
 
         for (rule, count) in &profile.rule_violations {
             *db.rule_violation_totals.entry(rule.clone()).or_default() += count;
@@ -156,36 +166,56 @@ fn rebuild_aggregates(db: &mut LearningDatabase) {
 pub fn derive_insights(db: &LearningDatabase) -> CrossProjectInsights {
     let total = db.profiles.len();
 
-    let most_arch = db.architecture_distribution.iter()
+    let most_arch = db
+        .architecture_distribution
+        .iter()
         .max_by_key(|(_, v)| *v)
         .map(|(k, _)| k.clone())
         .unwrap_or_else(|| "unknown".to_string());
 
-    let most_sm = db.state_mgmt_distribution.iter()
+    let most_sm = db
+        .state_mgmt_distribution
+        .iter()
         .max_by_key(|(_, v)| *v)
         .map(|(k, _)| k.clone())
         .unwrap_or_else(|| "unknown".to_string());
 
-    let mut top_rules: Vec<(String, usize)> = db.rule_violation_totals.iter()
+    let mut top_rules: Vec<(String, usize)> = db
+        .rule_violation_totals
+        .iter()
         .map(|(k, v)| (k.clone(), *v))
         .collect();
     top_rules.sort_by(|a, b| b.1.cmp(&a.1));
     top_rules.truncate(10);
 
-    let scores: Vec<f64> = db.profiles.iter()
+    let scores: Vec<f64> = db
+        .profiles
+        .iter()
         .filter_map(|p| p.ai_score.map(|s| s as f64))
         .collect();
-    let avg = if scores.is_empty() { 0.0 } else { scores.iter().sum::<f64>() / scores.len() as f64 };
+    let avg = if scores.is_empty() {
+        0.0
+    } else {
+        scores.iter().sum::<f64>() / scores.len() as f64
+    };
 
     let mut recs = Vec::new();
     if db.architecture_distribution.len() > 1 {
-        recs.push(format!("Most teams use {} — consider standardizing", most_arch));
+        recs.push(format!(
+            "Most teams use {} — consider standardizing",
+            most_arch
+        ));
     }
     if let Some((top_rule, count)) = top_rules.first() {
-        recs.push(format!("'{}' is the most common violation ({} total) — consider team training", top_rule, count));
+        recs.push(format!(
+            "'{}' is the most common violation ({} total) — consider team training",
+            top_rule, count
+        ));
     }
     if avg < 70.0 && total > 0 {
-        recs.push("Average score below 70 — focus on error handling and resource safety".to_string());
+        recs.push(
+            "Average score below 70 — focus on error handling and resource safety".to_string(),
+        );
     }
 
     CrossProjectInsights {
@@ -201,10 +231,7 @@ pub fn derive_insights(db: &LearningDatabase) -> CrossProjectInsights {
 /// Print cross-project insights.
 pub fn print_insights(insights: &CrossProjectInsights) {
     println!();
-    println!(
-        "  {} Cross-Project Learning",
-        "falcon".bright_cyan().bold()
-    );
+    println!("  {} Cross-Project Learning", "falcon".bright_cyan().bold());
     println!();
 
     if insights.total_projects == 0 {
@@ -213,16 +240,29 @@ pub fn print_insights(insights: &CrossProjectInsights) {
         return;
     }
 
-    println!("  Projects analyzed:       {}", insights.total_projects.to_string().bright_white());
-    println!("  Dominant architecture:   {}", insights.most_common_architecture.bright_white().bold());
-    println!("  Dominant state mgmt:     {}", insights.most_common_state_mgmt.bright_white().bold());
+    println!(
+        "  Projects analyzed:       {}",
+        insights.total_projects.to_string().bright_white()
+    );
+    println!(
+        "  Dominant architecture:   {}",
+        insights.most_common_architecture.bright_white().bold()
+    );
+    println!(
+        "  Dominant state mgmt:     {}",
+        insights.most_common_state_mgmt.bright_white().bold()
+    );
     println!("  Average AI score:        {:.0}/100", insights.avg_score);
 
     if !insights.most_violated_rules.is_empty() {
         println!();
         println!("  Most common violations across projects:");
         for (rule, count) in &insights.most_violated_rules {
-            println!("    {:<40} {}x", rule.bright_white(), count.to_string().red());
+            println!(
+                "    {:<40} {}x",
+                rule.bright_white(),
+                count.to_string().red()
+            );
         }
     }
 

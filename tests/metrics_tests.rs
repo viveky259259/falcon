@@ -23,7 +23,12 @@ class Foo {
     let (loc, sloc) = lines::count_lines(source);
     assert!(loc >= 10, "LOC should be >= 10, got {}", loc);
     assert!(sloc >= 6, "SLOC should be >= 6, got {}", sloc);
-    assert!(sloc < loc, "SLOC ({}) should be less than LOC ({})", sloc, loc);
+    assert!(
+        sloc < loc,
+        "SLOC ({}) should be less than LOC ({})",
+        sloc,
+        loc
+    );
 }
 
 #[test]
@@ -76,7 +81,11 @@ int calculate(int x) {
 
     if let Some(body) = falcon::parser::dart_ast::get_function_body(funcs[0]) {
         let cc = cyclomatic::calculate(body, source);
-        assert!(cc >= 3, "Function with branches should have CC >= 3, got {}", cc);
+        assert!(
+            cc >= 3,
+            "Function with branches should have CC >= 3, got {}",
+            cc
+        );
     }
 }
 
@@ -123,10 +132,17 @@ void manyParams(int a, String b, double c, bool d, List e) {}
 #[test]
 fn test_maintainability_index() {
     let mi_simple = maintainability::calculate(1, 5, 0.0);
-    assert!(mi_simple > 50.0, "Simple function should have MI > 50, got {}", mi_simple);
+    assert!(
+        mi_simple > 50.0,
+        "Simple function should have MI > 50, got {}",
+        mi_simple
+    );
 
     let mi_complex = maintainability::calculate(30, 200, 0.0);
-    assert!(mi_complex < mi_simple, "Complex function should have lower MI");
+    assert!(
+        mi_complex < mi_simple,
+        "Complex function should have lower MI"
+    );
 }
 
 #[test]
@@ -144,9 +160,18 @@ fn test_file_metrics() {
     let process_data = results.functions.iter().find(|f| f.name == "processData");
     assert!(process_data.is_some(), "Should find processData function");
     let pd = process_data.unwrap();
-    assert!(pd.cyclomatic_complexity > 1, "processData should have CC > 1");
-    assert!(pd.number_of_parameters >= 6, "processData should have >= 6 params");
-    assert!(pd.max_nesting_level >= 5, "processData should have deep nesting");
+    assert!(
+        pd.cyclomatic_complexity > 1,
+        "processData should have CC > 1"
+    );
+    assert!(
+        pd.number_of_parameters >= 6,
+        "processData should have >= 6 params"
+    );
+    assert!(
+        pd.max_nesting_level >= 5,
+        "processData should have deep nesting"
+    );
 }
 
 #[test]
@@ -159,5 +184,9 @@ fn test_class_methods_count() {
     let dp_class = results.classes.iter().find(|c| c.name == "DataProcessor");
     assert!(dp_class.is_some(), "Should find DataProcessor class");
     let dp = dp_class.unwrap();
-    assert!(dp.number_of_methods >= 10, "DataProcessor should have >= 10 methods, got {}", dp.number_of_methods);
+    assert!(
+        dp.number_of_methods >= 10,
+        "DataProcessor should have >= 10 methods, got {}",
+        dp.number_of_methods
+    );
 }

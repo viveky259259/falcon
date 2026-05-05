@@ -149,9 +149,18 @@ pub fn print_partners(partners: &[Partner]) {
     println!("  {} Partner Program", "falcon".bright_cyan().bold());
     println!();
 
-    let certified: Vec<&Partner> = partners.iter().filter(|p| p.status == PartnerStatus::Certified).collect();
-    let in_progress: Vec<&Partner> = partners.iter().filter(|p| p.status == PartnerStatus::InProgress).collect();
-    let planned: Vec<&Partner> = partners.iter().filter(|p| p.status == PartnerStatus::Planned).collect();
+    let certified: Vec<&Partner> = partners
+        .iter()
+        .filter(|p| p.status == PartnerStatus::Certified)
+        .collect();
+    let in_progress: Vec<&Partner> = partners
+        .iter()
+        .filter(|p| p.status == PartnerStatus::InProgress)
+        .collect();
+    let planned: Vec<&Partner> = partners
+        .iter()
+        .filter(|p| p.status == PartnerStatus::Planned)
+        .collect();
 
     if !certified.is_empty() {
         println!("  {} Certified Partners:", "✓".green().bold());
@@ -185,12 +194,7 @@ pub fn print_partners(partners: &[Partner]) {
     if !planned.is_empty() {
         println!("  {} Planned:", "○".dimmed());
         for p in &planned {
-            println!(
-                "    {} {:<25} [{}]",
-                "○".dimmed(),
-                p.name,
-                p.category
-            );
+            println!("    {} {:<25} [{}]", "○".dimmed(), p.name, p.category);
         }
         println!();
     }

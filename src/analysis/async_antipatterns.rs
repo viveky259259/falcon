@@ -14,12 +14,7 @@ pub fn detect_async_antipatterns(root: Node, source: &str, file: &Path) -> Vec<I
     issues
 }
 
-fn detect_unawaited_futures(
-    root: Node,
-    source: &str,
-    file: &Path,
-    issues: &mut Vec<Issue>,
-) {
+fn detect_unawaited_futures(root: Node, source: &str, file: &Path, issues: &mut Vec<Issue>) {
     walk_tree(root, &mut |node| {
         if node.kind() != "expression_statement" {
             return;
@@ -46,12 +41,7 @@ fn detect_unawaited_futures(
     });
 }
 
-fn detect_async_void(
-    root: Node,
-    source: &str,
-    file: &Path,
-    issues: &mut Vec<Issue>,
-) {
+fn detect_async_void(root: Node, source: &str, file: &Path, issues: &mut Vec<Issue>) {
     walk_tree(root, &mut |node| {
         if node.kind() != "function_signature" && node.kind() != "method_signature" {
             return;
@@ -89,12 +79,7 @@ fn detect_async_void(
     });
 }
 
-fn detect_sequential_awaits(
-    root: Node,
-    source: &str,
-    file: &Path,
-    issues: &mut Vec<Issue>,
-) {
+fn detect_sequential_awaits(root: Node, source: &str, file: &Path, issues: &mut Vec<Issue>) {
     walk_tree(root, &mut |node| {
         if node.kind() != "block" {
             return;
@@ -117,7 +102,8 @@ fn detect_sequential_awaits(
                 consecutive_awaits += 1;
             } else if child.kind() != "comment" && !trimmed.is_empty() {
                 if consecutive_awaits >= 3 {
-                    let independent = check_independent_awaits(&children, source, consecutive_awaits);
+                    let independent =
+                        check_independent_awaits(&children, source, consecutive_awaits);
                     if independent {
                         issues.push(Issue {
                             rule: "sequential-awaits".to_string(),
@@ -178,12 +164,7 @@ fn check_independent_awaits(children: &[Node], source: &str, _count: usize) -> b
     true
 }
 
-fn detect_await_in_loop(
-    root: Node,
-    source: &str,
-    file: &Path,
-    issues: &mut Vec<Issue>,
-) {
+fn detect_await_in_loop(root: Node, source: &str, file: &Path, issues: &mut Vec<Issue>) {
     walk_tree(root, &mut |node| {
         let is_loop = matches!(
             node.kind(),
@@ -217,7 +198,10 @@ fn extract_name(node: Node, source: &str) -> String {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         if child.kind() == "identifier" {
-            return child.utf8_text(source.as_bytes()).unwrap_or("unknown").to_string();
+            return child
+                .utf8_text(source.as_bytes())
+                .unwrap_or("unknown")
+                .to_string();
         }
     }
     "anonymous".to_string()

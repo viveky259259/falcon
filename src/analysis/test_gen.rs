@@ -55,9 +55,12 @@ pub fn generate_test_stubs(root: &Path) -> Vec<TestStub> {
             Err(_) => continue,
         };
 
-        let rel = entry.path().strip_prefix(root)
+        let rel = entry
+            .path()
+            .strip_prefix(root)
             .unwrap_or(entry.path())
-            .to_string_lossy().to_string();
+            .to_string_lossy()
+            .to_string();
 
         if let Some(stub) = generate_stub_for_file(&rel, &source) {
             if !stub.test_cases.is_empty() {
@@ -82,18 +85,32 @@ fn generate_stub_for_file(file_path: &str, source: &str) -> Option<TestStub> {
         if trimmed.starts_with("class ") {
             let parts: Vec<&str> = trimmed.split_whitespace().collect();
             if parts.len() > 1 {
-                class_name = parts[1].trim_end_matches('{').trim_end_matches('<').to_string();
+                class_name = parts[1]
+                    .trim_end_matches('{')
+                    .trim_end_matches('<')
+                    .to_string();
             }
         }
 
-        if class_name.is_empty() { continue; }
+        if class_name.is_empty() {
+            continue;
+        }
 
-        if (trimmed.starts_with("Future<") || trimmed.starts_with("void ") || trimmed.starts_with("String ") || trimmed.starts_with("int ") || trimmed.starts_with("bool "))
-            && trimmed.contains('(') && !trimmed.starts_with("//")
+        if (trimmed.starts_with("Future<")
+            || trimmed.starts_with("void ")
+            || trimmed.starts_with("String ")
+            || trimmed.starts_with("int ")
+            || trimmed.starts_with("bool "))
+            && trimmed.contains('(')
+            && !trimmed.starts_with("//")
         {
             let method_name = extract_method_name(trimmed);
             if let Some(name) = method_name {
-                if name.starts_with('_') || name == "build" || name == "initState" || name == "dispose" {
+                if name.starts_with('_')
+                    || name == "build"
+                    || name == "initState"
+                    || name == "dispose"
+                {
                     continue;
                 }
 
@@ -140,7 +157,9 @@ fn generate_stub_for_file(file_path: &str, source: &str) -> Option<TestStub> {
         }
     }
 
-    let test_file = file_path.replace("lib/", "test/").replace(".dart", "_test.dart");
+    let test_file = file_path
+        .replace("lib/", "test/")
+        .replace(".dart", "_test.dart");
 
     Some(TestStub {
         target_file: file_path.to_string(),
@@ -163,7 +182,10 @@ pub fn render_test_file(stub: &TestStub) -> String {
     let mut out = String::new();
     out.push_str("import 'package:flutter_test/flutter_test.dart';\n");
 
-    let has_widget = stub.test_cases.iter().any(|t| matches!(t.category, TestCategory::Widget));
+    let has_widget = stub
+        .test_cases
+        .iter()
+        .any(|t| matches!(t.category, TestCategory::Widget));
     if has_widget {
         out.push_str("import 'package:flutter/material.dart';\n");
     }
@@ -174,9 +196,16 @@ pub fn render_test_file(stub: &TestStub) -> String {
     out.push_str(&format!("  group('{}', () {{\n", stub.class_name));
 
     for tc in &stub.test_cases {
-        let test_fn = if matches!(tc.category, TestCategory::Widget) { "testWidgets" } else { "test" };
+        let test_fn = if matches!(tc.category, TestCategory::Widget) {
+            "testWidgets"
+        } else {
+            "test"
+        };
         if matches!(tc.category, TestCategory::Widget) {
-            out.push_str(&format!("    {}('{}', (tester) async {{\n", test_fn, tc.name));
+            out.push_str(&format!(
+                "    {}('{}', (tester) async {{\n",
+                test_fn, tc.name
+            ));
         } else {
             out.push_str(&format!("    {}('{}', () async {{\n", test_fn, tc.name));
         }
@@ -196,10 +225,21 @@ pub fn print_test_gen_summary(stubs: &[TestStub]) {
     println!();
 
     let total_tests: usize = stubs.iter().map(|s| s.test_cases.len()).sum();
-    let unit: usize = stubs.iter().flat_map(|s| &s.test_cases).filter(|t| matches!(t.category, TestCategory::Unit)).count();
-    let widget: usize = stubs.iter().flat_map(|s| &s.test_cases).filter(|t| matches!(t.category, TestCategory::Widget)).count();
+    let unit: usize = stubs
+        .iter()
+        .flat_map(|s| &s.test_cases)
+        .filter(|t| matches!(t.category, TestCategory::Unit))
+        .count();
+    let widget: usize = stubs
+        .iter()
+        .flat_map(|s| &s.test_cases)
+        .filter(|t| matches!(t.category, TestCategory::Widget))
+        .count();
 
-    println!("  Test stubs generated: {}", total_tests.to_string().bright_white());
+    println!(
+        "  Test stubs generated: {}",
+        total_tests.to_string().bright_white()
+    );
     println!("    Unit tests:    {}", unit);
     println!("    Widget tests:  {}", widget);
     println!("    Files:         {}", stubs.len());
@@ -207,7 +247,12 @@ pub fn print_test_gen_summary(stubs: &[TestStub]) {
     if !stubs.is_empty() {
         println!();
         for stub in stubs.iter().take(10) {
-            println!("    {} → {} ({} tests)", stub.target_file, stub.test_file.bright_white(), stub.test_cases.len());
+            println!(
+                "    {} → {} ({} tests)",
+                stub.target_file,
+                stub.test_file.bright_white(),
+                stub.test_cases.len()
+            );
         }
         if stubs.len() > 10 {
             println!("    ... and {} more files", stubs.len() - 10);

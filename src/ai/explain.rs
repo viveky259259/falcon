@@ -26,16 +26,8 @@ pub fn print_explanation(explanation: &RuleExplanation) {
         "Rule:".bright_cyan().bold(),
         explanation.name.bright_white().bold()
     );
-    println!(
-        "  {} {}",
-        "Category:".bright_cyan(),
-        explanation.category
-    );
-    println!(
-        "  {} {}",
-        "Severity:".bright_cyan(),
-        explanation.severity
-    );
+    println!("  {} {}", "Category:".bright_cyan(), explanation.category);
+    println!("  {} {}", "Severity:".bright_cyan(), explanation.severity);
     println!();
     println!("  {}", "Summary".bright_green().bold());
     println!("  {}", explanation.summary);
@@ -43,7 +35,11 @@ pub fn print_explanation(explanation: &RuleExplanation) {
     println!("  {}", "Why this matters".bright_yellow().bold());
     println!("  {}", explanation.why);
     println!();
-    println!("  {} {}", "Bad".bright_red().bold(), "(avoid this)".dimmed());
+    println!(
+        "  {} {}",
+        "Bad".bright_red().bold(),
+        "(avoid this)".dimmed()
+    );
     for line in explanation.bad_example.lines() {
         println!("    {}", line);
     }
@@ -82,10 +78,7 @@ pub fn list_all_rules() {
 
     let mut categories: HashMap<&str, Vec<&RuleExplanation>> = HashMap::new();
     for rule in &rules {
-        categories
-            .entry(&rule.category)
-            .or_default()
-            .push(rule);
+        categories.entry(&rule.category).or_default().push(rule);
     }
 
     println!();

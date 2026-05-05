@@ -80,17 +80,50 @@ pub fn compare_snapshots(run1: &AnalysisSnapshot, run2: &AnalysisSnapshot) -> Co
         run1: run1.clone(),
         run2: run2.clone(),
         deltas: Deltas {
-            files: Delta { before: run1.file_count, after: run2.file_count },
-            lines: Delta { before: run1.total_lines, after: run2.total_lines },
-            health: Delta { before: run1.health_score, after: run2.health_score },
-            errors: Delta { before: run1.issues.errors, after: run2.issues.errors },
-            warnings: Delta { before: run1.issues.warnings, after: run2.issues.warnings },
-            info: Delta { before: run1.issues.info, after: run2.issues.info },
-            total_issues: Delta { before: run1.issues.total, after: run2.issues.total },
-            avg_cc: Delta { before: run1.metrics_summary.avg_cyclomatic, after: run2.metrics_summary.avg_cyclomatic },
-            max_cc: Delta { before: run1.metrics_summary.max_cyclomatic, after: run2.metrics_summary.max_cyclomatic },
-            avg_mi: Delta { before: run1.metrics_summary.avg_maintainability, after: run2.metrics_summary.avg_maintainability },
-            god_files: Delta { before: run1.metrics_summary.god_file_count, after: run2.metrics_summary.god_file_count },
+            files: Delta {
+                before: run1.file_count,
+                after: run2.file_count,
+            },
+            lines: Delta {
+                before: run1.total_lines,
+                after: run2.total_lines,
+            },
+            health: Delta {
+                before: run1.health_score,
+                after: run2.health_score,
+            },
+            errors: Delta {
+                before: run1.issues.errors,
+                after: run2.issues.errors,
+            },
+            warnings: Delta {
+                before: run1.issues.warnings,
+                after: run2.issues.warnings,
+            },
+            info: Delta {
+                before: run1.issues.info,
+                after: run2.issues.info,
+            },
+            total_issues: Delta {
+                before: run1.issues.total,
+                after: run2.issues.total,
+            },
+            avg_cc: Delta {
+                before: run1.metrics_summary.avg_cyclomatic,
+                after: run2.metrics_summary.avg_cyclomatic,
+            },
+            max_cc: Delta {
+                before: run1.metrics_summary.max_cyclomatic,
+                after: run2.metrics_summary.max_cyclomatic,
+            },
+            avg_mi: Delta {
+                before: run1.metrics_summary.avg_maintainability,
+                after: run2.metrics_summary.avg_maintainability,
+            },
+            god_files: Delta {
+                before: run1.metrics_summary.god_file_count,
+                after: run2.metrics_summary.god_file_count,
+            },
             rules_added,
             rules_removed,
             rules_changed,
@@ -104,35 +137,119 @@ pub fn print_comparison(result: &ComparisonResult) {
     let d = &result.deltas;
 
     println!();
-    println!("  🦅 {} {}", "falcon".bright_blue().bold(), "Report Comparison".bold());
+    println!(
+        "  🦅 {} {}",
+        "falcon".bright_blue().bold(),
+        "Report Comparison".bold()
+    );
     println!();
-    println!("  🏷  {} {} ({} {})",
-        "Run 1:".dimmed(), r1.timestamp,
-        "🌿", r1.branch.as_deref().unwrap_or("—").bright_cyan());
-    println!("  🏷  {} {} ({} {})",
-        "Run 2:".dimmed(), r2.timestamp,
-        "🌿", r2.branch.as_deref().unwrap_or("—").bright_cyan());
+    println!(
+        "  🏷  {} {} ({} {})",
+        "Run 1:".dimmed(),
+        r1.timestamp,
+        "🌿",
+        r1.branch.as_deref().unwrap_or("—").bright_cyan()
+    );
+    println!(
+        "  🏷  {} {} ({} {})",
+        "Run 2:".dimmed(),
+        r2.timestamp,
+        "🌿",
+        r2.branch.as_deref().unwrap_or("—").bright_cyan()
+    );
     println!();
 
-    let health_icon = if d.health.diff() > 0.5 { "📈" } else if d.health.diff() < -0.5 { "📉" } else { "📊" };
+    let health_icon = if d.health.diff() > 0.5 {
+        "📈"
+    } else if d.health.diff() < -0.5 {
+        "📉"
+    } else {
+        "📊"
+    };
     println!("  {} {}", health_icon, "── Overview ──".dimmed());
-    print_delta_row("💚 Health Score", &format!("{:.0}", d.health.before), &format!("{:.0}", d.health.after), d.health.diff(), true);
-    print_delta_row("📁 Files", &d.files.before.to_string(), &d.files.after.to_string(), d.files.diff() as f64, false);
-    print_delta_row("📝 Lines", &d.lines.before.to_string(), &d.lines.after.to_string(), d.lines.diff() as f64, false);
-    print_delta_row("⚡ Total Issues", &d.total_issues.before.to_string(), &d.total_issues.after.to_string(), d.total_issues.diff() as f64, false);
+    print_delta_row(
+        "💚 Health Score",
+        &format!("{:.0}", d.health.before),
+        &format!("{:.0}", d.health.after),
+        d.health.diff(),
+        true,
+    );
+    print_delta_row(
+        "📁 Files",
+        &d.files.before.to_string(),
+        &d.files.after.to_string(),
+        d.files.diff() as f64,
+        false,
+    );
+    print_delta_row(
+        "📝 Lines",
+        &d.lines.before.to_string(),
+        &d.lines.after.to_string(),
+        d.lines.diff() as f64,
+        false,
+    );
+    print_delta_row(
+        "⚡ Total Issues",
+        &d.total_issues.before.to_string(),
+        &d.total_issues.after.to_string(),
+        d.total_issues.diff() as f64,
+        false,
+    );
     println!();
 
     println!("  🔍 {}", "── Issues ──".dimmed());
-    print_delta_row("🔴 Errors", &d.errors.before.to_string(), &d.errors.after.to_string(), d.errors.diff() as f64, false);
-    print_delta_row("🟡 Warnings", &d.warnings.before.to_string(), &d.warnings.after.to_string(), d.warnings.diff() as f64, false);
-    print_delta_row("🔵 Info", &d.info.before.to_string(), &d.info.after.to_string(), d.info.diff() as f64, false);
+    print_delta_row(
+        "🔴 Errors",
+        &d.errors.before.to_string(),
+        &d.errors.after.to_string(),
+        d.errors.diff() as f64,
+        false,
+    );
+    print_delta_row(
+        "🟡 Warnings",
+        &d.warnings.before.to_string(),
+        &d.warnings.after.to_string(),
+        d.warnings.diff() as f64,
+        false,
+    );
+    print_delta_row(
+        "🔵 Info",
+        &d.info.before.to_string(),
+        &d.info.after.to_string(),
+        d.info.diff() as f64,
+        false,
+    );
     println!();
 
     println!("  📐 {}", "── Metrics ──".dimmed());
-    print_delta_row("🔄 Avg CC", &format!("{:.1}", d.avg_cc.before), &format!("{:.1}", d.avg_cc.after), d.avg_cc.diff(), false);
-    print_delta_row("🔺 Max CC", &d.max_cc.before.to_string(), &d.max_cc.after.to_string(), d.max_cc.diff() as f64, false);
-    print_delta_row("🛡  Avg MI", &format!("{:.1}", d.avg_mi.before), &format!("{:.1}", d.avg_mi.after), d.avg_mi.diff(), true);
-    print_delta_row("🏗  God Files", &d.god_files.before.to_string(), &d.god_files.after.to_string(), d.god_files.diff() as f64, false);
+    print_delta_row(
+        "🔄 Avg CC",
+        &format!("{:.1}", d.avg_cc.before),
+        &format!("{:.1}", d.avg_cc.after),
+        d.avg_cc.diff(),
+        false,
+    );
+    print_delta_row(
+        "🔺 Max CC",
+        &d.max_cc.before.to_string(),
+        &d.max_cc.after.to_string(),
+        d.max_cc.diff() as f64,
+        false,
+    );
+    print_delta_row(
+        "🛡  Avg MI",
+        &format!("{:.1}", d.avg_mi.before),
+        &format!("{:.1}", d.avg_mi.after),
+        d.avg_mi.diff(),
+        true,
+    );
+    print_delta_row(
+        "🏗  God Files",
+        &d.god_files.before.to_string(),
+        &d.god_files.after.to_string(),
+        d.god_files.diff() as f64,
+        false,
+    );
     println!();
 
     if !d.rules_changed.is_empty() {
@@ -163,22 +280,45 @@ fn print_delta_row(label: &str, before: &str, after: &str, diff: f64, higher_is_
     let arrow = if negligible {
         "─".dimmed().to_string()
     } else if diff > 0.0 {
-        if higher_is_better { "▲".green().to_string() } else { "▲".red().to_string() }
+        if higher_is_better {
+            "▲".green().to_string()
+        } else {
+            "▲".red().to_string()
+        }
     } else {
-        if higher_is_better { "▼".red().to_string() } else { "▼".green().to_string() }
+        if higher_is_better {
+            "▼".red().to_string()
+        } else {
+            "▼".green().to_string()
+        }
     };
 
     let diff_str = if negligible {
         "0".dimmed().to_string()
     } else if diff > 0.0 {
         let s = format!("+{:.0}", diff);
-        if higher_is_better { s.green().to_string() } else { s.red().to_string() }
+        if higher_is_better {
+            s.green().to_string()
+        } else {
+            s.red().to_string()
+        }
     } else {
         let s = format!("{:.0}", diff);
-        if higher_is_better { s.red().to_string() } else { s.green().to_string() }
+        if higher_is_better {
+            s.red().to_string()
+        } else {
+            s.green().to_string()
+        }
     };
 
-    println!("    {:<18} {:>8} → {:<8}  {} {}", label, before.dimmed(), after, arrow, diff_str);
+    println!(
+        "    {:<18} {:>8} → {:<8}  {} {}",
+        label,
+        before.dimmed(),
+        after,
+        arrow,
+        diff_str
+    );
 }
 
 pub fn generate_html_comparison(result: &ComparisonResult, output: &Path) -> anyhow::Result<()> {
@@ -197,15 +337,29 @@ fn delta_badge_html(diff: f64, higher_is_better: bool) -> String {
         return r#"<span class="delta delta-neutral">0</span>"#.to_string();
     }
     let (class, sign) = if diff > 0.0 {
-        if higher_is_better { ("delta-good", "+") } else { ("delta-bad", "+") }
+        if higher_is_better {
+            ("delta-good", "+")
+        } else {
+            ("delta-bad", "+")
+        }
     } else {
-        if higher_is_better { ("delta-bad", "") } else { ("delta-good", "") }
+        if higher_is_better {
+            ("delta-bad", "")
+        } else {
+            ("delta-good", "")
+        }
     };
-    format!(r#"<span class="delta {}">{}{:.0}</span>"#, class, sign, diff)
+    format!(
+        r#"<span class="delta {}">{}{:.0}</span>"#,
+        class, sign, diff
+    )
 }
 
 fn esc(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
 }
 
 fn build_comparison_html(result: &ComparisonResult) -> String {
@@ -215,8 +369,20 @@ fn build_comparison_html(result: &ComparisonResult) -> String {
 
     let health_diff = d.health.diff();
     let health_effectively_same = is_negligible(health_diff);
-    let health_color = if health_effectively_same { "#6366f1" } else if health_diff > 0.0 { "#10b981" } else { "#ef4444" };
-    let health_direction = if health_effectively_same { "Unchanged" } else if health_diff > 0.0 { "Improved" } else { "Declined" };
+    let health_color = if health_effectively_same {
+        "#6366f1"
+    } else if health_diff > 0.0 {
+        "#10b981"
+    } else {
+        "#ef4444"
+    };
+    let health_direction = if health_effectively_same {
+        "Unchanged"
+    } else if health_diff > 0.0 {
+        "Improved"
+    } else {
+        "Declined"
+    };
 
     let mut html = String::with_capacity(32 * 1024);
     html.push_str(&format!(r##"<!DOCTYPE html>
@@ -296,7 +462,13 @@ h1{{font-size:1.5rem;font-weight:800;margin-bottom:4px;letter-spacing:-.02em}}
         let sign = if health_diff > 0.0 { "+" } else { "" };
         format!("{}{:.0}", sign, health_diff)
     };
-    let health_icon = if health_effectively_same { "═" } else if health_diff > 0.0 { "▲" } else { "▼" };
+    let health_icon = if health_effectively_same {
+        "═"
+    } else if health_diff > 0.0 {
+        "▲"
+    } else {
+        "▼"
+    };
     html.push_str(&format!(r#"<div class="health-hero">
   <div class="health-delta">{icon} {display}</div>
   <div><div class="health-dir">{dir}</div><div class="health-detail">{b:.0} → {a:.0} health score</div></div>
@@ -307,25 +479,102 @@ h1{{font-size:1.5rem;font-weight:800;margin-bottom:4px;letter-spacing:-.02em}}
 
     // Overview table
     html.push_str(r#"<div class="section"><h2>Overview</h2><table class="compare-table"><thead><tr><th>Metric</th><th class="val">Run 1</th><th class="arrow-cell"></th><th class="val">Run 2</th><th>Delta</th></tr></thead><tbody>"#);
-    compare_row(&mut html, "Files", &d.files.before.to_string(), &d.files.after.to_string(), d.files.diff() as f64, false);
-    compare_row(&mut html, "Lines of Code", &d.lines.before.to_string(), &d.lines.after.to_string(), d.lines.diff() as f64, false);
-    compare_row(&mut html, "Health Score", &format!("{:.0}", d.health.before), &format!("{:.0}", d.health.after), d.health.diff(), true);
-    compare_row(&mut html, "Total Issues", &d.total_issues.before.to_string(), &d.total_issues.after.to_string(), d.total_issues.diff() as f64, false);
+    compare_row(
+        &mut html,
+        "Files",
+        &d.files.before.to_string(),
+        &d.files.after.to_string(),
+        d.files.diff() as f64,
+        false,
+    );
+    compare_row(
+        &mut html,
+        "Lines of Code",
+        &d.lines.before.to_string(),
+        &d.lines.after.to_string(),
+        d.lines.diff() as f64,
+        false,
+    );
+    compare_row(
+        &mut html,
+        "Health Score",
+        &format!("{:.0}", d.health.before),
+        &format!("{:.0}", d.health.after),
+        d.health.diff(),
+        true,
+    );
+    compare_row(
+        &mut html,
+        "Total Issues",
+        &d.total_issues.before.to_string(),
+        &d.total_issues.after.to_string(),
+        d.total_issues.diff() as f64,
+        false,
+    );
     html.push_str("</tbody></table></div>");
 
     // Issues table
     html.push_str(r#"<div class="section"><h2>Issues Breakdown</h2><table class="compare-table"><thead><tr><th>Severity</th><th class="val">Run 1</th><th class="arrow-cell"></th><th class="val">Run 2</th><th>Delta</th></tr></thead><tbody>"#);
-    compare_row(&mut html, "Errors", &d.errors.before.to_string(), &d.errors.after.to_string(), d.errors.diff() as f64, false);
-    compare_row(&mut html, "Warnings", &d.warnings.before.to_string(), &d.warnings.after.to_string(), d.warnings.diff() as f64, false);
-    compare_row(&mut html, "Info", &d.info.before.to_string(), &d.info.after.to_string(), d.info.diff() as f64, false);
+    compare_row(
+        &mut html,
+        "Errors",
+        &d.errors.before.to_string(),
+        &d.errors.after.to_string(),
+        d.errors.diff() as f64,
+        false,
+    );
+    compare_row(
+        &mut html,
+        "Warnings",
+        &d.warnings.before.to_string(),
+        &d.warnings.after.to_string(),
+        d.warnings.diff() as f64,
+        false,
+    );
+    compare_row(
+        &mut html,
+        "Info",
+        &d.info.before.to_string(),
+        &d.info.after.to_string(),
+        d.info.diff() as f64,
+        false,
+    );
     html.push_str("</tbody></table></div>");
 
     // Metrics table
     html.push_str(r#"<div class="section"><h2>Metrics</h2><table class="compare-table"><thead><tr><th>Metric</th><th class="val">Run 1</th><th class="arrow-cell"></th><th class="val">Run 2</th><th>Delta</th></tr></thead><tbody>"#);
-    compare_row(&mut html, "Avg Cyclomatic Complexity", &format!("{:.1}", d.avg_cc.before), &format!("{:.1}", d.avg_cc.after), d.avg_cc.diff(), false);
-    compare_row(&mut html, "Max Cyclomatic Complexity", &d.max_cc.before.to_string(), &d.max_cc.after.to_string(), d.max_cc.diff() as f64, false);
-    compare_row(&mut html, "Avg Maintainability Index", &format!("{:.1}", d.avg_mi.before), &format!("{:.1}", d.avg_mi.after), d.avg_mi.diff(), true);
-    compare_row(&mut html, "God Files (>500 LOC)", &d.god_files.before.to_string(), &d.god_files.after.to_string(), d.god_files.diff() as f64, false);
+    compare_row(
+        &mut html,
+        "Avg Cyclomatic Complexity",
+        &format!("{:.1}", d.avg_cc.before),
+        &format!("{:.1}", d.avg_cc.after),
+        d.avg_cc.diff(),
+        false,
+    );
+    compare_row(
+        &mut html,
+        "Max Cyclomatic Complexity",
+        &d.max_cc.before.to_string(),
+        &d.max_cc.after.to_string(),
+        d.max_cc.diff() as f64,
+        false,
+    );
+    compare_row(
+        &mut html,
+        "Avg Maintainability Index",
+        &format!("{:.1}", d.avg_mi.before),
+        &format!("{:.1}", d.avg_mi.after),
+        d.avg_mi.diff(),
+        true,
+    );
+    compare_row(
+        &mut html,
+        "God Files (>500 LOC)",
+        &d.god_files.before.to_string(),
+        &d.god_files.after.to_string(),
+        d.god_files.diff() as f64,
+        false,
+    );
     html.push_str("</tbody></table></div>");
 
     // Rule changes
@@ -372,7 +621,14 @@ h1{{font-size:1.5rem;font-weight:800;margin-bottom:4px;letter-spacing:-.02em}}
     html
 }
 
-fn compare_row(html: &mut String, label: &str, before: &str, after: &str, diff: f64, higher_is_better: bool) {
+fn compare_row(
+    html: &mut String,
+    label: &str,
+    before: &str,
+    after: &str,
+    diff: f64,
+    higher_is_better: bool,
+) {
     let arrow = if is_negligible(diff) { "─" } else { "→" };
     let badge = delta_badge_html(diff, higher_is_better);
     html.push_str(&format!(
@@ -384,22 +640,40 @@ fn compare_row(html: &mut String, label: &str, before: &str, after: &str, diff: 
 pub fn list_history(root: &Path) -> anyhow::Result<()> {
     let history = super::snapshot::load_history(root)?;
     if history.is_empty() {
-        println!("  📭 No analysis history found. Run {} to start recording.", "falcon analyze".bright_blue());
+        println!(
+            "  📭 No analysis history found. Run {} to start recording.",
+            "falcon analyze".bright_blue()
+        );
         return Ok(());
     }
 
     println!();
-    println!("  🦅 {} {}", "falcon".bright_blue().bold(), "Analysis History".bold());
+    println!(
+        "  🦅 {} {}",
+        "falcon".bright_blue().bold(),
+        "Analysis History".bold()
+    );
     println!("  {} {} run(s) stored", "📦".dimmed(), history.len());
     println!();
-    println!("  {:<4} {:<22}  {:<12} {:>7} {:>7} {:>8} {:>8}",
-        "#".dimmed(), "🕐 Timestamp".dimmed(), "🌿 Branch".dimmed(),
-        "📁".dimmed(), "💚".dimmed(), "⚡".dimmed(), "🔗".dimmed());
+    println!(
+        "  {:<4} {:<22}  {:<12} {:>7} {:>7} {:>8} {:>8}",
+        "#".dimmed(),
+        "🕐 Timestamp".dimmed(),
+        "🌿 Branch".dimmed(),
+        "📁".dimmed(),
+        "💚".dimmed(),
+        "⚡".dimmed(),
+        "🔗".dimmed()
+    );
     println!("  {}", "─".repeat(80).dimmed());
 
     for (i, snap) in history.iter().enumerate().rev() {
         let branch = snap.branch.as_deref().unwrap_or("—");
-        let branch_display = if branch.len() > 10 { &branch[..10] } else { branch };
+        let branch_display = if branch.len() > 10 {
+            &branch[..10]
+        } else {
+            branch
+        };
         let commit = snap.commit_hash.as_deref().unwrap_or("—");
         let health_colored = if snap.health_score >= 80.0 {
             format!("{:.0}", snap.health_score).green().to_string()
@@ -409,7 +683,8 @@ pub fn list_history(root: &Path) -> anyhow::Result<()> {
             format!("{:.0}", snap.health_score).red().to_string()
         };
 
-        println!("  {:<4} {:<22}  {:<12} {:>7} {:>7} {:>8} {:>8}",
+        println!(
+            "  {:<4} {:<22}  {:<12} {:>7} {:>7} {:>8} {:>8}",
             format!("#{}", i + 1).dimmed(),
             &snap.timestamp,
             branch_display,
@@ -420,12 +695,16 @@ pub fn list_history(root: &Path) -> anyhow::Result<()> {
         );
     }
     println!();
-    println!("  💡 {} Use {} to compare two runs.",
+    println!(
+        "  💡 {} Use {} to compare two runs.",
         "tip:".dimmed(),
-        "falcon compare-reports <path> --run1 N --run2 M".bright_blue());
-    println!("     {} Use {} to compare branches.",
+        "falcon compare-reports <path> --run1 N --run2 M".bright_blue()
+    );
+    println!(
+        "     {} Use {} to compare branches.",
         "   ".dimmed(),
-        "falcon compare-branches <path> --base main --branch dev".bright_blue());
+        "falcon compare-branches <path> --base main --branch dev".bright_blue()
+    );
     println!();
     Ok(())
 }
@@ -516,8 +795,13 @@ pub fn compare_branches(
         restore(root, &original_branch, had_stash);
         e
     })?;
-    println!("    ✅ {} 📁 {} files  ⚡ {} issues  💚 {:.0} health",
-        base.bright_cyan(), snap_base.file_count, snap_base.issues.total, snap_base.health_score);
+    println!(
+        "    ✅ {} 📁 {} files  ⚡ {} issues  💚 {:.0} health",
+        base.bright_cyan(),
+        snap_base.file_count,
+        snap_base.issues.total,
+        snap_base.health_score
+    );
 
     // Save base branch snapshot to history
     if let Err(e) = super::snapshot::save_snapshot(root, &snap_base) {
@@ -535,8 +819,13 @@ pub fn compare_branches(
         restore(root, &original_branch, had_stash);
         e
     })?;
-    println!("    ✅ {} 📁 {} files  ⚡ {} issues  💚 {:.0} health",
-        branch.bright_cyan(), snap_branch.file_count, snap_branch.issues.total, snap_branch.health_score);
+    println!(
+        "    ✅ {} 📁 {} files  ⚡ {} issues  💚 {:.0} health",
+        branch.bright_cyan(),
+        snap_branch.file_count,
+        snap_branch.issues.total,
+        snap_branch.health_score
+    );
 
     // Save target branch snapshot to history
     if let Err(e) = super::snapshot::save_snapshot(root, &snap_branch) {
@@ -553,8 +842,10 @@ pub fn compare_branches(
     print_comparison(&result);
     generate_html_comparison(&result, html_out)?;
 
-    println!("  💾 Both snapshots saved to history. Use {} to view.",
-        "falcon history".bright_blue());
+    println!(
+        "  💾 Both snapshots saved to history. Use {} to view.",
+        "falcon history".bright_blue()
+    );
     println!();
 
     Ok(())

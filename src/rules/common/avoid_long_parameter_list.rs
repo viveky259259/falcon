@@ -47,8 +47,7 @@ impl Rule for AvoidLongParameterList {
         for node in functions.into_iter().chain(methods.into_iter()) {
             let count = parameters::count(node);
             if count > self.max_params {
-                let name =
-                    dart_ast::get_declaration_name(node, source).unwrap_or("<anonymous>");
+                let name = dart_ast::get_declaration_name(node, source).unwrap_or("<anonymous>");
                 issues.push(Issue {
                     rule: self.name().to_string(),
                     message: format!(

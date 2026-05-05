@@ -42,7 +42,8 @@ impl Rule for EnsureDisposeLifecycle {
             }
 
             let mut disposables_found: Vec<(&str, usize)> = Vec::new();
-            let has_dispose = class_text.contains("void dispose()") || class_text.contains("void dispose(");
+            let has_dispose =
+                class_text.contains("void dispose()") || class_text.contains("void dispose(");
 
             for dtype in DISPOSABLE_TYPES {
                 if class_text.contains(dtype) {
@@ -50,7 +51,11 @@ impl Rule for EnsureDisposeLifecycle {
                         let class_start = class.start_position().row;
                         let class_end = class.end_position().row;
                         if line_num >= class_start && line_num <= class_end {
-                            if line.contains(dtype) && (line.contains("late") || line.contains("final") || line.trim().starts_with(dtype)) {
+                            if line.contains(dtype)
+                                && (line.contains("late")
+                                    || line.contains("final")
+                                    || line.trim().starts_with(dtype))
+                            {
                                 disposables_found.push((dtype, line_num + 1));
                             }
                         }

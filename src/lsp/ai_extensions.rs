@@ -1,5 +1,5 @@
-use tower_lsp::lsp_types::*;
 use crate::reporters::Issue;
+use tower_lsp::lsp_types::*;
 
 /// Enrich diagnostics with AI-specific metadata.
 pub fn enrich_diagnostics_with_ai(
@@ -50,8 +50,11 @@ pub fn enrich_diagnostics_with_ai(
 
 fn ai_rule_severity(rule: &str) -> &'static str {
     match rule {
-        "avoid-empty-catch" | "ensure-dispose-lifecycle" | "avoid-hardcoded-credentials"
-        | "avoid-unawaited-futures" | "ensure-stream-subscription-cancel" => "critical-in-ai-code",
+        "avoid-empty-catch"
+        | "ensure-dispose-lifecycle"
+        | "avoid-hardcoded-credentials"
+        | "avoid-unawaited-futures"
+        | "ensure-stream-subscription-cancel" => "critical-in-ai-code",
         "avoid-dynamic" | "avoid-print-in-production" | "avoid-throw-in-catch" => "high-in-ai-code",
         _ => "standard",
     }

@@ -48,8 +48,8 @@ impl Rule for AvoidLongFunctions {
                 let text = &source[parent.byte_range()];
                 let line_count = text.lines().count() as u32;
                 if line_count > self.max_lines {
-                    let name = dart_ast::get_declaration_name(node, source)
-                        .unwrap_or("<anonymous>");
+                    let name =
+                        dart_ast::get_declaration_name(node, source).unwrap_or("<anonymous>");
                     issues.push(Issue {
                         rule: self.name().to_string(),
                         message: format!(

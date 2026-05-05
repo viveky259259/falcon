@@ -31,7 +31,10 @@ impl Rule for AvoidUnnecessarySetState {
                 for child in node.children(&mut cursor) {
                     if child.kind() == "identifier" {
                         let name = &source[child.byte_range()];
-                        if matches!(name, "initState" | "didChangeDependencies" | "dispose" | "deactivate") {
+                        if matches!(
+                            name,
+                            "initState" | "didChangeDependencies" | "dispose" | "deactivate"
+                        ) {
                             in_lifecycle_method = true;
                             lifecycle_method_name = name.to_string();
                         }

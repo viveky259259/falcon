@@ -18,9 +18,21 @@ impl Default for PreferCorrectIdentifierLength {
             min_length: 3,
             max_length: 40,
             exceptions: vec![
-                "i".into(), "j".into(), "k".into(), "x".into(), "y".into(),
-                "z".into(), "e".into(), "v".into(), "a".into(), "b".into(),
-                "id".into(), "db".into(), "io".into(), "ui".into(), "ok".into(),
+                "i".into(),
+                "j".into(),
+                "k".into(),
+                "x".into(),
+                "y".into(),
+                "z".into(),
+                "e".into(),
+                "v".into(),
+                "a".into(),
+                "b".into(),
+                "id".into(),
+                "db".into(),
+                "io".into(),
+                "ui".into(),
+                "ok".into(),
             ],
         }
     }
@@ -52,7 +64,10 @@ impl Rule for PreferCorrectIdentifierLength {
         }
         if let Some(val) = options.get("exceptions") {
             if let Some(seq) = val.as_sequence() {
-                self.exceptions = seq.iter().filter_map(|v| v.as_str().map(String::from)).collect();
+                self.exceptions = seq
+                    .iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect();
             }
         }
     }
@@ -66,10 +81,15 @@ impl Rule for PreferCorrectIdentifierLength {
             }
 
             if let Some(parent) = node.parent() {
-                if !matches!(parent.kind(),
-                    "function_signature" | "initialized_identifier" | "formal_parameter"
-                    | "class_declaration" | "enum_declaration" | "mixin_declaration"
-                    | "initialized_variable_definition"
+                if !matches!(
+                    parent.kind(),
+                    "function_signature"
+                        | "initialized_identifier"
+                        | "formal_parameter"
+                        | "class_declaration"
+                        | "enum_declaration"
+                        | "mixin_declaration"
+                        | "initialized_variable_definition"
                 ) {
                     return;
                 }
@@ -88,7 +108,12 @@ impl Rule for PreferCorrectIdentifierLength {
             if text.len() < self.min_length {
                 issues.push(Issue {
                     rule: self.name().to_string(),
-                    message: format!("Identifier '{}' is too short ({} chars, min: {}).", text, text.len(), self.min_length),
+                    message: format!(
+                        "Identifier '{}' is too short ({} chars, min: {}).",
+                        text,
+                        text.len(),
+                        self.min_length
+                    ),
                     severity: self.default_severity(),
                     file: file.to_path_buf(),
                     line: node_start_line(node),
@@ -97,7 +122,12 @@ impl Rule for PreferCorrectIdentifierLength {
             } else if text.len() > self.max_length {
                 issues.push(Issue {
                     rule: self.name().to_string(),
-                    message: format!("Identifier '{}' is too long ({} chars, max: {}).", text, text.len(), self.max_length),
+                    message: format!(
+                        "Identifier '{}' is too long ({} chars, max: {}).",
+                        text,
+                        text.len(),
+                        self.max_length
+                    ),
                     severity: self.default_severity(),
                     file: file.to_path_buf(),
                     line: node_start_line(node),

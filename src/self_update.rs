@@ -193,7 +193,14 @@ fn download_binary(url: &str, dest: &PathBuf) -> Result<()> {
 
     let gh_success = if let Some(api_path) = url.strip_prefix("https://api.github.com/") {
         std::process::Command::new("gh")
-            .args(["api", api_path, "--method", "GET", "-H", "Accept: application/octet-stream"])
+            .args([
+                "api",
+                api_path,
+                "--method",
+                "GET",
+                "-H",
+                "Accept: application/octet-stream",
+            ])
             .stdout(std::fs::File::create(dest).context("Cannot create temp file")?)
             .status()
             .map(|s| s.success())
@@ -276,9 +283,7 @@ pub fn run_update(target_version: Option<&str>) -> Result<()> {
             Ok(r) => r,
             Err(_) => {
                 println!();
-                println!(
-                    "  📭 No releases published yet on GitHub."
-                );
+                println!("  📭 No releases published yet on GitHub.");
                 println!(
                     "     Build from source: {}",
                     "cargo install --git https://github.com/viveky259259/falcon".dimmed()
@@ -323,10 +328,7 @@ pub fn run_update(target_version: Option<&str>) -> Result<()> {
     }
 
     let asset_name = platform_asset_name();
-    let matching_asset = release
-        .assets
-        .iter()
-        .find(|a| a.name.contains(&asset_name));
+    let matching_asset = release.assets.iter().find(|a| a.name.contains(&asset_name));
 
     match matching_asset {
         Some(asset) => {
@@ -343,14 +345,16 @@ pub fn run_update(target_version: Option<&str>) -> Result<()> {
             download_binary(&asset.download_url, &tmp_path)?;
 
             if exe_path.exists() {
-                fs::rename(&exe_path, &backup_path)
-                    .context("Failed to backup current binary")?;
+                fs::rename(&exe_path, &backup_path).context("Failed to backup current binary")?;
             }
 
             match fs::rename(&tmp_path, &exe_path) {
                 Ok(_) => {
                     let _ = fs::remove_file(&backup_path);
-                    println!("  ✅ Updated to {}", format!("v{}", target_ver).green().bold());
+                    println!(
+                        "  ✅ Updated to {}",
+                        format!("v{}", target_ver).green().bold()
+                    );
                 }
                 Err(e) => {
                     if backup_path.exists() {
@@ -406,11 +410,7 @@ pub fn print_version_info() {
         "  📌 Version:  {}",
         format!("v{}", CURRENT_VERSION).bright_cyan()
     );
-    println!(
-        "  🖥  Platform: {}-{}",
-        env::consts::OS,
-        env::consts::ARCH
-    );
+    println!("  🖥  Platform: {}-{}", env::consts::OS, env::consts::ARCH);
     println!(
         "  📦 Binary:   {}",
         current_exe_path()
@@ -453,7 +453,12 @@ pub fn print_available_versions() -> Result<()> {
             } else {
                 format!("v{}", ver).to_string()
             };
-            println!("  {:<4} {}{}", format!("#{}", i + 1).dimmed(), ver_display, marker);
+            println!(
+                "  {:<4} {}{}",
+                format!("#{}", i + 1).dimmed(),
+                ver_display,
+                marker
+            );
         }
     }
 
@@ -465,14 +470,12 @@ fn print_build_from_source_options() {
     println!("  🔧 {} Install from source:", "Alternative:".dimmed());
     println!(
         "     {}",
-        "cargo install --git https://github.com/viveky259259/falcon"
-            .bright_blue()
+        "cargo install --git https://github.com/viveky259259/falcon".bright_blue()
     );
     println!("     {} Install specific version:", "or".dimmed());
     println!(
         "     {}",
-        "cargo install --git https://github.com/viveky259259/falcon --tag v0.2.0"
-            .bright_blue()
+        "cargo install --git https://github.com/viveky259259/falcon --tag v0.2.0".bright_blue()
     );
 }
 

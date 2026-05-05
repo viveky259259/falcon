@@ -65,7 +65,12 @@ pub fn threshold_level_f64(value: f64, noted: f64, warning: f64, alarm: f64) -> 
 }
 
 /// For inverted metrics where lower is worse (e.g. maintainability index)
-pub fn threshold_level_inverted(value: f64, alarm: f64, warning: f64, noted: f64) -> ThresholdLevel {
+pub fn threshold_level_inverted(
+    value: f64,
+    alarm: f64,
+    warning: f64,
+    noted: f64,
+) -> ThresholdLevel {
     if value <= alarm {
         ThresholdLevel::Alarm
     } else if value <= warning {
@@ -125,11 +130,7 @@ impl MetricsResults {
     }
 }
 
-pub fn calculate_file_metrics(
-    root: Node,
-    source: &str,
-    config: &MetricsConfig,
-) -> MetricsResults {
+pub fn calculate_file_metrics(root: Node, source: &str, config: &MetricsConfig) -> MetricsResults {
     let (loc, sloc) = lines::count_lines(source);
 
     let functions = collect_function_metrics(root, source, config);
@@ -164,9 +165,7 @@ fn collect_function_metrics(
         let line = crate::parser::node_start_line(node);
 
         let body = crate::parser::dart_ast::get_function_body(node);
-        let cc = body
-            .map(|b| cyclomatic::calculate(b, source))
-            .unwrap_or(1);
+        let cc = body.map(|b| cyclomatic::calculate(b, source)).unwrap_or(1);
 
         let (func_loc, func_sloc) = if let Some(parent) = node.parent() {
             let text = &source[parent.byte_range()];
@@ -178,19 +177,19 @@ fn collect_function_metrics(
         let max_nesting = body.map(|b| nesting::calculate(b)).unwrap_or(0);
         let num_params = parameters::count(node);
 
-        let halstead = body
-            .map(|b| halstead::calculate(b, source))
-            .unwrap_or(halstead::HalsteadMetrics {
-                unique_operators: 0,
-                unique_operands: 0,
-                total_operators: 0,
-                total_operands: 0,
-                vocabulary: 0,
-                length: 0,
-                volume: 0.0,
-                difficulty: 0.0,
-                effort: 0.0,
-            });
+        let halstead =
+            body.map(|b| halstead::calculate(b, source))
+                .unwrap_or(halstead::HalsteadMetrics {
+                    unique_operators: 0,
+                    unique_operands: 0,
+                    total_operators: 0,
+                    total_operands: 0,
+                    vocabulary: 0,
+                    length: 0,
+                    volume: 0.0,
+                    difficulty: 0.0,
+                    effort: 0.0,
+                });
 
         let mi = maintainability::calculate(cc, func_sloc, halstead.volume);
 
@@ -220,14 +219,9 @@ fn collect_function_metrics(
     results
 }
 
-fn collect_class_metrics(
-    root: Node,
-    source: &str,
-    _config: &MetricsConfig,
-) -> Vec<ClassMetrics> {
+fn collect_class_metrics(root: Node, source: &str, _config: &MetricsConfig) -> Vec<ClassMetrics> {
     let mut results = Vec::new();
-    let class_nodes =
-        crate::parser::find_descendants_by_kind(root, "class_declaration");
+    let class_nodes = crate::parser::find_descendants_by_kind(root, "class_declaration");
 
     for node in class_nodes {
         let name = crate::parser::dart_ast::get_declaration_name(node, source)

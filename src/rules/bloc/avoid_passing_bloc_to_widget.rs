@@ -28,8 +28,8 @@ impl Rule for AvoidPassingBlocToWidget {
         let classes = find_descendants_by_kind(root, "class_declaration");
         for class in classes {
             let class_text = &source[class.byte_range()];
-            let is_widget = class_text.contains("StatelessWidget")
-                || class_text.contains("StatefulWidget");
+            let is_widget =
+                class_text.contains("StatelessWidget") || class_text.contains("StatefulWidget");
 
             if !is_widget {
                 continue;
@@ -38,8 +38,10 @@ impl Rule for AvoidPassingBlocToWidget {
             walk_tree(class, &mut |node| {
                 if node.kind() == "formal_parameter" {
                     let text = &source[node.byte_range()];
-                    if text.contains("Bloc ") || text.contains("Bloc?")
-                        || text.contains("Cubit ") || text.contains("Cubit?")
+                    if text.contains("Bloc ")
+                        || text.contains("Bloc?")
+                        || text.contains("Cubit ")
+                        || text.contains("Cubit?")
                     {
                         issues.push(Issue {
                             rule: self.name().to_string(),

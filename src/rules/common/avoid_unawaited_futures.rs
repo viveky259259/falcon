@@ -78,9 +78,25 @@ fn is_likely_future_call(text: &str) -> bool {
     }
 
     let async_method_prefixes = [
-        "fetch", "load", "save", "send", "post", "get", "put", "delete",
-        "upload", "download", "submit", "request", "init", "connect",
-        "disconnect", "authenticate", "signIn", "signOut", "navigate",
+        "fetch",
+        "load",
+        "save",
+        "send",
+        "post",
+        "get",
+        "put",
+        "delete",
+        "upload",
+        "download",
+        "submit",
+        "request",
+        "init",
+        "connect",
+        "disconnect",
+        "authenticate",
+        "signIn",
+        "signOut",
+        "navigate",
     ];
 
     let call_name = trimmed.split('(').next().unwrap_or("");

@@ -110,7 +110,12 @@ pub fn print_stability_contract(contract: &StabilityContract) {
         "⏳".bright_white(),
         contract.deprecation_policy.notice_period_months
     );
-    for (i, stage) in contract.deprecation_policy.deprecation_stages.iter().enumerate() {
+    for (i, stage) in contract
+        .deprecation_policy
+        .deprecation_stages
+        .iter()
+        .enumerate()
+    {
         println!("    {}. {}", i + 1, stage);
     }
 
@@ -118,15 +123,27 @@ pub fn print_stability_contract(contract: &StabilityContract) {
     println!("  {} Migration Policy:", "🔄".bright_white());
     println!(
         "    Auto-migration:          {}",
-        if contract.migration_policy.auto_migration { "Yes".green() } else { "No".red() }
+        if contract.migration_policy.auto_migration {
+            "Yes".green()
+        } else {
+            "No".red()
+        }
     );
     println!(
         "    Migration guides:        {}",
-        if contract.migration_policy.migration_guides { "Yes".green() } else { "No".red() }
+        if contract.migration_policy.migration_guides {
+            "Yes".green()
+        } else {
+            "No".red()
+        }
     );
     println!(
         "    Backwards-compatible:    {}",
-        if contract.migration_policy.backwards_compatible_configs { "Yes".green() } else { "No".red() }
+        if contract.migration_policy.backwards_compatible_configs {
+            "Yes".green()
+        } else {
+            "No".red()
+        }
     );
     println!();
 }

@@ -72,12 +72,14 @@ fn score_single_issue(
 
     if dynamic_files.contains(&file_str) {
         confidence -= 15;
-        reducers.push("File uses dynamic types — references may not be statically visible".to_string());
+        reducers
+            .push("File uses dynamic types — references may not be statically visible".to_string());
     }
 
     if export_files.contains(file_name) {
         confidence -= 10;
-        reducers.push("File is re-exported from a barrel file — may be used externally".to_string());
+        reducers
+            .push("File is re-exported from a barrel file — may be used externally".to_string());
     }
 
     if issue.message.contains("appears to be unused") {
@@ -94,7 +96,10 @@ fn score_single_issue(
         }
     }
 
-    if file_str.contains("/generated/") || file_str.contains(".g.dart") || file_str.contains(".freezed.dart") {
+    if file_str.contains("/generated/")
+        || file_str.contains(".g.dart")
+        || file_str.contains(".freezed.dart")
+    {
         confidence -= 30;
         reducers.push("Generated file — code generation tools may use this".to_string());
     }
@@ -119,10 +124,7 @@ fn score_single_issue(
     let reason = if reducers.is_empty() {
         "No dynamic patterns detected — high confidence this code is unused.".to_string()
     } else {
-        format!(
-            "{} factor(s) reduce confidence.",
-            reducers.len()
-        )
+        format!("{} factor(s) reduce confidence.", reducers.len())
     };
 
     ConfidenceResult {

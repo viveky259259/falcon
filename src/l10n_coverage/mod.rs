@@ -65,7 +65,7 @@ impl L10nSeverity {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct L10nIssue {
     pub severity: L10nSeverity,
-    pub category: &'static str, // "Missing", "Extra", "Unused", "Placeholder", "Empty"
+    pub category: String, // "Missing", "Extra", "Unused", "Placeholder", "Empty"
     pub locale: String,
     pub key: String,
     pub detail: String,
@@ -177,11 +177,19 @@ fn extract_placeholders(text: &str) -> Vec<String> {
 
     while let Some(&ch) = chars.peek() {
         if ch == '{' {
-            chars.next();
+            chars.next(); // consume first '{'
+                          // Handle double-brace syntax: {{name}} is treated as placeholder "name"
+            let double_brace = chars.peek() == Some(&'{');
+            if double_brace {
+                chars.next(); // consume second '{'
+            }
             let mut placeholder = String::new();
             while let Some(&c) = chars.peek() {
                 if c == '}' {
-                    chars.next();
+                    chars.next(); // consume first '}'
+                    if double_brace && chars.peek() == Some(&'}') {
+                        chars.next(); // consume second '}'
+                    }
                     if !placeholder.is_empty() {
                         placeholders.push(placeholder);
                     }
@@ -238,7 +246,7 @@ fn find_used_keys(dart_files: &[PathBuf]) -> Result<HashSet<String>> {
         };
 
         // Simple pattern matching without regex for basic extraction
-        for pattern in &patterns {
+        for _pattern in &patterns {
             find_keys_in_content(&content, &mut used_keys);
         }
     }
@@ -253,7 +261,9 @@ fn find_keys_in_content(content: &str, used_keys: &mut HashSet<String>) {
 
     for i in 0..len {
         // Look for patterns like ".keyName" or ".l10n.keyName"
-        if (i == 0 || chars[i - 1] == '.' || chars[i - 1] == '?' || chars[i - 1] == ')') && chars[i] == '.' {
+        if (i == 0 || chars[i - 1] == '.' || chars[i - 1] == '?' || chars[i - 1] == ')')
+            && chars[i] == '.'
+        {
             if i + 1 < len && (chars[i + 1].is_alphabetic() || chars[i + 1] == '_') {
                 let mut key = String::new();
                 let mut j = i + 1;
@@ -362,7 +372,9 @@ pub fn analyze_l10n_coverage(path: &Path) -> Result<L10nCoverageReport> {
 
                 // Check if placeholders don't match
                 if template_placeholders.len() != locale_placeholders.len()
-                    || !template_placeholders.iter().all(|p| locale_placeholders.contains(p))
+                    || !template_placeholders
+                        .iter()
+                        .all(|p| locale_placeholders.contains(p))
                 {
                     placeholder_mismatches.push(key.clone());
                 }
@@ -381,10 +393,13 @@ pub fn analyze_l10n_coverage(path: &Path) -> Result<L10nCoverageReport> {
         for key in &missing_keys {
             all_issues.push(L10nIssue {
                 severity: L10nSeverity::Error,
-                category: "Missing",
+                category: "Missing".to_string(),
                 locale: arb.locale.clone(),
                 key: key.clone(),
-                detail: format!("Key '{}' is defined in template but missing in {}", key, arb.locale),
+                detail: format!(
+                    "Key '{}' is defined in template but missing in {}",
+                    key, arb.locale
+                ),
                 suggestion: format!("Add translation for '{}' in {}", key, arb.locale),
             });
         }
@@ -392,7 +407,7 @@ pub fn analyze_l10n_coverage(path: &Path) -> Result<L10nCoverageReport> {
         for key in &extra_keys {
             all_issues.push(L10nIssue {
                 severity: L10nSeverity::Warning,
-                category: "Extra",
+                category: "Extra".to_string(),
                 locale: arb.locale.clone(),
                 key: key.clone(),
                 detail: format!("Key '{}' exists in {} but not in template", key, arb.locale),
@@ -403,7 +418,7 @@ pub fn analyze_l10n_coverage(path: &Path) -> Result<L10nCoverageReport> {
         for key in &empty_values {
             all_issues.push(L10nIssue {
                 severity: L10nSeverity::Warning,
-                category: "Empty",
+                category: "Empty".to_string(),
                 locale: arb.locale.clone(),
                 key: key.clone(),
                 detail: format!("Key '{}' has an empty translation in {}", key, arb.locale),
@@ -414,7 +429,7 @@ pub fn analyze_l10n_coverage(path: &Path) -> Result<L10nCoverageReport> {
         for key in &placeholder_mismatches {
             all_issues.push(L10nIssue {
                 severity: L10nSeverity::Error,
-                category: "Placeholder",
+                category: "Placeholder".to_string(),
                 locale: arb.locale.clone(),
                 key: key.clone(),
                 detail: format!(
@@ -444,7 +459,7 @@ pub fn analyze_l10n_coverage(path: &Path) -> Result<L10nCoverageReport> {
     for key in &unused_keys {
         all_issues.push(L10nIssue {
             severity: L10nSeverity::Info,
-            category: "Unused",
+            category: "Unused".to_string(),
             locale: template_locale.clone(),
             key: key.clone(),
             detail: format!("Key '{}' is defined but never used in code", key),
@@ -500,8 +515,7 @@ pub fn print_l10n_report(report: &L10nCoverageReport) {
         "{}",
         format!(
             "Overall Coverage: {:.1}% | Score: {}/100",
-            report.overall_coverage_pct,
-            report.score
+            report.overall_coverage_pct, report.score
         )
         .bright_white()
     );
@@ -533,7 +547,10 @@ pub fn print_l10n_report(report: &L10nCoverageReport) {
         print!("{:<12}", locale.locale.cyan());
         print!("{:>10}", locale.total_keys.to_string().white());
         print!("{:>10}", locale.missing_keys.len().to_string().bright_red());
-        print!("{:>10}", locale.extra_keys.len().to_string().bright_yellow());
+        print!(
+            "{:>10}",
+            locale.extra_keys.len().to_string().bright_yellow()
+        );
         print!("{:>10}", coverage_color);
         println!();
     }
@@ -560,14 +577,14 @@ pub fn print_l10n_report(report: &L10nCoverageReport) {
         if errors > 0 {
             println!(
                 "  {} {}",
-                issue.severity.symbol().bright_red(),
+                L10nSeverity::Error.symbol().bright_red(),
                 format!("{} errors", errors).bright_red()
             );
         }
         if warnings > 0 {
             println!(
                 "  {} {}",
-                issue.severity.symbol().bright_yellow(),
+                L10nSeverity::Warning.symbol().bright_yellow(),
                 format!("{} warnings", warnings).bright_yellow()
             );
         }
@@ -589,7 +606,10 @@ pub fn print_l10n_report(report: &L10nCoverageReport) {
         // Group by category
         let mut by_category: HashMap<&str, Vec<_>> = HashMap::new();
         for issue in &report.issues {
-            by_category.entry(issue.category).or_insert_with(Vec::new).push(issue);
+            by_category
+                .entry(issue.category.as_str())
+                .or_insert_with(Vec::new)
+                .push(issue);
         }
 
         for (category, issues) in by_category {
@@ -627,7 +647,11 @@ pub fn print_l10n_report(report: &L10nCoverageReport) {
             println!("  {} {}", "◦".cyan(), key.yellow());
         }
         if report.unused_keys.len() > 5 {
-            println!("  {} ... and {} more", "...".dimmed(), report.unused_keys.len() - 5);
+            println!(
+                "  {} ... and {} more",
+                "...".dimmed(),
+                report.unused_keys.len() - 5
+            );
         }
         println!();
     }
@@ -892,7 +916,7 @@ fn generate_html_report(report: &L10nCoverageReport) -> String {
 
         html.push_str(&format!(
             r#"                        <tr>
-                            <td><strong>{}</strong></td>
+                            <td><strong>{}</strong><br><small>{}</small></td>
                             <td>{}</td>
                             <td><span class="badge badge-error">{}</span></td>
                             <td><span class="badge badge-warning">{}</span></td>
@@ -906,6 +930,7 @@ fn generate_html_report(report: &L10nCoverageReport) -> String {
                         </tr>
 "#,
             locale.locale,
+            locale.file.display(),
             locale.total_keys,
             locale.missing_keys.len(),
             locale.extra_keys.len(),
@@ -933,7 +958,10 @@ fn generate_html_report(report: &L10nCoverageReport) -> String {
 
         let mut by_category: HashMap<&str, Vec<_>> = HashMap::new();
         for issue in &report.issues {
-            by_category.entry(issue.category).or_insert_with(Vec::new).push(issue);
+            by_category
+                .entry(issue.category.as_str())
+                .or_insert_with(Vec::new)
+                .push(issue);
         }
 
         for (category, issues) in by_category {
@@ -1138,7 +1166,7 @@ mod tests {
         for _ in 0..5 {
             report.issues.push(L10nIssue {
                 severity: L10nSeverity::Error,
-                category: "Missing",
+                category: "Missing".to_string(),
                 locale: "fr".to_string(),
                 key: "test".to_string(),
                 detail: "test".to_string(),

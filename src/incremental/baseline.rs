@@ -56,9 +56,7 @@ impl Baseline {
     pub fn load(root: &Path) -> anyhow::Result<Self> {
         let path = root.join(BASELINE_FILE);
         if !path.exists() {
-            anyhow::bail!(
-                "No baseline file found. Run `falcon baseline create` first."
-            );
+            anyhow::bail!("No baseline file found. Run `falcon baseline create` first.");
         }
         let contents = std::fs::read_to_string(&path)?;
         let baseline: Baseline = serde_json::from_str(&contents)?;

@@ -3,7 +3,11 @@
 #[test]
 fn test_mcp_tool_list() {
     let tools = falcon::mcp::tools::list_tools();
-    assert!(tools.len() >= 7, "Should have at least 7 MCP tools, got {}", tools.len());
+    assert!(
+        tools.len() >= 7,
+        "Should have at least 7 MCP tools, got {}",
+        tools.len()
+    );
 
     let names: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
     assert!(names.contains(&"falcon_analyze"));
@@ -20,8 +24,14 @@ fn test_mcp_tool_schemas_valid() {
     let tools = falcon::mcp::tools::list_tools();
     for tool in &tools {
         assert!(!tool.name.is_empty(), "Tool name should not be empty");
-        assert!(!tool.description.is_empty(), "Tool description should not be empty");
-        assert!(tool.input_schema.is_object(), "Input schema should be an object");
+        assert!(
+            !tool.description.is_empty(),
+            "Tool description should not be empty"
+        );
+        assert!(
+            tool.input_schema.is_object(),
+            "Input schema should be an object"
+        );
         assert!(
             tool.input_schema.get("properties").is_some(),
             "Input schema for {} should have properties",
@@ -63,7 +73,10 @@ fn test_mcp_check_file_with_source() {
 fn test_mcp_explain_rule() {
     let args = serde_json::json!({ "rule": "avoid-long-functions" });
     let result = falcon::mcp::tools::execute_tool("falcon_explain_rule", &args);
-    assert!(result.is_ok(), "explain_rule should succeed for known rules");
+    assert!(
+        result.is_ok(),
+        "explain_rule should succeed for known rules"
+    );
 
     let val = result.unwrap();
     assert!(val.get("rule").is_some());
@@ -128,7 +141,11 @@ fn test_drift_clean_arch_no_drift() {
     std::fs::create_dir_all(lib.join("presentation/pages")).unwrap();
 
     std::fs::write(lib.join("domain/entities/user.dart"), "class User {}\n").unwrap();
-    std::fs::write(lib.join("data/repositories/repo.dart"), "class UserRepo {}\n").unwrap();
+    std::fs::write(
+        lib.join("data/repositories/repo.dart"),
+        "class UserRepo {}\n",
+    )
+    .unwrap();
 
     let report = falcon::ai_score::drift::detect_drift(tmp.path(), None).unwrap();
     assert!(report.drift_score > 0.0);
@@ -230,7 +247,10 @@ fn test_self_tune_recommendations_disable() {
 
     let recs = falcon::ai_score::self_tune::generate_recommendations(&history);
     assert!(!recs.is_empty());
-    assert_eq!(recs[0].action, falcon::ai_score::self_tune::TuneAction::Disable);
+    assert_eq!(
+        recs[0].action,
+        falcon::ai_score::self_tune::TuneAction::Disable
+    );
 }
 
 #[test]
@@ -250,7 +270,10 @@ fn test_self_tune_recommendations_upgrade() {
 
     let recs = falcon::ai_score::self_tune::generate_recommendations(&history);
     assert!(!recs.is_empty());
-    assert_eq!(recs[0].action, falcon::ai_score::self_tune::TuneAction::Upgrade);
+    assert_eq!(
+        recs[0].action,
+        falcon::ai_score::self_tune::TuneAction::Upgrade
+    );
 }
 
 #[test]
@@ -273,20 +296,22 @@ fn test_score_trends_empty() {
 fn test_score_trends_save_and_load() {
     let tmp = tempfile::tempdir().unwrap();
     let mut history = falcon::ai_score::score_trends::ScoreHistory::default();
-    history.snapshots.push(falcon::ai_score::score_trends::ScoreSnapshot {
-        timestamp: "2026-03-18T10:00:00".to_string(),
-        overall: 75,
-        resource_safety: 80,
-        error_handling: 60,
-        type_safety: 90,
-        security: 100,
-        convention_match: 70,
-        complexity: 65,
-        file_count: 50,
-        total_issues: 120,
-        grade: "C".to_string(),
-        git_commit: Some("abc1234".to_string()),
-    });
+    history
+        .snapshots
+        .push(falcon::ai_score::score_trends::ScoreSnapshot {
+            timestamp: "2026-03-18T10:00:00".to_string(),
+            overall: 75,
+            resource_safety: 80,
+            error_handling: 60,
+            type_safety: 90,
+            security: 100,
+            convention_match: 70,
+            complexity: 65,
+            file_count: 50,
+            total_issues: 120,
+            grade: "C".to_string(),
+            git_commit: Some("abc1234".to_string()),
+        });
 
     falcon::ai_score::score_trends::save_score_history(tmp.path(), &history).unwrap();
     let loaded = falcon::ai_score::score_trends::load_score_history(tmp.path()).unwrap();
@@ -334,19 +359,21 @@ fn test_score_trends_compare() {
 #[test]
 fn test_score_trends_print_no_panic() {
     let mut history = falcon::ai_score::score_trends::ScoreHistory::default();
-    history.snapshots.push(falcon::ai_score::score_trends::ScoreSnapshot {
-        timestamp: "2026-03-18T10:00:00".to_string(),
-        overall: 75,
-        resource_safety: 80,
-        error_handling: 60,
-        type_safety: 90,
-        security: 100,
-        convention_match: 70,
-        complexity: 65,
-        file_count: 50,
-        total_issues: 120,
-        grade: "C".to_string(),
-        git_commit: Some("abc1234".to_string()),
-    });
+    history
+        .snapshots
+        .push(falcon::ai_score::score_trends::ScoreSnapshot {
+            timestamp: "2026-03-18T10:00:00".to_string(),
+            overall: 75,
+            resource_safety: 80,
+            error_handling: 60,
+            type_safety: 90,
+            security: 100,
+            convention_match: 70,
+            complexity: 65,
+            file_count: 50,
+            total_issues: 120,
+            grade: "C".to_string(),
+            git_commit: Some("abc1234".to_string()),
+        });
     falcon::ai_score::score_trends::print_score_history(&history, 10);
 }

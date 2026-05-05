@@ -1,8 +1,8 @@
 //! Flutter Upgrade Compatibility Checker — detect deprecated APIs
 //! and patterns that may break in future Flutter versions.
 
-use crate::reporters::Issue;
 use crate::config::Severity;
+use crate::reporters::Issue;
 use colored::Colorize;
 use std::path::Path;
 
@@ -17,26 +17,146 @@ pub struct CompatFinding {
 
 /// Known deprecated Flutter/Dart APIs with version info.
 const DEPRECATED_APIS: &[(&str, &str, Option<&str>, &str, &str)] = &[
-    ("FlatButton(", "Flutter 1.22", Some("Flutter 2.0"), "Replace with TextButton", "FlatButton is removed — use TextButton with TextButton.styleFrom()"),
-    ("RaisedButton(", "Flutter 1.22", Some("Flutter 2.0"), "Replace with ElevatedButton", "RaisedButton is removed — use ElevatedButton"),
-    ("OutlineButton(", "Flutter 1.22", Some("Flutter 2.0"), "Replace with OutlinedButton", "OutlineButton is removed — use OutlinedButton"),
-    ("accentColor", "Flutter 2.0", Some("Flutter 3.0"), "Use colorScheme.secondary", "ThemeData.accentColor is removed — use Theme.of(context).colorScheme.secondary"),
-    ("bodyText1", "Flutter 3.0", Some("Flutter 4.0"), "Use bodyLarge", "TextTheme.bodyText1 → bodyLarge"),
-    ("bodyText2", "Flutter 3.0", Some("Flutter 4.0"), "Use bodyMedium", "TextTheme.bodyText2 → bodyMedium"),
-    ("headline1", "Flutter 3.0", Some("Flutter 4.0"), "Use displayLarge", "TextTheme.headline1 → displayLarge"),
-    ("headline2", "Flutter 3.0", Some("Flutter 4.0"), "Use displayMedium", "TextTheme.headline2 → displayMedium"),
-    ("headline3", "Flutter 3.0", Some("Flutter 4.0"), "Use displaySmall", "TextTheme.headline3 → displaySmall"),
-    ("headline4", "Flutter 3.0", Some("Flutter 4.0"), "Use headlineMedium", "TextTheme.headline4 → headlineMedium"),
-    ("headline5", "Flutter 3.0", Some("Flutter 4.0"), "Use headlineSmall", "TextTheme.headline5 → headlineSmall"),
-    ("headline6", "Flutter 3.0", Some("Flutter 4.0"), "Use titleLarge", "TextTheme.headline6 → titleLarge"),
-    ("subtitle1", "Flutter 3.0", Some("Flutter 4.0"), "Use titleMedium", "TextTheme.subtitle1 → titleMedium"),
-    ("subtitle2", "Flutter 3.0", Some("Flutter 4.0"), "Use titleSmall", "TextTheme.subtitle2 → titleSmall"),
-    ("caption", "Flutter 3.0", Some("Flutter 4.0"), "Use bodySmall", "TextTheme.caption → bodySmall"),
-    ("overline", "Flutter 3.0", Some("Flutter 4.0"), "Use labelSmall", "TextTheme.overline → labelSmall"),
-    ("button", "Flutter 3.0", Some("Flutter 4.0"), "Use labelLarge", "TextTheme.button → labelLarge"),
-    (".brightnessOf(", "Flutter 3.0", None, "Use MediaQuery.platformBrightnessOf", "ThemeData.brightnessOf is deprecated"),
-    ("WillPopScope(", "Flutter 3.12", None, "Use PopScope", "WillPopScope is deprecated — use PopScope with canPop and onPopInvokedWithResult"),
-    ("MaterialApp.router(", "Never", None, "Valid API — no migration needed", ""),
+    (
+        "FlatButton(",
+        "Flutter 1.22",
+        Some("Flutter 2.0"),
+        "Replace with TextButton",
+        "FlatButton is removed — use TextButton with TextButton.styleFrom()",
+    ),
+    (
+        "RaisedButton(",
+        "Flutter 1.22",
+        Some("Flutter 2.0"),
+        "Replace with ElevatedButton",
+        "RaisedButton is removed — use ElevatedButton",
+    ),
+    (
+        "OutlineButton(",
+        "Flutter 1.22",
+        Some("Flutter 2.0"),
+        "Replace with OutlinedButton",
+        "OutlineButton is removed — use OutlinedButton",
+    ),
+    (
+        "accentColor",
+        "Flutter 2.0",
+        Some("Flutter 3.0"),
+        "Use colorScheme.secondary",
+        "ThemeData.accentColor is removed — use Theme.of(context).colorScheme.secondary",
+    ),
+    (
+        "bodyText1",
+        "Flutter 3.0",
+        Some("Flutter 4.0"),
+        "Use bodyLarge",
+        "TextTheme.bodyText1 → bodyLarge",
+    ),
+    (
+        "bodyText2",
+        "Flutter 3.0",
+        Some("Flutter 4.0"),
+        "Use bodyMedium",
+        "TextTheme.bodyText2 → bodyMedium",
+    ),
+    (
+        "headline1",
+        "Flutter 3.0",
+        Some("Flutter 4.0"),
+        "Use displayLarge",
+        "TextTheme.headline1 → displayLarge",
+    ),
+    (
+        "headline2",
+        "Flutter 3.0",
+        Some("Flutter 4.0"),
+        "Use displayMedium",
+        "TextTheme.headline2 → displayMedium",
+    ),
+    (
+        "headline3",
+        "Flutter 3.0",
+        Some("Flutter 4.0"),
+        "Use displaySmall",
+        "TextTheme.headline3 → displaySmall",
+    ),
+    (
+        "headline4",
+        "Flutter 3.0",
+        Some("Flutter 4.0"),
+        "Use headlineMedium",
+        "TextTheme.headline4 → headlineMedium",
+    ),
+    (
+        "headline5",
+        "Flutter 3.0",
+        Some("Flutter 4.0"),
+        "Use headlineSmall",
+        "TextTheme.headline5 → headlineSmall",
+    ),
+    (
+        "headline6",
+        "Flutter 3.0",
+        Some("Flutter 4.0"),
+        "Use titleLarge",
+        "TextTheme.headline6 → titleLarge",
+    ),
+    (
+        "subtitle1",
+        "Flutter 3.0",
+        Some("Flutter 4.0"),
+        "Use titleMedium",
+        "TextTheme.subtitle1 → titleMedium",
+    ),
+    (
+        "subtitle2",
+        "Flutter 3.0",
+        Some("Flutter 4.0"),
+        "Use titleSmall",
+        "TextTheme.subtitle2 → titleSmall",
+    ),
+    (
+        "caption",
+        "Flutter 3.0",
+        Some("Flutter 4.0"),
+        "Use bodySmall",
+        "TextTheme.caption → bodySmall",
+    ),
+    (
+        "overline",
+        "Flutter 3.0",
+        Some("Flutter 4.0"),
+        "Use labelSmall",
+        "TextTheme.overline → labelSmall",
+    ),
+    (
+        "button",
+        "Flutter 3.0",
+        Some("Flutter 4.0"),
+        "Use labelLarge",
+        "TextTheme.button → labelLarge",
+    ),
+    (
+        ".brightnessOf(",
+        "Flutter 3.0",
+        None,
+        "Use MediaQuery.platformBrightnessOf",
+        "ThemeData.brightnessOf is deprecated",
+    ),
+    (
+        "WillPopScope(",
+        "Flutter 3.12",
+        None,
+        "Use PopScope",
+        "WillPopScope is deprecated — use PopScope with canPop and onPopInvokedWithResult",
+    ),
+    (
+        "MaterialApp.router(",
+        "Never",
+        None,
+        "Valid API — no migration needed",
+        "",
+    ),
     ("showSnackBar(", "Never", None, "", ""),
 ];
 
@@ -73,7 +193,9 @@ fn check_file_compat(file: &Path, source: &str, findings: &mut Vec<CompatFinding
         }
 
         for &(pattern, deprecated_in, removed_in, migration, message) in DEPRECATED_APIS {
-            if message.is_empty() { continue; }
+            if message.is_empty() {
+                continue;
+            }
             if trimmed.contains(pattern) {
                 let severity = if removed_in.is_some() {
                     Severity::Error
@@ -118,7 +240,8 @@ pub fn print_compat_report(findings: &[CompatFinding]) {
     }
 
     let removed: Vec<&CompatFinding> = findings.iter().filter(|f| f.removed_in.is_some()).collect();
-    let deprecated: Vec<&CompatFinding> = findings.iter().filter(|f| f.removed_in.is_none()).collect();
+    let deprecated: Vec<&CompatFinding> =
+        findings.iter().filter(|f| f.removed_in.is_none()).collect();
 
     if !removed.is_empty() {
         println!(
@@ -127,7 +250,12 @@ pub fn print_compat_report(findings: &[CompatFinding]) {
             removed.len()
         );
         for f in removed.iter().take(15) {
-            let rel = f.issue.file.file_name().and_then(|n| n.to_str()).unwrap_or("?");
+            let rel = f
+                .issue
+                .file
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("?");
             println!(
                 "    {} {}:{} {}",
                 "✗".red(),
@@ -155,7 +283,12 @@ pub fn print_compat_report(findings: &[CompatFinding]) {
             deprecated.len()
         );
         for f in deprecated.iter().take(10) {
-            let rel = f.issue.file.file_name().and_then(|n| n.to_str()).unwrap_or("?");
+            let rel = f
+                .issue
+                .file
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("?");
             println!(
                 "    {} {}:{} {}",
                 "⚠".yellow(),
@@ -163,11 +296,7 @@ pub fn print_compat_report(findings: &[CompatFinding]) {
                 f.issue.line,
                 f.issue.message
             );
-            println!(
-                "      {} {}",
-                "→".green(),
-                f.migration.bright_white()
-            );
+            println!("      {} {}", "→".green(), f.migration.bright_white());
         }
         if deprecated.len() > 10 {
             println!("    ... and {} more", deprecated.len() - 10);
@@ -175,7 +304,8 @@ pub fn print_compat_report(findings: &[CompatFinding]) {
         println!();
     }
 
-    println!("  Total: {} issues ({} removed, {} deprecated)",
+    println!(
+        "  Total: {} issues ({} removed, {} deprecated)",
         findings.len(),
         removed.len(),
         deprecated.len()

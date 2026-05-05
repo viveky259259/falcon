@@ -29,15 +29,17 @@ impl Rule for AvoidExpandedAsSpacer {
                 if text == "Expanded" {
                     if let Some(parent) = node.parent() {
                         let parent_text = &source[parent.byte_range()];
-                        if (parent_text.contains("Container()") || parent_text.contains("SizedBox()"))
+                        if (parent_text.contains("Container()")
+                            || parent_text.contains("SizedBox()"))
                             && !parent_text.contains("width:")
                             && !parent_text.contains("height:")
                             && !parent_text.contains("child:")
                         {
                             issues.push(Issue {
                                 rule: self.name().to_string(),
-                                message: "Use 'Spacer()' instead of 'Expanded' with an empty child."
-                                    .to_string(),
+                                message:
+                                    "Use 'Spacer()' instead of 'Expanded' with an empty child."
+                                        .to_string(),
                                 severity: self.default_severity(),
                                 file: file.to_path_buf(),
                                 line: node_start_line(node),

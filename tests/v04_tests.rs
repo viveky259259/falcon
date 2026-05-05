@@ -1,12 +1,12 @@
+use falcon::config::Severity;
 use falcon::incremental::baseline::Baseline;
 use falcon::incremental::cache::AnalysisCache;
 use falcon::incremental::dep_graph::DependencyGraph;
-use falcon::reporters::sarif::SarifReporter;
 use falcon::reporters::checkstyle::CheckstyleReporter;
 use falcon::reporters::codeclimate::CodeClimateReporter;
+use falcon::reporters::sarif::SarifReporter;
 use falcon::reporters::sonar::SonarReporter;
 use falcon::reporters::{AnalysisReport, Issue, Reporter};
-use falcon::config::Severity;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -228,7 +228,10 @@ fn test_dep_graph_affected_files() {
     let graph = DependencyGraph::build(dir.path(), &[]);
     let a_abs = lib.join("a.dart").canonicalize().unwrap();
     let affected = graph.affected_files(&[a_abs]);
-    assert!(affected.len() >= 2, "Changing a.dart should affect b.dart and c.dart transitively");
+    assert!(
+        affected.len() >= 2,
+        "Changing a.dart should affect b.dart and c.dart transitively"
+    );
 }
 
 // --- Cache Tests ---

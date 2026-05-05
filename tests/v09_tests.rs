@@ -8,8 +8,7 @@ use std::collections::HashMap;
 fn test_snapshot_capture() {
     let report = create_test_report();
     let dir = tempfile::tempdir().unwrap();
-    let snapshot =
-        falcon::dashboard::snapshot::AnalysisSnapshot::capture(&report, dir.path());
+    let snapshot = falcon::dashboard::snapshot::AnalysisSnapshot::capture(&report, dir.path());
 
     assert_eq!(snapshot.file_count, 1);
     assert!(snapshot.health_score > 0.0);
@@ -22,8 +21,7 @@ fn test_snapshot_capture() {
 fn test_snapshot_save_and_load() {
     let dir = tempfile::tempdir().unwrap();
     let report = create_test_report();
-    let snapshot =
-        falcon::dashboard::snapshot::AnalysisSnapshot::capture(&report, dir.path());
+    let snapshot = falcon::dashboard::snapshot::AnalysisSnapshot::capture(&report, dir.path());
 
     falcon::dashboard::snapshot::save_snapshot(dir.path(), &snapshot).unwrap();
 
@@ -39,8 +37,7 @@ fn test_snapshot_history_append() {
     let report = create_test_report();
 
     for _ in 0..3 {
-        let snapshot =
-            falcon::dashboard::snapshot::AnalysisSnapshot::capture(&report, dir.path());
+        let snapshot = falcon::dashboard::snapshot::AnalysisSnapshot::capture(&report, dir.path());
         falcon::dashboard::snapshot::save_snapshot(dir.path(), &snapshot).unwrap();
     }
 
@@ -76,7 +73,10 @@ fn test_trends_improving() {
     let report = falcon::dashboard::trends::analyze_trends(&history, 10);
     assert!(report.is_some());
     let report = report.unwrap();
-    assert_eq!(report.health_trend, falcon::dashboard::trends::TrendDirection::Improving);
+    assert_eq!(
+        report.health_trend,
+        falcon::dashboard::trends::TrendDirection::Improving
+    );
 }
 
 #[test]
@@ -89,7 +89,10 @@ fn test_trends_declining() {
     let report = falcon::dashboard::trends::analyze_trends(&history, 10);
     assert!(report.is_some());
     let report = report.unwrap();
-    assert_eq!(report.health_trend, falcon::dashboard::trends::TrendDirection::Declining);
+    assert_eq!(
+        report.health_trend,
+        falcon::dashboard::trends::TrendDirection::Declining
+    );
 }
 
 #[test]
@@ -101,7 +104,10 @@ fn test_trends_stable() {
     let report = falcon::dashboard::trends::analyze_trends(&history, 10);
     assert!(report.is_some());
     let report = report.unwrap();
-    assert_eq!(report.health_trend, falcon::dashboard::trends::TrendDirection::Stable);
+    assert_eq!(
+        report.health_trend,
+        falcon::dashboard::trends::TrendDirection::Stable
+    );
 }
 
 // ============================================================
@@ -184,8 +190,7 @@ fn test_export_json() {
 #[test]
 fn test_webhook_payload() {
     let snapshot = create_test_snapshot(45.0, 50);
-    let payload =
-        falcon::dashboard::exports::WebhookPayload::from_snapshot(&snapshot, "my-app");
+    let payload = falcon::dashboard::exports::WebhookPayload::from_snapshot(&snapshot, "my-app");
 
     assert_eq!(payload.event, "health_critical");
     assert_eq!(payload.project, "my-app");
@@ -198,8 +203,7 @@ fn test_webhook_payload() {
 #[test]
 fn test_webhook_healthy_event() {
     let snapshot = create_test_snapshot(90.0, 5);
-    let payload =
-        falcon::dashboard::exports::WebhookPayload::from_snapshot(&snapshot, "app");
+    let payload = falcon::dashboard::exports::WebhookPayload::from_snapshot(&snapshot, "app");
     assert_eq!(payload.event, "analysis_complete");
 }
 
@@ -258,11 +262,8 @@ fn create_test_report() -> falcon::reporters::AnalysisReport {
     let source = "void main() { dynamic x = 1; dynamic y = 2; }";
     let tree = parser.parse(source).unwrap();
     let config = falcon::config::FalconConfig::default();
-    let metrics = falcon::metrics::calculate_file_metrics(
-        tree.root_node(),
-        source,
-        &config.metrics,
-    );
+    let metrics =
+        falcon::metrics::calculate_file_metrics(tree.root_node(), source, &config.metrics);
 
     falcon::reporters::AnalysisReport {
         issues,

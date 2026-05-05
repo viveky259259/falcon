@@ -155,7 +155,8 @@ pub fn sample_contributed_rules() -> Vec<ContributedRule> {
         ContributedRule {
             name: "avoid-provider-in-dispose".to_string(),
             author: "riverpod_team".to_string(),
-            description: "Don't read providers in dispose — ref may already be invalidated".to_string(),
+            description: "Don't read providers in dispose — ref may already be invalidated"
+                .to_string(),
             plugin_url: Some("https://github.com/example/falcon-provider-rules".to_string()),
             downloads: 3400,
             rating: 4.9,
@@ -165,10 +166,7 @@ pub fn sample_contributed_rules() -> Vec<ContributedRule> {
 
 pub fn print_rule_requests(requests: &[RuleRequest]) {
     println!();
-    println!(
-        "  {} Rule Requests",
-        "falcon".bright_cyan().bold()
-    );
+    println!("  {} Rule Requests", "falcon".bright_cyan().bold());
     println!();
 
     if requests.is_empty() {

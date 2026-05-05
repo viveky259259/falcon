@@ -8,7 +8,10 @@ pub fn export_prometheus(snapshot: &AnalysisSnapshot) -> String {
 
     output.push_str("# HELP falcon_health_score Code health score 0-100\n");
     output.push_str("# TYPE falcon_health_score gauge\n");
-    output.push_str(&format!("falcon_health_score {:.1}\n", snapshot.health_score));
+    output.push_str(&format!(
+        "falcon_health_score {:.1}\n",
+        snapshot.health_score
+    ));
 
     output.push_str("# HELP falcon_issues_total Total number of issues\n");
     output.push_str("# TYPE falcon_issues_total gauge\n");

@@ -53,7 +53,10 @@ impl Rule for AvoidBlocPublicMethods {
 
                 issues.push(Issue {
                     rule: self.name().to_string(),
-                    message: format!("Public method '{}' in BLoC class. Use events (add) instead.", name),
+                    message: format!(
+                        "Public method '{}' in BLoC class. Use events (add) instead.",
+                        name
+                    ),
                     severity: self.default_severity(),
                     file: file.to_path_buf(),
                     line: node_start_line(method),

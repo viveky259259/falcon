@@ -65,7 +65,8 @@ pub fn detect_drift(root: &Path, since: Option<&str>) -> anyhow::Result<DriftRep
             Err(_) => continue,
         };
 
-        let rel = file_path.strip_prefix(root)
+        let rel = file_path
+            .strip_prefix(root)
             .unwrap_or(file_path)
             .to_string_lossy()
             .to_string();
@@ -102,14 +103,20 @@ fn check_naming_drift(
             .file_name()
             .and_then(|f| f.to_str())
             .unwrap_or("");
-        if base != base.to_lowercase() && !base.ends_with(".g.dart") && !base.ends_with(".freezed.dart") {
+        if base != base.to_lowercase()
+            && !base.ends_with(".g.dart")
+            && !base.ends_with(".freezed.dart")
+        {
             findings.push(DriftFinding {
                 file: file_name.to_string(),
                 line: 1,
                 category: DriftCategory::Naming,
                 expected: "snake_case".to_string(),
                 actual: base.to_string(),
-                message: format!("File '{}' doesn't follow the project's snake_case naming convention", base),
+                message: format!(
+                    "File '{}' doesn't follow the project's snake_case naming convention",
+                    base
+                ),
             });
         }
     }
@@ -129,7 +136,10 @@ fn check_naming_drift(
                             category: DriftCategory::Naming,
                             expected: "PascalCase".to_string(),
                             actual: name.to_string(),
-                            message: format!("Class '{}' doesn't follow PascalCase convention", name),
+                            message: format!(
+                                "Class '{}' doesn't follow PascalCase convention",
+                                name
+                            ),
                         });
                     }
                 }
@@ -148,24 +158,30 @@ fn check_architecture_drift(
     if pattern == "Clean Architecture" {
         let parts: Vec<&str> = file_path.split('/').collect();
         if parts.len() >= 2 {
-            let top_dir = parts.iter().find(|p| {
-                matches!(**p, "domain" | "data" | "presentation" | "core" | "shared")
-            });
-            if top_dir.is_none() && !file_path.contains("test") && !file_path.contains("main.dart") {
+            let top_dir = parts
+                .iter()
+                .find(|p| matches!(**p, "domain" | "data" | "presentation" | "core" | "shared"));
+            if top_dir.is_none() && !file_path.contains("test") && !file_path.contains("main.dart")
+            {
                 findings.push(DriftFinding {
                     file: file_path.to_string(),
                     line: 1,
                     category: DriftCategory::Architecture,
                     expected: "Clean Architecture (domain/data/presentation)".to_string(),
                     actual: "file outside layer structure".to_string(),
-                    message: format!("File '{}' is outside the Clean Architecture layer structure", file_path),
+                    message: format!(
+                        "File '{}' is outside the Clean Architecture layer structure",
+                        file_path
+                    ),
                 });
             }
         }
     } else if pattern == "Feature-First" {
         let parts: Vec<&str> = file_path.split('/').collect();
         if parts.len() >= 2 {
-            let has_feature = parts.iter().any(|p| *p == "features" || *p == "core" || *p == "shared");
+            let has_feature = parts
+                .iter()
+                .any(|p| *p == "features" || *p == "core" || *p == "shared");
             if !has_feature && !file_path.contains("test") && !file_path.contains("main.dart") {
                 findings.push(DriftFinding {
                     file: file_path.to_string(),
@@ -173,7 +189,10 @@ fn check_architecture_drift(
                     category: DriftCategory::Architecture,
                     expected: "Feature-First (features/)".to_string(),
                     actual: "file outside feature structure".to_string(),
-                    message: format!("File '{}' is outside the Feature-First structure", file_path),
+                    message: format!(
+                        "File '{}' is outside the Feature-First structure",
+                        file_path
+                    ),
                 });
             }
         }
@@ -190,10 +209,14 @@ fn check_error_handling_drift(
         for (i, line) in source.lines().enumerate() {
             let trimmed = line.trim();
             if trimmed.contains("try {") && !file_name.contains("test") {
-                let has_catch_rethrow = source.lines().skip(i).take(10)
-                    .any(|l| l.contains("rethrow") || l.contains("Result.failure") || l.contains("Left("));
+                let has_catch_rethrow = source.lines().skip(i).take(10).any(|l| {
+                    l.contains("rethrow") || l.contains("Result.failure") || l.contains("Left(")
+                });
                 if !has_catch_rethrow {
-                    let has_empty_catch = source.lines().skip(i).take(10)
+                    let has_empty_catch = source
+                        .lines()
+                        .skip(i)
+                        .take(10)
                         .any(|l| l.trim() == "} catch (e) {}" || l.trim() == "} catch (e) {");
                     if has_empty_catch {
                         findings.push(DriftFinding {
@@ -242,7 +265,10 @@ fn check_state_management_drift(
                 category: DriftCategory::StateManagement,
                 expected: dominant.clone(),
                 actual: format!("uses {}", conflicting_marker),
-                message: format!("Project uses {} but this file contains {}", dominant, conflicting_marker),
+                message: format!(
+                    "Project uses {} but this file contains {}",
+                    dominant, conflicting_marker
+                ),
             });
         }
     }
@@ -255,7 +281,10 @@ fn get_changed_files(root: &Path, git_ref: &str) -> anyhow::Result<Vec<std::path
         .output()?;
 
     if !output.status.success() {
-        anyhow::bail!("git diff failed: {}", String::from_utf8_lossy(&output.stderr));
+        anyhow::bail!(
+            "git diff failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 
     let files: Vec<std::path::PathBuf> = String::from_utf8_lossy(&output.stdout)
@@ -296,7 +325,10 @@ pub fn print_drift_report(report: &DriftReport) {
     };
 
     println!("  Convention Adherence: {}", drift_color.bold());
-    println!("  Architecture:        {}", report.conventions.architecture.pattern.bright_white());
+    println!(
+        "  Architecture:        {}",
+        report.conventions.architecture.pattern.bright_white()
+    );
     if let Some(ref sm) = report.conventions.state_management {
         println!("  State Management:    {}", sm.bright_white());
     }

@@ -93,11 +93,14 @@ pub fn analyze_provenance(file_path: &Path, source: &str) -> ProvenanceResult {
             signals.push(format!("High comment ratio: {:.0}%", comment_ratio * 100.0));
         }
 
-        let empty_catch_blocks = source.matches("catch (e) {}").count()
-            + source.matches("catch (e) {\n  }").count();
+        let empty_catch_blocks =
+            source.matches("catch (e) {}").count() + source.matches("catch (e) {\n  }").count();
         if empty_catch_blocks > 0 {
             ai_score += 0.2 * empty_catch_blocks as f64;
-            signals.push(format!("{} empty catch blocks (common in AI code)", empty_catch_blocks));
+            signals.push(format!(
+                "{} empty catch blocks (common in AI code)",
+                empty_catch_blocks
+            ));
         }
 
         let unimplemented = source.matches("throw UnimplementedError()").count();
@@ -149,13 +152,11 @@ pub fn analyze_project_provenance(root: &Path) -> anyhow::Result<Vec<ProvenanceR
 
     let results: Vec<ProvenanceResult> = files
         .par_iter()
-        .filter_map(|path| {
-            match std::fs::read_to_string(path) {
-                Ok(source) => Some(analyze_provenance(path, &source)),
-                Err(err) => {
-                    log::warn!("Failed to read {}: {}", path.display(), err);
-                    None
-                }
+        .filter_map(|path| match std::fs::read_to_string(path) {
+            Ok(source) => Some(analyze_provenance(path, &source)),
+            Err(err) => {
+                log::warn!("Failed to read {}: {}", path.display(), err);
+                None
             }
         })
         .collect();
@@ -175,12 +176,28 @@ pub struct ProvenanceSummary {
 
 pub fn summarize_provenance(results: &[ProvenanceResult]) -> ProvenanceSummary {
     let total = results.len();
-    let human = results.iter().filter(|r| r.origin == CodeOrigin::LikelyHuman).count();
-    let ai = results.iter().filter(|r| r.origin == CodeOrigin::LikelyAiGenerated).count();
-    let codegen = results.iter().filter(|r| r.origin == CodeOrigin::LikelyGenerated).count();
-    let unknown = results.iter().filter(|r| r.origin == CodeOrigin::Unknown).count();
+    let human = results
+        .iter()
+        .filter(|r| r.origin == CodeOrigin::LikelyHuman)
+        .count();
+    let ai = results
+        .iter()
+        .filter(|r| r.origin == CodeOrigin::LikelyAiGenerated)
+        .count();
+    let codegen = results
+        .iter()
+        .filter(|r| r.origin == CodeOrigin::LikelyGenerated)
+        .count();
+    let unknown = results
+        .iter()
+        .filter(|r| r.origin == CodeOrigin::Unknown)
+        .count();
 
-    let ai_pct = if total > 0 { ai as f64 / total as f64 * 100.0 } else { 0.0 };
+    let ai_pct = if total > 0 {
+        ai as f64 / total as f64 * 100.0
+    } else {
+        0.0
+    };
 
     ProvenanceSummary {
         total_files: total,

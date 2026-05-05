@@ -37,9 +37,7 @@ pub fn deprecated_rules() -> Vec<DeprecatedRule> {
 
 /// Check if a rule is deprecated.
 pub fn is_deprecated(rule_name: &str) -> Option<DeprecatedRule> {
-    deprecated_rules()
-        .into_iter()
-        .find(|r| r.name == rule_name)
+    deprecated_rules().into_iter().find(|r| r.name == rule_name)
 }
 
 /// Check config for deprecated rules and warn.
@@ -60,10 +58,7 @@ pub fn print_deprecation_warnings(deprecated: &[DeprecatedRule]) {
     }
 
     println!();
-    println!(
-        "  {} Deprecated Rules Warning",
-        "⚠".yellow()
-    );
+    println!("  {} Deprecated Rules Warning", "⚠".yellow());
     for dep in deprecated {
         println!(
             "    {} '{}' — {} (stage: {}, removal: v{})",
@@ -74,10 +69,7 @@ pub fn print_deprecation_warnings(deprecated: &[DeprecatedRule]) {
             dep.removal_version
         );
         if let Some(ref replacement) = dep.replacement {
-            println!(
-                "      Replace with: {}",
-                replacement.bright_green()
-            );
+            println!("      Replace with: {}", replacement.bright_green());
         }
     }
     println!();

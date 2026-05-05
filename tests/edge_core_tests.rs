@@ -44,7 +44,11 @@ fn test_analyze_files_nonexistent_files() {
 #[test]
 fn test_analyze_empty_directory() {
     let tmp = tempfile::tempdir().unwrap();
-    std::fs::write(tmp.path().join("falcon.yaml"), "metrics:\n  cyclomatic_complexity: 20\n").unwrap();
+    std::fs::write(
+        tmp.path().join("falcon.yaml"),
+        "metrics:\n  cyclomatic_complexity: 20\n",
+    )
+    .unwrap();
     let config = falcon::config::FalconConfig::load(tmp.path()).unwrap();
     let falcon_inst = falcon::Falcon::new(config).unwrap();
     let report = falcon_inst.analyze(tmp.path()).unwrap();
@@ -56,8 +60,16 @@ fn test_analyze_malformed_dart_file() {
     let tmp = tempfile::tempdir().unwrap();
     let lib = tmp.path().join("lib");
     std::fs::create_dir_all(&lib).unwrap();
-    std::fs::write(lib.join("broken.dart"), "class {{ {{ invalid syntax !@#$%\n").unwrap();
-    std::fs::write(tmp.path().join("falcon.yaml"), "metrics:\n  cyclomatic_complexity: 20\n").unwrap();
+    std::fs::write(
+        lib.join("broken.dart"),
+        "class {{ {{ invalid syntax !@#$%\n",
+    )
+    .unwrap();
+    std::fs::write(
+        tmp.path().join("falcon.yaml"),
+        "metrics:\n  cyclomatic_complexity: 20\n",
+    )
+    .unwrap();
 
     let config = falcon::config::FalconConfig::load(tmp.path()).unwrap();
     let falcon_inst = falcon::Falcon::new(config).unwrap();
@@ -143,7 +155,9 @@ fn test_parser_unicode_source() {
 #[test]
 fn test_parser_very_long_source() {
     let mut parser = falcon::parser::DartParser::new().unwrap();
-    let long_source: String = (0..1000).map(|i| format!("int x{} = {};\n", i, i)).collect();
+    let long_source: String = (0..1000)
+        .map(|i| format!("int x{} = {};\n", i, i))
+        .collect();
     let tree = parser.parse(&long_source);
     assert!(tree.is_some());
 }
@@ -194,7 +208,8 @@ fn test_count_lines_empty() {
 
 #[test]
 fn test_count_lines_only_comments() {
-    let (total, code) = falcon::metrics::lines::count_lines("// comment 1\n// comment 2\n// comment 3\n");
+    let (total, code) =
+        falcon::metrics::lines::count_lines("// comment 1\n// comment 2\n// comment 3\n");
     assert_eq!(total, 3);
     assert_eq!(code, 0);
 }
@@ -237,7 +252,8 @@ fn test_score_from_report_with_errors() {
             message: "empty catch".to_string(),
             severity: falcon::config::Severity::Error,
             file: std::path::PathBuf::from("test.dart"),
-            line: 1, column: 1,
+            line: 1,
+            column: 1,
         };
         50
     ];
@@ -257,7 +273,10 @@ fn test_score_from_report_with_errors() {
 #[test]
 fn test_analysis_report_counts_empty() {
     let report = falcon::reporters::AnalysisReport {
-        issues: vec![], metrics: vec![], file_count: 0, project_path: None,
+        issues: vec![],
+        metrics: vec![],
+        file_count: 0,
+        project_path: None,
     };
     assert_eq!(report.error_count(), 0);
     assert_eq!(report.warning_count(), 0);
@@ -269,10 +288,38 @@ fn test_analysis_report_counts_empty() {
 fn test_analysis_report_counts_mixed() {
     let report = falcon::reporters::AnalysisReport {
         issues: vec![
-            falcon::reporters::Issue { rule: "a".into(), message: "m".into(), severity: falcon::config::Severity::Error, file: "f.dart".into(), line: 1, column: 1 },
-            falcon::reporters::Issue { rule: "b".into(), message: "m".into(), severity: falcon::config::Severity::Warning, file: "f.dart".into(), line: 2, column: 1 },
-            falcon::reporters::Issue { rule: "c".into(), message: "m".into(), severity: falcon::config::Severity::Warning, file: "f.dart".into(), line: 3, column: 1 },
-            falcon::reporters::Issue { rule: "d".into(), message: "m".into(), severity: falcon::config::Severity::Info, file: "f.dart".into(), line: 4, column: 1 },
+            falcon::reporters::Issue {
+                rule: "a".into(),
+                message: "m".into(),
+                severity: falcon::config::Severity::Error,
+                file: "f.dart".into(),
+                line: 1,
+                column: 1,
+            },
+            falcon::reporters::Issue {
+                rule: "b".into(),
+                message: "m".into(),
+                severity: falcon::config::Severity::Warning,
+                file: "f.dart".into(),
+                line: 2,
+                column: 1,
+            },
+            falcon::reporters::Issue {
+                rule: "c".into(),
+                message: "m".into(),
+                severity: falcon::config::Severity::Warning,
+                file: "f.dart".into(),
+                line: 3,
+                column: 1,
+            },
+            falcon::reporters::Issue {
+                rule: "d".into(),
+                message: "m".into(),
+                severity: falcon::config::Severity::Info,
+                file: "f.dart".into(),
+                line: 4,
+                column: 1,
+            },
         ],
         metrics: vec![],
         file_count: 1,

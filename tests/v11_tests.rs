@@ -23,10 +23,7 @@ void main() async {
         .iter()
         .filter(|i| i.rule == "avoid-unawaited-futures")
         .collect();
-    assert!(
-        !unawaited.is_empty(),
-        "Should detect unawaited future call"
-    );
+    assert!(!unawaited.is_empty(), "Should detect unawaited future call");
 }
 
 #[test]
@@ -77,10 +74,7 @@ void main() {
         .iter()
         .filter(|i| i.rule == "prefer-specific-catch-type")
         .collect();
-    assert!(
-        !catch_issues.is_empty(),
-        "Should detect generic catch (e)"
-    );
+    assert!(!catch_issues.is_empty(), "Should detect generic catch (e)");
 }
 
 #[test]
@@ -209,7 +203,11 @@ fn test_ai_generated_preset_exists() {
     let preset = falcon::plugins::presets::get_preset("ai-generated");
     assert!(preset.is_some(), "ai-generated preset should exist");
     let p = preset.unwrap();
-    assert!(p.rules.len() >= 15, "ai-generated preset should have 15+ rules, got {}", p.rules.len());
+    assert!(
+        p.rules.len() >= 15,
+        "ai-generated preset should have 15+ rules, got {}",
+        p.rules.len()
+    );
     assert!(p.description.contains("AI"));
 }
 

@@ -47,7 +47,10 @@ pub fn analyze_build(root: &Path) -> anyhow::Result<BuildReport> {
         if *size_kb > 500 {
             recommendations.push(BuildRecommendation {
                 category: "Assets".to_string(),
-                recommendation: format!("'{}' is {}KB — compress or use a lower resolution", name, size_kb),
+                recommendation: format!(
+                    "'{}' is {}KB — compress or use a lower resolution",
+                    name, size_kb
+                ),
                 impact: "Reduces APK/IPA size".to_string(),
             });
         }
@@ -56,7 +59,9 @@ pub fn analyze_build(root: &Path) -> anyhow::Result<BuildReport> {
     if asset_analysis.image_count > 50 {
         recommendations.push(BuildRecommendation {
             category: "Assets".to_string(),
-            recommendation: "50+ images bundled — consider lazy loading or CDN for non-critical images".to_string(),
+            recommendation:
+                "50+ images bundled — consider lazy loading or CDN for non-critical images"
+                    .to_string(),
             impact: "Reduces initial download size".to_string(),
         });
     }
@@ -86,12 +91,19 @@ pub fn analyze_build(root: &Path) -> anyhow::Result<BuildReport> {
     if dart_files > 200 {
         recommendations.push(BuildRecommendation {
             category: "Code Size".to_string(),
-            recommendation: format!("{} Dart files — consider code splitting with deferred imports", dart_files),
+            recommendation: format!(
+                "{} Dart files — consider code splitting with deferred imports",
+                dart_files
+            ),
             impact: "Faster cold start on web, smaller initial payload".to_string(),
         });
     }
 
-    Ok(BuildReport { asset_analysis, pubspec_analysis, recommendations })
+    Ok(BuildReport {
+        asset_analysis,
+        pubspec_analysis,
+        recommendations,
+    })
 }
 
 fn analyze_assets(root: &Path) -> AssetAnalysis {
@@ -112,7 +124,11 @@ fn analyze_assets(root: &Path) -> AssetAnalysis {
             let size = entry.metadata().map(|m| m.len()).unwrap_or(0) / 1024;
             total_size += size;
 
-            let ext = entry.path().extension().and_then(|e| e.to_str()).unwrap_or("");
+            let ext = entry
+                .path()
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("");
             match ext {
                 "png" | "jpg" | "jpeg" | "gif" | "svg" | "webp" => images += 1,
                 "ttf" | "otf" | "woff" | "woff2" => fonts += 1,
@@ -120,9 +136,12 @@ fn analyze_assets(root: &Path) -> AssetAnalysis {
             }
 
             if size > 200 {
-                let name = entry.path().strip_prefix(root)
+                let name = entry
+                    .path()
+                    .strip_prefix(root)
                     .unwrap_or(entry.path())
-                    .to_string_lossy().to_string();
+                    .to_string_lossy()
+                    .to_string();
                 large.push((name, size));
             }
         }
@@ -130,7 +149,13 @@ fn analyze_assets(root: &Path) -> AssetAnalysis {
 
     large.sort_by(|a, b| b.1.cmp(&a.1));
 
-    AssetAnalysis { total_assets: total, total_size_kb: total_size, large_assets: large, image_count: images, font_count: fonts }
+    AssetAnalysis {
+        total_assets: total,
+        total_size_kb: total_size,
+        large_assets: large,
+        image_count: images,
+        font_count: fonts,
+    }
 }
 
 fn analyze_pubspec(root: &Path) -> PubspecAnalysis {
@@ -140,15 +165,28 @@ fn analyze_pubspec(root: &Path) -> PubspecAnalysis {
     PubspecAnalysis {
         has_flutter_section: content.contains("flutter:"),
         uses_deferred_components: content.contains("deferred-components"),
-        has_tree_shake_icons: content.contains("tree-shake-icons") || content.contains("uses-material-design: true"),
+        has_tree_shake_icons: content.contains("tree-shake-icons")
+            || content.contains("uses-material-design: true"),
         platform_count: {
             let mut count = 0;
-            if root.join("android").exists() { count += 1; }
-            if root.join("ios").exists() { count += 1; }
-            if root.join("web").exists() { count += 1; }
-            if root.join("macos").exists() { count += 1; }
-            if root.join("linux").exists() { count += 1; }
-            if root.join("windows").exists() { count += 1; }
+            if root.join("android").exists() {
+                count += 1;
+            }
+            if root.join("ios").exists() {
+                count += 1;
+            }
+            if root.join("web").exists() {
+                count += 1;
+            }
+            if root.join("macos").exists() {
+                count += 1;
+            }
+            if root.join("linux").exists() {
+                count += 1;
+            }
+            if root.join("windows").exists() {
+                count += 1;
+            }
             count
         },
     }
@@ -160,11 +198,13 @@ pub fn print_build_report(report: &BuildReport) {
     println!("  {} Build Optimizer", "falcon manage".bright_cyan().bold());
     println!();
 
-    println!("  Assets: {} files ({} KB total, {} images, {} fonts)",
+    println!(
+        "  Assets: {} files ({} KB total, {} images, {} fonts)",
         report.asset_analysis.total_assets,
         report.asset_analysis.total_size_kb,
         report.asset_analysis.image_count,
-        report.asset_analysis.font_count);
+        report.asset_analysis.font_count
+    );
     println!("  Platforms: {}", report.pubspec_analysis.platform_count);
 
     if !report.asset_analysis.large_assets.is_empty() {
@@ -179,7 +219,12 @@ pub fn print_build_report(report: &BuildReport) {
         println!();
         println!("  {} Recommendations:", "▸".green());
         for r in &report.recommendations {
-            println!("    {} [{}] {}", "→".green(), r.category.bright_cyan(), r.recommendation);
+            println!(
+                "    {} [{}] {}",
+                "→".green(),
+                r.category.bright_cyan(),
+                r.recommendation
+            );
             println!("       Impact: {}", r.impact.dimmed());
         }
     } else {

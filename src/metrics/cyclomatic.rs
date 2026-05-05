@@ -31,7 +31,10 @@ fn count_decisions(node: Node, source: &str, complexity: &mut u32) {
                         *complexity += 1;
                     }
                 }
-                if !node.children(&mut node.walk()).any(|c| c.kind() == "&&" || c.kind() == "||") {
+                if !node
+                    .children(&mut node.walk())
+                    .any(|c| c.kind() == "&&" || c.kind() == "||")
+                {
                     if op_text.contains("&&") {
                         *complexity += 1;
                     } else if op_text.contains("||") {

@@ -43,10 +43,7 @@ impl Rule for PreferExtractingCallbacks {
                     if text.starts_with(param) && contains_multiline_closure(node, source) {
                         issues.push(Issue {
                             rule: self.name().to_string(),
-                            message: format!(
-                                "Extract '{}' callback into a named method.",
-                                param
-                            ),
+                            message: format!("Extract '{}' callback into a named method.", param),
                             severity: self.default_severity(),
                             file: file.to_path_buf(),
                             line: node_start_line(node),

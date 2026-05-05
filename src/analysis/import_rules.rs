@@ -99,10 +99,7 @@ fn matches_glob_pattern(path: &str, pattern: &str) -> bool {
 }
 
 /// Detect cross-package boundary violations in monorepo.
-pub fn check_package_boundaries(
-    root: &Path,
-    exclude: &[glob::Pattern],
-) -> Vec<Issue> {
+pub fn check_package_boundaries(root: &Path, exclude: &[glob::Pattern]) -> Vec<Issue> {
     let mut issues = Vec::new();
 
     let lib_path = root.join("lib");

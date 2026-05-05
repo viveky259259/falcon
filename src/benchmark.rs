@@ -85,16 +85,22 @@ pub fn run_benchmark(root: &Path) -> anyhow::Result<BenchmarkResult> {
 
 pub fn print_benchmark(result: &BenchmarkResult) {
     println!();
-    println!(
-        "  {} Performance Benchmark",
-        "falcon".bright_cyan().bold()
-    );
+    println!("  {} Performance Benchmark", "falcon".bright_cyan().bold());
     println!();
 
     println!("  Codebase:");
-    println!("    Files:        {}", result.file_count.to_string().bright_white());
-    println!("    Lines:        {}", result.total_lines.to_string().bright_white());
-    println!("    Issues found: {}", result.issue_count.to_string().bright_white());
+    println!(
+        "    Files:        {}",
+        result.file_count.to_string().bright_white()
+    );
+    println!(
+        "    Lines:        {}",
+        result.total_lines.to_string().bright_white()
+    );
+    println!(
+        "    Issues found: {}",
+        result.issue_count.to_string().bright_white()
+    );
     println!();
 
     println!("  Timing:");
@@ -113,14 +119,8 @@ pub fn print_benchmark(result: &BenchmarkResult) {
     println!();
 
     println!("  Throughput:");
-    println!(
-        "    Files/sec:    {:.0}",
-        result.files_per_second
-    );
-    println!(
-        "    Lines/sec:    {:.0}",
-        result.lines_per_second
-    );
+    println!("    Files/sec:    {:.0}", result.files_per_second);
+    println!("    Lines/sec:    {:.0}", result.lines_per_second);
     println!(
         "    Memory est:   ~{:.1} MB",
         result.peak_memory_estimate_mb

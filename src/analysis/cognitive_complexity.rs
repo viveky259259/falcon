@@ -22,12 +22,7 @@ pub fn calculate_cognitive_complexity(node: Node, source: &str) -> u32 {
     complexity
 }
 
-fn walk_cognitive(
-    node: Node,
-    source: &str,
-    nesting: u32,
-    complexity: &mut u32,
-) {
+fn walk_cognitive(node: Node, source: &str, nesting: u32, complexity: &mut u32) {
     let kind = node.kind();
 
     let (increment, increases_nesting) = match kind {
@@ -46,7 +41,11 @@ fn walk_cognitive(
         "conditional_expression" => (1 + nesting, true),
         "break_statement" | "continue_statement" => {
             let has_label = node.child_count() > 1;
-            if has_label { (1, false) } else { (0, false) }
+            if has_label {
+                (1, false)
+            } else {
+                (0, false)
+            }
         }
         "binary_expression" => {
             let text = node.utf8_text(source.as_bytes()).unwrap_or("");
@@ -129,16 +128,10 @@ pub fn file_cognitive_complexity(root: Node, source: &str) -> Vec<(String, u32, 
     results
 }
 
-fn collect_function_complexity(
-    node: Node,
-    source: &str,
-    results: &mut Vec<(String, u32, usize)>,
-) {
+fn collect_function_complexity(node: Node, source: &str, results: &mut Vec<(String, u32, usize)>) {
     let kind = node.kind();
 
-    if kind == "function_signature"
-        || kind == "method_signature"
-    {
+    if kind == "function_signature" || kind == "method_signature" {
         if let Some(parent) = node.parent() {
             let func_name = extract_func_name(node, source);
             let body = find_function_body(parent);
@@ -161,7 +154,10 @@ fn extract_func_name(sig_node: Node, source: &str) -> String {
     let mut cursor = sig_node.walk();
     for child in sig_node.children(&mut cursor) {
         if child.kind() == "identifier" {
-            return child.utf8_text(source.as_bytes()).unwrap_or("unknown").to_string();
+            return child
+                .utf8_text(source.as_bytes())
+                .unwrap_or("unknown")
+                .to_string();
         }
     }
     "anonymous".to_string()

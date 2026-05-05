@@ -71,7 +71,9 @@ pub fn analyze_dependencies(root: &Path) -> anyhow::Result<DepReport> {
     if let Some(deps) = yaml.get("dependencies").and_then(|d| d.as_mapping()) {
         for (key, value) in deps {
             let name = key.as_str().unwrap_or("").to_string();
-            if name == "flutter" || name == "flutter_localizations" { continue; }
+            if name == "flutter" || name == "flutter_localizations" {
+                continue;
+            }
 
             let constraint = format_constraint(value);
             let is_used = used_packages.contains(&name);
@@ -90,14 +92,20 @@ pub fn analyze_dependencies(root: &Path) -> anyhow::Result<DepReport> {
                     issues.push(DepIssue {
                         dep: name.clone(),
                         issue_type: DepIssueType::GitDependency,
-                        message: format!("'{}' uses git dependency — pin to a published version for stability", name),
+                        message: format!(
+                            "'{}' uses git dependency — pin to a published version for stability",
+                            name
+                        ),
                     });
                 }
                 if value.get("path").is_some() {
                     issues.push(DepIssue {
                         dep: name.clone(),
                         issue_type: DepIssueType::PathDependency,
-                        message: format!("'{}' uses path dependency — ensure CI can resolve it", name),
+                        message: format!(
+                            "'{}' uses path dependency — ensure CI can resolve it",
+                            name
+                        ),
                     });
                 }
             }
@@ -112,17 +120,27 @@ pub fn analyze_dependencies(root: &Path) -> anyhow::Result<DepReport> {
                 }
             }
 
-            direct_deps.push(DepInfo { name, version_constraint: constraint, is_used, import_count });
+            direct_deps.push(DepInfo {
+                name,
+                version_constraint: constraint,
+                is_used,
+                import_count,
+            });
         }
     }
 
     if let Some(deps) = yaml.get("dev_dependencies").and_then(|d| d.as_mapping()) {
         for (key, value) in deps {
             let name = key.as_str().unwrap_or("").to_string();
-            if name == "flutter_test" || name == "flutter_lints" || name == "lints" { continue; }
+            if name == "flutter_test" || name == "flutter_lints" || name == "lints" {
+                continue;
+            }
             let constraint = format_constraint(value);
             dev_deps.push(DepInfo {
-                name, version_constraint: constraint, is_used: true, import_count: 0,
+                name,
+                version_constraint: constraint,
+                is_used: true,
+                import_count: 0,
             });
         }
     }
@@ -135,7 +153,8 @@ pub fn analyze_dependencies(root: &Path) -> anyhow::Result<DepReport> {
         });
     }
 
-    let unused: Vec<String> = direct_deps.iter()
+    let unused: Vec<String> = direct_deps
+        .iter()
         .filter(|d| !d.is_used)
         .map(|d| d.name.clone())
         .collect();
@@ -153,9 +172,13 @@ fn format_constraint(value: &serde_yaml::Value) -> String {
     if let Some(s) = value.as_str() {
         s.to_string()
     } else if value.is_mapping() {
-        if value.get("git").is_some() { "git".to_string() }
-        else if value.get("path").is_some() { "path".to_string() }
-        else { "complex".to_string() }
+        if value.get("git").is_some() {
+            "git".to_string()
+        } else if value.get("path").is_some() {
+            "path".to_string()
+        } else {
+            "complex".to_string()
+        }
     } else {
         "any".to_string()
     }
@@ -193,17 +216,28 @@ fn extract_pkg(line: &str) -> Option<String> {
 /// Print dependency report.
 pub fn print_dep_report(report: &DepReport) {
     println!();
-    println!("  {} Dependency Manager", "falcon manage".bright_cyan().bold());
+    println!(
+        "  {} Dependency Manager",
+        "falcon manage".bright_cyan().bold()
+    );
     println!();
 
-    println!("  Total dependencies: {} ({} direct, {} dev)",
-        report.total_deps, report.direct_deps.len(), report.dev_deps.len());
+    println!(
+        "  Total dependencies: {} ({} direct, {} dev)",
+        report.total_deps,
+        report.direct_deps.len(),
+        report.dev_deps.len()
+    );
 
     if !report.unused.is_empty() {
         println!();
         println!("  {} Unused dependencies:", "⚠".yellow());
         for dep in &report.unused {
-            println!("    {} {} — not imported in any file", "✗".red(), dep.bright_white());
+            println!(
+                "    {} {} — not imported in any file",
+                "✗".red(),
+                dep.bright_white()
+            );
         }
     }
 
@@ -216,7 +250,12 @@ pub fn print_dep_report(report: &DepReport) {
                 DepIssueType::GitDependency | DepIssueType::PathDependency => "⚠".yellow(),
                 _ => "·".dimmed(),
             };
-            println!("    {} [{}] {}", icon, issue.issue_type.to_string().bright_yellow(), issue.message);
+            println!(
+                "    {} [{}] {}",
+                icon,
+                issue.issue_type.to_string().bright_yellow(),
+                issue.message
+            );
         }
     }
 

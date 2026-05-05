@@ -50,7 +50,8 @@ impl Rule for AvoidLateKeyword {
         let mut issues = Vec::new();
 
         let file_str = file.to_string_lossy();
-        if self.skip_test_files && (file_str.ends_with("_test.dart") || file_str.contains("/test/")) {
+        if self.skip_test_files && (file_str.ends_with("_test.dart") || file_str.contains("/test/"))
+        {
             return issues;
         }
 
@@ -107,7 +108,5 @@ fn is_framework_required_late(declaration: &str) -> bool {
         "PageController",
         "DraggableScrollableController",
     ];
-    framework_types
-        .iter()
-        .any(|t| declaration.contains(t))
+    framework_types.iter().any(|t| declaration.contains(t))
 }

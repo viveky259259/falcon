@@ -16,7 +16,11 @@ pub fn generate_rule_docs(output_dir: &Path) -> anyhow::Result<()> {
     let rules = registry.rules();
     let mut index = String::new();
     index.push_str("# Falcon Lint Rules\n\n");
-    index.push_str(&format!("**{} rules** available across {} categories.\n\n", rules.len(), 5));
+    index.push_str(&format!(
+        "**{} rules** available across {} categories.\n\n",
+        rules.len(),
+        5
+    ));
     index.push_str("| Rule | Category | Severity | Description |\n");
     index.push_str("|------|----------|----------|-------------|\n");
 
@@ -31,17 +35,14 @@ pub fn generate_rule_docs(output_dir: &Path) -> anyhow::Result<()> {
 
         index.push_str(&format!(
             "| [`{}`](rules/{}.md) | {} | {} | {} |\n",
-            name,
-            name,
-            category,
-            severity,
-            description
+            name, name, category, severity, description
         ));
 
-        by_category
-            .entry(category.clone())
-            .or_default()
-            .push((name.clone(), severity.clone(), description.clone()));
+        by_category.entry(category.clone()).or_default().push((
+            name.clone(),
+            severity.clone(),
+            description.clone(),
+        ));
 
         let rule_doc = format!(
             "# {}\n\n\
@@ -69,8 +70,7 @@ pub fn generate_rule_docs(output_dir: &Path) -> anyhow::Result<()> {
              ```dart\n\
              // ignore_for_file: {}\n\
              ```\n",
-            name, category, severity, description,
-            name, name, name, name,
+            name, category, severity, description, name, name, name, name,
         );
 
         let rules_dir = output_dir.join("rules");
@@ -100,13 +100,23 @@ pub fn generate_rule_docs(output_dir: &Path) -> anyhow::Result<()> {
 }
 
 fn categorize(name: &str) -> String {
-    if name.contains("ref-") || name.contains("watch") || name.contains("notifier") || name.contains("async-value") {
+    if name.contains("ref-")
+        || name.contains("watch")
+        || name.contains("notifier")
+        || name.contains("async-value")
+    {
         "Provider/Riverpod".to_string()
     } else if name.contains("bloc") || name.contains("emit") || name.contains("multi-bloc") {
         "BLoC".to_string()
     } else if name.contains("equatable") || (name.contains("equals") && name.contains("hashcode")) {
         "Equatable".to_string()
-    } else if name.contains("widget") || name.contains("setstate") || name.contains("expanded") || name.contains("const-constructor") || name.contains("extracting-callback") || name.contains("returning-widget") {
+    } else if name.contains("widget")
+        || name.contains("setstate")
+        || name.contains("expanded")
+        || name.contains("const-constructor")
+        || name.contains("extracting-callback")
+        || name.contains("returning-widget")
+    {
         "Flutter".to_string()
     } else {
         "Dart".to_string()

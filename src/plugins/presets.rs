@@ -38,7 +38,9 @@ pub fn list_presets() -> Vec<RulePreset> {
 fn preset_recommended() -> RulePreset {
     RulePreset {
         name: "recommended".to_string(),
-        description: "Balanced set of rules for most projects — catches real issues without excessive noise.".to_string(),
+        description:
+            "Balanced set of rules for most projects — catches real issues without excessive noise."
+                .to_string(),
         rules: vec![
             rule("avoid-dynamic", Severity::Warning),
             rule("prefer-trailing-comma", Severity::Info),
@@ -103,7 +105,9 @@ fn preset_strict() -> RulePreset {
 fn preset_flutter() -> RulePreset {
     RulePreset {
         name: "flutter".to_string(),
-        description: "Flutter-specific rules — widget best practices, performance, and UI patterns.".to_string(),
+        description:
+            "Flutter-specific rules — widget best practices, performance, and UI patterns."
+                .to_string(),
         rules: vec![
             rule("avoid-returning-widgets", Severity::Warning),
             rule("prefer-extracting-callbacks", Severity::Info),
@@ -121,7 +125,8 @@ fn preset_flutter() -> RulePreset {
 fn preset_riverpod() -> RulePreset {
     RulePreset {
         name: "riverpod".to_string(),
-        description: "Riverpod state management rules — ref.read/watch patterns, provider hygiene.".to_string(),
+        description: "Riverpod state management rules — ref.read/watch patterns, provider hygiene."
+            .to_string(),
         rules: vec![
             rule("avoid-ref-read-inside-build", Severity::Error),
             rule("avoid-watch-outside-build", Severity::Error),
@@ -138,7 +143,8 @@ fn preset_riverpod() -> RulePreset {
 fn preset_bloc() -> RulePreset {
     RulePreset {
         name: "bloc".to_string(),
-        description: "BLoC pattern rules — emit safety, public API, and provider patterns.".to_string(),
+        description: "BLoC pattern rules — emit safety, public API, and provider patterns."
+            .to_string(),
         rules: vec![
             rule("avoid-bloc-public-methods", Severity::Warning),
             rule("avoid-emit-outside-bloc", Severity::Error),
@@ -155,7 +161,9 @@ fn preset_bloc() -> RulePreset {
 fn preset_performance() -> RulePreset {
     RulePreset {
         name: "performance".to_string(),
-        description: "Performance-focused rules — rebuild prevention, const usage, efficient patterns.".to_string(),
+        description:
+            "Performance-focused rules — rebuild prevention, const usage, efficient patterns."
+                .to_string(),
         rules: vec![
             rule("prefer-const-constructors", Severity::Error),
             rule("avoid-unnecessary-set-state", Severity::Error),
@@ -202,10 +210,7 @@ fn rule(name: &str, severity: Severity) -> RuleConfig {
 
 pub fn print_presets(presets: &[RulePreset]) {
     println!();
-    println!(
-        "  {} Available Presets",
-        "falcon".bright_cyan().bold()
-    );
+    println!("  {} Available Presets", "falcon".bright_cyan().bold());
     println!();
 
     for preset in presets {
@@ -247,10 +252,7 @@ pub fn print_preset_detail(preset: &RulePreset) {
 }
 
 /// Apply a preset to an existing falcon.yaml.
-pub fn apply_preset(
-    preset: &RulePreset,
-    config_path: &std::path::Path,
-) -> anyhow::Result<()> {
+pub fn apply_preset(preset: &RulePreset, config_path: &std::path::Path) -> anyhow::Result<()> {
     let mut config = if config_path.join("falcon.yaml").exists() {
         crate::config::FalconConfig::load(config_path)?
     } else {

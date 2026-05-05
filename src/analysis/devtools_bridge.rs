@@ -1,8 +1,8 @@
 //! Performance profiling integration with Flutter DevTools.
 //! Analyzes code for performance anti-patterns that would show up in DevTools.
 
-use crate::reporters::Issue;
 use crate::config::Severity;
+use crate::reporters::Issue;
 use colored::Colorize;
 use std::path::Path;
 
@@ -18,7 +18,8 @@ pub struct PerfReport {
 
 impl PerfReport {
     pub fn all_issues(&self) -> Vec<&Issue> {
-        self.rebuild_issues.iter()
+        self.rebuild_issues
+            .iter()
             .chain(self.memory_issues.iter())
             .chain(self.render_issues.iter())
             .chain(self.network_issues.iter())
@@ -74,7 +75,12 @@ fn check_rebuild_issues(file: &Path, source: &str, issues: &mut Vec<Issue>) {
         }
 
         if trimmed.contains("Widget build(") {
-            let build_block: String = source.lines().skip(i).take(30).collect::<Vec<_>>().join("\n");
+            let build_block: String = source
+                .lines()
+                .skip(i)
+                .take(30)
+                .collect::<Vec<_>>()
+                .join("\n");
             if build_block.matches("MediaQuery.of(").count() > 2 {
                 issues.push(Issue {
                     rule: "perf-repeated-media-query".to_string(),
@@ -89,7 +95,8 @@ fn check_rebuild_issues(file: &Path, source: &str, issues: &mut Vec<Issue>) {
             if build_block.matches("Theme.of(").count() > 3 {
                 issues.push(Issue {
                     rule: "perf-repeated-theme-of".to_string(),
-                    message: "Multiple Theme.of() calls in build — cache in a local variable".to_string(),
+                    message: "Multiple Theme.of() calls in build — cache in a local variable"
+                        .to_string(),
                     severity: Severity::Info,
                     file: file.to_path_buf(),
                     line: i + 1,
@@ -106,7 +113,10 @@ fn check_memory_issues(file: &Path, source: &str, issues: &mut Vec<Issue>) {
 
         if trimmed.contains("ImageProvider") || trimmed.contains("Image.network(") {
             let block: String = source.lines().skip(i).take(5).collect::<Vec<_>>().join(" ");
-            if !block.contains("cacheWidth") && !block.contains("cacheHeight") && !block.contains("ResizeImage") {
+            if !block.contains("cacheWidth")
+                && !block.contains("cacheHeight")
+                && !block.contains("ResizeImage")
+            {
                 issues.push(Issue {
                     rule: "perf-uncached-image-size".to_string(),
                     message: "Image loaded without cacheWidth/cacheHeight — may consume excessive memory on high-DPI devices".to_string(),
@@ -126,7 +136,10 @@ fn check_render_issues(file: &Path, source: &str, issues: &mut Vec<Issue>) {
 
         if trimmed.contains("ListView(") || trimmed.contains("GridView(") {
             let block: String = source.lines().skip(i).take(8).collect::<Vec<_>>().join(" ");
-            if !block.contains(".builder") && !block.contains(".separated") && !block.contains(".custom") {
+            if !block.contains(".builder")
+                && !block.contains(".separated")
+                && !block.contains(".custom")
+            {
                 if block.contains("children:") {
                     issues.push(Issue {
                         rule: "perf-unbounded-list".to_string(),
@@ -160,10 +173,16 @@ fn check_network_issues(file: &Path, source: &str, issues: &mut Vec<Issue>) {
     for (i, line) in source.lines().enumerate() {
         let trimmed = line.trim();
 
-        if trimmed.contains("http.get(") || trimmed.contains("http.post(")
+        if trimmed.contains("http.get(")
+            || trimmed.contains("http.post(")
             || trimmed.contains("Dio()")
         {
-            let block: String = source.lines().skip(i.saturating_sub(5)).take(10).collect::<Vec<_>>().join(" ");
+            let block: String = source
+                .lines()
+                .skip(i.saturating_sub(5))
+                .take(10)
+                .collect::<Vec<_>>()
+                .join(" ");
             if block.contains("Widget build(") || block.contains("initState(") {
                 issues.push(Issue {
                     rule: "perf-network-in-build".to_string(),
@@ -196,10 +215,7 @@ pub fn print_perf_report(report: &PerfReport) {
 
     let total = report.all_issues().len();
     if total == 0 {
-        println!(
-            "  {} No performance issues detected.",
-            "✓".green().bold()
-        );
+        println!("  {} No performance issues detected.", "✓".green().bold());
     } else {
         println!("  {} total performance issue(s)", total);
     }
@@ -217,8 +233,18 @@ fn print_category(name: &str, issues: &[Issue]) {
             issues.len()
         );
         for issue in issues.iter().take(3) {
-            let rel = issue.file.file_name().and_then(|f| f.to_str()).unwrap_or("?");
-            println!("    {} {}:{} {}", "·".dimmed(), rel, issue.line, issue.message.dimmed());
+            let rel = issue
+                .file
+                .file_name()
+                .and_then(|f| f.to_str())
+                .unwrap_or("?");
+            println!(
+                "    {} {}:{} {}",
+                "·".dimmed(),
+                rel,
+                issue.line,
+                issue.message.dimmed()
+            );
         }
         if issues.len() > 3 {
             println!("    {} ... and {} more", "·".dimmed(), issues.len() - 3);

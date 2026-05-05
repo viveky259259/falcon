@@ -11,25 +11,19 @@ impl Reporter for ConsoleReporter {
         println!();
         println!(
             "{}",
-            "╔══════════════════════════════════════════════════╗"
-                .bright_cyan()
+            "╔══════════════════════════════════════════════════╗".bright_cyan()
         );
         println!(
             "{}",
-            "║           FALCON Analysis Report                ║"
-                .bright_cyan()
+            "║           FALCON Analysis Report                ║".bright_cyan()
         );
         println!(
             "{}",
-            "╚══════════════════════════════════════════════════╝"
-                .bright_cyan()
+            "╚══════════════════════════════════════════════════╝".bright_cyan()
         );
         println!();
 
-        println!(
-            "  {} files analyzed",
-            report.file_count.to_string().bold()
-        );
+        println!("  {} files analyzed", report.file_count.to_string().bold());
         println!();
 
         if !report.issues.is_empty() {
@@ -62,7 +56,8 @@ impl Reporter for ConsoleReporter {
 
             for func in &result.functions {
                 let cc_color = threshold_color(func.cyclomatic_complexity, 10, 20, 30);
-                let mi_color = threshold_color_inverted(func.maintainability_index, 20.0, 40.0, 60.0);
+                let mi_color =
+                    threshold_color_inverted(func.maintainability_index, 20.0, 40.0, 60.0);
 
                 println!(
                     "    {} {} │ CC: {} │ LOC: {} │ MI: {} │ HV: {:.0} │ Params: {} │ Nesting: {}",
@@ -118,11 +113,7 @@ impl Reporter for ConsoleReporter {
         println!();
 
         let mut sorted = issues.to_vec();
-        sorted.sort_by(|a, b| {
-            a.file
-                .cmp(&b.file)
-                .then(a.line.cmp(&b.line))
-        });
+        sorted.sort_by(|a, b| a.file.cmp(&b.file).then(a.line.cmp(&b.line)));
 
         let mut current_file = PathBuf::new();
 
@@ -202,19 +193,11 @@ fn print_summary(report: &AnalysisReport) {
         );
     }
     if infos > 0 {
-        println!(
-            "    {} {}",
-            "●".blue(),
-            format!("{} info", infos).blue()
-        );
+        println!("    {} {}", "●".blue(), format!("{} info", infos).blue());
     }
 
     if errors == 0 && warnings == 0 && infos == 0 {
-        println!(
-            "    {} {}",
-            "✓".green().bold(),
-            "No issues found!".green()
-        );
+        println!("    {} {}", "✓".green().bold(), "No issues found!".green());
     }
 
     println!();

@@ -86,24 +86,24 @@ pub fn record_analysis(root: &Path) -> anyhow::Result<TuneHistory> {
         *rule_counts.entry(issue.rule.clone()).or_default() += 1;
     }
 
-    let suppressions = crate::stability::suppression::load_suppressions(root)
-        .unwrap_or_default();
+    let suppressions = crate::stability::suppression::load_suppressions(root).unwrap_or_default();
     let mut suppress_counts: HashMap<String, usize> = HashMap::new();
     for entry in &suppressions.entries {
         *suppress_counts.entry(entry.rule.clone()).or_default() += 1;
     }
 
     for (rule, count) in &rule_counts {
-        let record = history.records.entry(rule.clone()).or_insert_with(|| {
-            RuleTuneRecord {
+        let record = history
+            .records
+            .entry(rule.clone())
+            .or_insert_with(|| RuleTuneRecord {
                 rule: rule.clone(),
                 trigger_count: 0,
                 suppress_count: 0,
                 fix_accepted: 0,
                 fix_rejected: 0,
                 signal_ratio: 1.0,
-            }
-        });
+            });
         record.trigger_count += count;
         if let Some(sup) = suppress_counts.get(rule) {
             record.suppress_count += sup;
@@ -157,7 +157,11 @@ pub fn generate_recommendations(history: &TuneHistory) -> Vec<TuneRecommendation
         }
     }
 
-    recs.sort_by(|a, b| a.signal_ratio.partial_cmp(&b.signal_ratio).unwrap_or(std::cmp::Ordering::Equal));
+    recs.sort_by(|a, b| {
+        a.signal_ratio
+            .partial_cmp(&b.signal_ratio)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     recs
 }
 

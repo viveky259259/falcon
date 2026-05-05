@@ -61,7 +61,10 @@ impl Rule for AvoidPublicNotifierProperties {
                                             if n.kind() == "identifier" {
                                                 let id = &source[n.byte_range()];
                                                 if !id.starts_with('_')
-                                                    && id.chars().next().map_or(false, |c| c.is_lowercase())
+                                                    && id
+                                                        .chars()
+                                                        .next()
+                                                        .map_or(false, |c| c.is_lowercase())
                                                 {
                                                     issues.push(Issue {
                                                         rule: self.name().to_string(),

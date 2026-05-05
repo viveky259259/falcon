@@ -162,21 +162,26 @@ fn execute_analyze(args: &Value) -> Result<Value, String> {
         }
     }
 
-    let falcon = crate::Falcon::new(config)
-        .map_err(|e| format!("Failed to initialize Falcon: {}", e))?;
-    let report = falcon.analyze(&path)
+    let falcon =
+        crate::Falcon::new(config).map_err(|e| format!("Failed to initialize Falcon: {}", e))?;
+    let report = falcon
+        .analyze(&path)
         .map_err(|e| format!("Analysis failed: {}", e))?;
 
-    let issues: Vec<Value> = report.issues.iter().map(|i| {
-        serde_json::json!({
-            "rule": i.rule,
-            "message": i.message,
-            "severity": format!("{:?}", i.severity),
-            "file": i.file.to_string_lossy(),
-            "line": i.line,
-            "column": i.column
+    let issues: Vec<Value> = report
+        .issues
+        .iter()
+        .map(|i| {
+            serde_json::json!({
+                "rule": i.rule,
+                "message": i.message,
+                "severity": format!("{:?}", i.severity),
+                "file": i.file.to_string_lossy(),
+                "line": i.line,
+                "column": i.column
+            })
         })
-    }).collect();
+        .collect();
 
     Ok(serde_json::json!({
         "file_count": report.file_count,
@@ -214,13 +219,13 @@ fn execute_check_file(args: &Value) -> Result<Value, String> {
     let source = if let Some(src) = args.get("source").and_then(|v| v.as_str()) {
         src.to_string()
     } else {
-        std::fs::read_to_string(&file_path)
-            .map_err(|e| format!("Failed to read file: {}", e))?
+        std::fs::read_to_string(&file_path).map_err(|e| format!("Failed to read file: {}", e))?
     };
 
-    let mut parser = crate::parser::DartParser::new()
-        .map_err(|e| format!("Parser init failed: {}", e))?;
-    let tree = parser.parse(&source)
+    let mut parser =
+        crate::parser::DartParser::new().map_err(|e| format!("Parser init failed: {}", e))?;
+    let tree = parser
+        .parse(&source)
         .ok_or_else(|| "Failed to parse Dart source".to_string())?;
 
     let config = crate::config::FalconConfig::default();
@@ -229,21 +234,23 @@ fn execute_check_file(args: &Value) -> Result<Value, String> {
 
     let issues = registry.check(tree.root_node(), &source, &file_path);
 
-    let metrics = crate::metrics::calculate_file_metrics(
-        tree.root_node(), &source, &config.metrics
-    );
+    let metrics =
+        crate::metrics::calculate_file_metrics(tree.root_node(), &source, &config.metrics);
     let mut all_issues = issues;
     all_issues.extend(metrics.violations());
 
-    let issue_list: Vec<Value> = all_issues.iter().map(|i| {
-        serde_json::json!({
-            "rule": i.rule,
-            "message": i.message,
-            "severity": format!("{:?}", i.severity),
-            "line": i.line,
-            "column": i.column
+    let issue_list: Vec<Value> = all_issues
+        .iter()
+        .map(|i| {
+            serde_json::json!({
+                "rule": i.rule,
+                "message": i.message,
+                "severity": format!("{:?}", i.severity),
+                "line": i.line,
+                "column": i.column
+            })
         })
-    }).collect();
+        .collect();
 
     Ok(serde_json::json!({
         "file": file_path.to_string_lossy(),
@@ -276,25 +283,32 @@ fn execute_fix(args: &Value) -> Result<Value, String> {
 
     let config = crate::config::FalconConfig::load(&path)
         .map_err(|e| format!("Failed to load config: {}", e))?;
-    let falcon = crate::Falcon::new(config)
-        .map_err(|e| format!("Failed to initialize: {}", e))?;
-    let report = falcon.analyze(&path)
+    let falcon = crate::Falcon::new(config).map_err(|e| format!("Failed to initialize: {}", e))?;
+    let report = falcon
+        .analyze(&path)
         .map_err(|e| format!("Analysis failed: {}", e))?;
 
     let fixes = crate::ai::fix::generate_fixes(&report.issues, &path);
 
-    let fix_list: Vec<Value> = fixes.iter().filter(|f| f.auto_fixable).map(|f| {
-        serde_json::json!({
-            "rule": f.rule,
-            "file": f.file.to_string_lossy(),
-            "line": f.line,
-            "original": f.original,
-            "replacement": f.replacement,
-            "description": f.description
+    let fix_list: Vec<Value> = fixes
+        .iter()
+        .filter(|f| f.auto_fixable)
+        .map(|f| {
+            serde_json::json!({
+                "rule": f.rule,
+                "file": f.file.to_string_lossy(),
+                "line": f.line,
+                "original": f.original,
+                "replacement": f.replacement,
+                "description": f.description
+            })
         })
-    }).collect();
+        .collect();
 
-    let preview = args.get("preview").and_then(|v| v.as_bool()).unwrap_or(true);
+    let preview = args
+        .get("preview")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
     if !preview {
         let applied = crate::ai::fix::apply_fixes(&fixes);
         Ok(serde_json::json!({

@@ -45,7 +45,8 @@ pub struct CertCriterion {
 /// Evaluate a project for Falcon certification.
 pub fn evaluate_certification(root: &Path) -> anyhow::Result<CertificationResult> {
     let score = crate::ai_score::score::calculate_ai_score(root)?;
-    let project = root.file_name()
+    let project = root
+        .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("project")
         .to_string();
@@ -55,10 +56,14 @@ pub fn evaluate_certification(root: &Path) -> anyhow::Result<CertificationResult
     let report = falcon.analyze(root)?;
 
     let errors = report.error_count();
-    let vuln_count = report.issues.iter()
+    let vuln_count = report
+        .issues
+        .iter()
         .filter(|i| i.rule == "avoid-hardcoded-credentials")
         .count();
-    let dispose_count = report.issues.iter()
+    let dispose_count = report
+        .issues
+        .iter()
         .filter(|i| i.rule == "ensure-dispose-lifecycle")
         .count();
 
@@ -126,19 +131,31 @@ pub fn evaluate_certification(root: &Path) -> anyhow::Result<CertificationResult
         Some(CertLevel::Bronze) => "orange",
         None => "red",
     };
-    let badge_text = level.as_ref().map_or("Not Certified".to_string(), |l| format!("Certified_{}", l));
+    let badge_text = level
+        .as_ref()
+        .map_or("Not Certified".to_string(), |l| format!("Certified_{}", l));
     let badge_markdown = format!(
         "![Falcon Certified](https://img.shields.io/badge/Falcon-{}-{})",
         badge_text, badge_color
     );
 
-    Ok(CertificationResult { project, level, score: score.overall, criteria, badge_markdown })
+    Ok(CertificationResult {
+        project,
+        level,
+        score: score.overall,
+        criteria,
+        badge_markdown,
+    })
 }
 
 /// Print certification result.
 pub fn print_certification(result: &CertificationResult) {
     println!();
-    println!("  {} Certification — {}", "falcon".bright_cyan().bold(), result.project.bright_white().bold());
+    println!(
+        "  {} Certification — {}",
+        "falcon".bright_cyan().bold(),
+        result.project.bright_white().bold()
+    );
     println!();
 
     match &result.level {
@@ -149,17 +166,27 @@ pub fn print_certification(result: &CertificationResult) {
                 CertLevel::Silver => "SILVER".white().bold(),
                 CertLevel::Bronze => "BRONZE".red(),
             };
-            println!("  🏆 Falcon Certified: {} (Score: {}/100)", color, result.score);
+            println!(
+                "  🏆 Falcon Certified: {} (Score: {}/100)",
+                color, result.score
+            );
         }
         None => {
-            println!("  {} Not yet certified (Score: {}/100)", "✗".red(), result.score);
+            println!(
+                "  {} Not yet certified (Score: {}/100)",
+                "✗".red(),
+                result.score
+            );
         }
     }
 
     println!();
     for c in &result.criteria {
         let icon = if c.passed { "✓".green() } else { "✗".red() };
-        println!("  {} {:<35} required: {:<8} actual: {}", icon, c.name, c.required, c.actual);
+        println!(
+            "  {} {:<35} required: {:<8} actual: {}",
+            icon, c.name, c.required, c.actual
+        );
     }
 
     println!();

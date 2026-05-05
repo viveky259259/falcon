@@ -28,7 +28,8 @@ pub fn analyze_local_project(path: &Path, name: &str) -> anyhow::Result<RepoAnal
     let report = falcon.analyze(path)?;
     let elapsed = start.elapsed();
 
-    let mut rule_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut rule_counts: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
     for issue in &report.issues {
         *rule_counts.entry(issue.rule.clone()).or_default() += 1;
     }
@@ -107,10 +108,7 @@ pub fn print_showcase_report(report: &ShowcaseReport) {
         "    Total issues:      {}",
         report.total_issues.to_string().bright_white()
     );
-    println!(
-        "    Avg health score:  {:.1}%",
-        report.avg_health_score
-    );
+    println!("    Avg health score:  {:.1}%", report.avg_health_score);
     println!();
 
     println!("  Per-project breakdown:");
@@ -189,9 +187,11 @@ pub fn generate_markdown_report(report: &ShowcaseReport) -> String {
     md.push('\n');
 
     md.push_str("## Most Common Issues\n\n");
-    md.push_str("| Rule | Count 
+    md.push_str(
+        "| Rule | Count 
 
-|\n");
+|\n",
+    );
     md.push_str("|------|------:|\n");
     for (rule, count) in &report.most_common_rules {
         md.push_str(&format!("| `{}` | {} |\n", rule, count));

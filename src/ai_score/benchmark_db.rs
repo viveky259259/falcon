@@ -102,7 +102,10 @@ pub fn record_benchmark(
 pub fn compute_tool_stats(db: &BenchmarkDatabase) -> Vec<ToolStats> {
     let mut by_tool: HashMap<String, Vec<&ProjectBenchmark>> = HashMap::new();
     for entry in &db.entries {
-        by_tool.entry(entry.ai_tool.clone()).or_default().push(entry);
+        by_tool
+            .entry(entry.ai_tool.clone())
+            .or_default()
+            .push(entry);
     }
 
     let mut stats: Vec<ToolStats> = by_tool
@@ -133,7 +136,11 @@ pub fn compute_tool_stats(db: &BenchmarkDatabase) -> Vec<ToolStats> {
         })
         .collect();
 
-    stats.sort_by(|a, b| b.avg_score.partial_cmp(&a.avg_score).unwrap_or(std::cmp::Ordering::Equal));
+    stats.sort_by(|a, b| {
+        b.avg_score
+            .partial_cmp(&a.avg_score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     stats
 }
 

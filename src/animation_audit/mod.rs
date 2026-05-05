@@ -155,9 +155,15 @@ fn check_missing_disposal(path: &Path, lines: &[&str]) -> Vec<AnimationIssue> {
             // Check if we're inside a class definition
             let class_start = find_class_start(lines, idx);
             if let Some(class_end) = find_class_end(lines, class_start) {
-                let class_content = lines[class_start..=class_end].join("\n");
+                // Exclude comment lines so that comments mentioning dispose() don't suppress the issue
+                let class_code: String = lines[class_start..=class_end]
+                    .iter()
+                    .filter(|l| !l.trim().starts_with("//"))
+                    .map(|l| *l)
+                    .collect::<Vec<_>>()
+                    .join("\n");
                 // Flag only when there is NO dispose() call at all in the class
-                if !class_content.contains("dispose()") && !class_content.contains(".dispose()") {
+                if !class_code.contains("dispose()") && !class_code.contains(".dispose()") {
                     issues.push(AnimationIssue {
                         severity: AnimSeverity::Error,
                         category: "Missing AnimationController disposal",
@@ -330,8 +336,7 @@ fn check_missing_vsync(path: &Path, lines: &[&str]) -> Vec<AnimationIssue> {
                     file: path.to_path_buf(),
                     line: idx + 1,
                     snippet: line.trim().to_string(),
-                    detail: "AnimationController without vsync leads to battery drain"
-                        .to_string(),
+                    detail: "AnimationController without vsync leads to battery drain".to_string(),
                     suggestion: "Add 'vsync: this' to AnimationController constructor".to_string(),
                 });
             }
@@ -484,10 +489,7 @@ fn find_builder_end(lines: &[&str], from_idx: usize) -> Option<usize> {
 
 pub fn print_animation_report(report: &AnimationAuditReport) {
     println!("\n{}", "=== Animation Audit Report ===".bold().cyan());
-    println!(
-        "Files scanned: {}",
-        report.files_scanned.to_string().bold()
-    );
+    println!("Files scanned: {}", report.files_scanned.to_string().bold());
     println!(
         "Animation Controllers found: {}",
         report.total_animation_controllers.to_string().bold()
@@ -513,7 +515,10 @@ pub fn print_animation_report(report: &AnimationAuditReport) {
             println!("  Suggestion: {}", issue.suggestion.green());
         }
     } else {
-        println!("\n{}", "No animation issues found! Great job.".green().bold());
+        println!(
+            "\n{}",
+            "No animation issues found! Great job.".green().bold()
+        );
     }
 }
 
@@ -586,7 +591,11 @@ fn generate_html_report(report: &AnimationAuditReport) -> String {
         </div>
     </div>
 "#,
-        report.files_scanned, report.total_animation_controllers, report.issues.len(), score_class, report.score
+        report.files_scanned,
+        report.total_animation_controllers,
+        report.issues.len(),
+        score_class,
+        report.score
     ));
 
     if report.issues.is_empty() {

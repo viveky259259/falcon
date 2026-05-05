@@ -68,9 +68,7 @@ fn generate_dashboard_html(history: &[AnalysisSnapshot]) -> String {
     let complexity_data: Vec<String> = history
         .iter()
         .enumerate()
-        .map(|(i, s)| {
-            format!("{{x:{},y:{:.1}}}", i, s.metrics_summary.avg_cyclomatic)
-        })
+        .map(|(i, s)| format!("{{x:{},y:{:.1}}}", i, s.metrics_summary.avg_cyclomatic))
         .collect();
 
     let labels: Vec<String> = history
@@ -188,7 +186,10 @@ treemapData.forEach((d,i)=>{{const el=document.createElement('div');el.className
 </script>
 </body></html>"#,
         snapshots = history.len(),
-        timestamp = history.last().map(|s| s.timestamp.as_str()).unwrap_or("never"),
+        timestamp = history
+            .last()
+            .map(|s| s.timestamp.as_str())
+            .unwrap_or("never"),
         health = current_health,
         issues = current_issues,
         files = current_files,

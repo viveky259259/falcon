@@ -1,10 +1,10 @@
-use falcon::ai::config::{AiConfig, AiProvider};
 use falcon::ai::confidence::{score_unused_issues, ConfidenceResult};
+use falcon::ai::config::{AiConfig, AiProvider};
 use falcon::ai::explain::explain_rule;
 use falcon::ai::fix::generate_fixes;
 use falcon::config::FalconConfig;
-use falcon::reporters::Issue;
 use falcon::config::Severity;
+use falcon::reporters::Issue;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -123,7 +123,12 @@ fn test_explain_unknown_rule() {
 
 #[test]
 fn test_explain_multiple_rules() {
-    let rules = ["avoid-dynamic", "avoid-global-state", "avoid-returning-widgets", "dead-code-path"];
+    let rules = [
+        "avoid-dynamic",
+        "avoid-global-state",
+        "avoid-returning-widgets",
+        "dead-code-path",
+    ];
     for rule in &rules {
         let exp = explain_rule(rule);
         assert!(exp.is_some(), "Missing explanation for {}", rule);
@@ -144,7 +149,10 @@ fn test_confidence_scoring_high() {
 
     let results = score_unused_issues(&issues, dir.path());
     assert_eq!(results.len(), 1);
-    assert!(results[0].confidence >= 90, "Private unused code should have high confidence");
+    assert!(
+        results[0].confidence >= 90,
+        "Private unused code should have high confidence"
+    );
 }
 
 #[test]
@@ -203,13 +211,22 @@ fn test_confidence_labels() {
     };
     assert_eq!(result.confidence_label(), "high");
 
-    let result_med = ConfidenceResult { confidence: 75, ..result.clone() };
+    let result_med = ConfidenceResult {
+        confidence: 75,
+        ..result.clone()
+    };
     assert_eq!(result_med.confidence_label(), "medium");
 
-    let result_low = ConfidenceResult { confidence: 55, ..result.clone() };
+    let result_low = ConfidenceResult {
+        confidence: 55,
+        ..result.clone()
+    };
     assert_eq!(result_low.confidence_label(), "low");
 
-    let result_uncertain = ConfidenceResult { confidence: 30, ..result };
+    let result_uncertain = ConfidenceResult {
+        confidence: 30,
+        ..result
+    };
     assert_eq!(result_uncertain.confidence_label(), "uncertain");
 }
 

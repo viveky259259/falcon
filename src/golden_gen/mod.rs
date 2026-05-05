@@ -73,10 +73,7 @@ pub fn discover_widgets(path: &Path) -> Result<Vec<DiscoveredWidget>> {
         .filter(|e| e.file_type().is_file())
         .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
         .filter(|e| {
-            let rel_path = e
-                .path()
-                .strip_prefix(path)
-                .unwrap_or_else(|_| e.path());
+            let rel_path = e.path().strip_prefix(path).unwrap_or_else(|_| e.path());
             let path_str = rel_path.to_string_lossy();
 
             // Skip excluded directories
@@ -350,7 +347,7 @@ fn extract_class_name(line: &str) -> Option<String> {
 }
 
 fn extract_constructor_params(lines: &[&str], class_line_idx: usize) -> Result<Vec<WidgetParam>> {
-    let mut params = Vec::new();
+    let params = Vec::new();
 
     // Find constructor: look for class_name({
     for idx in class_line_idx..lines.len() {
@@ -358,7 +355,7 @@ fn extract_constructor_params(lines: &[&str], class_line_idx: usize) -> Result<V
 
         // Look for constructor
         if line.contains("const ") || idx == class_line_idx {
-            if let Some(open_paren) = line.find('(') {
+            if line.find('(').is_some() {
                 // Collect full parameter list
                 let mut param_content = String::new();
                 let mut brace_count = 0;
@@ -526,36 +523,35 @@ fn generate_test_content(widget: &DiscoveredWidget, project_path: &Path) -> Resu
         .and_then(|n| n.to_str())
         .unwrap_or("my_app");
 
+    let widget_name = &widget.name;
+    let widget_lower = widget.name.to_lowercase();
     Ok(format!(
         r#"import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:{}/{module}';
+import 'package:{package}/{module}';
 
 void main() {{
-  testWidgets('{} renders correctly', (tester) async {{
+  testWidgets('{name} renders correctly', (tester) async {{
     await tester.pumpWidget(
       const MaterialApp(
-        home: {}{}
+        home: {name}{params}
       ),
     );
 
-    expect(find.byType({}), findsOneWidget);
+    expect(find.byType({name}), findsOneWidget);
 
     await expectLater(
-      find.byType({}),
-      matchesGoldenFile('goldens/{}.png'),
+      find.byType({name}),
+      matchesGoldenFile('goldens/{lower}.png'),
     );
   }});
 }}
 "#,
-        package_name,
-        relative_import.replace(".dart", "").replace('/', "_"),
-        widget.name,
-        widget.name,
-        params_clause,
-        widget.name,
-        widget.name,
-        widget.name.to_lowercase()
+        package = package_name,
+        module = relative_import,
+        name = widget_name,
+        params = params_clause,
+        lower = widget_lower,
     ))
 }
 

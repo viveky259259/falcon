@@ -1,6 +1,6 @@
+use crate::config::Severity;
 use crate::incremental::dep_graph::DependencyGraph;
 use crate::reporters::Issue;
-use crate::config::Severity;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
@@ -41,14 +41,17 @@ pub fn detect_cycles(graph: &DependencyGraph, root: &Path) -> (Vec<Issue>, Vec<V
                 .collect();
             let display = cycle_str.join(" → ");
 
-            cycle.iter().map(move |file| Issue {
-                rule: "cyclic-dependency".to_string(),
-                message: format!("File is part of a cyclic dependency: {}", display),
-                severity: Severity::Warning,
-                file: file.clone(),
-                line: 1,
-                column: 1,
-            }).collect::<Vec<_>>()
+            cycle
+                .iter()
+                .map(move |file| Issue {
+                    rule: "cyclic-dependency".to_string(),
+                    message: format!("File is part of a cyclic dependency: {}", display),
+                    severity: Severity::Warning,
+                    file: file.clone(),
+                    line: 1,
+                    column: 1,
+                })
+                .collect::<Vec<_>>()
         })
         .collect();
 
@@ -94,7 +97,11 @@ pub fn format_cycles(cycles: &[Vec<PathBuf>], root: &Path) -> String {
     let mut output = format!("Found {} cyclic dependency chain(s):\n\n", cycles.len());
 
     for (i, cycle) in cycles.iter().enumerate() {
-        output.push_str(&format!("  Cycle #{} ({} files):\n", i + 1, cycle.len() - 1));
+        output.push_str(&format!(
+            "  Cycle #{} ({} files):\n",
+            i + 1,
+            cycle.len() - 1
+        ));
         for (j, file) in cycle.iter().enumerate() {
             let rel = file.strip_prefix(root).unwrap_or(file);
             if j == cycle.len() - 1 {

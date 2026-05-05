@@ -24,7 +24,11 @@ fn test_all_43_rules_registered() {
     let source = "";
     let tree = DartParser::new().unwrap().parse(source).unwrap();
     let _ = registry.check(tree.root_node(), source, &PathBuf::from("test.dart"));
-    assert!(config.rules.len() >= 43, "Should have at least 43 default rules configured, got {}", config.rules.len());
+    assert!(
+        config.rules.len() >= 43,
+        "Should have at least 43 default rules configured, got {}",
+        config.rules.len()
+    );
 }
 
 #[test]
@@ -39,8 +43,10 @@ void test() {
 }
 "#;
     let issues = parse_and_check(source, "test.dart");
-    assert!(has_rule(&issues, "avoid-throw-in-catch-block"),
-        "Should detect throw in catch block");
+    assert!(
+        has_rule(&issues, "avoid-throw-in-catch-block"),
+        "Should detect throw in catch block"
+    );
 }
 
 #[test]
@@ -52,8 +58,11 @@ void test() {
 }
 "#;
     let issues = parse_and_check(source, "test.dart");
-    assert!(has_rule(&issues, "prefer-first-last"),
-        "Should detect [0] usage, issues: {:?}", issues.iter().map(|i| &i.rule).collect::<Vec<_>>());
+    assert!(
+        has_rule(&issues, "prefer-first-last"),
+        "Should detect [0] usage, issues: {:?}",
+        issues.iter().map(|i| &i.rule).collect::<Vec<_>>()
+    );
 }
 
 #[test]
@@ -64,8 +73,10 @@ void test() {
 }
 "#;
     let issues = parse_and_check(source, "test.dart");
-    assert!(has_rule(&issues, "double-literal-format"),
-        "Should detect leading dot in double literal");
+    assert!(
+        has_rule(&issues, "double-literal-format"),
+        "Should detect leading dot in double literal"
+    );
 }
 
 #[test]
@@ -78,8 +89,10 @@ void test(int x) {
 }
 "#;
     let issues = parse_and_check(source, "test.dart");
-    assert!(has_rule(&issues, "binary-expression-operand-order"),
-        "Should detect Yoda condition");
+    assert!(
+        has_rule(&issues, "binary-expression-operand-order"),
+        "Should detect Yoda condition"
+    );
 }
 
 #[test]
@@ -90,16 +103,24 @@ void test(int used, int unused) {
 }
 "#;
     let issues = parse_and_check(source, "test.dart");
-    let unused = issues.iter().filter(|i| i.rule == "avoid-unused-parameters").collect::<Vec<_>>();
-    assert!(!unused.is_empty(), "Should detect unused parameter 'unused'");
+    let unused = issues
+        .iter()
+        .filter(|i| i.rule == "avoid-unused-parameters")
+        .collect::<Vec<_>>();
+    assert!(
+        !unused.is_empty(),
+        "Should detect unused parameter 'unused'"
+    );
 }
 
 #[test]
 fn test_avoid_non_ascii_symbols() {
     let source = "void testFuncti\u{00f6}n() {}\n";
     let issues = parse_and_check(source, "test.dart");
-    assert!(has_rule(&issues, "avoid-non-ascii-symbols"),
-        "Should detect non-ASCII in identifier");
+    assert!(
+        has_rule(&issues, "avoid-non-ascii-symbols"),
+        "Should detect non-ASCII in identifier"
+    );
 }
 
 #[test]
@@ -109,8 +130,10 @@ export 'package:foo/foo.dart';
 export 'package:foo/foo.dart';
 "#;
     let issues = parse_and_check(source, "test.dart");
-    assert!(has_rule(&issues, "avoid-duplicate-exports"),
-        "Should detect duplicate export");
+    assert!(
+        has_rule(&issues, "avoid-duplicate-exports"),
+        "Should detect duplicate export"
+    );
 }
 
 #[test]
@@ -121,8 +144,10 @@ class Bad {
 }
 "#;
     let issues = parse_and_check(source_only_equals, "test.dart");
-    assert!(has_rule(&issues, "always-override-equals-and-hashcode"),
-        "Should detect == without hashCode");
+    assert!(
+        has_rule(&issues, "always-override-equals-and-hashcode"),
+        "Should detect == without hashCode"
+    );
 }
 
 #[test]
@@ -137,8 +162,10 @@ class MyVal {
 }
 "#;
     let issues = parse_and_check(source, "test.dart");
-    assert!(has_rule(&issues, "prefer-equatable"),
-        "Should suggest Equatable when both == and hashCode are overridden");
+    assert!(
+        has_rule(&issues, "prefer-equatable"),
+        "Should suggest Equatable when both == and hashCode are overridden"
+    );
 }
 
 #[test]
@@ -153,8 +180,10 @@ class Bad extends Equatable {
 }
 "#;
     let issues = parse_and_check(source, "test.dart");
-    assert!(has_rule(&issues, "avoid-mutable-equatable"),
-        "Should detect mutable field in Equatable class");
+    assert!(
+        has_rule(&issues, "avoid-mutable-equatable"),
+        "Should detect mutable field in Equatable class"
+    );
 }
 
 #[test]
@@ -166,8 +195,10 @@ Widget build(BuildContext context) {
 }
 "#;
     let issues = parse_and_check(source, "test.dart");
-    assert!(has_rule(&issues, "avoid-ref-read-inside-build"),
-        "Should detect ref.read inside build");
+    assert!(
+        has_rule(&issues, "avoid-ref-read-inside-build"),
+        "Should detect ref.read inside build"
+    );
 }
 
 #[test]
@@ -179,8 +210,10 @@ void onTap() {
 }
 "#;
     let issues = parse_and_check(source, "test.dart");
-    assert!(has_rule(&issues, "avoid-watch-outside-build"),
-        "Should detect ref.watch outside build");
+    assert!(
+        has_rule(&issues, "avoid-watch-outside-build"),
+        "Should detect ref.watch outside build"
+    );
 }
 
 #[test]
@@ -191,8 +224,10 @@ void test(BuildContext context) {
 }
 "#;
     let issues = parse_and_check(source, "test.dart");
-    assert!(has_rule(&issues, "prefer-bloc-extensions"),
-        "Should suggest context.read over BlocProvider.of");
+    assert!(
+        has_rule(&issues, "prefer-bloc-extensions"),
+        "Should suggest context.read over BlocProvider.of"
+    );
 }
 
 #[test]
@@ -204,8 +239,10 @@ int test(int x) {
 }
 "#;
     let issues = parse_and_check(source, "test.dart");
-    assert!(has_rule(&issues, "newline-before-return"),
-        "Should detect missing newline before return");
+    assert!(
+        has_rule(&issues, "newline-before-return"),
+        "Should detect missing newline before return"
+    );
 }
 
 #[test]
@@ -218,8 +255,10 @@ class TestHelper {
 void main() {}
 "#;
     let issues = parse_and_check(source, "widget_test.dart");
-    assert!(has_rule(&issues, "avoid-top-level-members-in-tests"),
-        "Should detect top-level class in test file");
+    assert!(
+        has_rule(&issues, "avoid-top-level-members-in-tests"),
+        "Should detect top-level class in test file"
+    );
 }
 
 #[test]
@@ -231,6 +270,8 @@ void test(dynamic x) {
 }
 "#;
     let issues = parse_and_check(source, "test.dart");
-    assert!(!has_rule(&issues, "avoid-dynamic"),
-        "avoid-dynamic should be suppressed by ignore_for_file");
+    assert!(
+        !has_rule(&issues, "avoid-dynamic"),
+        "avoid-dynamic should be suppressed by ignore_for_file"
+    );
 }

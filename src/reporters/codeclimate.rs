@@ -29,7 +29,13 @@ fn build_cc(issues: &[Issue]) -> Vec<Value> {
         .map(|issue| {
             let fingerprint = format!(
                 "{:x}",
-                md5_hash(&format!("{}:{}:{}:{}", issue.rule, issue.file.display(), issue.line, issue.column))
+                md5_hash(&format!(
+                    "{}:{}:{}:{}",
+                    issue.rule,
+                    issue.file.display(),
+                    issue.line,
+                    issue.column
+                ))
             );
 
             json!({

@@ -51,18 +51,40 @@ pub fn discover_patterns(root: &Path) -> Vec<ProposedRule> {
 
 fn detect_patterns(source: &str, counts: &mut HashMap<String, (usize, usize)>) {
     let checks: Vec<(&str, Box<dyn Fn(&str) -> bool>)> = vec![
-        ("toString-in-interpolation", Box::new(|l: &str| l.contains(".toString()") && l.contains("${"))),
-        ("bang-operator", Box::new(|l: &str| l.contains("!.") || l.contains("!,") || (l.contains('!') && l.contains("null")))),
-        ("nested-ternary", Box::new(|l: &str| l.matches('?').count() >= 2 && l.contains(':'))),
-        ("string-concat", Box::new(|l: &str| l.matches(" + '").count() >= 1 || l.matches(" + \"").count() >= 1)),
-        ("force-unwrap-list", Box::new(|l: &str| l.contains(".first!") || l.contains(".last!") || l.contains("[0]!"))),
-        ("raw-map-access", Box::new(|l: &str| l.contains("['") && l.contains("']") && !l.contains("?["))),
+        (
+            "toString-in-interpolation",
+            Box::new(|l: &str| l.contains(".toString()") && l.contains("${")),
+        ),
+        (
+            "bang-operator",
+            Box::new(|l: &str| {
+                l.contains("!.") || l.contains("!,") || (l.contains('!') && l.contains("null"))
+            }),
+        ),
+        (
+            "nested-ternary",
+            Box::new(|l: &str| l.matches('?').count() >= 2 && l.contains(':')),
+        ),
+        (
+            "string-concat",
+            Box::new(|l: &str| l.matches(" + '").count() >= 1 || l.matches(" + \"").count() >= 1),
+        ),
+        (
+            "force-unwrap-list",
+            Box::new(|l: &str| l.contains(".first!") || l.contains(".last!") || l.contains("[0]!")),
+        ),
+        (
+            "raw-map-access",
+            Box::new(|l: &str| l.contains("['") && l.contains("']") && !l.contains("?[")),
+        ),
     ];
 
     let mut file_patterns = std::collections::HashSet::new();
     for line in source.lines() {
         let trimmed = line.trim();
-        if trimmed.starts_with("//") { continue; }
+        if trimmed.starts_with("//") {
+            continue;
+        }
 
         for (name, check) in &checks {
             if check(trimmed) {
@@ -113,7 +135,13 @@ fn propose_rule(pattern: &str, occurrences: usize, files: usize) -> Option<Propo
         _ => return None,
     };
 
-    let confidence = if occurrences >= 10 { 0.9 } else if occurrences >= 5 { 0.7 } else { 0.5 };
+    let confidence = if occurrences >= 10 {
+        0.9
+    } else if occurrences >= 5 {
+        0.7
+    } else {
+        0.5
+    };
 
     Some(ProposedRule {
         name: name.to_string(),
@@ -129,10 +157,7 @@ fn propose_rule(pattern: &str, occurrences: usize, files: usize) -> Option<Propo
 /// Print proposed rules.
 pub fn print_proposed_rules(rules: &[ProposedRule]) {
     println!();
-    println!(
-        "  {} Auto-Rule Discovery",
-        "falcon".bright_cyan().bold()
-    );
+    println!("  {} Auto-Rule Discovery", "falcon".bright_cyan().bold());
     println!();
 
     if rules.is_empty() {
@@ -141,7 +166,10 @@ pub fn print_proposed_rules(rules: &[ProposedRule]) {
         return;
     }
 
-    println!("  {} proposed rule(s) based on observed patterns:\n", rules.len());
+    println!(
+        "  {} proposed rule(s) based on observed patterns:\n",
+        rules.len()
+    );
 
     for rule in rules {
         let confidence_color = if rule.confidence >= 0.8 {

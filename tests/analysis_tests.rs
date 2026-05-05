@@ -5,7 +5,9 @@ fn test_refactor_sim_setstate_to_riverpod() {
     let tmp = tempfile::tempdir().unwrap();
     let lib = tmp.path().join("lib");
     std::fs::create_dir_all(&lib).unwrap();
-    std::fs::write(lib.join("counter.dart"), r#"
+    std::fs::write(
+        lib.join("counter.dart"),
+        r#"
 class CounterPage extends StatefulWidget {
   @override
   State<CounterPage> createState() => _CounterPageState();
@@ -14,17 +16,26 @@ class _CounterPageState extends State<CounterPage> {
   int count = 0;
   void increment() { setState(() { count++; }); }
 }
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     let impact = falcon::analysis::refactor_sim::simulate_refactor(
         tmp.path(),
         &falcon::analysis::refactor_sim::RefactorScenario::SetStateToRiverpod,
-    ).unwrap();
+    )
+    .unwrap();
 
     assert!(impact.files_affected >= 1);
     assert!(!impact.migration_steps.is_empty());
-    assert!(impact.migration_steps.iter().any(|s| s.contains("Riverpod") || s.contains("riverpod")));
-    assert!(!impact.migration_steps.iter().any(|s| s.contains("Remove setstate")));
+    assert!(impact
+        .migration_steps
+        .iter()
+        .any(|s| s.contains("Riverpod") || s.contains("riverpod")));
+    assert!(!impact
+        .migration_steps
+        .iter()
+        .any(|s| s.contains("Remove setstate")));
 }
 
 #[test]
@@ -38,7 +49,8 @@ fn test_refactor_sim_clean_architecture() {
     let impact = falcon::analysis::refactor_sim::simulate_refactor(
         tmp.path(),
         &falcon::analysis::refactor_sim::RefactorScenario::CleanArchitecture,
-    ).unwrap();
+    )
+    .unwrap();
 
     assert!(impact.files_affected >= 2);
     assert!(!impact.migration_steps.is_empty());
@@ -67,7 +79,11 @@ fn test_vuln_scan_clean_code() {
     let tmp = tempfile::tempdir().unwrap();
     let lib = tmp.path().join("lib");
     std::fs::create_dir_all(&lib).unwrap();
-    std::fs::write(lib.join("app.dart"), "class App {\n  String greet() => 'hello';\n}\n").unwrap();
+    std::fs::write(
+        lib.join("app.dart"),
+        "class App {\n  String greet() => 'hello';\n}\n",
+    )
+    .unwrap();
 
     let findings = falcon::analysis::vuln_radar::scan_vulnerabilities(tmp.path());
     assert!(findings.is_empty());
@@ -78,12 +94,16 @@ fn test_vuln_scan_detects_insecure_storage() {
     let tmp = tempfile::tempdir().unwrap();
     let lib = tmp.path().join("lib");
     std::fs::create_dir_all(&lib).unwrap();
-    std::fs::write(lib.join("auth.dart"),
-        "void save() {\n  SharedPreferences.setString('password', pw);\n}\n"
-    ).unwrap();
+    std::fs::write(
+        lib.join("auth.dart"),
+        "void save() {\n  SharedPreferences.setString('password', pw);\n}\n",
+    )
+    .unwrap();
 
     let findings = falcon::analysis::vuln_radar::scan_vulnerabilities(tmp.path());
-    assert!(findings.iter().any(|f| f.issue.rule == "vuln-insecure-storage"));
+    assert!(findings
+        .iter()
+        .any(|f| f.issue.rule == "vuln-insecure-storage"));
 }
 
 #[test]
@@ -91,12 +111,16 @@ fn test_vuln_scan_detects_cert_bypass() {
     let tmp = tempfile::tempdir().unwrap();
     let lib = tmp.path().join("lib");
     std::fs::create_dir_all(&lib).unwrap();
-    std::fs::write(lib.join("http.dart"),
-        "client.badCertificateCallback = (cert, host, port) => true;\n"
-    ).unwrap();
+    std::fs::write(
+        lib.join("http.dart"),
+        "client.badCertificateCallback = (cert, host, port) => true;\n",
+    )
+    .unwrap();
 
     let findings = falcon::analysis::vuln_radar::scan_vulnerabilities(tmp.path());
-    assert!(findings.iter().any(|f| f.issue.rule == "vuln-cert-pinning-bypass"));
+    assert!(findings
+        .iter()
+        .any(|f| f.issue.rule == "vuln-cert-pinning-bypass"));
 }
 
 #[test]
@@ -104,12 +128,17 @@ fn test_vuln_scan_skips_comments() {
     let tmp = tempfile::tempdir().unwrap();
     let lib = tmp.path().join("lib");
     std::fs::create_dir_all(&lib).unwrap();
-    std::fs::write(lib.join("app.dart"),
-        "// SharedPreferences.setString('password', pw);\nclass App {}\n"
-    ).unwrap();
+    std::fs::write(
+        lib.join("app.dart"),
+        "// SharedPreferences.setString('password', pw);\nclass App {}\n",
+    )
+    .unwrap();
 
     let findings = falcon::analysis::vuln_radar::scan_vulnerabilities(tmp.path());
-    let storage = findings.iter().filter(|f| f.issue.rule == "vuln-insecure-storage").count();
+    let storage = findings
+        .iter()
+        .filter(|f| f.issue.rule == "vuln-insecure-storage")
+        .count();
     assert_eq!(storage, 0, "Should skip commented-out code");
 }
 
@@ -120,7 +149,11 @@ fn test_upgrade_check_clean_code() {
     let tmp = tempfile::tempdir().unwrap();
     let lib = tmp.path().join("lib");
     std::fs::create_dir_all(&lib).unwrap();
-    std::fs::write(lib.join("app.dart"), "class App {\n  Widget build() => Container();\n}\n").unwrap();
+    std::fs::write(
+        lib.join("app.dart"),
+        "class App {\n  Widget build() => Container();\n}\n",
+    )
+    .unwrap();
 
     let findings = falcon::analysis::upgrade_check::check_upgrade_compatibility(tmp.path());
     assert!(findings.is_empty());
@@ -131,9 +164,11 @@ fn test_upgrade_check_detects_deprecated_text_theme() {
     let tmp = tempfile::tempdir().unwrap();
     let lib = tmp.path().join("lib");
     std::fs::create_dir_all(&lib).unwrap();
-    std::fs::write(lib.join("theme.dart"),
-        "final style = textTheme.bodyText1;\nfinal sub = textTheme.subtitle1;\n"
-    ).unwrap();
+    std::fs::write(
+        lib.join("theme.dart"),
+        "final style = textTheme.bodyText1;\nfinal sub = textTheme.subtitle1;\n",
+    )
+    .unwrap();
 
     let findings = falcon::analysis::upgrade_check::check_upgrade_compatibility(tmp.path());
     assert!(findings.len() >= 2);
@@ -146,12 +181,16 @@ fn test_upgrade_check_detects_willpopscope() {
     let tmp = tempfile::tempdir().unwrap();
     let lib = tmp.path().join("lib");
     std::fs::create_dir_all(&lib).unwrap();
-    std::fs::write(lib.join("page.dart"),
-        "Widget build() {\n  return WillPopScope(\n    onWillPop: () async => true,\n  );\n}\n"
-    ).unwrap();
+    std::fs::write(
+        lib.join("page.dart"),
+        "Widget build() {\n  return WillPopScope(\n    onWillPop: () async => true,\n  );\n}\n",
+    )
+    .unwrap();
 
     let findings = falcon::analysis::upgrade_check::check_upgrade_compatibility(tmp.path());
-    assert!(findings.iter().any(|f| f.issue.message.contains("WillPopScope") || f.migration.contains("PopScope")));
+    assert!(findings
+        .iter()
+        .any(|f| f.issue.message.contains("WillPopScope") || f.migration.contains("PopScope")));
 }
 
 // ─── Platform Channels ──────────────────────────────────────────────────────
@@ -168,9 +207,11 @@ fn test_platform_channels_kotlin() {
     let tmp = tempfile::tempdir().unwrap();
     let kotlin_dir = tmp.path().join("android/app/src/main/kotlin");
     std::fs::create_dir_all(&kotlin_dir).unwrap();
-    std::fs::write(kotlin_dir.join("MainActivity.kt"),
-        "val channel = MethodChannel(\"myChannel\")\n"
-    ).unwrap();
+    std::fs::write(
+        kotlin_dir.join("MainActivity.kt"),
+        "val channel = MethodChannel(\"myChannel\")\n",
+    )
+    .unwrap();
 
     let issues = falcon::analysis::platform_channels::analyze_platform_channels(tmp.path());
     assert!(issues.iter().any(|i| i.rule == "platform-channel-naming"));
@@ -194,13 +235,18 @@ fn test_codegen_detects_generated() {
     let tmp = tempfile::tempdir().unwrap();
     let lib = tmp.path().join("lib");
     std::fs::create_dir_all(&lib).unwrap();
-    std::fs::write(lib.join("model.g.dart"),
-        "// GENERATED CODE - DO NOT MODIFY BY HAND\npart of 'model.dart';\nclass _$Model {}\n"
-    ).unwrap();
+    std::fs::write(
+        lib.join("model.g.dart"),
+        "// GENERATED CODE - DO NOT MODIFY BY HAND\npart of 'model.dart';\nclass _$Model {}\n",
+    )
+    .unwrap();
 
     let report = falcon::analysis::codegen_quality::analyze_codegen(tmp.path());
     assert_eq!(report.total_generated_files, 1);
-    assert!(report.generators_found.iter().any(|g| g.contains("json_serializable") || g.contains("build_runner")));
+    assert!(report
+        .generators_found
+        .iter()
+        .any(|g| g.contains("json_serializable") || g.contains("build_runner")));
 }
 
 #[test]
@@ -208,10 +254,17 @@ fn test_codegen_detects_stale() {
     let tmp = tempfile::tempdir().unwrap();
     let lib = tmp.path().join("lib");
     std::fs::create_dir_all(&lib).unwrap();
-    std::fs::write(lib.join("orphan.g.dart"), "// GENERATED CODE\nclass Orphan {}\n").unwrap();
+    std::fs::write(
+        lib.join("orphan.g.dart"),
+        "// GENERATED CODE\nclass Orphan {}\n",
+    )
+    .unwrap();
 
     let report = falcon::analysis::codegen_quality::analyze_codegen(tmp.path());
-    assert!(!report.stale_files.is_empty(), "Should detect stale generated file with no source");
+    assert!(
+        !report.stale_files.is_empty(),
+        "Should detect stale generated file with no source"
+    );
 }
 
 // ─── DevTools Bridge ────────────────────────────────────────────────────────
@@ -221,7 +274,11 @@ fn test_devtools_clean_code() {
     let tmp = tempfile::tempdir().unwrap();
     let lib = tmp.path().join("lib");
     std::fs::create_dir_all(&lib).unwrap();
-    std::fs::write(lib.join("app.dart"), "class App {\n  String greet() => 'hi';\n}\n").unwrap();
+    std::fs::write(
+        lib.join("app.dart"),
+        "class App {\n  String greet() => 'hi';\n}\n",
+    )
+    .unwrap();
 
     let report = falcon::analysis::devtools_bridge::analyze_performance(tmp.path());
     assert!(report.rebuild_issues.is_empty());
@@ -237,7 +294,10 @@ fn test_devtools_detects_opacity_zero() {
     ).unwrap();
 
     let report = falcon::analysis::devtools_bridge::analyze_performance(tmp.path());
-    assert!(report.render_issues.iter().any(|i| i.rule == "perf-opacity-zero"));
+    assert!(report
+        .render_issues
+        .iter()
+        .any(|i| i.rule == "perf-opacity-zero"));
 }
 
 #[test]
@@ -250,7 +310,10 @@ fn test_devtools_detects_listview_children() {
     ).unwrap();
 
     let report = falcon::analysis::devtools_bridge::analyze_performance(tmp.path());
-    assert!(report.render_issues.iter().any(|i| i.rule == "perf-unbounded-list"));
+    assert!(report
+        .render_issues
+        .iter()
+        .any(|i| i.rule == "perf-unbounded-list"));
 }
 
 // ─── Test Generation ────────────────────────────────────────────────────────
@@ -260,7 +323,9 @@ fn test_test_gen_generates_stubs() {
     let tmp = tempfile::tempdir().unwrap();
     let lib = tmp.path().join("lib");
     std::fs::create_dir_all(&lib).unwrap();
-    std::fs::write(lib.join("service.dart"), r#"
+    std::fs::write(
+        lib.join("service.dart"),
+        r#"
 class UserService {
   Future<User> getUser(String id) async {
     return User(id: id);
@@ -269,7 +334,9 @@ class UserService {
     // save
   }
 }
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     let stubs = falcon::analysis::test_gen::generate_test_stubs(tmp.path());
     assert!(!stubs.is_empty());
@@ -282,13 +349,11 @@ fn test_test_gen_render_file() {
         target_file: "lib/service.dart".to_string(),
         test_file: "test/service_test.dart".to_string(),
         class_name: "UserService".to_string(),
-        test_cases: vec![
-            falcon::analysis::test_gen::TestCase {
-                name: "getUser works".to_string(),
-                body: "    expect(true, true);".to_string(),
-                category: falcon::analysis::test_gen::TestCategory::Unit,
-            },
-        ],
+        test_cases: vec![falcon::analysis::test_gen::TestCase {
+            name: "getUser works".to_string(),
+            body: "    expect(true, true);".to_string(),
+            category: falcon::analysis::test_gen::TestCategory::Unit,
+        }],
     };
 
     let content = falcon::analysis::test_gen::render_test_file(&stub);

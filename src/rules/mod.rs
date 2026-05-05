@@ -127,9 +127,7 @@ impl RuleRegistry {
                 issue.severity = *severity;
             }
             let rule_name = rule.name();
-            rule_issues.retain(|issue| {
-                !is_line_suppressed(source, issue.line, rule_name)
-            });
+            rule_issues.retain(|issue| !is_line_suppressed(source, issue.line, rule_name));
             issues.extend(rule_issues);
         }
 

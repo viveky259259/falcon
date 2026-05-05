@@ -57,8 +57,8 @@ impl Rule for AvoidReturningWidgets {
             let method_text = node_text(method, source);
             for widget in WIDGET_TYPES {
                 if method_text.contains(widget) && has_widget_return_type(method, source) {
-                    let name = dart_ast::get_declaration_name(method, source)
-                        .unwrap_or("<anonymous>");
+                    let name =
+                        dart_ast::get_declaration_name(method, source).unwrap_or("<anonymous>");
                     issues.push(Issue {
                         rule: self.name().to_string(),
                         message: format!(

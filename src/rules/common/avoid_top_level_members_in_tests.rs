@@ -48,7 +48,10 @@ impl Rule for AvoidTopLevelMembersInTests {
                 if name != "main" {
                     issues.push(Issue {
                         rule: self.name().to_string(),
-                        message: format!("Avoid declaring top-level function '{}' in test files.", name),
+                        message: format!(
+                            "Avoid declaring top-level function '{}' in test files.",
+                            name
+                        ),
                         severity: self.default_severity(),
                         file: file.to_path_buf(),
                         line: node_start_line(child),

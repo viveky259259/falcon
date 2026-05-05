@@ -119,9 +119,13 @@ fn send_payload(url: &str, payload: &WebhookPayload) -> anyhow::Result<()> {
 
     let output = std::process::Command::new("curl")
         .args([
-            "-s", "-X", "POST",
-            "-H", "Content-Type: application/json",
-            "-d", &json,
+            "-s",
+            "-X",
+            "POST",
+            "-H",
+            "Content-Type: application/json",
+            "-d",
+            &json,
             url,
         ])
         .output()?;

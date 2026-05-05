@@ -180,20 +180,12 @@ fn collect_project_patterns(root: &Path, _changed_files: &[PathBuf]) -> ProjectP
     patterns
 }
 
-fn check_error_handling(
-    file: &Path,
-    source: &str,
-    observations: &mut Vec<ReviewObservation>,
-) {
+fn check_error_handling(file: &Path, source: &str, observations: &mut Vec<ReviewObservation>) {
     for (line_num, line) in source.lines().enumerate() {
         let trimmed = line.trim();
 
         if trimmed.contains("catch (e)") && !trimmed.contains("on ") {
-            let next_lines: Vec<&str> = source
-                .lines()
-                .skip(line_num + 1)
-                .take(3)
-                .collect();
+            let next_lines: Vec<&str> = source.lines().skip(line_num + 1).take(3).collect();
             let catch_body = next_lines.join(" ");
 
             if catch_body.contains("print(") || catch_body.trim().starts_with('}') {
@@ -214,7 +206,10 @@ fn check_error_handling(
                 message: "Empty catch block — all exceptions are silently ignored.".to_string(),
                 file: file.to_path_buf(),
                 line: line_num + 1,
-                suggestion: Some("At minimum, log the error. Better: handle it properly or let it propagate.".to_string()),
+                suggestion: Some(
+                    "At minimum, log the error. Better: handle it properly or let it propagate."
+                        .to_string(),
+                ),
                 severity: ObservationSeverity::Critical,
             });
         }
@@ -251,14 +246,21 @@ fn check_naming_node(
         let text = node.utf8_text(source.as_bytes()).unwrap_or("");
         if let Some(name_start) = text.find("class ") {
             let rest = &text[name_start + 6..];
-            let name: String = rest.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
+            let name: String = rest
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_')
+                .collect();
             if !name.is_empty() && name.chars().next().map_or(false, |c| c.is_lowercase()) {
                 observations.push(ReviewObservation {
                     category: ObservationCategory::NamingConvention,
                     message: format!("Class '{}' should use UpperCamelCase.", name),
                     file: file.to_path_buf(),
                     line: node.start_position().row + 1,
-                    suggestion: Some(format!("Rename to '{}{}'.", name[..1].to_uppercase(), &name[1..])),
+                    suggestion: Some(format!(
+                        "Rename to '{}{}'.",
+                        name[..1].to_uppercase(),
+                        &name[1..]
+                    )),
                     severity: ObservationSeverity::Suggestion,
                 });
             }
@@ -277,13 +279,14 @@ fn check_pattern_consistency(
     patterns: &ProjectPatterns,
     observations: &mut Vec<ReviewObservation>,
 ) {
-    let dominant_error_pattern = if patterns.error_handling.uses_result_type > patterns.error_handling.uses_try_catch {
-        "Result type"
-    } else if patterns.error_handling.uses_either > patterns.error_handling.uses_try_catch {
-        "Either type"
-    } else {
-        "try-catch"
-    };
+    let dominant_error_pattern =
+        if patterns.error_handling.uses_result_type > patterns.error_handling.uses_try_catch {
+            "Result type"
+        } else if patterns.error_handling.uses_either > patterns.error_handling.uses_try_catch {
+            "Either type"
+        } else {
+            "try-catch"
+        };
 
     let file_uses_try_catch = source.matches("try {").count();
     let file_uses_result = source.matches("Result<").count();
@@ -334,10 +337,7 @@ fn check_missing_tests(
         return;
     }
 
-    let file_name = file
-        .file_stem()
-        .and_then(|f| f.to_str())
-        .unwrap_or("");
+    let file_name = file.file_stem().and_then(|f| f.to_str()).unwrap_or("");
 
     let test_file = test_dir.join(format!("{}_test.dart", file_name));
 
@@ -346,7 +346,11 @@ fn check_missing_tests(
             .lines()
             .filter(|l| {
                 let t = l.trim();
-                (t.starts_with("void ") || t.starts_with("Future") || t.starts_with("String ") || t.starts_with("int ") || t.starts_with("bool "))
+                (t.starts_with("void ")
+                    || t.starts_with("Future")
+                    || t.starts_with("String ")
+                    || t.starts_with("int ")
+                    || t.starts_with("bool "))
                     && !t.starts_with("void _")
                     && t.contains('(')
                     && !t.starts_with("//")
@@ -363,7 +367,10 @@ fn check_missing_tests(
                 ),
                 file: root.join(file),
                 line: 1,
-                suggestion: Some(format!("Create test/{}_test.dart with tests for the public API.", file_name)),
+                suggestion: Some(format!(
+                    "Create test/{}_test.dart with tests for the public API.",
+                    file_name
+                )),
                 severity: ObservationSeverity::Suggestion,
             });
         }
@@ -381,10 +388,7 @@ pub fn print_review(report: &ReviewReport) {
 
     if report.observations.is_empty() {
         println!();
-        println!(
-            "  {} No issues found — LGTM!",
-            "✓".green().bold()
-        );
+        println!("  {} No issues found — LGTM!", "✓".green().bold());
         println!();
         return;
     }
@@ -420,11 +424,7 @@ pub fn print_review(report: &ReviewReport) {
             ObservationSeverity::Nitpick => "⚪",
         };
 
-        let rel = obs
-            .file
-            .file_name()
-            .and_then(|f| f.to_str())
-            .unwrap_or("?");
+        let rel = obs.file.file_name().and_then(|f| f.to_str()).unwrap_or("?");
 
         println!(
             "  {} [{}] {}:{} {}",

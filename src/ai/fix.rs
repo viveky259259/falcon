@@ -91,7 +91,8 @@ fn suggest_fix(issue: &Issue, _project_root: &Path) -> Option<FixSuggestion> {
             file: issue.file.clone(),
             line: issue.line,
             original: line_content.to_string(),
-            replacement: line_content.replace("Expanded(child: SizedBox())", "const Spacer()")
+            replacement: line_content
+                .replace("Expanded(child: SizedBox())", "const Spacer()")
                 .replace("Expanded(child: SizedBox.shrink())", "const Spacer()")
                 .replace("Expanded(child: Container())", "const Spacer()"),
             description: "Replace Expanded(child: SizedBox()) with Spacer().".to_string(),
@@ -143,10 +144,7 @@ fn fix_double_literal(text: &str) -> String {
 
 pub fn preview_fixes(fixes: &[FixSuggestion]) {
     if fixes.is_empty() {
-        println!(
-            "  {} No auto-fixable issues found.",
-            "✓".green().bold()
-        );
+        println!("  {} No auto-fixable issues found.", "✓".green().bold());
         return;
     }
 
@@ -168,10 +166,7 @@ pub fn preview_fixes(fixes: &[FixSuggestion]) {
     }
 
     for (file, file_fixes) in &by_file {
-        let rel = file
-            .file_name()
-            .and_then(|f| f.to_str())
-            .unwrap_or("?");
+        let rel = file.file_name().and_then(|f| f.to_str()).unwrap_or("?");
         println!(
             "  {} ({} fixes)",
             rel.bright_white().bold(),

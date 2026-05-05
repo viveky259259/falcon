@@ -46,15 +46,13 @@ pub fn watch(root: &Path, config: FalconConfig) -> anyhow::Result<()> {
             );
 
             match Falcon::new(config.clone()) {
-                Ok(falcon) => {
-                    match falcon.analyze(root) {
-                        Ok(report) => {
-                            let reporter = ConsoleReporter;
-                            reporter.report_analysis(&report);
-                        }
-                        Err(e) => eprintln!("{} Analysis failed: {}", "error".red(), e),
+                Ok(falcon) => match falcon.analyze(root) {
+                    Ok(report) => {
+                        let reporter = ConsoleReporter;
+                        reporter.report_analysis(&report);
                     }
-                }
+                    Err(e) => eprintln!("{} Analysis failed: {}", "error".red(), e),
+                },
                 Err(e) => eprintln!("{} Failed to init Falcon: {}", "error".red(), e),
             }
 

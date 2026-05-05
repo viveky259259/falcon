@@ -57,14 +57,23 @@ pub struct AffectedFile {
 }
 
 /// Simulate a refactoring and produce an impact report.
-pub fn simulate_refactor(root: &Path, scenario: &RefactorScenario) -> anyhow::Result<RefactorImpact> {
+pub fn simulate_refactor(
+    root: &Path,
+    scenario: &RefactorScenario,
+) -> anyhow::Result<RefactorImpact> {
     match scenario {
-        RefactorScenario::SetStateToRiverpod => simulate_state_migration(root, "setState", "Riverpod"),
+        RefactorScenario::SetStateToRiverpod => {
+            simulate_state_migration(root, "setState", "Riverpod")
+        }
         RefactorScenario::SetStateToBloc => simulate_state_migration(root, "setState", "BLoC"),
-        RefactorScenario::ProviderToRiverpod => simulate_state_migration(root, "Provider", "Riverpod"),
+        RefactorScenario::ProviderToRiverpod => {
+            simulate_state_migration(root, "Provider", "Riverpod")
+        }
         RefactorScenario::BlocToRiverpod => simulate_state_migration(root, "BLoC", "Riverpod"),
         RefactorScenario::FeatureFirst => simulate_architecture_migration(root, "Feature-First"),
-        RefactorScenario::CleanArchitecture => simulate_architecture_migration(root, "Clean Architecture"),
+        RefactorScenario::CleanArchitecture => {
+            simulate_architecture_migration(root, "Clean Architecture")
+        }
     }
 }
 
@@ -74,8 +83,20 @@ fn simulate_state_migration(root: &Path, from: &str, to: &str) -> anyhow::Result
 
     let patterns: Vec<&str> = match from {
         "setState" => vec!["setState(", "State<", "StatefulWidget"],
-        "Provider" => vec!["Provider.of", "ChangeNotifier", "Consumer(", "context.read", "context.watch"],
-        "BLoC" => vec!["BlocProvider", "BlocBuilder", "extends Bloc", "extends Cubit", "emit("],
+        "Provider" => vec![
+            "Provider.of",
+            "ChangeNotifier",
+            "Consumer(",
+            "context.read",
+            "context.watch",
+        ],
+        "BLoC" => vec![
+            "BlocProvider",
+            "BlocBuilder",
+            "extends Bloc",
+            "extends Cubit",
+            "emit(",
+        ],
         _ => vec![],
     };
 
@@ -94,9 +115,12 @@ fn simulate_state_migration(root: &Path, from: &str, to: &str) -> anyhow::Result
         let count: usize = patterns.iter().map(|p| source.matches(p).count()).sum();
         if count > 0 {
             total_occurrences += count;
-            let rel = entry.path().strip_prefix(root)
+            let rel = entry
+                .path()
+                .strip_prefix(root)
                 .unwrap_or(entry.path())
-                .to_string_lossy().to_string();
+                .to_string_lossy()
+                .to_string();
 
             let change = if source.contains("StatefulWidget") || source.contains("extends Bloc") {
                 "major rewrite"
@@ -115,7 +139,13 @@ fn simulate_state_migration(root: &Path, from: &str, to: &str) -> anyhow::Result
     }
 
     let files_affected = affected.len();
-    let complexity = if files_affected > 30 { "High" } else if files_affected > 10 { "Medium" } else { "Low" };
+    let complexity = if files_affected > 30 {
+        "High"
+    } else if files_affected > 10 {
+        "Medium"
+    } else {
+        "Low"
+    };
     let hours_per_file = match complexity {
         "High" => 1.5,
         "Medium" => 1.0,
@@ -126,20 +156,29 @@ fn simulate_state_migration(root: &Path, from: &str, to: &str) -> anyhow::Result
         "setState" => None,
         "Provider" => Some("Remove provider dependency from pubspec.yaml".to_string()),
         "BLoC" => Some("Remove flutter_bloc and bloc dependencies from pubspec.yaml".to_string()),
-        other => Some(format!("Remove {} dependency from pubspec.yaml", other.to_lowercase())),
+        other => Some(format!(
+            "Remove {} dependency from pubspec.yaml",
+            other.to_lowercase()
+        )),
     };
 
     let mut migration_steps: Vec<String> = match to {
         "Riverpod" => vec![
             "Add riverpod and flutter_riverpod to pubspec.yaml".to_string(),
             "Wrap app with ProviderScope".to_string(),
-            format!("Convert {} widgets to ConsumerWidget/ConsumerStatefulWidget", files_affected),
+            format!(
+                "Convert {} widgets to ConsumerWidget/ConsumerStatefulWidget",
+                files_affected
+            ),
             "Replace state with providers (StateNotifier/AsyncNotifier)".to_string(),
             "Update tests to use ProviderContainer".to_string(),
         ],
         "BLoC" => vec![
             "Add flutter_bloc to pubspec.yaml".to_string(),
-            format!("Create Bloc/Cubit classes for {} stateful widgets", files_affected),
+            format!(
+                "Create Bloc/Cubit classes for {} stateful widgets",
+                files_affected
+            ),
             "Define events and states for each Bloc".to_string(),
             "Replace setState with BlocBuilder/BlocListener".to_string(),
             "Update tests to use blocTest".to_string(),
@@ -152,7 +191,10 @@ fn simulate_state_migration(root: &Path, from: &str, to: &str) -> anyhow::Result
     }
 
     let risks = vec![
-        format!("{} files need changes — risk of regressions", files_affected),
+        format!(
+            "{} files need changes — risk of regressions",
+            files_affected
+        ),
         "Widget tests will need updating for new state management".to_string(),
         format!("Team needs to learn {} patterns", to),
     ];
@@ -189,9 +231,12 @@ fn simulate_architecture_migration(root: &Path, target: &str) -> anyhow::Result<
         .filter(|e| !e.path().to_string_lossy().contains("/test/"))
     {
         file_count += 1;
-        let rel = entry.path().strip_prefix(root)
+        let rel = entry
+            .path()
+            .strip_prefix(root)
             .unwrap_or(entry.path())
-            .to_string_lossy().to_string();
+            .to_string_lossy()
+            .to_string();
 
         let source = std::fs::read_to_string(entry.path()).unwrap_or_default();
         let change = if source.contains("class ") && source.contains("Repository") {
@@ -212,8 +257,22 @@ fn simulate_architecture_migration(root: &Path, target: &str) -> anyhow::Result<
     }
 
     let layers = match target {
-        "Clean Architecture" => vec!["domain/entities/", "domain/repositories/", "domain/usecases/", "data/repositories/", "data/datasources/", "presentation/pages/", "presentation/widgets/"],
-        "Feature-First" => vec!["features/<name>/data/", "features/<name>/domain/", "features/<name>/presentation/", "core/", "shared/"],
+        "Clean Architecture" => vec![
+            "domain/entities/",
+            "domain/repositories/",
+            "domain/usecases/",
+            "data/repositories/",
+            "data/datasources/",
+            "presentation/pages/",
+            "presentation/widgets/",
+        ],
+        "Feature-First" => vec![
+            "features/<name>/data/",
+            "features/<name>/domain/",
+            "features/<name>/presentation/",
+            "core/",
+            "shared/",
+        ],
         _ => vec![],
     };
 
@@ -262,7 +321,10 @@ pub fn print_refactor_impact(impact: &RefactorImpact) {
         _ => impact.complexity.green().bold(),
     };
 
-    println!("  Files affected:      {}", impact.files_affected.to_string().bright_white());
+    println!(
+        "  Files affected:      {}",
+        impact.files_affected.to_string().bright_white()
+    );
     println!("  Estimated changes:   {}", impact.estimated_changes);
     println!("  Complexity:          {}", complexity_color);
     println!("  Estimated effort:    {:.0} hours", impact.estimated_hours);
@@ -289,10 +351,19 @@ pub fn print_refactor_impact(impact: &RefactorImpact) {
         println!();
         println!("  {} Affected Files (top 10)", "▸".bright_cyan());
         for f in impact.affected_files.iter().take(10) {
-            println!("    {} {} — {}", "·".dimmed(), f.file.bright_white(), f.change_type.dimmed());
+            println!(
+                "    {} {} — {}",
+                "·".dimmed(),
+                f.file.bright_white(),
+                f.change_type.dimmed()
+            );
         }
         if impact.affected_files.len() > 10 {
-            println!("    {} ... and {} more", "·".dimmed(), impact.affected_files.len() - 10);
+            println!(
+                "    {} ... and {} more",
+                "·".dimmed(),
+                impact.affected_files.len() - 10
+            );
         }
     }
 

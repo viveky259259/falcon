@@ -1,5 +1,5 @@
-use crate::reporters::Issue;
 use crate::config::Severity;
+use crate::reporters::Issue;
 use crate::rules::Rule;
 use std::path::Path;
 use tree_sitter::Node;
@@ -8,9 +8,15 @@ use tree_sitter::Node;
 pub struct EnsureSemanticsLabel;
 
 impl Rule for EnsureSemanticsLabel {
-    fn name(&self) -> &'static str { "ensure-semantics-label" }
-    fn description(&self) -> &'static str { "Interactive widgets should have a Semantics label for accessibility" }
-    fn default_severity(&self) -> Severity { Severity::Warning }
+    fn name(&self) -> &'static str {
+        "ensure-semantics-label"
+    }
+    fn description(&self) -> &'static str {
+        "Interactive widgets should have a Semantics label for accessibility"
+    }
+    fn default_severity(&self) -> Severity {
+        Severity::Warning
+    }
 
     fn check(&self, root: Node, source: &str, file: &Path) -> Vec<Issue> {
         find_unlabeled_widgets(root, source, file)
@@ -21,15 +27,22 @@ fn find_unlabeled_widgets(_root: Node, source: &str, file: &Path) -> Vec<Issue> 
     let mut issues = Vec::new();
 
     let interactive_widgets = [
-        "GestureDetector(", "InkWell(", "InkResponse(", "IconButton(",
+        "GestureDetector(",
+        "InkWell(",
+        "InkResponse(",
+        "IconButton(",
     ];
 
     for (i, line) in source.lines().enumerate() {
         let trimmed = line.trim();
         for widget in &interactive_widgets {
             if trimmed.contains(widget) {
-                let block: String = source.lines().skip(i).take(10)
-                    .collect::<Vec<_>>().join(" ");
+                let block: String = source
+                    .lines()
+                    .skip(i)
+                    .take(10)
+                    .collect::<Vec<_>>()
+                    .join(" ");
 
                 let has_semantics = block.contains("Semantics(")
                     || block.contains("semanticsLabel")
@@ -60,9 +73,15 @@ fn find_unlabeled_widgets(_root: Node, source: &str, file: &Path) -> Vec<Issue> 
 pub struct EnsureImageSemantics;
 
 impl Rule for EnsureImageSemantics {
-    fn name(&self) -> &'static str { "ensure-image-semantics" }
-    fn description(&self) -> &'static str { "Images should have semanticLabel for screen reader accessibility" }
-    fn default_severity(&self) -> Severity { Severity::Warning }
+    fn name(&self) -> &'static str {
+        "ensure-image-semantics"
+    }
+    fn description(&self) -> &'static str {
+        "Images should have semanticLabel for screen reader accessibility"
+    }
+    fn default_severity(&self) -> Severity {
+        Severity::Warning
+    }
 
     fn check(&self, _root: Node, source: &str, file: &Path) -> Vec<Issue> {
         let mut issues = Vec::new();
@@ -71,14 +90,16 @@ impl Rule for EnsureImageSemantics {
             let trimmed = line.trim();
 
             let image_constructors = [
-                "Image.asset(", "Image.network(", "Image.file(",
+                "Image.asset(",
+                "Image.network(",
+                "Image.file(",
                 "Image.memory(",
             ];
 
             for constructor in &image_constructors {
                 if trimmed.contains(constructor) {
-                    let block: String = source.lines().skip(i).take(8)
-                        .collect::<Vec<_>>().join(" ");
+                    let block: String =
+                        source.lines().skip(i).take(8).collect::<Vec<_>>().join(" ");
 
                     if !block.contains("semanticLabel") && !block.contains("Semantics(") {
                         issues.push(Issue {
@@ -106,9 +127,15 @@ impl Rule for EnsureImageSemantics {
 pub struct EnsureTouchTargetSize;
 
 impl Rule for EnsureTouchTargetSize {
-    fn name(&self) -> &'static str { "ensure-touch-target-size" }
-    fn description(&self) -> &'static str { "Interactive elements should meet minimum 48x48 touch target size (WCAG 2.5.5)" }
-    fn default_severity(&self) -> Severity { Severity::Info }
+    fn name(&self) -> &'static str {
+        "ensure-touch-target-size"
+    }
+    fn description(&self) -> &'static str {
+        "Interactive elements should meet minimum 48x48 touch target size (WCAG 2.5.5)"
+    }
+    fn default_severity(&self) -> Severity {
+        Severity::Info
+    }
 
     fn check(&self, _root: Node, source: &str, file: &Path) -> Vec<Issue> {
         let mut issues = Vec::new();
@@ -117,10 +144,11 @@ impl Rule for EnsureTouchTargetSize {
             let trimmed = line.trim();
 
             if trimmed.contains("SizedBox(") || trimmed.contains("Container(") {
-                let block: String = source.lines().skip(i).take(5)
-                    .collect::<Vec<_>>().join(" ");
+                let block: String = source.lines().skip(i).take(5).collect::<Vec<_>>().join(" ");
 
-                if (block.contains("onTap") || block.contains("onPressed") || block.contains("GestureDetector"))
+                if (block.contains("onTap")
+                    || block.contains("onPressed")
+                    || block.contains("GestureDetector"))
                     && (block.contains("width:") || block.contains("height:"))
                 {
                     let small = extract_dimension(&block, "width:").map_or(false, |d| d < 48.0)
@@ -147,6 +175,9 @@ impl Rule for EnsureTouchTargetSize {
 fn extract_dimension(text: &str, prefix: &str) -> Option<f64> {
     let idx = text.find(prefix)? + prefix.len();
     let rest = text[idx..].trim();
-    let num_str: String = rest.chars().take_while(|c| c.is_ascii_digit() || *c == '.').collect();
+    let num_str: String = rest
+        .chars()
+        .take_while(|c| c.is_ascii_digit() || *c == '.')
+        .collect();
     num_str.parse().ok()
 }

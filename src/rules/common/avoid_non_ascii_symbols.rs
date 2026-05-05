@@ -41,7 +41,10 @@ impl Rule for AvoidNonAsciiSymbols {
                 } else if !in_string && !ch.is_ascii() {
                     issues.push(Issue {
                         rule: self.name().to_string(),
-                        message: format!("Non-ASCII character '{}' found outside string literals.", ch),
+                        message: format!(
+                            "Non-ASCII character '{}' found outside string literals.",
+                            ch
+                        ),
                         severity: self.default_severity(),
                         file: file.to_path_buf(),
                         line: line_idx + 1,

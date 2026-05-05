@@ -81,10 +81,7 @@ impl LanguageServer for FalconLspServer {
                     },
                 )),
                 execute_command_provider: Some(ExecuteCommandOptions {
-                    commands: vec![
-                        "falcon.fixAll".to_string(),
-                        "falcon.analyze".to_string(),
-                    ],
+                    commands: vec!["falcon.fixAll".to_string(), "falcon.analyze".to_string()],
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -157,9 +154,7 @@ impl LanguageServer for FalconLspServer {
         let uri = params.text_document.uri;
         self.documents.remove(&uri);
         self.diagnostics_cache.remove(&uri);
-        self.client
-            .publish_diagnostics(uri, Vec::new(), None)
-            .await;
+        self.client.publish_diagnostics(uri, Vec::new(), None).await;
     }
 
     async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
@@ -235,9 +230,8 @@ impl LanguageServer for FalconLspServer {
 }
 
 fn uri_to_path(uri: &Url) -> PathBuf {
-    uri.to_file_path().unwrap_or_else(|_| {
-        PathBuf::from(uri.path())
-    })
+    uri.to_file_path()
+        .unwrap_or_else(|_| PathBuf::from(uri.path()))
 }
 
 fn uri_to_path_opt(uri: &Url) -> Option<PathBuf> {

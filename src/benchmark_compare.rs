@@ -26,7 +26,8 @@ pub fn compare_with_dart_analyze(root: &Path) -> anyhow::Result<CompareResult> {
     let falcon_issues = report.issues.len();
     let file_count = report.file_count;
 
-    let mut rule_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut rule_counts: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
     for issue in &report.issues {
         *rule_counts.entry(issue.rule.clone()).or_default() += 1;
     }
@@ -61,9 +62,7 @@ pub fn compare_with_dart_analyze(root: &Path) -> anyhow::Result<CompareResult> {
         "codebase-intelligence".to_string(),
     ];
 
-    let mut overlap_categories: Vec<(String, usize)> = rule_counts
-        .into_iter()
-        .collect();
+    let mut overlap_categories: Vec<(String, usize)> = rule_counts.into_iter().collect();
     overlap_categories.sort_by(|a, b| b.1.cmp(&a.1));
     overlap_categories.truncate(15);
 
@@ -84,35 +83,34 @@ fn count_dart_analyze_issues(output: &str) -> usize {
             return diagnostics.len();
         }
     }
-    output.lines().filter(|l| {
-        l.contains("info") || l.contains("warning") || l.contains("error")
-    }).count()
+    output
+        .lines()
+        .filter(|l| l.contains("info") || l.contains("warning") || l.contains("error"))
+        .count()
 }
 
 pub fn print_compare_result(result: &CompareResult) {
     println!();
-    println!(
-        "  {} Falcon vs dart analyze",
-        "falcon".bright_cyan().bold()
-    );
+    println!("  {} Falcon vs dart analyze", "falcon".bright_cyan().bold());
     println!();
 
     println!("  Codebase: {} files", result.file_count);
     println!();
 
     println!("  ┌─────────────────────┬──────────────┬──────────────┐");
-    println!("  │                     │ {} │ {} │",
+    println!(
+        "  │                     │ {} │ {} │",
         "Falcon".bright_cyan().bold(),
         "dart analyze".bright_yellow().bold(),
     );
     println!("  ├─────────────────────┼──────────────┼──────────────┤");
-    println!("  │ Issues found        │ {:<12} │ {:<12} │",
-        result.falcon_issues,
-        result.dart_analyze_issues,
+    println!(
+        "  │ Issues found        │ {:<12} │ {:<12} │",
+        result.falcon_issues, result.dart_analyze_issues,
     );
-    println!("  │ Time                │ {:<10} ms │ {:<10} ms │",
-        result.falcon_time_ms,
-        result.dart_analyze_time_ms,
+    println!(
+        "  │ Time                │ {:<10} ms │ {:<10} ms │",
+        result.falcon_time_ms, result.dart_analyze_time_ms,
     );
     println!("  └─────────────────────┴──────────────┴──────────────┘");
     println!();

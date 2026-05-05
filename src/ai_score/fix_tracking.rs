@@ -110,8 +110,19 @@ pub fn compute_effectiveness(history: &FixHistory) -> Vec<FixEffectiveness> {
         .into_iter()
         .map(|(rule, (accepted, rejected, modified))| {
             let total = accepted + rejected + modified;
-            let rate = if total > 0 { accepted as f64 / total as f64 * 100.0 } else { 0.0 };
-            FixEffectiveness { rule, total_fixes: total, accepted, rejected, modified, acceptance_rate: rate }
+            let rate = if total > 0 {
+                accepted as f64 / total as f64 * 100.0
+            } else {
+                0.0
+            };
+            FixEffectiveness {
+                rule,
+                total_fixes: total,
+                accepted,
+                rejected,
+                modified,
+                acceptance_rate: rate,
+            }
         })
         .collect();
 

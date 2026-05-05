@@ -38,7 +38,10 @@ impl Rule for PreferEquatable {
                 let name = dart_ast::get_declaration_name(class, source).unwrap_or("<unknown>");
                 issues.push(Issue {
                     rule: self.name().to_string(),
-                    message: format!("Class '{}' manually overrides == and hashCode. Consider using Equatable.", name),
+                    message: format!(
+                        "Class '{}' manually overrides == and hashCode. Consider using Equatable.",
+                        name
+                    ),
                     severity: self.default_severity(),
                     file: file.to_path_buf(),
                     line: node_start_line(class),

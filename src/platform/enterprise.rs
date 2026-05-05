@@ -78,7 +78,9 @@ pub struct PolicyCheckResult {
 /// Load audit log.
 pub fn load_audit_log(root: &Path) -> anyhow::Result<AuditLog> {
     let path = root.join(AUDIT_LOG_FILE);
-    if !path.exists() { return Ok(AuditLog::default()); }
+    if !path.exists() {
+        return Ok(AuditLog::default());
+    }
     let content = std::fs::read_to_string(&path)?;
     Ok(serde_json::from_str(&content)?)
 }
@@ -93,12 +95,21 @@ pub fn save_audit_log(root: &Path, log: &AuditLog) -> anyhow::Result<()> {
 }
 
 /// Record an audit entry.
-pub fn record_audit(root: &Path, user: &str, action: &str, target: &str, details: &str) -> anyhow::Result<()> {
+pub fn record_audit(
+    root: &Path,
+    user: &str,
+    action: &str,
+    target: &str,
+    details: &str,
+) -> anyhow::Result<()> {
     let mut log = load_audit_log(root)?;
     let timestamp = get_timestamp();
     log.entries.push(AuditEntry {
-        timestamp, user: user.to_string(), action: action.to_string(),
-        target: target.to_string(), details: details.to_string(),
+        timestamp,
+        user: user.to_string(),
+        action: action.to_string(),
+        target: target.to_string(),
+        details: details.to_string(),
     });
     save_audit_log(root, &log)
 }
@@ -106,7 +117,9 @@ pub fn record_audit(root: &Path, user: &str, action: &str, target: &str, details
 /// Load policies.
 pub fn load_policies(root: &Path) -> anyhow::Result<PolicySet> {
     let path = root.join(POLICY_FILE);
-    if !path.exists() { return Ok(PolicySet::default()); }
+    if !path.exists() {
+        return Ok(PolicySet::default());
+    }
     let content = std::fs::read_to_string(&path)?;
     Ok(serde_json::from_str(&content)?)
 }
@@ -134,7 +147,9 @@ pub fn default_policies() -> PolicySet {
             Policy {
                 name: "no-credentials".to_string(),
                 description: "No hardcoded credentials allowed".to_string(),
-                conditions: vec![PolicyCondition::ForbidRules(vec!["avoid-hardcoded-credentials".to_string()])],
+                conditions: vec![PolicyCondition::ForbidRules(vec![
+                    "avoid-hardcoded-credentials".to_string(),
+                ])],
                 action: PolicyAction::Block,
                 enabled: true,
             },
@@ -168,34 +183,76 @@ pub fn check_policies(root: &Path) -> anyhow::Result<Vec<PolicyCheckResult>> {
     let mut results = Vec::new();
 
     for policy in &policies.policies {
-        if !policy.enabled { continue; }
+        if !policy.enabled {
+            continue;
+        }
 
         for condition in &policy.conditions {
             let (passed, msg) = match condition {
                 PolicyCondition::MinScore(min) => {
                     let ok = score.overall >= *min;
-                    (ok, format!("Score {}/100 {} minimum {}", score.overall, if ok { "≥" } else { "<" }, min))
+                    (
+                        ok,
+                        format!(
+                            "Score {}/100 {} minimum {}",
+                            score.overall,
+                            if ok { "≥" } else { "<" },
+                            min
+                        ),
+                    )
                 }
                 PolicyCondition::MaxErrors(max) => {
                     let errors = report.error_count();
                     let ok = errors <= *max;
-                    (ok, format!("{} errors {} maximum {}", errors, if ok { "≤" } else { ">" }, max))
+                    (
+                        ok,
+                        format!(
+                            "{} errors {} maximum {}",
+                            errors,
+                            if ok { "≤" } else { ">" },
+                            max
+                        ),
+                    )
                 }
                 PolicyCondition::MaxDynamic(max) => {
-                    let dynamic_count = report.issues.iter().filter(|i| i.rule == "avoid-dynamic").count();
+                    let dynamic_count = report
+                        .issues
+                        .iter()
+                        .filter(|i| i.rule == "avoid-dynamic")
+                        .count();
                     let ok = dynamic_count <= *max;
-                    (ok, format!("{} dynamic uses {} maximum {}", dynamic_count, if ok { "≤" } else { ">" }, max))
+                    (
+                        ok,
+                        format!(
+                            "{} dynamic uses {} maximum {}",
+                            dynamic_count,
+                            if ok { "≤" } else { ">" },
+                            max
+                        ),
+                    )
                 }
                 PolicyCondition::ForbidRules(rules) => {
-                    let violations: Vec<&str> = rules.iter()
+                    let violations: Vec<&str> = rules
+                        .iter()
                         .filter(|r| report.issues.iter().any(|i| &i.rule == *r))
                         .map(|r| r.as_str())
                         .collect();
                     let ok = violations.is_empty();
-                    (ok, if ok { "No forbidden rule violations".to_string() } else { format!("Forbidden rules triggered: {}", violations.join(", ")) })
+                    (
+                        ok,
+                        if ok {
+                            "No forbidden rule violations".to_string()
+                        } else {
+                            format!("Forbidden rules triggered: {}", violations.join(", "))
+                        },
+                    )
                 }
                 PolicyCondition::RequireDispose => {
-                    let dispose_issues = report.issues.iter().filter(|i| i.rule == "ensure-dispose-lifecycle").count();
+                    let dispose_issues = report
+                        .issues
+                        .iter()
+                        .filter(|i| i.rule == "ensure-dispose-lifecycle")
+                        .count();
                     let ok = dispose_issues == 0;
                     (ok, format!("{} undisposed controllers", dispose_issues))
                 }
@@ -204,16 +261,20 @@ pub fn check_policies(root: &Path) -> anyhow::Result<Vec<PolicyCheckResult>> {
                         let cfg = crate::config::FalconConfig::load(root).unwrap_or_default();
                         cfg.rules.iter().map(|r| r.name().to_string()).collect()
                     };
-                    let missing: Vec<&str> = required.iter()
+                    let missing: Vec<&str> = required
+                        .iter()
                         .filter(|r| !enabled_rules.iter().any(|er| er == *r))
                         .map(|r| r.as_str())
                         .collect();
                     let ok = missing.is_empty();
-                    (ok, if ok {
-                        "All required rules are enabled".to_string()
-                    } else {
-                        format!("Missing required rules: {}", missing.join(", "))
-                    })
+                    (
+                        ok,
+                        if ok {
+                            "All required rules are enabled".to_string()
+                        } else {
+                            format!("Missing required rules: {}", missing.join(", "))
+                        },
+                    )
                 }
             };
 
@@ -245,13 +306,21 @@ pub fn generate_compliance_report(root: &Path) -> anyhow::Result<String> {
         md.push_str(&format!("| {} | {} | {} |\n", r.policy, status, r.message));
     }
 
-    md.push_str(&format!("\n## Policies Defined: {}\n\n", policies.policies.len()));
-    md.push_str(&format!("## Audit Log: {} entries\n\n", audit.entries.len()));
+    md.push_str(&format!(
+        "\n## Policies Defined: {}\n\n",
+        policies.policies.len()
+    ));
+    md.push_str(&format!(
+        "## Audit Log: {} entries\n\n",
+        audit.entries.len()
+    ));
     if !audit.entries.is_empty() {
         md.push_str("| Time | User | Action | Target |\n|---|---|---|---|\n");
         for entry in audit.entries.iter().rev().take(20) {
-            md.push_str(&format!("| {} | {} | {} | {} |\n",
-                entry.timestamp, entry.user, entry.action, entry.target));
+            md.push_str(&format!(
+                "| {} | {} | {} | {} |\n",
+                entry.timestamp, entry.user, entry.action, entry.target
+            ));
         }
     }
 
@@ -261,7 +330,10 @@ pub fn generate_compliance_report(root: &Path) -> anyhow::Result<String> {
 /// Print policy check results.
 pub fn print_policy_results(results: &[PolicyCheckResult]) {
     println!();
-    println!("  {} Enterprise Policy Check", "falcon".bright_cyan().bold());
+    println!(
+        "  {} Enterprise Policy Check",
+        "falcon".bright_cyan().bold()
+    );
     println!();
 
     if results.is_empty() {
@@ -274,12 +346,25 @@ pub fn print_policy_results(results: &[PolicyCheckResult]) {
     let failed = results.iter().filter(|r| !r.passed).count();
 
     for r in results {
-        let icon = if r.passed { "✓".green().bold() } else { "✗".red().bold() };
-        println!("  {} {:<25} {}", icon, r.policy.bright_white(), r.message.dimmed());
+        let icon = if r.passed {
+            "✓".green().bold()
+        } else {
+            "✗".red().bold()
+        };
+        println!(
+            "  {} {:<25} {}",
+            icon,
+            r.policy.bright_white(),
+            r.message.dimmed()
+        );
     }
 
     println!();
-    println!("  {} passed, {} failed", passed.to_string().green(), failed.to_string().red());
+    println!(
+        "  {} passed, {} failed",
+        passed.to_string().green(),
+        failed.to_string().red()
+    );
     println!();
 }
 
@@ -288,5 +373,8 @@ fn get_timestamp() -> String {
         .args(["+%Y-%m-%dT%H:%M:%S"])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_else(|e| { log::warn!("timestamp: {}", e); "unknown".to_string() })
+        .unwrap_or_else(|e| {
+            log::warn!("timestamp: {}", e);
+            "unknown".to_string()
+        })
 }

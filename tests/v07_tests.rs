@@ -95,11 +95,8 @@ fn test_import_restriction_enforcement() {
         reason: Some("Features should not use dart:io directly.".to_string()),
     }];
 
-    let issues = falcon::analysis::import_rules::enforce_import_restrictions(
-        dir.path(),
-        &restrictions,
-        &[],
-    );
+    let issues =
+        falcon::analysis::import_rules::enforce_import_restrictions(dir.path(), &restrictions, &[]);
     assert_eq!(issues.len(), 1);
     assert!(issues[0].message.contains("dart:io"));
 }
@@ -137,10 +134,8 @@ void simple() {
     let mut parser = falcon::parser::DartParser::new().unwrap();
     let tree = parser.parse(source).unwrap();
 
-    let results = falcon::analysis::cognitive_complexity::file_cognitive_complexity(
-        tree.root_node(),
-        source,
-    );
+    let results =
+        falcon::analysis::cognitive_complexity::file_cognitive_complexity(tree.root_node(), source);
 
     for (name, complexity, _) in &results {
         if name == "simple" {
@@ -168,15 +163,17 @@ int complex(int x) {
     let mut parser = falcon::parser::DartParser::new().unwrap();
     let tree = parser.parse(source).unwrap();
 
-    let results = falcon::analysis::cognitive_complexity::file_cognitive_complexity(
-        tree.root_node(),
-        source,
-    );
+    let results =
+        falcon::analysis::cognitive_complexity::file_cognitive_complexity(tree.root_node(), source);
 
     let complex_fn = results.iter().find(|(name, _, _)| name == "complex");
     assert!(complex_fn.is_some());
     let (_, complexity, _) = complex_fn.unwrap();
-    assert!(*complexity > 3, "Nested ifs should have high cognitive complexity, got {}", complexity);
+    assert!(
+        *complexity > 3,
+        "Nested ifs should have high cognitive complexity, got {}",
+        complexity
+    );
 }
 
 #[test]
@@ -196,7 +193,8 @@ void check(bool a, bool b) {
     let tree = parser.parse(source).unwrap();
     let node = tree.root_node();
 
-    let complexity = falcon::analysis::cognitive_complexity::calculate_cognitive_complexity(node, source);
+    let complexity =
+        falcon::analysis::cognitive_complexity::calculate_cognitive_complexity(node, source);
     assert!(complexity > 0, "Should have non-zero complexity");
 }
 
@@ -229,8 +227,14 @@ class _MyWidgetState extends State<MyWidget> {
         &PathBuf::from("test.dart"),
     );
 
-    let rebuild_issues: Vec<_> = issues.iter().filter(|i| i.rule == "widget-rebuild").collect();
-    assert!(!rebuild_issues.is_empty(), "Should detect setState in build");
+    let rebuild_issues: Vec<_> = issues
+        .iter()
+        .filter(|i| i.rule == "widget-rebuild")
+        .collect();
+    assert!(
+        !rebuild_issues.is_empty(),
+        "Should detect setState in build"
+    );
 }
 
 #[test]
@@ -312,7 +316,10 @@ void initState() async {
     );
 
     let async_void: Vec<_> = issues.iter().filter(|i| i.rule == "async-void").collect();
-    assert!(async_void.is_empty(), "Should skip lifecycle methods like initState");
+    assert!(
+        async_void.is_empty(),
+        "Should skip lifecycle methods like initState"
+    );
 }
 
 #[test]
@@ -333,7 +340,10 @@ Future<void> process(List<String> items) async {
         &PathBuf::from("test.dart"),
     );
 
-    let loop_issues: Vec<_> = issues.iter().filter(|i| i.rule == "await-in-loop").collect();
+    let loop_issues: Vec<_> = issues
+        .iter()
+        .filter(|i| i.rule == "await-in-loop")
+        .collect();
     assert!(!loop_issues.is_empty(), "Should detect await inside loop");
 }
 
@@ -353,8 +363,14 @@ void process() {
         &PathBuf::from("test.dart"),
     );
 
-    let unawaited: Vec<_> = issues.iter().filter(|i| i.rule == "unawaited-future").collect();
-    assert!(!unawaited.is_empty(), "Should detect unawaited future chain");
+    let unawaited: Vec<_> = issues
+        .iter()
+        .filter(|i| i.rule == "unawaited-future")
+        .collect();
+    assert!(
+        !unawaited.is_empty(),
+        "Should detect unawaited future chain"
+    );
 }
 
 // ============================================================
@@ -382,7 +398,10 @@ fn test_observation_severity() {
         suggestion: Some("Handle the error".to_string()),
         severity: falcon::review::pr_review::ObservationSeverity::Critical,
     };
-    assert_eq!(obs.severity, falcon::review::pr_review::ObservationSeverity::Critical);
+    assert_eq!(
+        obs.severity,
+        falcon::review::pr_review::ObservationSeverity::Critical
+    );
     assert_eq!(obs.category.label(), "Error Handling");
 }
 
@@ -449,16 +468,15 @@ fn test_tech_debt_scoring() {
     let lib = dir.path().join("lib");
     std::fs::create_dir_all(&lib).unwrap();
 
-    std::fs::write(
-        lib.join("simple.dart"),
-        "void main() { print('hello'); }\n",
-    )
-    .unwrap();
+    std::fs::write(lib.join("simple.dart"), "void main() { print('hello'); }\n").unwrap();
 
     let config = falcon::config::FalconConfig::default();
     let report = falcon::review::codebase_intel::analyze_codebase(dir.path(), &config).unwrap();
 
-    assert!(report.tech_debt.score >= 80.0, "Simple codebase should have low debt");
+    assert!(
+        report.tech_debt.score >= 80.0,
+        "Simple codebase should have low debt"
+    );
 }
 
 // ============================================================

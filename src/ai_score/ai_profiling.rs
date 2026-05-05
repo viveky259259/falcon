@@ -1,7 +1,7 @@
 //! AI-Tool Profiling — analyze per-tool error rates from the benchmark database.
 
+use super::benchmark_db::{compute_tool_stats, BenchmarkDatabase};
 use colored::Colorize;
-use super::benchmark_db::{BenchmarkDatabase, compute_tool_stats};
 
 /// Per-tool error profile showing which rules each AI tool struggles with.
 #[derive(Debug, Clone)]
@@ -18,45 +18,47 @@ pub struct ToolProfile {
 pub fn build_tool_profiles(db: &BenchmarkDatabase) -> Vec<ToolProfile> {
     let stats = compute_tool_stats(db);
 
-    stats.iter().map(|s| {
-        let weaknesses = if s.avg_score < 50.0 {
-            vec!["Overall code quality needs improvement".to_string()]
-        } else if s.avg_score < 70.0 {
-            vec!["Error handling and resource management".to_string()]
-        } else {
-            vec![]
-        };
+    stats
+        .iter()
+        .map(|s| {
+            let weaknesses = if s.avg_score < 50.0 {
+                vec!["Overall code quality needs improvement".to_string()]
+            } else if s.avg_score < 70.0 {
+                vec!["Error handling and resource management".to_string()]
+            } else {
+                vec![]
+            };
 
-        let strengths = if s.avg_score >= 85.0 {
-            vec!["Production-ready code quality".to_string()]
-        } else if s.avg_score >= 70.0 {
-            vec!["Good baseline quality".to_string()]
-        } else {
-            vec![]
-        };
+            let strengths = if s.avg_score >= 85.0 {
+                vec!["Production-ready code quality".to_string()]
+            } else if s.avg_score >= 70.0 {
+                vec!["Good baseline quality".to_string()]
+            } else {
+                vec![]
+            };
 
-        ToolProfile {
-            tool: s.tool.clone(),
-            projects: s.projects_analyzed,
-            avg_score: s.avg_score,
-            top_violations: vec![],
-            strengths,
-            weaknesses,
-        }
-    }).collect()
+            ToolProfile {
+                tool: s.tool.clone(),
+                projects: s.projects_analyzed,
+                avg_score: s.avg_score,
+                top_violations: vec![],
+                strengths,
+                weaknesses,
+            }
+        })
+        .collect()
 }
 
 /// Print AI tool profiles.
 pub fn print_tool_profiles(profiles: &[ToolProfile]) {
     println!();
-    println!(
-        "  {} AI Tool Profiling",
-        "falcon".bright_cyan().bold()
-    );
+    println!("  {} AI Tool Profiling", "falcon".bright_cyan().bold());
     println!();
 
     if profiles.is_empty() {
-        println!("  No benchmark data yet. Record benchmarks with: falcon benchmark-db --tool <name>");
+        println!(
+            "  No benchmark data yet. Record benchmarks with: falcon benchmark-db --tool <name>"
+        );
         println!();
         return;
     }

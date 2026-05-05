@@ -163,13 +163,13 @@ pub struct SuppressionStats {
 
 pub fn print_suppression_stats(stats: &SuppressionStats) {
     println!();
-    println!(
-        "  {} Suppression Database",
-        "falcon".bright_cyan().bold()
-    );
+    println!("  {} Suppression Database", "falcon".bright_cyan().bold());
     println!();
 
-    println!("  Total suppressions: {}", stats.total.to_string().bright_white());
+    println!(
+        "  Total suppressions: {}",
+        stats.total.to_string().bright_white()
+    );
     println!(
         "    False positives:  {} ({:.1}%)",
         stats.false_positives.to_string().red(),

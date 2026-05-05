@@ -237,7 +237,11 @@ pub fn lack_of_cohesion(class_node: Node, source: &str) -> u32 {
         }
     }
 
-    if p > q { (p - q) as u32 } else { 0 }
+    if p > q {
+        (p - q) as u32
+    } else {
+        0
+    }
 }
 
 fn collect_class_fields(class_node: Node, source: &str) -> HashSet<String> {

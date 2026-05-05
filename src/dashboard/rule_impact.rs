@@ -54,10 +54,7 @@ pub fn measure_rule_impact(history: &[AnalysisSnapshot]) -> Vec<RuleImpact> {
 
     for snap in history {
         for (rule, count) in &snap.rule_counts {
-            all_rules
-                .entry(rule.clone())
-                .or_default()
-                .push(*count);
+            all_rules.entry(rule.clone()).or_default().push(*count);
         }
     }
 
@@ -177,10 +174,7 @@ pub fn print_rule_impact(impacts: &[RuleImpact]) {
         };
         println!(
             "  {:<40} {:>6} {:>10} {:>7.0}%",
-            impact.rule,
-            impact.total_triggers,
-            trend_icon,
-            impact.signal_score,
+            impact.rule, impact.total_triggers, trend_icon, impact.signal_score,
         );
     }
     println!();

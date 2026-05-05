@@ -89,17 +89,11 @@ fn handle_connection(stream: &mut std::net::TcpStream) -> anyhow::Result<()> {
             ("200 OK", serde_json::to_string_pretty(&resp)?)
         }
 
-        ("POST", "/analyze") => {
-            handle_analyze(&body)?
-        }
+        ("POST", "/analyze") => handle_analyze(&body)?,
 
-        ("POST", "/score") => {
-            handle_score(&body)?
-        }
+        ("POST", "/score") => handle_score(&body)?,
 
-        ("POST", "/check-file") => {
-            handle_check_file(&body)?
-        }
+        ("POST", "/check-file") => handle_check_file(&body)?,
 
         _ => {
             let resp = ApiResponse {
@@ -170,8 +164,15 @@ fn handle_analyze(body: &str) -> anyhow::Result<(&'static str, String)> {
                 Ok(("200 OK", serde_json::to_string_pretty(&resp)?))
             }
             Err(e) => {
-                let resp = ApiResponse { success: false, data: None, error: Some(e.to_string()) };
-                Ok(("500 Internal Server Error", serde_json::to_string_pretty(&resp)?))
+                let resp = ApiResponse {
+                    success: false,
+                    data: None,
+                    error: Some(e.to_string()),
+                };
+                Ok((
+                    "500 Internal Server Error",
+                    serde_json::to_string_pretty(&resp)?,
+                ))
             }
         }
     } else if let Some(ref path) = req.path {
@@ -191,8 +192,15 @@ fn handle_analyze(body: &str) -> anyhow::Result<(&'static str, String)> {
                 Ok(("200 OK", serde_json::to_string_pretty(&resp)?))
             }
             Err(e) => {
-                let resp = ApiResponse { success: false, data: None, error: Some(e.to_string()) };
-                Ok(("500 Internal Server Error", serde_json::to_string_pretty(&resp)?))
+                let resp = ApiResponse {
+                    success: false,
+                    data: None,
+                    error: Some(e.to_string()),
+                };
+                Ok((
+                    "500 Internal Server Error",
+                    serde_json::to_string_pretty(&resp)?,
+                ))
             }
         }
     } else {
@@ -207,12 +215,18 @@ fn handle_analyze(body: &str) -> anyhow::Result<(&'static str, String)> {
 
 fn handle_score(body: &str) -> anyhow::Result<(&'static str, String)> {
     #[derive(Deserialize)]
-    struct ScoreRequest { path: String }
+    struct ScoreRequest {
+        path: String,
+    }
 
     let req: ScoreRequest = match serde_json::from_str(body) {
         Ok(r) => r,
         Err(e) => {
-            let resp = ApiResponse { success: false, data: None, error: Some(format!("Invalid JSON: {}", e)) };
+            let resp = ApiResponse {
+                success: false,
+                data: None,
+                error: Some(format!("Invalid JSON: {}", e)),
+            };
             return Ok(("400 Bad Request", serde_json::to_string_pretty(&resp)?));
         }
     };
@@ -228,8 +242,15 @@ fn handle_score(body: &str) -> anyhow::Result<(&'static str, String)> {
             Ok(("200 OK", serde_json::to_string_pretty(&resp)?))
         }
         Err(e) => {
-            let resp = ApiResponse { success: false, data: None, error: Some(e.to_string()) };
-            Ok(("500 Internal Server Error", serde_json::to_string_pretty(&resp)?))
+            let resp = ApiResponse {
+                success: false,
+                data: None,
+                error: Some(e.to_string()),
+            };
+            Ok((
+                "500 Internal Server Error",
+                serde_json::to_string_pretty(&resp)?,
+            ))
         }
     }
 }
@@ -241,12 +262,18 @@ fn handle_check_file(body: &str) -> anyhow::Result<(&'static str, String)> {
         #[serde(default = "default_file_name")]
         file_name: String,
     }
-    fn default_file_name() -> String { "input.dart".to_string() }
+    fn default_file_name() -> String {
+        "input.dart".to_string()
+    }
 
     let req: CheckFileRequest = match serde_json::from_str(body) {
         Ok(r) => r,
         Err(e) => {
-            let resp = ApiResponse { success: false, data: None, error: Some(format!("Invalid JSON: {}", e)) };
+            let resp = ApiResponse {
+                success: false,
+                data: None,
+                error: Some(format!("Invalid JSON: {}", e)),
+            };
             return Ok(("400 Bad Request", serde_json::to_string_pretty(&resp)?));
         }
     };
@@ -266,8 +293,15 @@ fn handle_check_file(body: &str) -> anyhow::Result<(&'static str, String)> {
             Ok(("200 OK", serde_json::to_string_pretty(&resp)?))
         }
         Err(e) => {
-            let resp = ApiResponse { success: false, data: None, error: Some(e.to_string()) };
-            Ok(("500 Internal Server Error", serde_json::to_string_pretty(&resp)?))
+            let resp = ApiResponse {
+                success: false,
+                data: None,
+                error: Some(e.to_string()),
+            };
+            Ok((
+                "500 Internal Server Error",
+                serde_json::to_string_pretty(&resp)?,
+            ))
         }
     }
 }

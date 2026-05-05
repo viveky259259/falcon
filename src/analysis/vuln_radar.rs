@@ -1,8 +1,8 @@
 //! Vulnerability and anti-pattern radar — detects security and reliability risks
 //! based on common Flutter/Dart vulnerability patterns.
 
-use crate::reporters::Issue;
 use crate::config::Severity;
+use crate::reporters::Issue;
 use colored::Colorize;
 use std::path::Path;
 
@@ -61,15 +61,26 @@ pub fn scan_vulnerabilities(root: &Path) -> Vec<VulnFinding> {
 }
 
 fn risk_priority(level: &RiskLevel) -> u8 {
-    match level { RiskLevel::Critical => 0, RiskLevel::High => 1, RiskLevel::Medium => 2, RiskLevel::Low => 3 }
+    match level {
+        RiskLevel::Critical => 0,
+        RiskLevel::High => 1,
+        RiskLevel::Medium => 2,
+        RiskLevel::Low => 3,
+    }
 }
 
 fn check_insecure_storage(file: &Path, source: &str, findings: &mut Vec<VulnFinding>) {
     for (i, line) in source.lines().enumerate() {
         let trimmed = line.trim();
-        if trimmed.starts_with("//") || trimmed.starts_with("///") { continue; }
+        if trimmed.starts_with("//") || trimmed.starts_with("///") {
+            continue;
+        }
 
-        if trimmed.contains("SharedPreferences") && (trimmed.contains("password") || trimmed.contains("token") || trimmed.contains("secret")) {
+        if trimmed.contains("SharedPreferences")
+            && (trimmed.contains("password")
+                || trimmed.contains("token")
+                || trimmed.contains("secret"))
+        {
             findings.push(VulnFinding {
                 issue: Issue {
                     rule: "vuln-insecure-storage".to_string(),
@@ -88,22 +99,33 @@ fn check_insecure_network(file: &Path, source: &str, findings: &mut Vec<VulnFind
     for (i, line) in source.lines().enumerate() {
         let trimmed = line.trim();
 
-        if trimmed.starts_with("//") || trimmed.starts_with("///") { continue; }
+        if trimmed.starts_with("//") || trimmed.starts_with("///") {
+            continue;
+        }
 
-        if trimmed.contains("http://") && !trimmed.contains("localhost") && !trimmed.contains("127.0.0.1") && !trimmed.contains("10.0.2.2") {
+        if trimmed.contains("http://")
+            && !trimmed.contains("localhost")
+            && !trimmed.contains("127.0.0.1")
+            && !trimmed.contains("10.0.2.2")
+        {
             findings.push(VulnFinding {
                 issue: Issue {
                     rule: "vuln-insecure-http".to_string(),
-                    message: "HTTP URL detected — use HTTPS for all network communication".to_string(),
+                    message: "HTTP URL detected — use HTTPS for all network communication"
+                        .to_string(),
                     severity: Severity::Error,
-                    file: file.to_path_buf(), line: i + 1, column: 1,
+                    file: file.to_path_buf(),
+                    line: i + 1,
+                    column: 1,
                 },
                 risk_level: RiskLevel::High,
                 cwe: Some("CWE-319".to_string()),
             });
         }
 
-        if trimmed.contains("badCertificateCallback") && (trimmed.contains("true") || trimmed.contains("=> true")) {
+        if trimmed.contains("badCertificateCallback")
+            && (trimmed.contains("true") || trimmed.contains("=> true"))
+        {
             findings.push(VulnFinding {
                 issue: Issue {
                     rule: "vuln-cert-pinning-bypass".to_string(),
@@ -141,9 +163,13 @@ fn check_injection_risks(file: &Path, source: &str, findings: &mut Vec<VulnFindi
             findings.push(VulnFinding {
                 issue: Issue {
                     rule: "vuln-open-redirect".to_string(),
-                    message: "URL built from user input — validate and sanitize to prevent open redirect".to_string(),
+                    message:
+                        "URL built from user input — validate and sanitize to prevent open redirect"
+                            .to_string(),
                     severity: Severity::Warning,
-                    file: file.to_path_buf(), line: i + 1, column: 1,
+                    file: file.to_path_buf(),
+                    line: i + 1,
+                    column: 1,
                 },
                 risk_level: RiskLevel::Medium,
                 cwe: Some("CWE-601".to_string()),
@@ -160,9 +186,12 @@ fn check_crypto_issues(file: &Path, source: &str, findings: &mut Vec<VulnFinding
             findings.push(VulnFinding {
                 issue: Issue {
                     rule: "vuln-weak-hash".to_string(),
-                    message: "MD5 is cryptographically broken — use SHA-256 or stronger".to_string(),
+                    message: "MD5 is cryptographically broken — use SHA-256 or stronger"
+                        .to_string(),
                     severity: Severity::Warning,
-                    file: file.to_path_buf(), line: i + 1, column: 1,
+                    file: file.to_path_buf(),
+                    line: i + 1,
+                    column: 1,
                 },
                 risk_level: RiskLevel::Medium,
                 cwe: Some("CWE-328".to_string()),
@@ -173,9 +202,12 @@ fn check_crypto_issues(file: &Path, source: &str, findings: &mut Vec<VulnFinding
             findings.push(VulnFinding {
                 issue: Issue {
                     rule: "vuln-weak-hash".to_string(),
-                    message: "SHA-1 is deprecated for security — use SHA-256 or stronger".to_string(),
+                    message: "SHA-1 is deprecated for security — use SHA-256 or stronger"
+                        .to_string(),
                     severity: Severity::Warning,
-                    file: file.to_path_buf(), line: i + 1, column: 1,
+                    file: file.to_path_buf(),
+                    line: i + 1,
+                    column: 1,
                 },
                 risk_level: RiskLevel::Low,
                 cwe: Some("CWE-328".to_string()),
@@ -189,13 +221,20 @@ fn check_data_exposure(file: &Path, source: &str, findings: &mut Vec<VulnFinding
         let trimmed = line.trim();
 
         if trimmed.contains("debugPrint(") || trimmed.contains("print(") {
-            if trimmed.contains("password") || trimmed.contains("token") || trimmed.contains("secret") || trimmed.contains("apiKey") {
+            if trimmed.contains("password")
+                || trimmed.contains("token")
+                || trimmed.contains("secret")
+                || trimmed.contains("apiKey")
+            {
                 findings.push(VulnFinding {
                     issue: Issue {
                         rule: "vuln-sensitive-logging".to_string(),
-                        message: "Sensitive data may be logged — remove or mask before production".to_string(),
+                        message: "Sensitive data may be logged — remove or mask before production"
+                            .to_string(),
                         severity: Severity::Error,
-                        file: file.to_path_buf(), line: i + 1, column: 1,
+                        file: file.to_path_buf(),
+                        line: i + 1,
+                        column: 1,
                     },
                     risk_level: RiskLevel::High,
                     cwe: Some("CWE-532".to_string()),
@@ -220,15 +259,35 @@ pub fn print_vuln_report(findings: &[VulnFinding]) {
         return;
     }
 
-    let critical = findings.iter().filter(|f| f.risk_level == RiskLevel::Critical).count();
-    let high = findings.iter().filter(|f| f.risk_level == RiskLevel::High).count();
-    let medium = findings.iter().filter(|f| f.risk_level == RiskLevel::Medium).count();
-    let low = findings.iter().filter(|f| f.risk_level == RiskLevel::Low).count();
+    let critical = findings
+        .iter()
+        .filter(|f| f.risk_level == RiskLevel::Critical)
+        .count();
+    let high = findings
+        .iter()
+        .filter(|f| f.risk_level == RiskLevel::High)
+        .count();
+    let medium = findings
+        .iter()
+        .filter(|f| f.risk_level == RiskLevel::Medium)
+        .count();
+    let low = findings
+        .iter()
+        .filter(|f| f.risk_level == RiskLevel::Low)
+        .count();
 
-    if critical > 0 { println!("  {} CRITICAL: {}", "●".bright_red().bold(), critical); }
-    if high > 0 { println!("  {} HIGH:     {}", "●".red(), high); }
-    if medium > 0 { println!("  {} MEDIUM:   {}", "●".yellow(), medium); }
-    if low > 0 { println!("  {} LOW:      {}", "●".dimmed(), low); }
+    if critical > 0 {
+        println!("  {} CRITICAL: {}", "●".bright_red().bold(), critical);
+    }
+    if high > 0 {
+        println!("  {} HIGH:     {}", "●".red(), high);
+    }
+    if medium > 0 {
+        println!("  {} MEDIUM:   {}", "●".yellow(), medium);
+    }
+    if low > 0 {
+        println!("  {} LOW:      {}", "●".dimmed(), low);
+    }
 
     println!();
     for f in findings.iter().take(20) {
@@ -239,10 +298,20 @@ pub fn print_vuln_report(findings: &[VulnFinding]) {
             RiskLevel::Low => f.risk_level.to_string().dimmed(),
         };
         let cwe = f.cwe.as_deref().unwrap_or("");
-        let rel = f.issue.file.file_name().and_then(|n| n.to_str()).unwrap_or("?");
+        let rel = f
+            .issue
+            .file
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("?");
         println!(
             "  {} {:<10} {}:{} {} {}",
-            level_color, cwe, rel, f.issue.line, f.issue.rule.bright_white(), f.issue.message.dimmed()
+            level_color,
+            cwe,
+            rel,
+            f.issue.line,
+            f.issue.rule.bright_white(),
+            f.issue.message.dimmed()
         );
     }
     if findings.len() > 20 {

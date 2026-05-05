@@ -109,8 +109,9 @@ fn validate_android_manifest(path: &Path, report: &mut DeeplinkReport) {
             category: "Missing Intent Filter",
             file: manifest_path.clone(),
             detail: "No intent-filter found for deep links".to_string(),
-            suggestion: "Add an intent-filter with action VIEW and category BROWSABLE to your activity"
-                .to_string(),
+            suggestion:
+                "Add an intent-filter with action VIEW and category BROWSABLE to your activity"
+                    .to_string(),
         });
     }
 
@@ -140,8 +141,9 @@ fn validate_android_manifest(path: &Path, report: &mut DeeplinkReport) {
             category: "App Links Not Verified",
             file: manifest_path.clone(),
             detail: "autoVerify=\"true\" not found for App Links".to_string(),
-            suggestion: "Add autoVerify=\"true\" to your intent-filter for automatic domain verification"
-                .to_string(),
+            suggestion:
+                "Add autoVerify=\"true\" to your intent-filter for automatic domain verification"
+                    .to_string(),
         });
     }
 
@@ -182,8 +184,7 @@ fn extract_android_schemes(content: &str, report: &mut DeeplinkReport, manifest_
             category: "No Schemes Found",
             file: manifest_path.to_path_buf(),
             detail: "No URL schemes defined in AndroidManifest.xml".to_string(),
-            suggestion: "Define at least one URL scheme using android:scheme attribute"
-                .to_string(),
+            suggestion: "Define at least one URL scheme using android:scheme attribute".to_string(),
         });
     }
 }
@@ -198,8 +199,7 @@ fn validate_ios_info_plist(path: &Path, report: &mut DeeplinkReport) {
             category: "Missing File",
             file: plist_path,
             detail: "Info.plist not found".to_string(),
-            suggestion: "Ensure your Flutter app has an iOS module with Info.plist"
-                .to_string(),
+            suggestion: "Ensure your Flutter app has an iOS module with Info.plist".to_string(),
         });
         return;
     }
@@ -240,8 +240,7 @@ fn validate_ios_info_plist(path: &Path, report: &mut DeeplinkReport) {
             category: "Missing URL Schemes",
             file: plist_path.clone(),
             detail: "CFBundleURLSchemes not found in Info.plist".to_string(),
-            suggestion: "Define URL schemes within CFBundleURLTypes"
-                .to_string(),
+            suggestion: "Define URL schemes within CFBundleURLTypes".to_string(),
         });
     }
 
@@ -258,8 +257,9 @@ fn validate_ios_info_plist(path: &Path, report: &mut DeeplinkReport) {
             category: "Missing Universal Links Config",
             file: plist_path,
             detail: "Associated Domains or ATS configuration not found".to_string(),
-            suggestion: "Consider adding Associated Domains entitlement for Universal Links support"
-                .to_string(),
+            suggestion:
+                "Consider adding Associated Domains entitlement for Universal Links support"
+                    .to_string(),
         });
     }
 }
@@ -298,8 +298,7 @@ fn extract_ios_schemes(content: &str, report: &mut DeeplinkReport, plist_path: &
             category: "Empty URL Schemes",
             file: plist_path.to_path_buf(),
             detail: "CFBundleURLSchemes array is empty".to_string(),
-            suggestion: "Add at least one URL scheme to CFBundleURLSchemes"
-                .to_string(),
+            suggestion: "Add at least one URL scheme to CFBundleURLSchemes".to_string(),
         });
     }
 }
@@ -323,11 +322,7 @@ fn validate_flutter_routes(path: &Path, report: &mut DeeplinkReport) {
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .map_or(false, |ext| ext == "dart")
-        })
+        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
         .map(|e| e.path().to_path_buf())
         .collect();
 
@@ -355,8 +350,7 @@ fn validate_flutter_routes(path: &Path, report: &mut DeeplinkReport) {
             category: "No Routes Found",
             file: lib_path,
             detail: "No GoRouter or Navigator routes found in Dart files".to_string(),
-            suggestion: "Define routes using GoRoute or Navigator pushNamed"
-                .to_string(),
+            suggestion: "Define routes using GoRoute or Navigator pushNamed".to_string(),
         });
     }
 }
@@ -519,7 +513,11 @@ pub fn print_deeplink_report(report: &DeeplinkReport) {
 
     println!("\n{}", "Detected Routes".bold().underline());
     if !report.flutter_routes.is_empty() {
-        println!("  {}: {} routes", "Flutter".cyan(), report.flutter_routes.len());
+        println!(
+            "  {}: {} routes",
+            "Flutter".cyan(),
+            report.flutter_routes.len()
+        );
         for route in &report.flutter_routes {
             println!("    - {}", route.dimmed());
         }
@@ -566,16 +564,22 @@ pub fn write_deeplink_html_report(report: &DeeplinkReport, path: &Path) -> Resul
     html.push_str("<head>\n");
     html.push_str("  <title>Deep Link Validator Report</title>\n");
     html.push_str("  <style>\n");
-    html.push_str("    body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }\n");
+    html.push_str(
+        "    body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }\n",
+    );
     html.push_str("    .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }\n");
-    html.push_str("    h1 { color: #333; border-bottom: 3px solid #007acc; padding-bottom: 10px; }\n");
+    html.push_str(
+        "    h1 { color: #333; border-bottom: 3px solid #007acc; padding-bottom: 10px; }\n",
+    );
     html.push_str("    h2 { color: #007acc; margin-top: 30px; }\n");
     html.push_str("    .score { font-size: 48px; font-weight: bold; color: #007acc; }\n");
     html.push_str("    .score-high { color: #4caf50; }\n");
     html.push_str("    .score-medium { color: #ff9800; }\n");
     html.push_str("    .score-low { color: #f44336; }\n");
     html.push_str("    .schemes { display: flex; gap: 20px; margin: 20px 0; }\n");
-    html.push_str("    .scheme-box { border: 1px solid #ddd; padding: 15px; border-radius: 4px; }\n");
+    html.push_str(
+        "    .scheme-box { border: 1px solid #ddd; padding: 15px; border-radius: 4px; }\n",
+    );
     html.push_str("    .scheme-box h3 { margin: 0 0 10px 0; color: #007acc; }\n");
     html.push_str("    .scheme-list { list-style: none; padding: 0; margin: 0; }\n");
     html.push_str("    .scheme-list li { padding: 5px 0; }\n");
@@ -583,7 +587,9 @@ pub fn write_deeplink_html_report(report: &DeeplinkReport, path: &Path) -> Resul
     html.push_str("    .issue-error { border-left-color: #f44336; background: #ffebee; }\n");
     html.push_str("    .issue-warning { border-left-color: #ff9800; background: #fff3e0; }\n");
     html.push_str("    .issue-info { border-left-color: #2196f3; background: #e3f2fd; }\n");
-    html.push_str("    .issue-title { font-weight: bold; font-size: 1.1em; margin-bottom: 5px; }\n");
+    html.push_str(
+        "    .issue-title { font-weight: bold; font-size: 1.1em; margin-bottom: 5px; }\n",
+    );
     html.push_str("    .issue-detail { margin: 5px 0; color: #666; }\n");
     html.push_str("    .issue-suggestion { margin: 10px 0; padding: 10px; background: rgba(0,0,0,0.05); border-radius: 4px; font-style: italic; }\n");
     html.push_str("    .routes { margin: 20px 0; }\n");
@@ -662,10 +668,19 @@ pub fn write_deeplink_html_report(report: &DeeplinkReport, path: &Path) -> Resul
                 "      <div class=\"issue-title\">[{}] {}</div>\n",
                 issue.severity, issue.platform
             ));
-            html.push_str(&format!("      <div class=\"issue-detail\"><strong>Category:</strong> {}</div>\n", issue.category));
-            html.push_str(&format!("      <div class=\"issue-detail\"><strong>Detail:</strong> {}</div>\n", issue.detail));
+            html.push_str(&format!(
+                "      <div class=\"issue-detail\"><strong>Category:</strong> {}</div>\n",
+                issue.category
+            ));
+            html.push_str(&format!(
+                "      <div class=\"issue-detail\"><strong>Detail:</strong> {}</div>\n",
+                issue.detail
+            ));
             if !issue.file.as_os_str().is_empty() {
-                html.push_str(&format!("      <div class=\"issue-detail\"><strong>File:</strong> {}</div>\n", issue.file.display()));
+                html.push_str(&format!(
+                    "      <div class=\"issue-detail\"><strong>File:</strong> {}</div>\n",
+                    issue.file.display()
+                ));
             }
             html.push_str(&format!(
                 "      <div class=\"issue-suggestion\"><strong>Suggestion:</strong> {}</div>\n",
@@ -818,7 +833,7 @@ mod tests {
             score: 100,
         };
 
-        let temp_file = PathBuf::from("test.dart");
+        let _temp_file = PathBuf::from("test.dart");
         // Simulate the extraction logic
         for line in dart_content.lines() {
             if line.contains("GoRoute(path:") {

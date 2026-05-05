@@ -99,14 +99,20 @@ pub fn detect_conventions(root: &Path) -> anyhow::Result<ConventionReport> {
                 if trimmed.contains("try {") || trimmed.contains("} catch") {
                     uses_try_catch = true;
                 }
-                if trimmed.contains("class ") && trimmed.contains("Exception") && trimmed.contains("implements") {
+                if trimmed.contains("class ")
+                    && trimmed.contains("Exception")
+                    && trimmed.contains("implements")
+                {
                     uses_custom_exceptions = true;
                 }
 
                 if trimmed.contains("BlocProvider") || trimmed.contains("extends Bloc") {
                     *state_mgmt.entry("BLoC".to_string()).or_default() += 1;
                 }
-                if trimmed.contains("ref.watch") || trimmed.contains("ref.read") || trimmed.contains("ConsumerWidget") {
+                if trimmed.contains("ref.watch")
+                    || trimmed.contains("ref.read")
+                    || trimmed.contains("ConsumerWidget")
+                {
                     *state_mgmt.entry("Riverpod".to_string()).or_default() += 1;
                 }
                 if trimmed.contains("Provider.of") || trimmed.contains("ChangeNotifier") {
@@ -128,9 +134,10 @@ pub fn detect_conventions(root: &Path) -> anyhow::Result<ConventionReport> {
         "mixed".to_string()
     };
 
-    let pascal = class_names.iter().filter(|c| {
-        c.chars().next().map_or(false, |ch| ch.is_uppercase())
-    }).count();
+    let pascal = class_names
+        .iter()
+        .filter(|c| c.chars().next().map_or(false, |ch| ch.is_uppercase()))
+        .count();
     let class_naming = if pascal == class_names.len() {
         "PascalCase".to_string()
     } else {
@@ -138,14 +145,28 @@ pub fn detect_conventions(root: &Path) -> anyhow::Result<ConventionReport> {
     };
 
     let mut layers = Vec::new();
-    let arch_dirs = ["domain", "data", "presentation", "models", "services", "repositories", "views", "controllers", "features", "core", "shared", "widgets"];
+    let arch_dirs = [
+        "domain",
+        "data",
+        "presentation",
+        "models",
+        "services",
+        "repositories",
+        "views",
+        "controllers",
+        "features",
+        "core",
+        "shared",
+        "widgets",
+    ];
     for dir in &arch_dirs {
         if dir_names.contains_key(*dir) {
             layers.push(dir.to_string());
         }
     }
 
-    let pattern = if layers.contains(&"domain".to_string()) && layers.contains(&"data".to_string()) {
+    let pattern = if layers.contains(&"domain".to_string()) && layers.contains(&"data".to_string())
+    {
         "Clean Architecture"
     } else if layers.contains(&"features".to_string()) {
         "Feature-First"
@@ -188,38 +209,67 @@ pub fn detect_conventions(root: &Path) -> anyhow::Result<ConventionReport> {
 
 fn calculate_consistency(file_naming: &str, class_naming: &str, layers: &[String]) -> f64 {
     let mut score: f64 = 50.0;
-    if file_naming == "snake_case" { score += 15.0; }
-    if class_naming == "PascalCase" { score += 15.0; }
-    if !layers.is_empty() { score += 10.0; }
-    if layers.len() >= 3 { score += 10.0; }
+    if file_naming == "snake_case" {
+        score += 15.0;
+    }
+    if class_naming == "PascalCase" {
+        score += 15.0;
+    }
+    if !layers.is_empty() {
+        score += 10.0;
+    }
+    if layers.len() >= 3 {
+        score += 10.0;
+    }
     score.min(100.0)
 }
 
 pub fn print_convention_report(report: &ConventionReport) {
     println!();
-    println!(
-        "  {} Convention Detection",
-        "falcon".bright_cyan().bold()
-    );
+    println!("  {} Convention Detection", "falcon".bright_cyan().bold());
     println!();
 
     println!("  Naming:");
-    println!("    File naming:       {}", report.naming.file_naming.bright_white());
-    println!("    Class naming:      {}", report.naming.class_naming.bright_white());
+    println!(
+        "    File naming:       {}",
+        report.naming.file_naming.bright_white()
+    );
+    println!(
+        "    Class naming:      {}",
+        report.naming.class_naming.bright_white()
+    );
 
     println!();
     println!("  Architecture:");
-    println!("    Pattern:           {}", report.architecture.pattern.bright_white().bold());
+    println!(
+        "    Pattern:           {}",
+        report.architecture.pattern.bright_white().bold()
+    );
     if !report.architecture.layers_detected.is_empty() {
-        println!("    Layers:            {}", report.architecture.layers_detected.join(", ").bright_white());
+        println!(
+            "    Layers:            {}",
+            report
+                .architecture
+                .layers_detected
+                .join(", ")
+                .bright_white()
+        );
     }
 
     println!();
     println!("  Error Handling:");
-    if report.error_handling.uses_result_type { println!("    {} Result type pattern", "✓".green()); }
-    if report.error_handling.uses_either { println!("    {} Either/dartz pattern", "✓".green()); }
-    if report.error_handling.uses_try_catch { println!("    {} try/catch pattern", "✓".green()); }
-    if report.error_handling.uses_custom_exceptions { println!("    {} Custom exception classes", "✓".green()); }
+    if report.error_handling.uses_result_type {
+        println!("    {} Result type pattern", "✓".green());
+    }
+    if report.error_handling.uses_either {
+        println!("    {} Either/dartz pattern", "✓".green());
+    }
+    if report.error_handling.uses_try_catch {
+        println!("    {} try/catch pattern", "✓".green());
+    }
+    if report.error_handling.uses_custom_exceptions {
+        println!("    {} Custom exception classes", "✓".green());
+    }
 
     if let Some(ref sm) = report.state_management {
         println!();
@@ -227,9 +277,6 @@ pub fn print_convention_report(report: &ConventionReport) {
     }
 
     println!();
-    println!(
-        "  Consistency Score:   {:.0}%",
-        report.consistency_score
-    );
+    println!("  Consistency Score:   {:.0}%", report.consistency_score);
     println!();
 }

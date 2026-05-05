@@ -52,10 +52,7 @@ void neverCalled() {
     let resolver = ProjectResolver::new(dir.path(), &config).unwrap();
     let issues = resolver.find_unused_files().unwrap();
 
-    let unused_files: Vec<String> = issues
-        .iter()
-        .map(|i| i.message.clone())
-        .collect();
+    let unused_files: Vec<String> = issues.iter().map(|i| i.message.clone()).collect();
 
     assert!(
         unused_files
@@ -94,15 +91,10 @@ void main() {}
     let resolver = ProjectResolver::new(dir.path(), &config).unwrap();
     let issues = resolver.find_unused_dependencies().unwrap();
 
-    let unused_deps: Vec<String> = issues
-        .iter()
-        .map(|i| i.message.clone())
-        .collect();
+    let unused_deps: Vec<String> = issues.iter().map(|i| i.message.clone()).collect();
 
     assert!(
-        unused_deps
-            .iter()
-            .any(|m| m.contains("unused_package")),
+        unused_deps.iter().any(|m| m.contains("unused_package")),
         "Should detect unused_package as unused dependency. Found: {:?}",
         unused_deps
     );
@@ -139,10 +131,7 @@ void main() {
 
     let messages: Vec<String> = issues.iter().map(|i| i.message.clone()).collect();
     let has_main_unused = messages.iter().any(|m| m.contains("main"));
-    assert!(
-        !has_main_unused,
-        "Should not flag 'main' as unused"
-    );
+    assert!(!has_main_unused, "Should not flag 'main' as unused");
 }
 
 #[test]

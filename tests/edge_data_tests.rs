@@ -10,26 +10,33 @@ fn test_baseline_create_empty_issues() {
 #[test]
 fn test_baseline_create_with_issues() {
     let tmp = tempfile::tempdir().unwrap();
-    let issues = vec![
-        falcon::reporters::Issue {
-            rule: "test".to_string(), message: "msg".to_string(),
-            severity: falcon::config::Severity::Warning,
-            file: std::path::PathBuf::from("lib/a.dart"), line: 10, column: 1,
-        },
-    ];
+    let issues = vec![falcon::reporters::Issue {
+        rule: "test".to_string(),
+        message: "msg".to_string(),
+        severity: falcon::config::Severity::Warning,
+        file: std::path::PathBuf::from("lib/a.dart"),
+        line: 10,
+        column: 1,
+    }];
     falcon::incremental::baseline::Baseline::create(&issues, tmp.path()).unwrap();
 
     let baseline = falcon::incremental::baseline::Baseline::load(tmp.path()).unwrap();
     let new_issues = vec![
         falcon::reporters::Issue {
-            rule: "test".to_string(), message: "msg".to_string(),
+            rule: "test".to_string(),
+            message: "msg".to_string(),
             severity: falcon::config::Severity::Warning,
-            file: std::path::PathBuf::from("lib/a.dart"), line: 10, column: 1,
+            file: std::path::PathBuf::from("lib/a.dart"),
+            line: 10,
+            column: 1,
         },
         falcon::reporters::Issue {
-            rule: "new-rule".to_string(), message: "new".to_string(),
+            rule: "new-rule".to_string(),
+            message: "new".to_string(),
             severity: falcon::config::Severity::Error,
-            file: std::path::PathBuf::from("lib/b.dart"), line: 5, column: 1,
+            file: std::path::PathBuf::from("lib/b.dart"),
+            line: 5,
+            column: 1,
         },
     ];
 
@@ -66,7 +73,8 @@ fn test_cache_save_and_load() {
 
 #[test]
 fn test_cache_changed_files_empty() {
-    let cache = falcon::incremental::cache::AnalysisCache::load(std::path::Path::new("/nonexistent"));
+    let cache =
+        falcon::incremental::cache::AnalysisCache::load(std::path::Path::new("/nonexistent"));
     let changed = cache.changed_files(&[]);
     assert!(changed.is_empty());
 }
@@ -127,7 +135,8 @@ fn test_suppression_save_load_roundtrip() {
             reason: "testing",
             category: falcon::stability::suppression::SuppressionCategory::FalsePositive,
         },
-    ).unwrap();
+    )
+    .unwrap();
 
     let db = falcon::stability::suppression::load_suppressions(tmp.path()).unwrap();
     assert_eq!(db.entries.len(), 1);
@@ -148,13 +157,22 @@ fn test_score_trends_load_missing() {
 fn test_score_trends_roundtrip() {
     let tmp = tempfile::tempdir().unwrap();
     let mut history = falcon::ai_score::score_trends::ScoreHistory::default();
-    history.snapshots.push(falcon::ai_score::score_trends::ScoreSnapshot {
-        timestamp: "2026-01-01".to_string(), overall: 80,
-        resource_safety: 90, error_handling: 70, type_safety: 85,
-        security: 100, convention_match: 75, complexity: 60,
-        file_count: 50, total_issues: 100, grade: "B".to_string(),
-        git_commit: None,
-    });
+    history
+        .snapshots
+        .push(falcon::ai_score::score_trends::ScoreSnapshot {
+            timestamp: "2026-01-01".to_string(),
+            overall: 80,
+            resource_safety: 90,
+            error_handling: 70,
+            type_safety: 85,
+            security: 100,
+            convention_match: 75,
+            complexity: 60,
+            file_count: 50,
+            total_issues: 100,
+            grade: "B".to_string(),
+            git_commit: None,
+        });
 
     falcon::ai_score::score_trends::save_score_history(tmp.path(), &history).unwrap();
     let loaded = falcon::ai_score::score_trends::load_score_history(tmp.path()).unwrap();
@@ -187,9 +205,9 @@ fn test_community_load_empty() {
 #[test]
 fn test_community_submit_and_vote() {
     let tmp = tempfile::tempdir().unwrap();
-    let id = falcon::community::submit_rule_request(
-        tmp.path(), "new-rule", "A great new rule", "dart"
-    ).unwrap();
+    let id =
+        falcon::community::submit_rule_request(tmp.path(), "new-rule", "A great new rule", "dart")
+            .unwrap();
     assert!(!id.is_empty());
 
     let votes = falcon::community::vote_rule_request(tmp.path(), &id).unwrap();
@@ -202,11 +220,18 @@ fn test_community_submit_and_vote() {
 fn test_benchmark_db_roundtrip() {
     let tmp = tempfile::tempdir().unwrap();
     let mut db = falcon::ai_score::benchmark_db::BenchmarkDatabase::default();
-    db.entries.push(falcon::ai_score::benchmark_db::ProjectBenchmark {
-        project_name: "test".to_string(), ai_tool: "cursor".to_string(),
-        score: 72, grade: "C".to_string(), error_count: 3, warning_count: 20,
-        total_issues: 23, file_count: 10, timestamp: "2026-01-01".to_string(),
-    });
+    db.entries
+        .push(falcon::ai_score::benchmark_db::ProjectBenchmark {
+            project_name: "test".to_string(),
+            ai_tool: "cursor".to_string(),
+            score: 72,
+            grade: "C".to_string(),
+            error_count: 3,
+            warning_count: 20,
+            total_issues: 23,
+            file_count: 10,
+            timestamp: "2026-01-01".to_string(),
+        });
 
     falcon::ai_score::benchmark_db::save_benchmark_db(tmp.path(), &db).unwrap();
     let loaded = falcon::ai_score::benchmark_db::load_benchmark_db(tmp.path()).unwrap();
@@ -228,12 +253,16 @@ fn test_fix_tracking_all_accepted() {
     let history = falcon::ai_score::fix_tracking::FixHistory {
         records: vec![
             falcon::ai_score::fix_tracking::FixRecord {
-                rule: "rule-a".to_string(), file: "a.dart".to_string(),
-                timestamp: "t".to_string(), outcome: falcon::ai_score::fix_tracking::FixOutcome::Accepted,
+                rule: "rule-a".to_string(),
+                file: "a.dart".to_string(),
+                timestamp: "t".to_string(),
+                outcome: falcon::ai_score::fix_tracking::FixOutcome::Accepted,
             },
             falcon::ai_score::fix_tracking::FixRecord {
-                rule: "rule-a".to_string(), file: "b.dart".to_string(),
-                timestamp: "t".to_string(), outcome: falcon::ai_score::fix_tracking::FixOutcome::Accepted,
+                rule: "rule-a".to_string(),
+                file: "b.dart".to_string(),
+                timestamp: "t".to_string(),
+                outcome: falcon::ai_score::fix_tracking::FixOutcome::Accepted,
             },
         ],
     };

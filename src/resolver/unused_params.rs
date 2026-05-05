@@ -1,6 +1,6 @@
+use crate::config::Severity;
 use crate::parser::DartParser;
 use crate::reporters::Issue;
-use crate::config::Severity;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -70,10 +70,21 @@ fn check_function_params(
     let func_name = get_func_name(sig_node, source);
 
     let skip_names: HashSet<&str> = [
-        "main", "build", "createState", "initState", "dispose",
-        "didChangeDependencies", "didUpdateWidget", "deactivate",
-        "reassemble", "toString", "hashCode", "noSuchMethod",
-    ].into_iter().collect();
+        "main",
+        "build",
+        "createState",
+        "initState",
+        "dispose",
+        "didChangeDependencies",
+        "didUpdateWidget",
+        "deactivate",
+        "reassemble",
+        "toString",
+        "hashCode",
+        "noSuchMethod",
+    ]
+    .into_iter()
+    .collect();
 
     if skip_names.contains(func_name.as_str()) {
         return;
@@ -123,7 +134,10 @@ fn get_func_name(sig_node: tree_sitter::Node, source: &str) -> String {
             let mut inner = child.walk();
             for inner_child in child.children(&mut inner) {
                 if inner_child.kind() == "identifier" {
-                    return inner_child.utf8_text(source.as_bytes()).unwrap_or("").to_string();
+                    return inner_child
+                        .utf8_text(source.as_bytes())
+                        .unwrap_or("")
+                        .to_string();
                 }
             }
         }
@@ -146,15 +160,20 @@ fn collect_params_recursive(
     for child in node.children(&mut cursor) {
         let kind = child.kind();
 
-        if kind == "formal_parameter" || kind == "simple_formal_parameter"
-            || kind == "default_formal_parameter" || kind == "field_formal_parameter"
+        if kind == "formal_parameter"
+            || kind == "simple_formal_parameter"
+            || kind == "default_formal_parameter"
+            || kind == "field_formal_parameter"
         {
             let mut inner = child.walk();
             let mut last_ident = None;
             for inner_child in child.children(&mut inner) {
                 if inner_child.kind() == "identifier" {
                     last_ident = Some((
-                        inner_child.utf8_text(source.as_bytes()).unwrap_or("").to_string(),
+                        inner_child
+                            .utf8_text(source.as_bytes())
+                            .unwrap_or("")
+                            .to_string(),
                         inner_child.start_position().row + 1,
                     ));
                 }

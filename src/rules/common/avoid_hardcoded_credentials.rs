@@ -7,13 +7,27 @@ use tree_sitter::Node;
 pub struct AvoidHardcodedCredentials;
 
 const SUSPICIOUS_NAMES: &[&str] = &[
-    "apiKey", "api_key", "apikey", "API_KEY",
-    "secret", "SECRET", "secretKey", "secret_key",
-    "password", "PASSWORD", "passwd",
-    "token", "TOKEN", "accessToken", "access_token",
-    "authToken", "auth_token",
-    "privateKey", "private_key",
-    "clientSecret", "client_secret",
+    "apiKey",
+    "api_key",
+    "apikey",
+    "API_KEY",
+    "secret",
+    "SECRET",
+    "secretKey",
+    "secret_key",
+    "password",
+    "PASSWORD",
+    "passwd",
+    "token",
+    "TOKEN",
+    "accessToken",
+    "access_token",
+    "authToken",
+    "auth_token",
+    "privateKey",
+    "private_key",
+    "clientSecret",
+    "client_secret",
 ];
 
 impl Rule for AvoidHardcodedCredentials {
@@ -31,7 +45,10 @@ impl Rule for AvoidHardcodedCredentials {
 
     fn check(&self, _root: Node, source: &str, file: &Path) -> Vec<Issue> {
         let file_str = file.to_string_lossy();
-        if file_str.contains("_test.dart") || file_str.contains("/test/") || file_str.contains(".g.dart") {
+        if file_str.contains("_test.dart")
+            || file_str.contains("/test/")
+            || file_str.contains(".g.dart")
+        {
             return Vec::new();
         }
 

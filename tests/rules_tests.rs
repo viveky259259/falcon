@@ -28,7 +28,10 @@ void tooMany(int a, String b, double c, bool d, List e) {
         .filter(|i| i.rule == "avoid-long-parameter-list")
         .collect();
 
-    assert!(!param_issues.is_empty(), "Should flag function with > 4 params");
+    assert!(
+        !param_issues.is_empty(),
+        "Should flag function with > 4 params"
+    );
 }
 
 #[test]

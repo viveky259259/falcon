@@ -12,12 +12,7 @@ pub fn detect_widget_issues(root: Node, source: &str, file: &Path) -> Vec<Issue>
     issues
 }
 
-fn detect_rebuild_triggers(
-    root: Node,
-    source: &str,
-    file: &Path,
-    issues: &mut Vec<Issue>,
-) {
+fn detect_rebuild_triggers(root: Node, source: &str, file: &Path, issues: &mut Vec<Issue>) {
     let class_decls = find_descendants_by_kind(root, "class_declaration");
 
     for class in &class_decls {
@@ -39,8 +34,9 @@ fn detect_rebuild_triggers(
                 if body_text.contains("setState") {
                     issues.push(Issue {
                         rule: "widget-rebuild".to_string(),
-                        message: "Calling setState inside build method causes infinite rebuild loop."
-                            .to_string(),
+                        message:
+                            "Calling setState inside build method causes infinite rebuild loop."
+                                .to_string(),
                         severity: Severity::Error,
                         file: file.to_path_buf(),
                         line: node_start_line(*sig),
@@ -68,20 +64,13 @@ fn detect_rebuild_triggers(
     }
 }
 
-fn detect_complex_build(
-    root: Node,
-    source: &str,
-    file: &Path,
-    issues: &mut Vec<Issue>,
-) {
+fn detect_complex_build(root: Node, source: &str, file: &Path, issues: &mut Vec<Issue>) {
     let class_decls = find_descendants_by_kind(root, "class_declaration");
 
     for class in &class_decls {
         let class_text = class.utf8_text(source.as_bytes()).unwrap_or("");
 
-        if !class_text.contains("Widget")
-            && !class_text.contains("State<")
-        {
+        if !class_text.contains("Widget") && !class_text.contains("State<") {
             continue;
         }
 
@@ -146,7 +135,10 @@ fn count_nesting(node: Node, source: &str, depth: usize, max: &mut usize) {
     let new_depth = if is_widget_call
         && text.len() > 1
         && text.chars().next().map_or(false, |c| c.is_uppercase())
-        && (text.contains('(') || node.next_sibling().map_or(false, |n| n.kind() == "selector"))
+        && (text.contains('(')
+            || node
+                .next_sibling()
+                .map_or(false, |n| n.kind() == "selector"))
     {
         depth + 1
     } else {
@@ -162,4 +154,3 @@ fn count_nesting(node: Node, source: &str, depth: usize, max: &mut usize) {
         count_nesting(child, source, new_depth, max);
     }
 }
-

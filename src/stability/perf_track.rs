@@ -24,7 +24,9 @@ pub struct PerfHistory {
 
 impl Default for PerfHistory {
     fn default() -> Self {
-        Self { snapshots: Vec::new() }
+        Self {
+            snapshots: Vec::new(),
+        }
     }
 }
 
@@ -137,10 +139,7 @@ pub struct PerfRegression {
 
 pub fn print_perf_history(history: &PerfHistory, last_n: usize) {
     println!();
-    println!(
-        "  {} Performance History",
-        "falcon".bright_cyan().bold()
-    );
+    println!("  {} Performance History", "falcon".bright_cyan().bold());
     println!();
 
     let snapshots = if history.snapshots.len() > last_n {

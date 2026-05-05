@@ -49,7 +49,10 @@ pub struct DimensionScore {
 
 impl DimensionScore {
     fn new(score: u32, findings: Vec<String>) -> Self {
-        Self { score: score.min(100), findings }
+        Self {
+            score: score.min(100),
+            findings,
+        }
     }
 }
 
@@ -136,7 +139,10 @@ fn score_resource_safety(ic: &IssueCounts) -> DimensionScore {
     let stream_count = ic.get("ensure-stream-subscription-cancel");
 
     if dispose_count > 0 {
-        findings.push(format!("{} undisposed controllers/FocusNodes", dispose_count));
+        findings.push(format!(
+            "{} undisposed controllers/FocusNodes",
+            dispose_count
+        ));
     }
     if stream_count > 0 {
         findings.push(format!("{} uncancelled stream subscriptions", stream_count));
@@ -190,7 +196,11 @@ fn score_type_safety(ic: &IssueCounts, file_count: usize) -> DimensionScore {
         findings.push(format!("{} unnecessary type casts", type_cast));
     }
 
-    let per_file = if file_count > 0 { dynamic_count as f64 / file_count as f64 } else { 0.0 };
+    let per_file = if file_count > 0 {
+        dynamic_count as f64 / file_count as f64
+    } else {
+        0.0
+    };
     let penalty = (per_file * 30.0).min(60.0) as u32 + (type_assert + type_cast) as u32;
     let score = 100u32.saturating_sub(penalty);
     DimensionScore::new(score, findings)
@@ -257,10 +267,16 @@ fn score_complexity(ic: &IssueCounts, file_count: usize) -> DimensionScore {
         findings.push(format!("{} deeply nested conditionals", nested));
     }
     if long_params > 0 {
-        findings.push(format!("{} functions with too many parameters", long_params));
+        findings.push(format!(
+            "{} functions with too many parameters",
+            long_params
+        ));
     }
     if widget_nesting > 0 {
-        findings.push(format!("{} excessively nested widget trees", widget_nesting));
+        findings.push(format!(
+            "{} excessively nested widget trees",
+            widget_nesting
+        ));
     }
 
     let per_file = if file_count > 0 {
@@ -276,10 +292,7 @@ fn score_complexity(ic: &IssueCounts, file_count: usize) -> DimensionScore {
 /// Print an AI Code Quality Score to the console.
 pub fn print_ai_score(score: &AiCodeScore) {
     println!();
-    println!(
-        "  {} AI Code Quality Score",
-        "falcon".bright_cyan().bold()
-    );
+    println!("  {} AI Code Quality Score", "falcon".bright_cyan().bold());
     println!();
 
     let grade_color = match score.grade {
@@ -313,8 +326,7 @@ pub fn print_ai_score(score: &AiCodeScore) {
     println!();
     println!(
         "  {} files analyzed, {} total issues",
-        score.file_count,
-        score.total_issues
+        score.file_count, score.total_issues
     );
 
     println!();
@@ -360,7 +372,11 @@ fn print_dimension(name: &str, dim: &DimensionScore, weight: f64) {
     );
 
     for finding in &dim.findings {
-        println!("                         {} {}", "·".dimmed(), finding.dimmed());
+        println!(
+            "                         {} {}",
+            "·".dimmed(),
+            finding.dimmed()
+        );
     }
 }
 

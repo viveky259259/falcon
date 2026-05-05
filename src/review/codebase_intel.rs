@@ -90,18 +90,29 @@ pub fn analyze_codebase(root: &Path, config: &FalconConfig) -> anyhow::Result<Co
         let m = metrics::calculate_file_metrics(root_node, &source, &config.metrics);
 
         let classes_count = count_kind(root_node, "class_declaration");
-        let functions_count = count_kind(root_node, "function_signature")
-            + count_kind(root_node, "method_signature");
+        let functions_count =
+            count_kind(root_node, "function_signature") + count_kind(root_node, "method_signature");
 
-        let max_cc = m.functions.iter().map(|f| f.cyclomatic_complexity).max().unwrap_or(0);
+        let max_cc = m
+            .functions
+            .iter()
+            .map(|f| f.cyclomatic_complexity)
+            .max()
+            .unwrap_or(0);
         let avg_cc = if !m.functions.is_empty() {
-            m.functions.iter().map(|f| f.cyclomatic_complexity as f64).sum::<f64>()
+            m.functions
+                .iter()
+                .map(|f| f.cyclomatic_complexity as f64)
+                .sum::<f64>()
                 / m.functions.len() as f64
         } else {
             0.0
         };
         let avg_mi = if !m.functions.is_empty() {
-            m.functions.iter().map(|f| f.maintainability_index).sum::<f64>()
+            m.functions
+                .iter()
+                .map(|f| f.maintainability_index)
+                .sum::<f64>()
                 / m.functions.len() as f64
         } else {
             100.0
@@ -248,7 +259,11 @@ fn find_hotspots(stats: &[FileStats], _root: &Path) -> Vec<Hotspot> {
         }
     }
 
-    hotspots.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    hotspots.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     hotspots.truncate(15);
     hotspots
 }
@@ -296,12 +311,11 @@ fn calculate_health_score(stats: &[FileStats]) -> f64 {
         return 100.0;
     }
 
-    let avg_maintainability: f64 = stats.iter().map(|s| s.maintainability).sum::<f64>()
-        / stats.len() as f64;
-    let avg_complexity: f64 = stats.iter().map(|s| s.avg_complexity).sum::<f64>()
-        / stats.len() as f64;
-    let god_file_ratio = stats.iter().filter(|s| s.lines > 500).count() as f64
-        / stats.len() as f64;
+    let avg_maintainability: f64 =
+        stats.iter().map(|s| s.maintainability).sum::<f64>() / stats.len() as f64;
+    let avg_complexity: f64 =
+        stats.iter().map(|s| s.avg_complexity).sum::<f64>() / stats.len() as f64;
+    let god_file_ratio = stats.iter().filter(|s| s.lines > 500).count() as f64 / stats.len() as f64;
 
     let maintainability_score = (avg_maintainability / 100.0 * 40.0).min(40.0);
     let complexity_score = ((20.0 - avg_complexity) / 20.0 * 30.0).clamp(0.0, 30.0);
@@ -369,10 +383,7 @@ fn generate_narrative(
 
 pub fn print_codebase_report(report: &CodebaseReport, root: &Path) {
     println!();
-    println!(
-        "  {} Codebase Intelligence",
-        "falcon".bright_cyan().bold()
-    );
+    println!("  {} Codebase Intelligence", "falcon".bright_cyan().bold());
     println!();
 
     let health_color = if report.health_score >= 80.0 {

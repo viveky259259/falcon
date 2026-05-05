@@ -10,7 +10,10 @@ pub fn rule_mapping() -> HashMap<&'static str, &'static str> {
     m.insert("avoid-dynamic", "avoid-dynamic");
     m.insert("avoid-late-keyword", "avoid-late-keyword");
     m.insert("avoid-global-state", "avoid-global-state");
-    m.insert("avoid-nested-conditional-expressions", "avoid-nested-conditionals");
+    m.insert(
+        "avoid-nested-conditional-expressions",
+        "avoid-nested-conditionals",
+    );
     m.insert("avoid-returning-widgets", "avoid-returning-widgets");
     m.insert("avoid-unnecessary-setstate", "avoid-unnecessary-set-state");
     m.insert("avoid-expanded-as-spacer", "avoid-expanded-as-spacer");
@@ -21,17 +24,38 @@ pub fn rule_mapping() -> HashMap<&'static str, &'static str> {
     m.insert("avoid-double-negation", "avoid-double-negation");
     m.insert("prefer-extracting-callbacks", "prefer-extracting-callbacks");
     m.insert("avoid-unused-parameters", "avoid-unused-parameters");
-    m.insert("prefer-correct-identifier-length", "prefer-correct-identifier-length");
+    m.insert(
+        "prefer-correct-identifier-length",
+        "prefer-correct-identifier-length",
+    );
     m.insert("avoid-cascade-after-if-null", "avoid-cascade-after-if-null");
-    m.insert("avoid-collection-methods-with-unrelated-types", "avoid-collection-methods-unrelated-types");
+    m.insert(
+        "avoid-collection-methods-with-unrelated-types",
+        "avoid-collection-methods-unrelated-types",
+    );
     m.insert("avoid-duplicate-exports", "avoid-duplicate-exports");
-    m.insert("avoid-missing-enum-constant-in-map", "avoid-missing-enum-constant-in-map");
+    m.insert(
+        "avoid-missing-enum-constant-in-map",
+        "avoid-missing-enum-constant-in-map",
+    );
     m.insert("avoid-non-ascii-symbols", "avoid-non-ascii-symbols");
     m.insert("avoid-throw-in-catch-block", "avoid-throw-in-catch");
-    m.insert("avoid-top-level-members-in-tests", "avoid-top-level-members-in-tests");
-    m.insert("avoid-unnecessary-type-assertions", "avoid-unnecessary-type-assertions");
-    m.insert("avoid-unnecessary-type-casts", "avoid-unnecessary-type-casts");
-    m.insert("binary-expression-operand-order", "binary-expression-operand-order");
+    m.insert(
+        "avoid-top-level-members-in-tests",
+        "avoid-top-level-members-in-tests",
+    );
+    m.insert(
+        "avoid-unnecessary-type-assertions",
+        "avoid-unnecessary-type-assertions",
+    );
+    m.insert(
+        "avoid-unnecessary-type-casts",
+        "avoid-unnecessary-type-casts",
+    );
+    m.insert(
+        "binary-expression-operand-order",
+        "binary-expression-operand-order",
+    );
     m.insert("double-literal-format", "double-literal-format");
     m.insert("newline-before-return", "newline-before-return");
     m.insert("prefer-first", "prefer-first-last");
@@ -50,7 +74,10 @@ pub fn rule_mapping() -> HashMap<&'static str, &'static str> {
     m.insert("avoid-emit-outside-bloc", "avoid-emit-outside-bloc");
     m.insert("prefer-multi-bloc-provider", "prefer-multi-bloc-provider");
     // Equatable
-    m.insert("always-override-equals-and-hashcode", "always-override-equals-hashcode");
+    m.insert(
+        "always-override-equals-and-hashcode",
+        "always-override-equals-hashcode",
+    );
     m
 }
 
@@ -207,9 +234,10 @@ pub fn migrate_from_dcm(dcm_config_path: &Path) -> anyhow::Result<MigrationResul
                     .iter()
                     .filter_map(|v| match v {
                         serde_yaml::Value::String(s) => Some(s.clone()),
-                        serde_yaml::Value::Mapping(m) => {
-                            m.keys().next().and_then(|k| k.as_str().map(|s| s.to_string()))
-                        }
+                        serde_yaml::Value::Mapping(m) => m
+                            .keys()
+                            .next()
+                            .and_then(|k| k.as_str().map(|s| s.to_string())),
                         _ => None,
                     })
                     .collect(),
@@ -241,9 +269,7 @@ pub fn migrate_from_dcm(dcm_config_path: &Path) -> anyhow::Result<MigrationResul
     let mut falcon_config = crate::config::FalconConfig::default();
     falcon_config.rules = mapped_rules
         .iter()
-        .map(|(_, falcon_name)| {
-            crate::config::RuleConfig::Simple(falcon_name.clone())
-        })
+        .map(|(_, falcon_name)| crate::config::RuleConfig::Simple(falcon_name.clone()))
         .collect();
     falcon_config.exclude = if excludes.is_empty() {
         crate::config::default_excludes()
@@ -287,10 +313,7 @@ pub fn feature_gap_report() -> String {
 
 pub fn print_migration_result(result: &MigrationResult) {
     println!();
-    println!(
-        "  {} DCM → Falcon Migration",
-        "falcon".bright_cyan().bold()
-    );
+    println!("  {} DCM → Falcon Migration", "falcon".bright_cyan().bold());
     println!();
 
     println!(

@@ -61,7 +61,11 @@ impl LayerConfig {
 /// Detect architecture preset from directory structure.
 pub fn detect_architecture(root: &Path) -> Option<Vec<LayerConfig>> {
     let lib_path = root.join("lib");
-    let base = if lib_path.exists() { lib_path } else { root.to_path_buf() };
+    let base = if lib_path.exists() {
+        lib_path
+    } else {
+        root.to_path_buf()
+    };
 
     let has_domain = base.join("domain").exists();
     let has_data = base.join("data").exists();

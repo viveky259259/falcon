@@ -1,6 +1,6 @@
+use crate::config::Severity;
 use crate::parser::DartParser;
 use crate::reporters::Issue;
-use crate::config::Severity;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
@@ -112,9 +112,7 @@ fn detect_trivial_conditions(
 
     for child in node.children(&mut cursor) {
         if child.kind() == "if_statement" {
-            let full_text = child
-                .utf8_text(source.as_bytes())
-                .unwrap_or("");
+            let full_text = child.utf8_text(source.as_bytes()).unwrap_or("");
 
             let cond_text = extract_if_condition(full_text);
 
@@ -125,7 +123,8 @@ fn detect_trivial_conditions(
                 if cond_text == "true" {
                     issues.push(Issue {
                         rule: "dead-code-path".to_string(),
-                        message: "Condition is always true — else branch is unreachable.".to_string(),
+                        message: "Condition is always true — else branch is unreachable."
+                            .to_string(),
                         severity: Severity::Info,
                         file: file.to_path_buf(),
                         line,
@@ -134,7 +133,8 @@ fn detect_trivial_conditions(
                 } else if cond_text == "false" {
                     issues.push(Issue {
                         rule: "dead-code-path".to_string(),
-                        message: "Condition is always false — if branch is unreachable.".to_string(),
+                        message: "Condition is always false — if branch is unreachable."
+                            .to_string(),
                         severity: Severity::Warning,
                         file: file.to_path_buf(),
                         line,

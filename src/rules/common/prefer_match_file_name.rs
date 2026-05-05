@@ -23,10 +23,7 @@ impl Rule for PreferMatchFileName {
     fn check(&self, root: Node, source: &str, file: &Path) -> Vec<Issue> {
         let mut issues = Vec::new();
 
-        let file_stem = file
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("");
+        let file_stem = file.file_stem().and_then(|s| s.to_str()).unwrap_or("");
 
         if file_stem.is_empty() {
             return issues;

@@ -113,15 +113,13 @@ impl ThemePatterns {
             // Match Colors.red, Colors.blue, Colors.green, etc.
             hardcoded_color_colors: Regex::new(r"Colors\.\w+")?,
             // Match fontSize: 14, fontSize:14, fontSize : 14 (with or without space)
-            hardcoded_font_size: Regex::new(r"fontSize\s*:\s*\d+(?:\.\d+)?(?!\.)")?,
-            // Match EdgeInsets.all(8.0), EdgeInsets.symmetric, etc.
+            hardcoded_font_size: Regex::new(r"fontSize\s*:\s*\d+(?:\.\d+)?")?,
+            // Match EdgeInsets.all(8.0), EdgeInsets.symmetric(horizontal: 16.0), etc.
             hardcoded_edge_insets: Regex::new(
-                r"EdgeInsets\.(all|symmetric|only|fromLTRB)\s*\(\s*[\d.]+\s*[,)]",
+                r"EdgeInsets\.(all|symmetric|only|fromLTRB)\s*\([^)]*\d",
             )?,
             // Match Theme.of(context) or context.theme
-            theme_reference: Regex::new(
-                r"Theme\.of\s*\(\s*context\s*\)|context\.theme",
-            )?,
+            theme_reference: Regex::new(r"Theme\.of\s*\(\s*context\s*\)|context\.theme")?,
             // Match TextStyle(...) definitions
             text_style_definition: Regex::new(r"TextStyle\s*\(")?,
             // Match Colors.blue[700], Colors.red[500], etc.
@@ -144,11 +142,7 @@ struct FileAnalysis {
 }
 
 /// Parse file and detect theme issues
-fn analyze_file(
-    path: &Path,
-    content: &str,
-    patterns: &ThemePatterns,
-) -> Result<FileAnalysis> {
+fn analyze_file(path: &Path, content: &str, patterns: &ThemePatterns) -> Result<FileAnalysis> {
     let mut analysis = FileAnalysis {
         path: path.to_path_buf(),
         content: content.to_string(),
@@ -180,14 +174,13 @@ fn analyze_file(
             for m in matches {
                 analysis.issues.push(ThemeIssue {
                     severity: ThemeSeverity::Error,
-                    category: "Hardcoded Color (Hex)".to_string(),
+                    category: "Hardcoded Color".to_string(),
                     file: path.to_path_buf(),
                     line: line_number,
                     code_snippet: line.to_string(),
                     detail: format!("Found hardcoded hex color: {}", m.as_str()),
-                    suggestion:
-                        "Use Theme.of(context).colorScheme.* instead of hardcoded colors"
-                            .to_string(),
+                    suggestion: "Use Theme.of(context).colorScheme.* instead of hardcoded colors"
+                        .to_string(),
                 });
             }
         }
@@ -229,9 +222,8 @@ fn analyze_file(
                     line: line_number,
                     code_snippet: line.to_string(),
                     detail: format!("Found hardcoded font size: {}", m.as_str()),
-                    suggestion:
-                        "Use Theme.of(context).textTheme.* instead of hardcoded font sizes"
-                            .to_string(),
+                    suggestion: "Use Theme.of(context).textTheme.* instead of hardcoded font sizes"
+                        .to_string(),
                 });
             }
         }
@@ -410,9 +402,15 @@ fn format_percentage(ratio: f64) -> String {
 
 /// Print a formatted theme report to stdout
 pub fn print_theme_report(report: &ThemeAuditReport) {
-    println!("\n{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bold());
+    println!(
+        "\n{}",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bold()
+    );
     println!("{}", "  FALCON THEME AUDIT REPORT".bold().cyan());
-    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bold());
+    println!(
+        "{}",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bold()
+    );
 
     // Summary section
     println!("\n{}", "SUMMARY".bold().underline());
@@ -510,7 +508,10 @@ pub fn print_theme_report(report: &ThemeAuditReport) {
         println!("\n{}", "✓ No issues detected!".green().bold());
     }
 
-    println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bold());
+    println!(
+        "{}",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".bold()
+    );
 }
 
 /// Write a self-contained dark HTML report
@@ -534,9 +535,7 @@ pub fn write_theme_html_report(report: &ThemeAuditReport, output_path: &Path) ->
     // Build issues HTML
     let mut issues_html = String::new();
     if report.issues.is_empty() {
-        issues_html.push_str(
-            r#"<div class="no-issues"><p>✓ No theme issues detected!</p></div>"#,
-        );
+        issues_html.push_str(r#"<div class="no-issues"><p>✓ No theme issues detected!</p></div>"#);
     } else {
         for issue in &report.issues {
             let severity_class = match issue.severity {
@@ -955,7 +954,7 @@ mod tests {
     fn test_html_escape() {
         assert_eq!(html_escape("<div>"), "&lt;div&gt;");
         assert_eq!(html_escape("a & b"), "a &amp; b");
-        assert_eq!(html_escape(r#"quote"#), r#"quote&quot;"#);
+        assert_eq!(html_escape(r#""quote""#), r#"&quot;quote&quot;"#);
     }
 
     #[test]
@@ -969,9 +968,7 @@ mod tests {
         let patterns = ThemePatterns::new().unwrap();
         assert!(patterns.hardcoded_color_hex.is_match("Color(0xFFFF0000)"));
         assert!(patterns.hardcoded_color_hex.is_match("Color(0xff00ff00)"));
-        assert!(!patterns
-            .hardcoded_color_hex
-            .is_match("Color(0xZZZZZZZZ)"));
+        assert!(!patterns.hardcoded_color_hex.is_match("Color(0xZZZZZZZZ)"));
     }
 
     #[test]
@@ -979,7 +976,9 @@ mod tests {
         let patterns = ThemePatterns::new().unwrap();
         assert!(patterns.hardcoded_color_colors.is_match("Colors.red"));
         assert!(patterns.hardcoded_color_colors.is_match("Colors.blue"));
-        assert!(patterns.hardcoded_color_colors.is_match("Colors.transparent"));
+        assert!(patterns
+            .hardcoded_color_colors
+            .is_match("Colors.transparent"));
     }
 
     #[test]
@@ -1007,24 +1006,16 @@ mod tests {
     #[test]
     fn test_detect_theme_reference() {
         let patterns = ThemePatterns::new().unwrap();
-        assert!(patterns
-            .theme_reference
-            .is_match("Theme.of(context)"));
-        assert!(patterns
-            .theme_reference
-            .is_match("Theme.of( context )"));
+        assert!(patterns.theme_reference.is_match("Theme.of(context)"));
+        assert!(patterns.theme_reference.is_match("Theme.of( context )"));
         assert!(patterns.theme_reference.is_match("context.theme"));
     }
 
     #[test]
     fn test_detect_material_shade() {
         let patterns = ThemePatterns::new().unwrap();
-        assert!(patterns
-            .material_color_shade
-            .is_match("Colors.blue[700]"));
-        assert!(patterns
-            .material_color_shade
-            .is_match("Colors.red[500]"));
+        assert!(patterns.material_color_shade.is_match("Colors.blue[700]"));
+        assert!(patterns.material_color_shade.is_match("Colors.red[500]"));
     }
 
     #[test]

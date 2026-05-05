@@ -170,9 +170,10 @@ fn collect_assets(project_path: &Path, config: &AuditConfig) -> Result<Vec<(Path
         let path = entry.path();
 
         // Skip common exclusions
-        if path
-            .to_string_lossy()
-            .contains(&["/.git/", "/build/", "/.dart_tool/", "/packages/"][..])
+        let path_str = path.to_string_lossy();
+        if ["/.git/", "/build/", "/.dart_tool/", "/packages/"]
+            .iter()
+            .any(|excl| path_str.contains(excl))
         {
             continue;
         }
@@ -297,7 +298,10 @@ fn find_duplicates(project_path: &Path, assets: &[(PathBuf, u64)]) -> Result<Vec
     for (path, _) in assets {
         let full_path = project_path.join(path);
         if let Ok(hash) = compute_file_hash(&full_path) {
-            hash_map.entry(hash).or_insert_with(Vec::new).push(path.clone());
+            hash_map
+                .entry(hash)
+                .or_insert_with(Vec::new)
+                .push(path.clone());
         }
     }
 
@@ -310,7 +314,10 @@ fn find_duplicates(project_path: &Path, assets: &[(PathBuf, u64)]) -> Result<Vec
 }
 
 /// Check for unoptimized SVGs
-fn check_svg_optimization(project_path: &Path, svg_paths: &[PathBuf]) -> Result<Vec<(PathBuf, String)>> {
+fn check_svg_optimization(
+    project_path: &Path,
+    svg_paths: &[PathBuf],
+) -> Result<Vec<(PathBuf, String)>> {
     let mut unoptimized = Vec::new();
 
     for path in svg_paths {
@@ -341,11 +348,17 @@ fn check_svg_optimization(project_path: &Path, svg_paths: &[PathBuf]) -> Result<
 
 /// Main audit function with default configuration.
 pub fn audit_assets(path: &Path) -> Result<AssetAuditReport> {
-    audit_assets_with_threshold(path, AuditConfig::default().oversized_threshold_bytes / 1024)
+    audit_assets_with_threshold(
+        path,
+        AuditConfig::default().oversized_threshold_bytes / 1024,
+    )
 }
 
 /// Main audit function with a custom oversized-image threshold (KB).
-pub fn audit_assets_with_threshold(path: &Path, size_threshold_kb: u64) -> Result<AssetAuditReport> {
+pub fn audit_assets_with_threshold(
+    path: &Path,
+    size_threshold_kb: u64,
+) -> Result<AssetAuditReport> {
     let mut config = AuditConfig::default();
     config.oversized_threshold_bytes = size_threshold_kb * 1024;
 
@@ -393,7 +406,10 @@ pub fn audit_assets_with_threshold(path: &Path, size_threshold_kb: u64) -> Resul
 
         // Check if declared asset is referenced
         for referenced in &referenced_assets {
-            if referenced.to_string_lossy().contains(&declared.to_string_lossy()) {
+            if referenced
+                .to_string_lossy()
+                .contains(declared.to_string_lossy().as_ref())
+            {
                 found = true;
                 break;
             }
@@ -403,7 +419,12 @@ pub fn audit_assets_with_threshold(path: &Path, size_threshold_kb: u64) -> Resul
             // Check if any actual file matches this declaration
             let full_path = path.join(declared);
             if full_path.exists() && full_path.is_file() {
-                unused.push(full_path.strip_prefix(path).unwrap_or(&full_path).to_path_buf());
+                unused.push(
+                    full_path
+                        .strip_prefix(path)
+                        .unwrap_or(&full_path)
+                        .to_path_buf(),
+                );
             }
         }
     }
@@ -424,28 +445,27 @@ pub fn audit_assets_with_threshold(path: &Path, size_threshold_kb: u64) -> Resul
         potential_savings += savings;
         issues.push(AssetIssue {
             severity: AssetSeverity::Warning,
-            category: "Oversized Image".to_string(),
+            category: "Oversized".to_string(),
             file: file.clone(),
             detail: format!("{} — {} bytes", file.display(), size),
-            suggestion: format!("Optimize or compress this image (could save ~{} bytes)", savings),
+            suggestion: format!(
+                "Optimize or compress this image (could save ~{} bytes)",
+                savings
+            ),
             savings_bytes: savings,
         });
     }
 
     // Unused assets
     for file in unused {
-        potential_savings += fs::metadata(path.join(&file))
-            .map(|m| m.len())
-            .unwrap_or(0);
+        potential_savings += fs::metadata(path.join(&file)).map(|m| m.len()).unwrap_or(0);
         issues.push(AssetIssue {
             severity: AssetSeverity::Info,
-            category: "Unused Asset".to_string(),
+            category: "Unused".to_string(),
             file: file.clone(),
             detail: format!("Declared in pubspec.yaml but never referenced"),
             suggestion: "Remove from pubspec.yaml and filesystem if no longer needed".to_string(),
-            savings_bytes: fs::metadata(path.join(&file))
-                .map(|m| m.len())
-                .unwrap_or(0),
+            savings_bytes: fs::metadata(path.join(&file)).map(|m| m.len()).unwrap_or(0),
         });
     }
 
@@ -460,7 +480,8 @@ pub fn audit_assets_with_threshold(path: &Path, size_threshold_kb: u64) -> Resul
                 category: "No WebP Alternative".to_string(),
                 file: file.clone(),
                 detail: format!("{} — {} bytes (no WebP version)", file.display(), size),
-                suggestion: "Convert to WebP format for better compression (~40% smaller)".to_string(),
+                suggestion: "Convert to WebP format for better compression (~40% smaller)"
+                    .to_string(),
                 savings_bytes: savings,
             });
         }
@@ -483,7 +504,8 @@ pub fn audit_assets_with_threshold(path: &Path, size_threshold_kb: u64) -> Resul
                             duplicate_group[0].display(),
                             size
                         ),
-                        suggestion: "Remove duplicates and use symlinks or shared reference".to_string(),
+                        suggestion: "Remove duplicates and use symlinks or shared reference"
+                            .to_string(),
                         savings_bytes: size,
                     });
                 }
@@ -499,7 +521,8 @@ pub fn audit_assets_with_threshold(path: &Path, size_threshold_kb: u64) -> Resul
             category: "Unoptimized SVG".to_string(),
             file: file.clone(),
             detail: format!("{} — {}", file.display(), issues_str),
-            suggestion: "Run through an SVG optimizer (SVGO) to remove metadata and reduce size".to_string(),
+            suggestion: "Run through an SVG optimizer (SVGO) to remove metadata and reduce size"
+                .to_string(),
             savings_bytes: 500,
         });
     }
@@ -525,23 +548,21 @@ pub fn print_asset_report(report: &AssetAuditReport) {
     println!();
     println!(
         "{}",
-        "╔════════════════════════════════════════════════════════╗"
-            .bright_cyan()
+        "╔════════════════════════════════════════════════════════╗".bright_cyan()
     );
     println!(
         "{}",
-        "║          FALCON Asset Audit Report                    ║"
-            .bright_cyan()
+        "║          FALCON Asset Audit Report                    ║".bright_cyan()
     );
     println!(
         "{}",
-        "╚════════════════════════════════════════════════════════╝"
-            .bright_cyan()
+        "╚════════════════════════════════════════════════════════╝".bright_cyan()
     );
     println!();
 
     // Summary cards
-    println!("  {} {} assets  │  {} MB total",
+    println!(
+        "  {} {} assets  │  {} MB total",
         "📦".to_string(),
         report.total_assets.to_string().bold(),
         (report.total_size_bytes / 1024 / 1024).to_string().bold()
@@ -582,9 +603,14 @@ pub fn print_asset_report(report: &AssetAuditReport) {
         println!(
             "  {} {}",
             "──".dimmed(),
-            format!("{} ({} issues, {} savings)", category, cat_issues.len(), format_bytes(total_savings))
-                .bright_white()
-                .bold()
+            format!(
+                "{} ({} issues, {} savings)",
+                category,
+                cat_issues.len(),
+                format_bytes(total_savings)
+            )
+            .bright_white()
+            .bold()
         );
 
         for (idx, issue) in cat_issues.iter().take(3).enumerate() {
@@ -666,13 +692,21 @@ fn generate_html_report(report: &AssetAuditReport) -> String {
             .push(issue);
     }
 
-    let error_count = report.issues.iter().filter(|i| i.severity == AssetSeverity::Error).count();
+    let error_count = report
+        .issues
+        .iter()
+        .filter(|i| i.severity == AssetSeverity::Error)
+        .count();
     let warning_count = report
         .issues
         .iter()
         .filter(|i| i.severity == AssetSeverity::Warning)
         .count();
-    let info_count = report.issues.iter().filter(|i| i.severity == AssetSeverity::Info).count();
+    let info_count = report
+        .issues
+        .iter()
+        .filter(|i| i.severity == AssetSeverity::Info)
+        .count();
 
     let issues_html = if report.issues.is_empty() {
         "<div style='text-align: center; padding: 40px; color: #10b981;'><p style='font-size: 18px;'>✓ All assets are optimized!</p></div>".to_string()

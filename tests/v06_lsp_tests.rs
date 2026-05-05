@@ -97,7 +97,10 @@ dynamic x = 1;
     let diagnostics = issues_to_diagnostics(&issues);
 
     for diag in &diagnostics {
-        assert!(diag.data.is_some(), "Diagnostic should contain data for code actions");
+        assert!(
+            diag.data.is_some(),
+            "Diagnostic should contain data for code actions"
+        );
         let data = diag.data.as_ref().unwrap();
         assert!(data.get("rule").is_some());
         assert!(data.get("line").is_some());
@@ -116,7 +119,10 @@ fn test_lsp_code_actions_generated() {
     registry.register_defaults(&config);
 
     let issues = analyze_source(source, Path::new("test.dart"), &config, &registry);
-    assert!(!issues.is_empty(), "Should have issues for code action test");
+    assert!(
+        !issues.is_empty(),
+        "Should have issues for code action test"
+    );
 
     let diagnostics = issues_to_diagnostics(&issues);
     let actions = falcon::lsp::actions::generate_code_actions(&uri, &diagnostics, source);

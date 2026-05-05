@@ -1,5 +1,5 @@
-use crate::rules::RuleRegistry;
 use crate::config::FalconConfig;
+use crate::rules::RuleRegistry;
 use colored::Colorize;
 
 pub struct RuleDoc {
@@ -33,11 +33,24 @@ pub fn generate_rule_docs() -> Vec<RuleDoc> {
 fn categorize_rule(name: &str) -> String {
     if name.contains("bloc") {
         "BLoC".to_string()
-    } else if name.contains("ref-") || name.contains("watch") || name.contains("notifier") || name.contains("async-value") {
+    } else if name.contains("ref-")
+        || name.contains("watch")
+        || name.contains("notifier")
+        || name.contains("async-value")
+    {
         "Riverpod".to_string()
-    } else if name.contains("equatable") || name.contains("equals") || name.contains("mutable-equat") {
+    } else if name.contains("equatable")
+        || name.contains("equals")
+        || name.contains("mutable-equat")
+    {
         "Equatable".to_string()
-    } else if name.contains("widget") || name.contains("setState") || name.contains("expanded") || name.contains("const-constructor") || name.contains("callback") || name.contains("returning-widget") {
+    } else if name.contains("widget")
+        || name.contains("setState")
+        || name.contains("expanded")
+        || name.contains("const-constructor")
+        || name.contains("callback")
+        || name.contains("returning-widget")
+    {
         "Flutter".to_string()
     } else {
         "Dart".to_string()
@@ -57,16 +70,17 @@ pub fn print_rule_docs(docs: &[RuleDoc]) {
     let categories: Vec<&str> = vec!["Dart", "Flutter", "Riverpod", "BLoC", "Equatable"];
 
     for category in &categories {
-        let cat_rules: Vec<&RuleDoc> = docs
-            .iter()
-            .filter(|d| d.category == *category)
-            .collect();
+        let cat_rules: Vec<&RuleDoc> = docs.iter().filter(|d| d.category == *category).collect();
 
         if cat_rules.is_empty() {
             continue;
         }
 
-        println!("  {} ({} rules)", category.bright_yellow().bold(), cat_rules.len());
+        println!(
+            "  {} ({} rules)",
+            category.bright_yellow().bold(),
+            cat_rules.len()
+        );
         for rule in &cat_rules {
             let sev = match rule.severity.as_str() {
                 "Error" => "ERR".red(),
@@ -89,14 +103,22 @@ pub fn print_rule_docs(docs: &[RuleDoc]) {
 pub fn generate_markdown_docs(docs: &[RuleDoc]) -> String {
     let mut md = String::new();
     md.push_str("# Falcon Rule Reference\n\n");
-    md.push_str(&format!("**{} rules** across 5 categories.\n\n", docs.len()));
+    md.push_str(&format!(
+        "**{} rules** across 5 categories.\n\n",
+        docs.len()
+    ));
 
     md.push_str("## Table of Contents\n\n");
     let categories = ["Dart", "Flutter", "Riverpod", "BLoC", "Equatable"];
     for cat in &categories {
         let count = docs.iter().filter(|d| d.category == *cat).count();
         if count > 0 {
-            md.push_str(&format!("- [{}](#{}--{} rules)\n", cat, cat.to_lowercase(), count));
+            md.push_str(&format!(
+                "- [{}](#{}--{} rules)\n",
+                cat,
+                cat.to_lowercase(),
+                count
+            ));
         }
     }
     md.push('\n');

@@ -76,7 +76,10 @@ void main() {
         .iter()
         .filter(|i| i.rule == "avoid-print-in-production")
         .collect();
-    assert!(!print_issues.is_empty(), "Should detect print() in production");
+    assert!(
+        !print_issues.is_empty(),
+        "Should detect print() in production"
+    );
 }
 
 #[test]
@@ -92,7 +95,11 @@ void main() {
     let config = falcon::config::FalconConfig::default();
     let mut registry = falcon::rules::RuleRegistry::new();
     registry.register_defaults(&config);
-    let issues = registry.check(tree.root_node(), source, &PathBuf::from("test/my_test.dart"));
+    let issues = registry.check(
+        tree.root_node(),
+        source,
+        &PathBuf::from("test/my_test.dart"),
+    );
 
     let print_issues: Vec<_> = issues
         .iter()
@@ -121,10 +128,7 @@ const apiKey = 'sk_live_abc123def456';
         .iter()
         .filter(|i| i.rule == "avoid-hardcoded-credentials")
         .collect();
-    assert!(
-        !cred_issues.is_empty(),
-        "Should detect hardcoded API key"
-    );
+    assert!(!cred_issues.is_empty(), "Should detect hardcoded API key");
 }
 
 #[test]
@@ -144,10 +148,7 @@ String apiKey = '';
         .iter()
         .filter(|i| i.rule == "avoid-hardcoded-credentials")
         .collect();
-    assert!(
-        cred_issues.is_empty(),
-        "Should skip empty string values"
-    );
+    assert!(cred_issues.is_empty(), "Should skip empty string values");
 }
 
 #[test]
@@ -260,7 +261,9 @@ analyzer:
     let result = falcon::migration::dcm::migrate_from_dcm(&config_path).unwrap();
     assert_eq!(result.mapped_rules.len(), 2);
     assert_eq!(result.unmapped_rules.len(), 1);
-    assert!(result.unmapped_rules.contains(&"some-unknown-rule".to_string()));
+    assert!(result
+        .unmapped_rules
+        .contains(&"some-unknown-rule".to_string()));
     assert!(!result.falcon_yaml_content.is_empty());
 }
 
@@ -281,11 +284,7 @@ fn test_benchmark_on_small_project() {
     let lib = dir.path().join("lib");
     std::fs::create_dir_all(&lib).unwrap();
 
-    std::fs::write(
-        lib.join("main.dart"),
-        "void main() { print('hello'); }\n",
-    )
-    .unwrap();
+    std::fs::write(lib.join("main.dart"), "void main() { print('hello'); }\n").unwrap();
 
     let result = falcon::benchmark::run_benchmark(dir.path()).unwrap();
     assert_eq!(result.file_count, 1);
@@ -301,7 +300,11 @@ fn test_benchmark_on_small_project() {
 #[test]
 fn test_generate_rule_docs() {
     let docs = falcon::docs::rule_docs::generate_rule_docs();
-    assert!(docs.len() >= 48, "Should have 48+ rules, got {}", docs.len());
+    assert!(
+        docs.len() >= 48,
+        "Should have 48+ rules, got {}",
+        docs.len()
+    );
 
     let names: Vec<&str> = docs.iter().map(|d| d.name.as_str()).collect();
     assert!(names.contains(&"avoid-empty-catch"));
@@ -344,9 +347,5 @@ fn test_total_rule_count() {
     registry.register_defaults(&config);
 
     let count = registry.rules().len();
-    assert!(
-        count >= 48,
-        "Should have at least 48 rules, got {}",
-        count
-    );
+    assert!(count >= 48, "Should have at least 48 rules, got {}", count);
 }

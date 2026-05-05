@@ -46,15 +46,22 @@ pub fn predict_risks(root: &Path) -> anyhow::Result<Vec<RiskPrediction>> {
     let report = falcon.analyze(root)?;
 
     let mut predictions = Vec::new();
-    let mut rule_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut rule_counts: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
     for issue in &report.issues {
         *rule_counts.entry(issue.rule.clone()).or_default() += 1;
     }
 
     let file_count = report.file_count.max(1) as f64;
 
-    let dispose_issues = rule_counts.get("ensure-dispose-lifecycle").copied().unwrap_or(0);
-    let stream_issues = rule_counts.get("ensure-stream-subscription-cancel").copied().unwrap_or(0);
+    let dispose_issues = rule_counts
+        .get("ensure-dispose-lifecycle")
+        .copied()
+        .unwrap_or(0);
+    let stream_issues = rule_counts
+        .get("ensure-stream-subscription-cancel")
+        .copied()
+        .unwrap_or(0);
     if dispose_issues + stream_issues > 5 {
         let prob = ((dispose_issues + stream_issues) as f64 / file_count).min(0.95);
         predictions.push(RiskPrediction {
@@ -65,13 +72,18 @@ pub fn predict_risks(root: &Path) -> anyhow::Result<Vec<RiskPrediction>> {
                 format!("{} undisposed controllers", dispose_issues),
                 format!("{} uncancelled stream subscriptions", stream_issues),
             ],
-            recommendation: "Add dispose() calls for all controllers and cancel stream subscriptions".to_string(),
+            recommendation:
+                "Add dispose() calls for all controllers and cancel stream subscriptions"
+                    .to_string(),
             timeframe: "Within 2-4 weeks of production use".to_string(),
         });
     }
 
     let empty_catch = rule_counts.get("avoid-empty-catch").copied().unwrap_or(0);
-    let unawaited = rule_counts.get("avoid-unawaited-futures").copied().unwrap_or(0);
+    let unawaited = rule_counts
+        .get("avoid-unawaited-futures")
+        .copied()
+        .unwrap_or(0);
     if empty_catch + unawaited > 10 {
         let prob = ((empty_catch + unawaited) as f64 / (file_count * 2.0)).min(0.9);
         predictions.push(RiskPrediction {
@@ -93,17 +105,25 @@ pub fn predict_risks(root: &Path) -> anyhow::Result<Vec<RiskPrediction>> {
         predictions.push(RiskPrediction {
             category: RiskCategory::StateCorruption,
             probability: prob,
-            impact: "Type confusion bugs surface as corrupted state or unexpected nulls".to_string(),
-            evidence: vec![
-                format!("{} uses of 'dynamic' type bypass compile-time safety", dynamic_count),
-            ],
+            impact: "Type confusion bugs surface as corrupted state or unexpected nulls"
+                .to_string(),
+            evidence: vec![format!(
+                "{} uses of 'dynamic' type bypass compile-time safety",
+                dynamic_count
+            )],
             recommendation: "Replace dynamic with explicit types or generics".to_string(),
             timeframe: "Within 1-3 months as codebase grows".to_string(),
         });
     }
 
-    let creds = rule_counts.get("avoid-hardcoded-credentials").copied().unwrap_or(0);
-    let print_prod = rule_counts.get("avoid-print-in-production").copied().unwrap_or(0);
+    let creds = rule_counts
+        .get("avoid-hardcoded-credentials")
+        .copied()
+        .unwrap_or(0);
+    let print_prod = rule_counts
+        .get("avoid-print-in-production")
+        .copied()
+        .unwrap_or(0);
     if creds > 0 {
         predictions.push(RiskPrediction {
             category: RiskCategory::SecurityBreach,
@@ -111,15 +131,25 @@ pub fn predict_risks(root: &Path) -> anyhow::Result<Vec<RiskPrediction>> {
             impact: "Hardcoded credentials extracted from app binary by attackers".to_string(),
             evidence: vec![
                 format!("{} hardcoded credentials in source code", creds),
-                format!("{} print statements that may leak sensitive data", print_prod),
+                format!(
+                    "{} print statements that may leak sensitive data",
+                    print_prod
+                ),
             ],
-            recommendation: "Move all secrets to environment variables or secure storage".to_string(),
+            recommendation: "Move all secrets to environment variables or secure storage"
+                .to_string(),
             timeframe: "Immediately upon app store publication".to_string(),
         });
     }
 
-    let long_fn = rule_counts.get("avoid-long-functions").copied().unwrap_or(0);
-    let widget_nesting = rule_counts.get("avoid-excessive-widget-nesting").copied().unwrap_or(0);
+    let long_fn = rule_counts
+        .get("avoid-long-functions")
+        .copied()
+        .unwrap_or(0);
+    let widget_nesting = rule_counts
+        .get("avoid-excessive-widget-nesting")
+        .copied()
+        .unwrap_or(0);
     if long_fn > 30 || widget_nesting > 5 {
         predictions.push(RiskPrediction {
             category: RiskCategory::PerformanceDegradation,
@@ -129,22 +159,24 @@ pub fn predict_risks(root: &Path) -> anyhow::Result<Vec<RiskPrediction>> {
                 format!("{} overly long build methods", long_fn),
                 format!("{} deeply nested widget trees", widget_nesting),
             ],
-            recommendation: "Extract widgets into smaller components, use const constructors".to_string(),
+            recommendation: "Extract widgets into smaller components, use const constructors"
+                .to_string(),
             timeframe: "Noticeable on mid-range devices within 1 month".to_string(),
         });
     }
 
-    predictions.sort_by(|a, b| b.probability.partial_cmp(&a.probability).unwrap_or(std::cmp::Ordering::Equal));
+    predictions.sort_by(|a, b| {
+        b.probability
+            .partial_cmp(&a.probability)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     Ok(predictions)
 }
 
 /// Print risk predictions.
 pub fn print_risk_predictions(predictions: &[RiskPrediction]) {
     println!();
-    println!(
-        "  {} Regression Prediction",
-        "falcon".bright_cyan().bold()
-    );
+    println!("  {} Regression Prediction", "falcon".bright_cyan().bold());
     println!();
 
     if predictions.is_empty() {

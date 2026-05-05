@@ -14,7 +14,11 @@ fn test_stability_contract_defaults() {
 #[test]
 fn test_stability_guarantees_cover_key_areas() {
     let contract = falcon::stability::contract::StabilityContract::default();
-    let areas: Vec<&str> = contract.guarantees.iter().map(|g| g.area.as_str()).collect();
+    let areas: Vec<&str> = contract
+        .guarantees
+        .iter()
+        .map(|g| g.area.as_str())
+        .collect();
     assert!(areas.contains(&"Configuration"));
     assert!(areas.contains(&"Rule naming"));
     assert!(areas.contains(&"Exit codes"));
@@ -173,7 +177,10 @@ fn test_suppression_add_and_load() {
     let db = falcon::stability::suppression::load_suppressions(dir.path()).unwrap();
     assert_eq!(db.entries.len(), 1);
     assert_eq!(db.entries[0].rule, "avoid-dynamic");
-    assert_eq!(db.entries[0].category, falcon::stability::suppression::SuppressionCategory::WontFix);
+    assert_eq!(
+        db.entries[0].category,
+        falcon::stability::suppression::SuppressionCategory::WontFix
+    );
 }
 
 #[test]
@@ -257,13 +264,8 @@ fn test_submit_rule_request() {
 fn test_vote_rule_request() {
     let dir = tempfile::tempdir().unwrap();
 
-    falcon::community::submit_rule_request(
-        dir.path(),
-        "prefer-early-return",
-        "desc",
-        "dart",
-    )
-    .unwrap();
+    falcon::community::submit_rule_request(dir.path(), "prefer-early-return", "desc", "dart")
+        .unwrap();
 
     let votes = falcon::community::vote_rule_request(dir.path(), "req-0001").unwrap();
     assert_eq!(votes, 2);

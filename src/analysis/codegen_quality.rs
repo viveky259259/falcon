@@ -1,7 +1,7 @@
 //! Analyze quality of build_runner generated code (.g.dart, .freezed.dart, etc.)
 
-use crate::reporters::Issue;
 use crate::config::Severity;
+use crate::reporters::Issue;
 use colored::Colorize;
 use std::path::{Path, PathBuf};
 
@@ -50,10 +50,18 @@ pub fn analyze_codegen(root: &Path) -> CodegenReport {
         let line_count = source.lines().count();
         report.total_generated_lines += line_count;
 
-        if fname.ends_with(".g.dart") { generators.insert("json_serializable / build_runner"); }
-        if fname.ends_with(".freezed.dart") { generators.insert("freezed"); }
-        if fname.ends_with(".gr.dart") { generators.insert("auto_route"); }
-        if fname.ends_with(".mocks.dart") { generators.insert("mockito / build_runner"); }
+        if fname.ends_with(".g.dart") {
+            generators.insert("json_serializable / build_runner");
+        }
+        if fname.ends_with(".freezed.dart") {
+            generators.insert("freezed");
+        }
+        if fname.ends_with(".gr.dart") {
+            generators.insert("auto_route");
+        }
+        if fname.ends_with(".mocks.dart") {
+            generators.insert("mockito / build_runner");
+        }
 
         if line_count > 1000 {
             report.large_files.push((path.to_path_buf(), line_count));
@@ -73,7 +81,8 @@ pub fn analyze_codegen(root: &Path) -> CodegenReport {
         if !source.contains("// GENERATED CODE") && !source.contains("// coverage:ignore-file") {
             report.issues.push(Issue {
                 rule: "codegen-missing-header".to_string(),
-                message: "Generated file is missing the standard '// GENERATED CODE' header".to_string(),
+                message: "Generated file is missing the standard '// GENERATED CODE' header"
+                    .to_string(),
                 severity: Severity::Info,
                 file: path.to_path_buf(),
                 line: 1,
@@ -81,7 +90,8 @@ pub fn analyze_codegen(root: &Path) -> CodegenReport {
             });
         }
 
-        let source_file = path.to_string_lossy()
+        let source_file = path
+            .to_string_lossy()
             .replace(".g.dart", ".dart")
             .replace(".freezed.dart", ".dart")
             .replace(".gr.dart", ".dart")
@@ -94,7 +104,10 @@ pub fn analyze_codegen(root: &Path) -> CodegenReport {
                 rule: "codegen-stale-file".to_string(),
                 message: format!(
                     "Generated file may be stale — source file '{}' not found",
-                    source_path.file_name().and_then(|f| f.to_str()).unwrap_or("?")
+                    source_path
+                        .file_name()
+                        .and_then(|f| f.to_str())
+                        .unwrap_or("?")
                 ),
                 severity: Severity::Warning,
                 file: path.to_path_buf(),
@@ -128,10 +141,7 @@ pub fn print_codegen_report(report: &CodegenReport) {
 
     if !report.stale_files.is_empty() {
         println!();
-        println!(
-            "  {} Stale generated files (source missing):",
-            "⚠".yellow()
-        );
+        println!("  {} Stale generated files (source missing):", "⚠".yellow());
         for f in &report.stale_files {
             println!("    {}", f.display());
         }

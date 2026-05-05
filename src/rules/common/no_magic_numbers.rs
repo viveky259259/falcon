@@ -108,7 +108,10 @@ impl Rule for NoMagicNumbers {
 
             issues.push(Issue {
                 rule: self.name().to_string(),
-                message: format!("Avoid magic number '{}'. Extract to a named constant.", text),
+                message: format!(
+                    "Avoid magic number '{}'. Extract to a named constant.",
+                    text
+                ),
                 severity: self.default_severity(),
                 file: file.to_path_buf(),
                 line: node_start_line(node),
@@ -127,9 +130,23 @@ fn is_http_status_code(num: i64) -> bool {
 fn is_well_known_constant(num: i64) -> bool {
     matches!(
         num,
-        8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024 | 2048 | 4096
-            | 10 | 100 | 1000 | 1000000
-            | 24 | 60 | 360 | 365
+        8 | 16
+            | 32
+            | 64
+            | 128
+            | 256
+            | 512
+            | 1024
+            | 2048
+            | 4096
+            | 10
+            | 100
+            | 1000
+            | 1000000
+            | 24
+            | 60
+            | 360
+            | 365
             | 255
     )
 }
@@ -162,8 +179,7 @@ fn is_in_duration_context(node: Node, source: &str) -> bool {
         match current {
             Some(n) => {
                 let text = n.utf8_text(source.as_bytes()).unwrap_or("");
-                if text.contains("Duration(")
-                    || text.contains("Duration.") {
+                if text.contains("Duration(") || text.contains("Duration.") {
                     return true;
                 }
                 current = n.parent();

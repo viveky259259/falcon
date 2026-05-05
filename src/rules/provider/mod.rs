@@ -1,11 +1,11 @@
+mod avoid_public_notifier_properties;
 mod avoid_ref_read_inside_build;
 mod avoid_watch_outside_build;
 mod prefer_async_value_when;
-mod avoid_public_notifier_properties;
 mod prefer_ref_read_for_methods;
 
+pub use avoid_public_notifier_properties::AvoidPublicNotifierProperties;
 pub use avoid_ref_read_inside_build::AvoidRefReadInsideBuild;
 pub use avoid_watch_outside_build::AvoidWatchOutsideBuild;
 pub use prefer_async_value_when::PreferAsyncValueWhen;
-pub use avoid_public_notifier_properties::AvoidPublicNotifierProperties;
 pub use prefer_ref_read_for_methods::PreferRefReadForMethods;

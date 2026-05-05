@@ -38,7 +38,8 @@ impl Rule for EnsureStreamSubscriptionCancel {
             }
 
             let has_cancel = class_text.contains(".cancel()");
-            let has_dispose = class_text.contains("void dispose()") || class_text.contains("void dispose(");
+            let has_dispose =
+                class_text.contains("void dispose()") || class_text.contains("void dispose(");
 
             if (has_subscription || has_listen) && (!has_cancel || !has_dispose) {
                 let class_start = class.start_position().row;

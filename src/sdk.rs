@@ -108,19 +108,27 @@ impl FalconSdk {
             None
         };
 
-        let issues: Vec<SdkIssue> = report.issues.iter().map(|i| SdkIssue {
-            rule: i.rule.clone(),
-            message: i.message.clone(),
-            severity: format!("{:?}", i.severity),
-            file: i.file.to_string_lossy().to_string(),
-            line: i.line,
-            column: i.column,
-        }).collect();
+        let issues: Vec<SdkIssue> = report
+            .issues
+            .iter()
+            .map(|i| SdkIssue {
+                rule: i.rule.clone(),
+                message: i.message.clone(),
+                severity: format!("{:?}", i.severity),
+                file: i.file.to_string_lossy().to_string(),
+                line: i.line,
+                column: i.column,
+            })
+            .collect();
 
         let errors = report.error_count();
         let warnings = report.warning_count();
         let infos = report.info_count();
-        let passed = if opts.fail_on_error { errors == 0 } else { true };
+        let passed = if opts.fail_on_error {
+            errors == 0
+        } else {
+            true
+        };
 
         Ok(AnalysisResult {
             project_path: path.to_string_lossy().to_string(),
@@ -136,15 +144,12 @@ impl FalconSdk {
     }
 
     /// Analyze a single Dart file (source string).
-    pub fn analyze_source(
-        &self,
-        source: &str,
-        file_name: &str,
-    ) -> anyhow::Result<Vec<SdkIssue>> {
+    pub fn analyze_source(&self, source: &str, file_name: &str) -> anyhow::Result<Vec<SdkIssue>> {
         let file_path = PathBuf::from(file_name);
 
         let mut parser = crate::parser::DartParser::new()?;
-        let tree = parser.parse(source)
+        let tree = parser
+            .parse(source)
             .ok_or_else(|| anyhow::anyhow!("Failed to parse Dart source"))?;
 
         let config = crate::config::FalconConfig::default();
@@ -153,19 +158,21 @@ impl FalconSdk {
 
         let mut all_issues = registry.check(tree.root_node(), source, &file_path);
 
-        let metrics = crate::metrics::calculate_file_metrics(
-            tree.root_node(), source, &config.metrics
-        );
+        let metrics =
+            crate::metrics::calculate_file_metrics(tree.root_node(), source, &config.metrics);
         all_issues.extend(metrics.violations());
 
-        let issues: Vec<SdkIssue> = all_issues.iter().map(|i| SdkIssue {
-            rule: i.rule.clone(),
-            message: i.message.clone(),
-            severity: format!("{:?}", i.severity),
-            file: file_name.to_string(),
-            line: i.line,
-            column: i.column,
-        }).collect();
+        let issues: Vec<SdkIssue> = all_issues
+            .iter()
+            .map(|i| SdkIssue {
+                rule: i.rule.clone(),
+                message: i.message.clone(),
+                severity: format!("{:?}", i.severity),
+                file: file_name.to_string(),
+                line: i.line,
+                column: i.column,
+            })
+            .collect();
 
         Ok(issues)
     }

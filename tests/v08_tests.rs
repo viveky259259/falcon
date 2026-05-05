@@ -27,7 +27,10 @@ fn test_plugin_manifest_create_and_load() {
     assert_eq!(loaded.name, "test-plugin");
     assert_eq!(loaded.version, "1.0.0");
     assert_eq!(loaded.rules.len(), 1);
-    assert_eq!(loaded.plugin_type, falcon::plugins::manifest::PluginType::Wasm);
+    assert_eq!(
+        loaded.plugin_type,
+        falcon::plugins::manifest::PluginType::Wasm
+    );
 }
 
 #[test]
@@ -108,11 +111,8 @@ fn test_install_and_list_plugins() {
     let install_dir = tempfile::tempdir().unwrap();
     let plugin_source = source_dir.path().join("test-plugin");
 
-    let name = falcon::plugins::scaffold::install_plugin(
-        &plugin_source,
-        install_dir.path(),
-    )
-    .unwrap();
+    let name =
+        falcon::plugins::scaffold::install_plugin(&plugin_source, install_dir.path()).unwrap();
     assert_eq!(name, "test-plugin");
 
     let plugins = falcon::plugins::scaffold::list_plugins(install_dir.path()).unwrap();
@@ -136,11 +136,8 @@ fn test_plugin_loader_discover() {
     .unwrap();
 
     let install_dir = tempfile::tempdir().unwrap();
-    falcon::plugins::scaffold::install_plugin(
-        &dir.path().join("plugin-a"),
-        install_dir.path(),
-    )
-    .unwrap();
+    falcon::plugins::scaffold::install_plugin(&dir.path().join("plugin-a"), install_dir.path())
+        .unwrap();
 
     let mut loader = falcon::plugins::loader::PluginLoader::new();
     loader.add_plugin_dir(install_dir.path().to_path_buf());
@@ -223,7 +220,11 @@ fn test_wasm_sandbox_limits() {
     let source = "var a = 1;\nvar b = 2;\nvar c = 3;\nvar d = 4;\n";
     let issues = sandbox.check_with_limits(&[rule], source, &PathBuf::from("test.dart"));
 
-    assert_eq!(issues.len(), 2, "Should be limited to max_issues_per_file=2");
+    assert_eq!(
+        issues.len(),
+        2,
+        "Should be limited to max_issues_per_file=2"
+    );
 }
 
 #[test]
@@ -312,7 +313,11 @@ fn test_get_preset_invalid() {
 #[test]
 fn test_list_presets() {
     let presets = falcon::plugins::presets::list_presets();
-    assert!(presets.len() >= 6, "Should have at least 6 presets, got {}", presets.len());
+    assert!(
+        presets.len() >= 6,
+        "Should have at least 6 presets, got {}",
+        presets.len()
+    );
     let names: Vec<&str> = presets.iter().map(|p| p.name.as_str()).collect();
     assert!(names.contains(&"recommended"));
     assert!(names.contains(&"strict"));

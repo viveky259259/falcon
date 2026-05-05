@@ -62,7 +62,10 @@ impl Rule for AvoidUnusedParameters {
                     if !body_identifiers.contains(&name) {
                         issues.push(Issue {
                             rule: self.name().to_string(),
-                            message: format!("Parameter '{}' is not used. Prefix with '_' if intentional.", name),
+                            message: format!(
+                                "Parameter '{}' is not used. Prefix with '_' if intentional.",
+                                name
+                            ),
                             severity: self.default_severity(),
                             file: file.to_path_buf(),
                             line: node_start_line(param),

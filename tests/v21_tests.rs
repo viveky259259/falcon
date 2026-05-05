@@ -9,10 +9,8 @@ fn test_pr_comment_format_clean() {
         project_path: None,
     };
 
-    let comment = falcon::ci::pr_comment::format_pr_comment(
-        &report,
-        std::path::Path::new("/project"),
-    );
+    let comment =
+        falcon::ci::pr_comment::format_pr_comment(&report, std::path::Path::new("/project"));
 
     assert!(comment.contains("✅ Falcon Analysis"));
     assert!(comment.contains("No issues found"));
@@ -55,10 +53,8 @@ fn test_pr_comment_format_with_errors() {
         project_path: None,
     };
 
-    let comment = falcon::ci::pr_comment::format_pr_comment(
-        &report,
-        std::path::Path::new("/project"),
-    );
+    let comment =
+        falcon::ci::pr_comment::format_pr_comment(&report, std::path::Path::new("/project"));
 
     assert!(comment.contains("❌ Falcon Analysis"));
     assert!(comment.contains("Errors | 2"));
@@ -69,16 +65,14 @@ fn test_pr_comment_format_with_errors() {
 
 #[test]
 fn test_pr_comment_format_warnings_only() {
-    let issues = vec![
-        falcon::reporters::Issue {
-            rule: "prefer-trailing-comma".to_string(),
-            message: "Add trailing comma".to_string(),
-            severity: falcon::config::Severity::Warning,
-            file: std::path::PathBuf::from("/project/lib/a.dart"),
-            line: 5,
-            column: 1,
-        },
-    ];
+    let issues = vec![falcon::reporters::Issue {
+        rule: "prefer-trailing-comma".to_string(),
+        message: "Add trailing comma".to_string(),
+        severity: falcon::config::Severity::Warning,
+        file: std::path::PathBuf::from("/project/lib/a.dart"),
+        line: 5,
+        column: 1,
+    }];
 
     let report = falcon::reporters::AnalysisReport {
         issues,
@@ -87,10 +81,8 @@ fn test_pr_comment_format_warnings_only() {
         project_path: None,
     };
 
-    let comment = falcon::ci::pr_comment::format_pr_comment(
-        &report,
-        std::path::Path::new("/project"),
-    );
+    let comment =
+        falcon::ci::pr_comment::format_pr_comment(&report, std::path::Path::new("/project"));
 
     assert!(comment.contains("⚠️ Falcon Analysis"));
     assert!(!comment.contains("Errors (must fix)"));
@@ -99,16 +91,14 @@ fn test_pr_comment_format_warnings_only() {
 #[test]
 fn test_ci_summary_format() {
     let report = falcon::reporters::AnalysisReport {
-        issues: vec![
-            falcon::reporters::Issue {
-                rule: "test".to_string(),
-                message: "msg".to_string(),
-                severity: falcon::config::Severity::Error,
-                file: std::path::PathBuf::from("a.dart"),
-                line: 1,
-                column: 1,
-            },
-        ],
+        issues: vec![falcon::reporters::Issue {
+            rule: "test".to_string(),
+            message: "msg".to_string(),
+            severity: falcon::config::Severity::Error,
+            file: std::path::PathBuf::from("a.dart"),
+            line: 1,
+            column: 1,
+        }],
         metrics: vec![],
         file_count: 5,
         project_path: None,
@@ -262,9 +252,7 @@ fn test_sdk_score_project() {
     .unwrap();
 
     let sdk = falcon::sdk::FalconSdk::new();
-    let score = sdk
-        .score_project(&tmp.path().to_string_lossy())
-        .unwrap();
+    let score = sdk.score_project(&tmp.path().to_string_lossy()).unwrap();
 
     assert!(score.overall <= 100);
 }
@@ -285,7 +273,9 @@ fn test_api_health_endpoint() {
     thread::sleep(std::time::Duration::from_millis(200));
 
     if let Ok(mut stream) = TcpStream::connect(format!("127.0.0.1:{}", port)) {
-        stream.set_read_timeout(Some(std::time::Duration::from_secs(2))).ok();
+        stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+            .ok();
         let request = "GET /health HTTP/1.1\r\nHost: localhost\r\n\r\n";
         stream.write_all(request.as_bytes()).unwrap();
 

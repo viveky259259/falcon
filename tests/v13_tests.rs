@@ -43,7 +43,14 @@ class MyService {
     assert!(score.security.score <= 100);
     assert!(score.convention_match.score <= 100);
     assert!(score.complexity.score <= 100);
-    assert!(matches!(score.grade, falcon::ai_score::score::Grade::A | falcon::ai_score::score::Grade::B | falcon::ai_score::score::Grade::C | falcon::ai_score::score::Grade::D | falcon::ai_score::score::Grade::F));
+    assert!(matches!(
+        score.grade,
+        falcon::ai_score::score::Grade::A
+            | falcon::ai_score::score::Grade::B
+            | falcon::ai_score::score::Grade::C
+            | falcon::ai_score::score::Grade::D
+            | falcon::ai_score::score::Grade::F
+    ));
 }
 
 #[test]
@@ -73,7 +80,10 @@ fn test_ai_score_penalizes_empty_catch() {
     );
 
     let score = falcon::ai_score::score::calculate_ai_score(tmp.path()).unwrap();
-    assert!(score.total_issues > 0, "AI score should reflect total issues > 0");
+    assert!(
+        score.total_issues > 0,
+        "AI score should reflect total issues > 0"
+    );
 }
 
 #[test]
@@ -96,7 +106,14 @@ fn test_ai_score_grade() {
 
     let score = falcon::ai_score::score::calculate_ai_score(tmp.path()).unwrap();
     assert!(
-        matches!(score.grade, falcon::ai_score::score::Grade::A | falcon::ai_score::score::Grade::B | falcon::ai_score::score::Grade::C | falcon::ai_score::score::Grade::D | falcon::ai_score::score::Grade::F),
+        matches!(
+            score.grade,
+            falcon::ai_score::score::Grade::A
+                | falcon::ai_score::score::Grade::B
+                | falcon::ai_score::score::Grade::C
+                | falcon::ai_score::score::Grade::D
+                | falcon::ai_score::score::Grade::F
+        ),
         "Grade should be A-F"
     );
 }
@@ -115,7 +132,10 @@ fn test_ai_score_badge() {
 
     let score = falcon::ai_score::score::calculate_ai_score(tmp.path()).unwrap();
     let badge = falcon::ai_score::score::generate_badge(&score);
-    assert!(badge.contains("Falcon_AI_Score"), "Badge should contain Falcon_AI_Score");
+    assert!(
+        badge.contains("Falcon_AI_Score"),
+        "Badge should contain Falcon_AI_Score"
+    );
     assert!(badge.contains("/100"), "Badge should contain /100");
 }
 
@@ -136,10 +156,8 @@ class UserRepository {
 }
 "#;
 
-    let result = falcon::ai_score::provenance::analyze_provenance(
-        &PathBuf::from("lib/repo.dart"),
-        source,
-    );
+    let result =
+        falcon::ai_score::provenance::analyze_provenance(&PathBuf::from("lib/repo.dart"), source);
 
     assert_eq!(
         result.origin,
@@ -150,7 +168,8 @@ class UserRepository {
 
 #[test]
 fn test_provenance_codegen() {
-    let source = "// GENERATED CODE - DO NOT MODIFY BY HAND\npart of 'model.dart';\n\nclass _$User {}\n";
+    let source =
+        "// GENERATED CODE - DO NOT MODIFY BY HAND\npart of 'model.dart';\n\nclass _$User {}\n";
 
     let result = falcon::ai_score::provenance::analyze_provenance(
         &PathBuf::from("lib/model.g.dart"),
@@ -183,10 +202,8 @@ class TodoService {
 }
 "#;
 
-    let result = falcon::ai_score::provenance::analyze_provenance(
-        &PathBuf::from("lib/todo.dart"),
-        source,
-    );
+    let result =
+        falcon::ai_score::provenance::analyze_provenance(&PathBuf::from("lib/todo.dart"), source);
 
     assert!(
         result.origin == falcon::ai_score::provenance::CodeOrigin::LikelyAiGenerated
@@ -256,9 +273,18 @@ fn test_convention_detection_clean_arch() {
 
     let report = falcon::ai_score::convention::detect_conventions(tmp.path()).unwrap();
     assert_eq!(report.architecture.pattern, "Clean Architecture");
-    assert!(report.architecture.layers_detected.contains(&"domain".to_string()));
-    assert!(report.architecture.layers_detected.contains(&"data".to_string()));
-    assert!(report.architecture.layers_detected.contains(&"presentation".to_string()));
+    assert!(report
+        .architecture
+        .layers_detected
+        .contains(&"domain".to_string()));
+    assert!(report
+        .architecture
+        .layers_detected
+        .contains(&"data".to_string()));
+    assert!(report
+        .architecture
+        .layers_detected
+        .contains(&"presentation".to_string()));
 }
 
 #[test]
@@ -416,12 +442,30 @@ fn test_ai_report_provenance_stats() {
 fn test_print_ai_score_no_panic() {
     let score = falcon::ai_score::score::AiCodeScore {
         overall: 75,
-        resource_safety: falcon::ai_score::score::DimensionScore { score: 85, findings: vec!["1 issue".to_string()] },
-        error_handling: falcon::ai_score::score::DimensionScore { score: 60, findings: vec![] },
-        type_safety: falcon::ai_score::score::DimensionScore { score: 90, findings: vec![] },
-        security: falcon::ai_score::score::DimensionScore { score: 100, findings: vec![] },
-        convention_match: falcon::ai_score::score::DimensionScore { score: 70, findings: vec![] },
-        complexity: falcon::ai_score::score::DimensionScore { score: 65, findings: vec![] },
+        resource_safety: falcon::ai_score::score::DimensionScore {
+            score: 85,
+            findings: vec!["1 issue".to_string()],
+        },
+        error_handling: falcon::ai_score::score::DimensionScore {
+            score: 60,
+            findings: vec![],
+        },
+        type_safety: falcon::ai_score::score::DimensionScore {
+            score: 90,
+            findings: vec![],
+        },
+        security: falcon::ai_score::score::DimensionScore {
+            score: 100,
+            findings: vec![],
+        },
+        convention_match: falcon::ai_score::score::DimensionScore {
+            score: 70,
+            findings: vec![],
+        },
+        complexity: falcon::ai_score::score::DimensionScore {
+            score: 65,
+            findings: vec![],
+        },
         file_count: 10,
         total_issues: 5,
         grade: falcon::ai_score::score::Grade::C,

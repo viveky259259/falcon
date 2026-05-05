@@ -16,16 +16,9 @@ pub struct HalsteadMetrics {
 }
 
 const OPERATOR_KINDS: &[&str] = &[
-    "+", "-", "*", "/", "%", "~/",
-    "==", "!=", "<", ">", "<=", ">=",
-    "&&", "||", "!",
-    "&", "|", "^", "~", "<<", ">>",
-    "=", "+=", "-=", "*=", "/=", "%=",
-    "??", "??=", "?.", "?",
-    ".", "..", "...",
-    "=>", "->",
-    "as", "is", "is!",
-    "++", "--",
+    "+", "-", "*", "/", "%", "~/", "==", "!=", "<", ">", "<=", ">=", "&&", "||", "!", "&", "|",
+    "^", "~", "<<", ">>", "=", "+=", "-=", "*=", "/=", "%=", "??", "??=", "?.", "?", ".", "..",
+    "...", "=>", "->", "as", "is", "is!", "++", "--",
 ];
 
 const OPERATOR_NODE_KINDS: &[&str] = &[
@@ -48,30 +41,28 @@ pub fn calculate(node: Node, source: &str) -> HalsteadMetrics {
     let mut operators = Vec::new();
     let mut operands = Vec::new();
 
-    walk_tree(node, &mut |n| {
-        match n.kind() {
-            "identifier" | "type_identifier" => {
-                operands.push(source[n.byte_range()].to_string());
-            }
-            "decimal_integer_literal"
-            | "decimal_floating_point_literal"
-            | "hex_integer_literal"
-            | "null_literal"
-            | "true"
-            | "false" => {
-                operands.push(source[n.byte_range()].to_string());
-            }
-            "string_literal" => {
-                operands.push(source[n.byte_range()].to_string());
-            }
-            kind if OPERATOR_NODE_KINDS.contains(&kind) => {
-                operators.push(kind.to_string());
-            }
-            _ => {
-                let text = &source[n.byte_range()];
-                if !n.is_named() && OPERATOR_KINDS.iter().any(|op| text == *op) {
-                    operators.push(text.to_string());
-                }
+    walk_tree(node, &mut |n| match n.kind() {
+        "identifier" | "type_identifier" => {
+            operands.push(source[n.byte_range()].to_string());
+        }
+        "decimal_integer_literal"
+        | "decimal_floating_point_literal"
+        | "hex_integer_literal"
+        | "null_literal"
+        | "true"
+        | "false" => {
+            operands.push(source[n.byte_range()].to_string());
+        }
+        "string_literal" => {
+            operands.push(source[n.byte_range()].to_string());
+        }
+        kind if OPERATOR_NODE_KINDS.contains(&kind) => {
+            operators.push(kind.to_string());
+        }
+        _ => {
+            let text = &source[n.byte_range()];
+            if !n.is_named() && OPERATOR_KINDS.iter().any(|op| text == *op) {
+                operators.push(text.to_string());
             }
         }
     });
