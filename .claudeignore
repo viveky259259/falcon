@@ -1,0 +1,49 @@
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+
+# Dart / Flutter
+.dart_tool/
+.packages
+**/build/
+pubspec.lock
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Node (editors/, site/, github-app/)
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Python / Ruby / Go (if any)
+.venv/
+venv/
+__pycache__/
+*.pyc
+vendor/
+Gemfile.lock
+poetry.lock
+go.sum
+
+# Build artifacts / generated
+dist/
+out/
+coverage/
+*.log
+falcon-report.html
+.falcon-data/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.cursor/
+*.iml
