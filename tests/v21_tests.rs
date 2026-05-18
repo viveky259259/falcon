@@ -60,7 +60,12 @@ fn test_pr_comment_format_with_errors() {
     assert!(comment.contains("Errors | 2"));
     assert!(comment.contains("Warnings | 1"));
     assert!(comment.contains("`avoid-dynamic`"));
-    assert!(comment.contains("Errors (must fix)"));
+    // PR-C: findings are grouped per file with severity-icon prefixes; the
+    // top-level "Errors (must fix)" section only renders when total > 60.
+    assert!(comment.contains("### `lib/main.dart`"));
+    assert!(comment.contains("### `lib/app.dart`"));
+    assert!(comment.contains("🔴"));
+    assert!(comment.contains("🟡"));
 }
 
 #[test]

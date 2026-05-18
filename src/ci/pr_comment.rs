@@ -1,9 +1,83 @@
 use crate::config::Severity;
 use crate::reporters::{AnalysisReport, Issue};
-use std::collections::HashMap;
-use std::path::Path;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+
+/// Threshold above which non-error findings are collapsed into `<details>` blocks.
+const TRUNCATION_THRESHOLD: usize = 60;
+
+/// Falcon signature footer shown on every non-zero-findings PR comment.
+const FOOTER: &str = "_Posted by Falcon — see [docs](https://github.com/viveky259259/falcon)._";
+
+fn severity_icon(sev: Severity) -> &'static str {
+    match sev {
+        Severity::Error => "🔴",
+        Severity::Warning => "🟡",
+        Severity::Info => "🔵",
+    }
+}
+
+/// Render a single issue as a bullet line with severity icon, location, rule and fix hint.
+fn render_issue_line(issue: &Issue, project_root: &Path) -> String {
+    let rel: PathBuf = issue
+        .file
+        .strip_prefix(project_root)
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|_| issue.file.clone());
+    let rel_str = rel.to_string_lossy();
+    let icon = severity_icon(issue.severity);
+    // `Issue.message` is rendered as the why/fix hint — there is no separate fix field.
+    format!(
+        "- {} **{}:{}** `{}` — {}\n",
+        icon, rel_str, issue.line, issue.rule, issue.message
+    )
+}
+
+/// Group issues per file (path relative to `project_root` when possible) with files
+/// sorted alphabetically and issues within each file sorted by `(line, column)`.
+fn group_by_file<'a>(
+    issues: &'a [&'a Issue],
+    project_root: &Path,
+) -> Vec<(String, Vec<&'a Issue>)> {
+    let mut grouped: BTreeMap<String, Vec<&'a Issue>> = BTreeMap::new();
+    for issue in issues {
+        let rel = issue
+            .file
+            .strip_prefix(project_root)
+            .unwrap_or(&issue.file)
+            .to_string_lossy()
+            .to_string();
+        grouped.entry(rel).or_default().push(*issue);
+    }
+    for v in grouped.values_mut() {
+        v.sort_by_key(|i| (i.line, i.column));
+    }
+    grouped.into_iter().collect()
+}
+
+/// Render the per-file grouped section for a given set of issues.
+fn render_grouped_section(issues: &[&Issue], project_root: &Path) -> String {
+    let mut out = String::new();
+    for (file, file_issues) in group_by_file(issues, project_root) {
+        out.push_str(&format!("### `{}`\n\n", file));
+        for issue in file_issues {
+            out.push_str(&render_issue_line(issue, project_root));
+        }
+        out.push('\n');
+    }
+    out
+}
 
 /// Format analysis results as a GitHub PR comment body (markdown).
+///
+/// Layout (council spec, EPIC 2.3):
+/// - Top status icon header + summary table (preserved from earlier impl).
+/// - Findings grouped **per file** (alphabetical), each line prefixed with a severity icon
+///   and including the `Issue.message` as the why/fix hint.
+/// - When total findings exceed [`TRUNCATION_THRESHOLD`], non-error findings collapse into
+///   `<details>` blocks; errors always render inline. File group headers are always shown
+///   for whichever severities are rendered inline (errors above, collapsed sections inside).
+/// - Falcon signature footer line on every non-zero-findings output.
 pub fn format_pr_comment(report: &AnalysisReport, project_root: &Path) -> String {
     let mut md = String::new();
 
@@ -32,69 +106,61 @@ pub fn format_pr_comment(report: &AnalysisReport, project_root: &Path) -> String
         return md;
     }
 
-    let mut by_rule: HashMap<String, (usize, Severity)> = HashMap::new();
-    for issue in &report.issues {
-        let entry = by_rule
-            .entry(issue.rule.clone())
-            .or_insert((0, issue.severity));
-        entry.0 += 1;
-    }
-    let mut sorted_rules: Vec<(String, usize, Severity)> = by_rule
-        .into_iter()
-        .map(|(rule, (count, sev))| (rule, count, sev))
-        .collect();
-    sorted_rules.sort_by(|a, b| b.1.cmp(&a.1));
-
-    md.push_str("<details>\n<summary>📋 Issues by rule (click to expand)</summary>\n\n");
-    md.push_str("| Rule | Count | Severity |\n|---|---|---|\n");
-    for (rule, count, severity) in sorted_rules.iter().take(20) {
-        let sev_icon = match severity {
-            Severity::Error => "🔴",
-            Severity::Warning => "🟡",
-            Severity::Info => "🔵",
-        };
-        md.push_str(&format!("| `{}` | {} | {} |\n", rule, count, sev_icon));
-    }
-    if sorted_rules.len() > 20 {
-        md.push_str(&format!(
-            "| ... | +{} more rules | |\n",
-            sorted_rules.len() - 20
-        ));
-    }
-    md.push_str("\n</details>\n\n");
-
     let error_issues: Vec<&Issue> = report
         .issues
         .iter()
         .filter(|i| i.severity == Severity::Error)
         .collect();
+    let warning_issues: Vec<&Issue> = report
+        .issues
+        .iter()
+        .filter(|i| i.severity == Severity::Warning)
+        .collect();
+    let info_issues: Vec<&Issue> = report
+        .issues
+        .iter()
+        .filter(|i| i.severity == Severity::Info)
+        .collect();
 
-    if !error_issues.is_empty() {
-        md.push_str("<details>\n<summary>🔴 Errors (must fix)</summary>\n\n");
-        let shown = error_issues.len().min(30);
-        for issue in error_issues.iter().take(shown) {
-            let rel = issue
-                .file
-                .strip_prefix(project_root)
-                .unwrap_or(&issue.file)
-                .to_string_lossy();
+    let truncate = total > TRUNCATION_THRESHOLD;
+
+    if truncate {
+        // Errors always inline.
+        if !error_issues.is_empty() {
             md.push_str(&format!(
-                "- **{}:{}** `{}` — {}\n",
-                rel, issue.line, issue.rule, issue.message
+                "### 🔴 Errors ({} — must fix)\n\n",
+                error_issues.len()
             ));
+            md.push_str(&render_grouped_section(&error_issues, project_root));
         }
-        if error_issues.len() > shown {
+
+        // Warnings and info collapsed into <details> blocks (still grouped per file inside).
+        if !warning_issues.is_empty() {
             md.push_str(&format!(
-                "- ... and {} more errors\n",
-                error_issues.len() - shown
+                "<details>\n<summary>🟡 Warnings ({})</summary>\n\n",
+                warning_issues.len()
             ));
+            md.push_str(&render_grouped_section(&warning_issues, project_root));
+            md.push_str("</details>\n\n");
         }
-        md.push_str("\n</details>\n\n");
+
+        if !info_issues.is_empty() {
+            md.push_str(&format!(
+                "<details>\n<summary>🔵 Info ({})</summary>\n\n",
+                info_issues.len()
+            ));
+            md.push_str(&render_grouped_section(&info_issues, project_root));
+            md.push_str("</details>\n\n");
+        }
+    } else {
+        // Below threshold: render every finding inline, grouped per file, mixed severities.
+        let all_issues: Vec<&Issue> = report.issues.iter().collect();
+        md.push_str(&render_grouped_section(&all_issues, project_root));
     }
 
-    md.push_str(&format!(
-        "\n---\n*Analyzed by [Falcon](https://github.com/viveky259259/falcon) — Rust-powered static analysis for Flutter/Dart*\n"
-    ));
+    md.push_str("---\n");
+    md.push_str(FOOTER);
+    md.push('\n');
 
     md
 }
