@@ -2,21 +2,38 @@
 
 #[test]
 fn test_mcp_tool_list() {
+    // Locked surface: exactly 5 canonical tools (PR-E / EPIC 2.1).
     let tools = falcon::mcp::tools::list_tools();
-    assert!(
-        tools.len() >= 7,
-        "Should have at least 7 MCP tools, got {}",
+    assert_eq!(
+        tools.len(),
+        5,
+        "MCP surface must be exactly 5 tools, got {}",
         tools.len()
     );
 
     let names: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
-    assert!(names.contains(&"falcon_analyze"));
-    assert!(names.contains(&"falcon_ai_score"));
-    assert!(names.contains(&"falcon_check_file"));
-    assert!(names.contains(&"falcon_explain_rule"));
-    assert!(names.contains(&"falcon_fix"));
-    assert!(names.contains(&"falcon_conventions"));
-    assert!(names.contains(&"falcon_provenance"));
+    assert!(names.contains(&"lint_file"));
+    assert!(names.contains(&"lint_diff"));
+    assert!(names.contains(&"review"));
+    assert!(names.contains(&"explain"));
+    assert!(names.contains(&"fix_safe"));
+
+    // Old names must NOT appear in discovery (still dispatchable via aliases).
+    for old in &[
+        "falcon_analyze",
+        "falcon_ai_score",
+        "falcon_check_file",
+        "falcon_explain_rule",
+        "falcon_fix",
+        "falcon_conventions",
+        "falcon_provenance",
+    ] {
+        assert!(
+            !names.contains(old),
+            "deprecated tool '{}' must not appear in list_tools()",
+            old
+        );
+    }
 }
 
 #[test]
