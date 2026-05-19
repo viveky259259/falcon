@@ -1,0 +1,172 @@
+name: Release
+
+# Builds release binaries for falcon, falcon-lsp, and falcon-mcp on tag push.
+# Triggered on annotated/lightweight tags of the form vX.Y.Z (e.g. v0.4.0).
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-14
+          - target: x86_64-apple-darwin
+            os: macos-15-intel
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Derive version from tag
+        id: version
+        shell: bash
+        run: |
+          ref="${GITHUB_REF#refs/tags/}"
+          version="${ref#v}"
+          echo "tag=${ref}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "archive=falcon-${version}-${{ matrix.target }}.tar.gz" >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo registry and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-cargo-
+
+      - name: Build release binaries
+        shell: bash
+        run: cargo build --release --locked --target ${{ matrix.target }} --bins
+
+      # TODO(notarization): macOS codesign + notarytool submit + staple goes here.
+      # For aarch64-apple-darwin and x86_64-apple-darwin targets, after `cargo build`
+      # and before packaging, sign each binary with Developer ID Application cert,
+      # zip, submit to Apple notary service via `xcrun notarytool submit --wait`,
+      # then `xcrun stapler staple` the resulting artifacts. Requires secrets:
+      # APPLE_CERT_P12, APPLE_CERT_PASSWORD, APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD.
+
+      - name: Package archive
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.version.outputs.version }}"
+          target="${{ matrix.target }}"
+          archive="${{ steps.version.outputs.archive }}"
+
+          staging="falcon-${version}-${target}"
+          mkdir -p "${staging}"
+
+          bin_dir="target/${target}/release"
+          cp "${bin_dir}/falcon"     "${staging}/"
+          cp "${bin_dir}/falcon-lsp" "${staging}/"
+          cp "${bin_dir}/falcon-mcp" "${staging}/"
+
+          # Include README and LICENSE-style files if present (best effort).
+          [ -f README.md ]   && cp README.md   "${staging}/" || true
+          [ -f CHANGELOG.md ] && cp CHANGELOG.md "${staging}/" || true
+          [ -f LICENSE ]     && cp LICENSE     "${staging}/" || true
+
+          tar -czf "${archive}" "${staging}"
+          ls -la "${archive}"
+
+          # Compute SHA256 for the archive.
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "${archive}" > "${archive}.sha256"
+          else
+            shasum -a 256 "${archive}" > "${archive}.sha256"
+          fi
+          cat "${archive}.sha256"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: falcon-${{ steps.version.outputs.version }}-${{ matrix.target }}
+          path: |
+            ${{ steps.version.outputs.archive }}
+            ${{ steps.version.outputs.archive }}.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Derive version from tag
+        id: version
+        shell: bash
+        run: |
+          ref="${GITHUB_REF#refs/tags/}"
+          version="${ref#v}"
+          echo "tag=${ref}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Stage release assets and compute combined SHA256SUMS
+        id: stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          # Flatten artifact directories — each artifact dir contains the archive
+          # plus its per-file .sha256 sidecar; we only ship the archives + a
+          # single combined SHA256SUMS.
+          find artifacts -type f -name 'falcon-*.tar.gz' -exec cp {} dist/ \;
+          ls -la dist
+
+          cd dist
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum falcon-*.tar.gz > SHA256SUMS
+          else
+            shasum -a 256 falcon-*.tar.gz > SHA256SUMS
+          fi
+          cat SHA256SUMS
+
+      - name: Create or update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+          files: |
+            dist/falcon-*.tar.gz
+            dist/SHA256SUMS
