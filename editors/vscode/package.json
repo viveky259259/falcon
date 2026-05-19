@@ -86,7 +86,7 @@
         "falcon.quietMode": {
           "type": "boolean",
           "default": false,
-          "description": "Reduce informational noise — suppress info-level diagnostics from Falcon."
+          "description": "Reduce informational noise — suppress info- and hint-level diagnostics from Falcon."
         }
       }
     },

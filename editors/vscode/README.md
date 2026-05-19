@@ -36,6 +36,8 @@ cargo install falcon
 
 Falcon is designed to live alongside the official [Dart-Code](https://marketplace.visualstudio.com/items?itemName=Dart-Code.dart-code) extension without producing duplicate squiggles. Every Falcon diagnostic is namespaced with `source: "falcon"` and `code: "falcon/<rule-id>"`, and by default Falcon **defers to the Dart analyzer**: if Dart-Code has already published a diagnostic on a given line, Falcon will suppress its own diagnostic on that same line. To disable this and see every Falcon finding regardless of analyzer overlap, set `falcon.deferToAnalyzer` to `false` in your settings. Use `falcon.quietMode` to additionally hide Falcon's info-level diagnostics.
 
+On the very first publish for a file, Dart diagnostics may not be visible yet, so overlap suppression can lag briefly before self-correcting on subsequent publishes.
+
 ## Commands
 
 - **Falcon: Analyze Workspace** — re-analyze all open files

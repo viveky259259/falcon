@@ -63,7 +63,10 @@ export function buildHandleDiagnosticsMiddleware(): (
       if (occupiedLines.size > 0) {
         filtered = filtered.filter((d) => {
           if (d.source !== FALCON_SOURCE) return true;
-          return !occupiedLines.has(d.range.start.line);
+          for (let line = d.range.start.line; line <= d.range.end.line; line++) {
+            if (occupiedLines.has(line)) return false;
+          }
+          return true;
         });
       }
     }
@@ -86,6 +89,7 @@ function stampFalconDiagnostic(diag: vscode.Diagnostic): void {
 
   const existing = diag.code;
   if (existing === undefined || existing === null) {
+    diag.code = `${FALCON_CODE_PREFIX}unknown`;
     return;
   }
 
