@@ -275,6 +275,24 @@ pub fn run_dart_analyze(project_root: &Path) -> Result<Option<Vec<AnalyzerDiagno
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let diags = parse_dart_analyze_json(&stdout)?;
+
+    // `dart analyze` exits non-zero when it finds diagnostics — that is
+    // normal.  However, if the command failed *and* produced no parseable
+    // diagnostics, it likely crashed or the `--format=json` flag is
+    // unsupported.  Surface stderr so callers see the bridge failure rather
+    // than silently treating it as "no findings" (which would disable deferral
+    // without any indication that the bridge is broken).
+    if !output.status.success() && diags.is_empty() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if !stderr.trim().is_empty() {
+            return Err(anyhow::anyhow!(
+                "dart analyze failed (exit {:?}): {}",
+                output.status.code(),
+                stderr.trim()
+            ));
+        }
+    }
+
     Ok(Some(diags))
 }
 
