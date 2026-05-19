@@ -196,8 +196,16 @@ fn over_threshold_all_errors_keeps_them_inline_no_details() {
         out
     );
     // No warnings/info sections at all (none in this report).
-    assert!(!out.contains("<summary>🟡 Warnings"));
-    assert!(!out.contains("<summary>🔵 Info"));
+    assert!(
+        !out.contains("<summary>🟡 Warnings"),
+        "warnings section should not appear for all-errors case, got:\n{}",
+        out
+    );
+    assert!(
+        !out.contains("<summary>🔵 Info"),
+        "info section should not appear for all-errors case, got:\n{}",
+        out
+    );
 }
 
 // AC #5: >60 findings, mixed severities -> warnings/info collapsed under
@@ -236,7 +244,11 @@ fn over_threshold_mixed_collapses_warnings_and_info_keeps_errors_inline() {
     let out = format_pr_comment(&report(issues, 3), project_root());
 
     // Errors stay inline (no <details> wrapping the errors group itself).
-    assert!(out.contains("### 🔴 Errors"));
+    assert!(
+        out.contains("### 🔴 Errors"),
+        "expected inline errors header, got:\n{}",
+        out
+    );
     assert!(
         !out.contains("<summary>🔴 Errors"),
         "errors must not be collapsed when total > 60"
