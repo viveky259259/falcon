@@ -13,9 +13,7 @@
 /// `falcon <old>` is now aliased to `falcon <new>` and will be removed
 /// in v1.0.
 pub fn warn_aliased(old: &str, new: &str) {
-    eprintln!(
-        "warning: `falcon {old}` is being aliased to `falcon {new}` and will be removed in v1.0. Run `falcon {new}` instead."
-    );
+    eprintln!("{}", aliased_message(old, new));
 }
 
 /// Render the warning string without printing it. Used by tests and by
