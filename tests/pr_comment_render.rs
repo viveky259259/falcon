@@ -264,6 +264,15 @@ fn footer_signature_present_on_every_nonzero_output() {
         "footer missing from below-threshold output, got:\n{}",
         low
     );
+    assert_eq!(
+        low.matches(FOOTER_LINE).count(),
+        1,
+        "footer should render exactly once in below-threshold output"
+    );
+    assert!(
+        low.contains("\n---\n"),
+        "separator should render before footer in below-threshold output"
+    );
 
     // Many findings (above threshold) — footer must still be present once.
     let mut many = Vec::with_capacity(80);
@@ -281,6 +290,10 @@ fn footer_signature_present_on_every_nonzero_output() {
         above.contains(FOOTER_LINE),
         "footer missing from above-threshold output, got:\n{}",
         above
+    );
+    assert!(
+        above.contains("\n---\n"),
+        "separator should render before footer in above-threshold output"
     );
     // And exactly once.
     assert_eq!(

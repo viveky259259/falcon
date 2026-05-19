@@ -17,6 +17,12 @@ fn severity_icon(sev: Severity) -> &'static str {
     }
 }
 
+fn sanitize_md_inline(value: &str) -> String {
+    value
+        .replace(['\r', '\n'], " ")
+        .replace('`', "\\`")
+}
+
 /// Render a single issue as a bullet line with severity icon, location, rule and fix hint.
 fn render_issue_line(issue: &Issue, project_root: &Path) -> String {
     let rel: PathBuf = issue
@@ -24,12 +30,14 @@ fn render_issue_line(issue: &Issue, project_root: &Path) -> String {
         .strip_prefix(project_root)
         .map(Path::to_path_buf)
         .unwrap_or_else(|_| issue.file.clone());
-    let rel_str = rel.to_string_lossy();
+    let rel_str = sanitize_md_inline(&rel.to_string_lossy());
+    let rule = sanitize_md_inline(&issue.rule);
+    let message = sanitize_md_inline(&issue.message);
     let icon = severity_icon(issue.severity);
     // `Issue.message` is rendered as the why/fix hint — there is no separate fix field.
     format!(
         "- {} **{}:{}** `{}` — {}\n",
-        icon, rel_str, issue.line, issue.rule, issue.message
+        icon, rel_str, issue.line, rule, message
     )
 }
 
@@ -50,7 +58,10 @@ fn group_by_file<'a>(
         grouped.entry(rel).or_default().push(*issue);
     }
     for v in grouped.values_mut() {
-        v.sort_by_key(|i| (i.line, i.column));
+        v.sort_by(|a, b| {
+            (a.line, a.column, &a.rule, &a.message)
+                .cmp(&(b.line, b.column, &b.rule, &b.message))
+        });
     }
     grouped.into_iter().collect()
 }
