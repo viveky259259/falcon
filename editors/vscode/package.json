@@ -77,6 +77,16 @@
           "default": "off",
           "enum": ["off", "messages", "verbose"],
           "description": "Traces the communication between VS Code and the Falcon language server."
+        },
+        "falcon.deferToAnalyzer": {
+          "type": "boolean",
+          "default": true,
+          "description": "Suppress Falcon diagnostics on lines where the Dart analyzer already reported a problem."
+        },
+        "falcon.quietMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Reduce informational noise — suppress info- and hint-level diagnostics from Falcon."
         }
       }
     },

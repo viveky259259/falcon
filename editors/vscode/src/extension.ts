@@ -6,6 +6,7 @@ import {
   ServerOptions,
   TransportKind,
 } from "vscode-languageclient/node";
+import { buildHandleDiagnosticsMiddleware } from "./diagnosticsMiddleware";
 
 let client: LanguageClient | undefined;
 let statusBarItem: vscode.StatusBarItem;
@@ -110,6 +111,14 @@ function startServer(context: vscode.ExtensionContext) {
     traceOutputChannel: outputChannel,
     initializationOptions: {
       settings: vscode.workspace.getConfiguration("falcon"),
+    },
+    middleware: {
+      // Stamp every Falcon diagnostic with `source: "falcon"` and a
+      // namespaced `code: "falcon/<rule-id>"`, then drop diagnostics on
+      // lines already claimed by the Dart analyzer (Dart-Code) so the two
+      // extensions coexist without duplicate squiggles. See
+      // `diagnosticsMiddleware.ts` for the full contract.
+      handleDiagnostics: buildHandleDiagnosticsMiddleware(),
     },
   };
 
