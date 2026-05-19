@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 const PROJECT_ROOT: &str = "/project";
 
 const FOOTER_LINE: &str =
-    "_Posted by Falcon — see [docs](https://github.com/viveky259259/falcon)._";
+    "_Posted by Falcon — Rust-powered static analysis for Flutter/Dart._";
 
 fn project_root() -> &'static Path {
     Path::new(PROJECT_ROOT)

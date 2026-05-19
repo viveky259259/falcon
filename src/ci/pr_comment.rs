@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 const TRUNCATION_THRESHOLD: usize = 60;
 
 /// Falcon signature footer shown on every non-zero-findings PR comment.
-const FOOTER: &str = "_Posted by Falcon — see [docs](https://github.com/viveky259259/falcon)._";
+const FOOTER: &str = "_Posted by Falcon — Rust-powered static analysis for Flutter/Dart._";
 
 fn severity_icon(sev: Severity) -> &'static str {
     match sev {
@@ -70,7 +70,8 @@ fn group_by_file<'a>(
 fn render_grouped_section(issues: &[&Issue], project_root: &Path) -> String {
     let mut out = String::new();
     for (file, file_issues) in group_by_file(issues, project_root) {
-        out.push_str(&format!("### `{}`\n\n", file));
+        let safe_file = sanitize_md_inline(&file);
+        out.push_str(&format!("### `{}`\n\n", safe_file));
         for issue in file_issues {
             out.push_str(&render_issue_line(issue, project_root));
         }
