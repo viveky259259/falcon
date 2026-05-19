@@ -55,7 +55,11 @@ fn zero_findings_renders_great_job_and_summary_header() {
         out
     );
     // Summary table still rendered.
-    assert!(out.contains("Files analyzed | 10"));
+    assert!(
+        out.contains("Files analyzed | 10"),
+        "expected summary table with file count, got:\n{}",
+        out
+    );
     // Zero-findings output deliberately omits the footer (kept lean per spec).
     assert!(
         !out.contains(FOOTER_LINE),
@@ -175,8 +179,16 @@ fn over_threshold_all_errors_keeps_them_inline_no_details() {
         out
     );
     // Per-file group headers still render for the error group.
-    assert!(out.contains("### `lib/a.dart`"));
-    assert!(out.contains("### `lib/b.dart`"));
+    assert!(
+        out.contains("### `lib/a.dart`"),
+        "expected per-file group header for lib/a.dart, got:\n{}",
+        out
+    );
+    assert!(
+        out.contains("### `lib/b.dart`"),
+        "expected per-file group header for lib/b.dart, got:\n{}",
+        out
+    );
     // No <details> block for errors.
     assert!(
         !out.contains("<summary>🔴 Errors"),
@@ -243,9 +255,21 @@ fn over_threshold_mixed_collapses_warnings_and_info_keeps_errors_inline() {
     );
 
     // Per-file group headers are emitted across all three severity blocks.
-    assert!(out.contains("### `lib/err.dart`"));
-    assert!(out.contains("### `lib/warn.dart`"));
-    assert!(out.contains("### `lib/info.dart`"));
+    assert!(
+        out.contains("### `lib/err.dart`"),
+        "expected header for lib/err.dart in output, got:\n{}",
+        out
+    );
+    assert!(
+        out.contains("### `lib/warn.dart`"),
+        "expected header for lib/warn.dart in output, got:\n{}",
+        out
+    );
+    assert!(
+        out.contains("### `lib/info.dart`"),
+        "expected header for lib/info.dart in output, got:\n{}",
+        out
+    );
 }
 
 // AC #4: footer signature line is present in every non-zero-findings output.
