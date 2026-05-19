@@ -261,6 +261,11 @@ pub fn run_dart_analyze(project_root: &Path) -> Result<Option<Vec<AnalyzerDiagno
 
     // 3. Run analyzer. `dart analyze` exits non-zero on findings; that's
     // fine — we care about stdout, not the exit code.
+    // NOTE: `Command::output()` blocks until the subprocess exits with no
+    // built-in timeout. If the Dart analyzer hangs (malformed project,
+    // analyzer bug, etc.) this call will block indefinitely. Callers that
+    // need bounded execution time should wrap this function in a thread with
+    // a channel-based timeout and kill the child process on expiry.
     let output = Command::new("dart")
         .arg("analyze")
         .arg("--format=json")
