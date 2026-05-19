@@ -2,6 +2,7 @@ pub mod agents;
 pub mod ai;
 pub mod ai_score;
 pub mod analysis;
+pub mod analyzer_bridge;
 pub mod animation_audit;
 pub mod api;
 pub mod asset_audit;
