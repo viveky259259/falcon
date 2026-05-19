@@ -15,7 +15,7 @@
 //! and is NOT prefixed with `await ` or wrapped in `unawaited(`.
 
 use crate::config::Severity;
-use crate::parser::{dart_ast, find_descendants_by_kind, node_start_line};
+use crate::parser::node_start_line;
 use crate::reporters::Issue;
 use crate::rules::Rule;
 use std::path::Path;
@@ -39,32 +39,78 @@ impl Rule for UnawaitedFutureInBuild {
 
     fn check(&self, root: Node, source: &str, file: &Path) -> Vec<Issue> {
         let mut issues = Vec::new();
-
-        // Inspect both function_signature and method_signature — Dart's grammar
-        // emits one or the other depending on context.
-        let mut signatures = find_descendants_by_kind(root, "function_signature");
-        signatures.extend(find_descendants_by_kind(root, "method_signature"));
-
-        for sig in signatures {
-            if !has_identifier_named(sig, source, "build") {
-                continue;
-            }
-            let Some(body) = dart_ast::get_function_body(sig) else {
-                continue;
-            };
-
-            scan_body(body, source, file, &mut issues);
-        }
-
+        walk_build_bodies(root, source, file, &mut issues);
         issues
     }
 }
 
+/// Walk the tree looking for class members that define a `build()` method,
+/// then scan each matching method body for unawaited Futures.
+///
+/// tree-sitter-dart 0.1.x places `method_signature` and `function_body` as
+/// sibling children of `class_member`, so we must locate them together.
+fn walk_build_bodies(node: Node, source: &str, file: &Path, issues: &mut Vec<Issue>) {
+    if node.kind() == "class_member" || node.kind() == "declaration" {
+        if let Some(body) = extract_build_body(node, source) {
+            scan_body(body, source, file, issues);
+            return; // Don't recurse further into the matched member.
+        }
+    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        walk_build_bodies(child, source, file, issues);
+    }
+}
+
+/// Given a `class_member` (or `declaration`) node, return its `function_body`
+/// if the node defines a method named `build`.
+fn extract_build_body<'t>(member: Node<'t>, source: &str) -> Option<Node<'t>> {
+    let mut sig_has_build = false;
+    let mut body: Option<Node> = None;
+    let mut cursor = member.walk();
+    for child in member.children(&mut cursor) {
+        match child.kind() {
+            "method_signature" | "function_signature"
+                if identifier_in_subtree(child, source, "build") =>
+            {
+                sig_has_build = true;
+            }
+            "function_body" => {
+                body = Some(child);
+            }
+            _ => {}
+        }
+    }
+    if sig_has_build {
+        body
+    } else {
+        None
+    }
+}
+
+/// Recursively checks whether any `identifier` node in `node`'s subtree has
+/// the given text.
+fn identifier_in_subtree(node: Node, source: &str, name: &str) -> bool {
+    if node.kind() == "identifier" && &source[node.byte_range()] == name {
+        return true;
+    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if identifier_in_subtree(child, source, name) {
+            return true;
+        }
+    }
+    false
+}
+
 fn scan_body(body: Node, source: &str, file: &Path, issues: &mut Vec<Issue>) {
-    // Walk only expression_statements — we don't want to descend into
-    // closures (e.g. callbacks passed to widgets) where Future calls are
-    // expected and legitimate.
-    walk_for_expression_statements(body, source, file, issues);
+    // `body` is a `function_body` node.  Iterate its direct children so the
+    // top-level `function_body` itself does not trigger the nested-closure
+    // guard inside `walk_for_expression_statements`.
+    let mut cursor = body.walk();
+    for child in body.children(&mut cursor) {
+        walk_for_expression_statements(child, source, file, issues);
+    }
 }
 
 fn walk_for_expression_statements(
@@ -73,10 +119,10 @@ fn walk_for_expression_statements(
     file: &Path,
     issues: &mut Vec<Issue>,
 ) {
-    // Skip descending into nested function bodies — those are closures
-    // executed later, not during build itself.
     let kind = node.kind();
-    if kind == "function_body" && !is_outermost_body(node) {
+    // Skip nested closure bodies — their contents execute asynchronously,
+    // not during the build call itself.
+    if kind == "function_body" || kind == "function_expression_body" {
         return;
     }
 
@@ -102,19 +148,6 @@ fn walk_for_expression_statements(
     for child in node.children(&mut cursor) {
         walk_for_expression_statements(child, source, file, issues);
     }
-}
-
-/// We use a side-channel to know whether we've already descended past the
-/// outermost `function_body` belonging to the build method. The first body
-/// we receive in `scan_body` is the outermost; we mark it via a thread-local
-/// guard would be overkill — instead, treat the first body as outermost by
-/// passing it through directly here.
-fn is_outermost_body(_body: Node) -> bool {
-    // Always returns false; `scan_body` calls `walk_for_expression_statements`
-    // with the body's children individually via the top-level call path, so
-    // any `function_body` node encountered during recursion is necessarily
-    // *nested* and should be skipped.
-    false
 }
 
 fn is_unawaited_future_call(text: &str) -> bool {
@@ -145,16 +178,6 @@ fn is_unawaited_future_call(text: &str) -> bool {
         return true;
     }
 
-    false
-}
-
-fn has_identifier_named(node: Node, source: &str, name: &str) -> bool {
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        if child.kind() == "identifier" && &source[child.byte_range()] == name {
-            return true;
-        }
-    }
     false
 }
 

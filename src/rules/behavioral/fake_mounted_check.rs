@@ -66,36 +66,66 @@ fn walk(node: Node, source: &str, file: &Path, issues: &mut Vec<Issue>) {
     }
 }
 
-/// True iff the `if`'s condition is the bare identifier `mounted`.
-fn condition_is_mounted(if_node: Node, source: &str) -> bool {
+/// Extract the text of an if-statement's condition, stripping the surrounding
+/// parentheses.  Handles both grammar styles:
+///   - tree-sitter-dart 0.1.x: condition is bare `(` … `)` children
+///   - tree-sitter-dart ≥ 0.2.x: condition is a `parenthesized_expression`
+fn extract_if_condition(if_node: Node, source: &str) -> Option<String> {
     let mut cursor = if_node.walk();
+    let mut open_end: Option<usize> = None;
     for child in if_node.children(&mut cursor) {
         if child.kind() == "parenthesized_expression" {
-            // Strip outer parens, look at the inner expression text.
-            let text = node_text(child, source).trim();
-            let inner = text
-                .strip_prefix('(')
-                .and_then(|s| s.strip_suffix(')'))
-                .unwrap_or("")
-                .trim();
-            return inner == "mounted" || inner == "this.mounted";
+            let text = node_text(child, source);
+            let trimmed = text.trim();
+            return Some(
+                trimmed
+                    .strip_prefix('(')
+                    .and_then(|s| s.strip_suffix(')'))
+                    .unwrap_or(trimmed)
+                    .trim()
+                    .to_string(),
+            );
+        }
+        if child.kind() == "(" {
+            open_end = Some(child.end_byte());
+        }
+        if child.kind() == ")" {
+            if let Some(start) = open_end {
+                return Some(source[start..child.start_byte()].trim().to_string());
+            }
         }
     }
-    false
+    None
+}
+
+/// True iff the `if`'s condition is the bare identifier `mounted`.
+fn condition_is_mounted(if_node: Node, source: &str) -> bool {
+    matches!(
+        extract_if_condition(if_node, source).as_deref(),
+        Some("mounted") | Some("this.mounted")
+    )
 }
 
 /// Returns the `then` block of an if-statement (the first `block` child
-/// after the parenthesized condition).
+/// after the condition ends).  Works for both grammar styles.
 fn if_then_block(if_node: Node) -> Option<Node> {
     let mut cursor = if_node.walk();
-    let mut saw_paren = false;
+    let mut past_condition = false;
     for child in if_node.children(&mut cursor) {
-        if child.kind() == "parenthesized_expression" {
-            saw_paren = true;
-            continue;
-        }
-        if saw_paren && child.kind() == "block" {
-            return Some(child);
+        match child.kind() {
+            // New grammar: whole condition is one parenthesized_expression node.
+            "parenthesized_expression" => {
+                past_condition = true;
+            }
+            // Old grammar (0.1.x): closing paren is the last piece of the
+            // bare `( … )` condition.
+            ")" => {
+                past_condition = true;
+            }
+            "block" if past_condition => {
+                return Some(child);
+            }
+            _ => {}
         }
     }
     None
@@ -137,23 +167,18 @@ fn has_post_await_mounted_check(body: Node, source: &str, after_byte: usize) -> 
     let mut stack: Vec<Node> = body.children(&mut cursor).collect();
     while let Some(n) = stack.pop() {
         if n.start_byte() > after_byte && n.kind() == "if_statement" {
-            // Look at the parenthesized condition's inner text.
-            let mut c2 = n.walk();
-            for child in n.children(&mut c2) {
-                if child.kind() == "parenthesized_expression" {
-                    let text = node_text(child, source).trim();
-                    let inner = text
-                        .strip_prefix('(')
-                        .and_then(|s| s.strip_suffix(')'))
-                        .unwrap_or("")
-                        .trim();
-                    if inner == "mounted"
-                        || inner == "this.mounted"
-                        || inner == "!mounted"
-                        || inner == "!this.mounted"
-                    {
-                        return true;
-                    }
+            if let Some(condition) = extract_if_condition(n, source) {
+                if condition == "mounted" || condition == "this.mounted" {
+                    return true;
+                }
+                // Negated guard only satisfies the re-check when the branch
+                // is proven to exit early (return/throw) — otherwise a bare
+                // `if (!mounted) { … }` can continue execution and still
+                // operate on a disposed State.
+                if (condition == "!mounted" || condition == "!this.mounted")
+                    && if_consequent_exits(n)
+                {
+                    return true;
                 }
             }
         }
@@ -163,6 +188,41 @@ fn has_post_await_mounted_check(body: Node, source: &str, after_byte: usize) -> 
         let mut c = n.walk();
         for child in n.children(&mut c) {
             stack.push(child);
+        }
+    }
+    false
+}
+
+/// True iff the consequent (then-branch) of an if-statement contains an
+/// early-exit statement (`return` or `throw`) as a direct child.
+fn if_consequent_exits(if_node: Node) -> bool {
+    let mut cursor = if_node.walk();
+    let mut past_condition = false;
+    for child in if_node.children(&mut cursor) {
+        match child.kind() {
+            "parenthesized_expression" | ")" => {
+                past_condition = true;
+            }
+            k if past_condition && k != "else" => {
+                return block_has_exit(child);
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+/// True iff `node` is, or directly contains as a child, a return or throw.
+fn block_has_exit(node: Node) -> bool {
+    if node.kind() == "return_statement" {
+        return true;
+    }
+    if node.kind() == "block" {
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if child.kind() == "return_statement" {
+                return true;
+            }
         }
     }
     false
@@ -254,5 +314,46 @@ class _S extends State<W> {
 }
 "#);
         assert!(issues.is_empty(), "no await means no async gap to worry about");
+    }
+
+    #[test]
+    fn negated_mounted_with_early_return_is_ok() {
+        let issues = run(r#"
+class _S extends State<W> {
+  Future<void> load() async {
+    if (mounted) {
+      await fetchData();
+      if (!mounted) return;
+      setState(() {});
+    }
+  }
+}
+"#);
+        assert!(
+            issues.is_empty(),
+            "if (!mounted) return; is a valid early-exit guard"
+        );
+    }
+
+    #[test]
+    fn negated_mounted_without_early_exit_is_flagged() {
+        let issues = run(r#"
+class _S extends State<W> {
+  Future<void> load() async {
+    if (mounted) {
+      await fetchData();
+      if (!mounted) {
+        log('not mounted');
+      }
+      setState(() {});
+    }
+  }
+}
+"#);
+        assert_eq!(
+            issues.len(),
+            1,
+            "if (!mounted) without early exit does not satisfy the re-check"
+        );
     }
 }
