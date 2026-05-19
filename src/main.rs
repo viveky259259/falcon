@@ -244,7 +244,7 @@ enum Commands {
         trailing_var_arg = true,
         allow_hyphen_values = true,
         disable_help_flag = true,
-        disable_help_subcommand = true,
+        disable_help_subcommand = true
     )]
     Flutter {
         /// Arguments forwarded verbatim to the `flutter` CLI (e.g. `falcon flutter build apk --release`)
@@ -266,7 +266,7 @@ enum Commands {
         trailing_var_arg = true,
         allow_hyphen_values = true,
         disable_help_flag = true,
-        disable_help_subcommand = true,
+        disable_help_subcommand = true
     )]
     Fvm {
         /// Arguments forwarded verbatim to the `fvm` CLI
@@ -1244,6 +1244,198 @@ enum Commands {
         #[arg(long)]
         json: bool,
     },
+
+    /// Experimental / extended commands (see council roadmap)
+    #[command(
+        name = "x",
+        about = "Experimental / extended commands (see council roadmap)",
+        display_order = 99
+    )]
+    X {
+        #[command(subcommand)]
+        action: XAction,
+    },
+}
+
+/// Subcommands exposed under the `falcon x` namespace.
+///
+/// These all re-dispatch to existing top-level commands without changing
+/// behavior or argument shapes. Landing this enum now lets the Sept 1
+/// cutover to the 4-verb story (`review`, `check`, `fix`, `score`) flip
+/// only the default help surface — no command bodies move.
+#[derive(Subcommand)]
+enum XAction {
+    /// Audit Flutter project assets — find unused, oversized, and WebP-convertible files
+    #[command(name = "asset-audit")]
+    AssetAudit {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output HTML report path
+        #[arg(short, long, default_value = "falcon-asset-report.html")]
+        output: PathBuf,
+
+        /// Size threshold in KB above which an image is flagged (default 200)
+        #[arg(long, default_value = "200")]
+        size_threshold_kb: u64,
+
+        /// Skip HTML report
+        #[arg(long)]
+        no_html: bool,
+    },
+
+    /// Audit Flutter theme consistency — hardcoded colors, fonts, missing dark mode
+    #[command(name = "theme-audit")]
+    ThemeAudit {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output HTML report path
+        #[arg(short, long, default_value = "falcon-theme-report.html")]
+        output: PathBuf,
+
+        /// Skip HTML report
+        #[arg(long)]
+        no_html: bool,
+    },
+
+    /// Analyze localization coverage across all ARB locales
+    #[command(name = "l10n-coverage")]
+    L10nCoverage {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output HTML report path
+        #[arg(short, long, default_value = "falcon-l10n-report.html")]
+        output: PathBuf,
+
+        /// Skip HTML report
+        #[arg(long)]
+        no_html: bool,
+    },
+
+    /// Validate deep link configuration across Android, iOS, and Flutter routes
+    #[command(name = "deeplink-validate")]
+    DeeplinkValidate {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output HTML report path
+        #[arg(short, long, default_value = "falcon-deeplink-report.html")]
+        output: PathBuf,
+
+        /// Skip HTML report
+        #[arg(long)]
+        no_html: bool,
+    },
+
+    /// Audit Flutter animations for anti-patterns, missing disposal, and jank risks
+    #[command(name = "animation-audit")]
+    AnimationAudit {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output HTML report path
+        #[arg(short, long, default_value = "falcon-animation-report.html")]
+        output: PathBuf,
+
+        /// Skip HTML report
+        #[arg(long)]
+        no_html: bool,
+    },
+
+    /// Generate golden (snapshot) test stubs for all discoverable widgets
+    #[command(name = "golden-gen")]
+    GoldenGen {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Directory to write generated test files into
+        #[arg(short, long, default_value = "test/golden_generated")]
+        output_dir: PathBuf,
+
+        /// Preview what would be generated without writing files
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Output HTML report path
+        #[arg(long, default_value = "falcon-golden-report.html")]
+        html_output: PathBuf,
+
+        /// Skip HTML report
+        #[arg(long)]
+        no_html: bool,
+    },
+
+    /// Show file dependency graph
+    #[command(name = "dep-graph")]
+    DepGraph {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Show dependents of a specific file
+        #[arg(long)]
+        file: Option<PathBuf>,
+    },
+
+    /// Analyze all packages in a monorepo workspace
+    #[command(name = "workspace")]
+    Workspace {
+        /// Workspace root path
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Generate rule documentation
+    #[command(name = "docs")]
+    Docs {
+        /// Output directory for generated docs
+        #[arg(default_value = "docs")]
+        output: PathBuf,
+    },
+
+    /// Scan for security vulnerabilities and anti-patterns
+    #[command(name = "vuln-scan")]
+    VulnScan {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Simulate a refactoring and analyze impact
+    #[command(name = "refactor-sim")]
+    RefactorSim {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Refactoring scenario
+        #[arg(long)]
+        scenario: falcon::analysis::refactor_sim::RefactorScenario,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Generate test stubs from code analysis
+    #[command(name = "test-gen")]
+    TestGen {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Write test files to disk
+        #[arg(long)]
+        write: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1905,10 +2097,8 @@ fn run(cli: Cli) -> Result<()> {
             // 3. Unused files (so dead-folder rollup has data to work from)
             let resolver = falcon::resolver::ProjectResolver::new(&path, &falcon_config)?;
             let unused_file_issues = resolver.find_unused_files().unwrap_or_default();
-            let unused_set: std::collections::HashSet<std::path::PathBuf> = unused_file_issues
-                .iter()
-                .map(|i| i.file.clone())
-                .collect();
+            let unused_set: std::collections::HashSet<std::path::PathBuf> =
+                unused_file_issues.iter().map(|i| i.file.clone()).collect();
             all_issues.extend(unused_file_issues);
 
             // 4. Dead-folder rollup
@@ -2024,7 +2214,11 @@ fn run(cli: Cli) -> Result<()> {
             let status = std::process::Command::new("flutter")
                 .args(&args)
                 .status()
-                .map_err(|e| anyhow::anyhow!("failed to invoke `flutter`: {e}. Is the Flutter SDK on your PATH?"))?;
+                .map_err(|e| {
+                    anyhow::anyhow!(
+                        "failed to invoke `flutter`: {e}. Is the Flutter SDK on your PATH?"
+                    )
+                })?;
             process::exit(status.code().unwrap_or(1));
         }
 
@@ -4120,6 +4314,90 @@ fn run(cli: Cli) -> Result<()> {
                 falcon::community::print_contributed_rules(&rules);
             }
         },
+        Commands::X { action } => {
+            // The `x` namespace is the Sept 1 cutover scaffold: every entry
+            // here re-dispatches into the matching legacy top-level command
+            // without changing behavior or argument shapes. When the cutover
+            // flips, the legacy variants will start calling
+            // `falcon::cli::deprecation::warn_aliased` and eventually go away.
+            let legacy = match action {
+                XAction::AssetAudit {
+                    path,
+                    output,
+                    size_threshold_kb,
+                    no_html,
+                } => Commands::AssetAudit {
+                    path,
+                    output,
+                    size_threshold_kb,
+                    no_html,
+                },
+                XAction::ThemeAudit {
+                    path,
+                    output,
+                    no_html,
+                } => Commands::ThemeAudit {
+                    path,
+                    output,
+                    no_html,
+                },
+                XAction::L10nCoverage {
+                    path,
+                    output,
+                    no_html,
+                } => Commands::L10nCoverage {
+                    path,
+                    output,
+                    no_html,
+                },
+                XAction::DeeplinkValidate {
+                    path,
+                    output,
+                    no_html,
+                } => Commands::DeeplinkValidate {
+                    path,
+                    output,
+                    no_html,
+                },
+                XAction::AnimationAudit {
+                    path,
+                    output,
+                    no_html,
+                } => Commands::AnimationAudit {
+                    path,
+                    output,
+                    no_html,
+                },
+                XAction::GoldenGen {
+                    path,
+                    output_dir,
+                    dry_run,
+                    html_output,
+                    no_html,
+                } => Commands::GoldenGen {
+                    path,
+                    output_dir,
+                    dry_run,
+                    html_output,
+                    no_html,
+                },
+                XAction::DepGraph { path, file } => Commands::DepGraph { path, file },
+                XAction::Workspace { path } => Commands::Workspace { path },
+                XAction::Docs { output } => Commands::Docs { output },
+                XAction::VulnScan { path } => Commands::VulnScan { path },
+                XAction::RefactorSim {
+                    path,
+                    scenario,
+                    json,
+                } => Commands::RefactorSim {
+                    path,
+                    scenario,
+                    json,
+                },
+                XAction::TestGen { path, write } => Commands::TestGen { path, write },
+            };
+            return run(Cli { command: legacy });
+        }
     }
 
     Ok(())
@@ -4275,10 +4553,7 @@ fn print_smells_summary(
             println!("      {}/", rel.display().to_string().bright_yellow());
         }
         if summary.dead_folders.len() > limit {
-            println!(
-                "      ... and {} more",
-                summary.dead_folders.len() - limit
-            );
+            println!("      ... and {} more", summary.dead_folders.len() - limit);
         }
         println!();
     }

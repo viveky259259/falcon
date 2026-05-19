@@ -9,6 +9,7 @@ pub mod asset_audit;
 pub mod benchmark;
 pub mod benchmark_compare;
 pub mod ci;
+pub mod cli;
 pub mod community;
 pub mod config;
 pub mod dashboard;
