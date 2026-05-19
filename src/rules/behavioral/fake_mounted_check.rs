@@ -213,12 +213,24 @@ fn if_consequent_exits(if_node: Node) -> bool {
 }
 
 /// True iff `node` is, or directly contains as a child, a return or throw.
+///
+/// In Dart's grammar `throw X;` is an `expression_statement` wrapping a
+/// `throw_expression`, so we unwrap that layer before comparing kinds.
 fn block_has_exit(node: Node) -> bool {
     if node.kind() == "return_statement"
         || node.kind() == "throw_statement"
         || node.kind() == "throw_expression"
     {
         return true;
+    }
+    // `throw X;` as a lone statement arrives as expression_statement(throw_expression).
+    if node.kind() == "expression_statement" {
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if child.kind() == "throw_expression" || child.kind() == "throw_statement" {
+                return true;
+            }
+        }
     }
     if node.kind() == "block" {
         let mut cursor = node.walk();
@@ -228,6 +240,17 @@ fn block_has_exit(node: Node) -> bool {
                 || child.kind() == "throw_expression"
             {
                 return true;
+            }
+            // Unwrap expression_statement(throw_expression) inside a block too.
+            if child.kind() == "expression_statement" {
+                let mut c2 = child.walk();
+                for grandchild in child.children(&mut c2) {
+                    if grandchild.kind() == "throw_expression"
+                        || grandchild.kind() == "throw_statement"
+                    {
+                        return true;
+                    }
+                }
             }
         }
     }
@@ -338,6 +361,25 @@ class _S extends State<W> {
         assert!(
             issues.is_empty(),
             "if (!mounted) return; is a valid early-exit guard"
+        );
+    }
+
+    #[test]
+    fn negated_mounted_with_early_throw_is_ok() {
+        let issues = run(r#"
+class _S extends State<W> {
+  Future<void> load() async {
+    if (mounted) {
+      await fetchData();
+      if (!mounted) throw StateError('disposed');
+      setState(() {});
+    }
+  }
+}
+"#);
+        assert!(
+            issues.is_empty(),
+            "if (!mounted) throw ...; is a valid early-exit guard"
         );
     }
 
