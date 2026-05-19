@@ -214,13 +214,19 @@ fn if_consequent_exits(if_node: Node) -> bool {
 
 /// True iff `node` is, or directly contains as a child, a return or throw.
 fn block_has_exit(node: Node) -> bool {
-    if node.kind() == "return_statement" {
+    if node.kind() == "return_statement"
+        || node.kind() == "throw_statement"
+        || node.kind() == "throw_expression"
+    {
         return true;
     }
     if node.kind() == "block" {
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
-            if child.kind() == "return_statement" {
+            if child.kind() == "return_statement"
+                || child.kind() == "throw_statement"
+                || child.kind() == "throw_expression"
+            {
                 return true;
             }
         }
