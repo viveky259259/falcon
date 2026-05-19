@@ -11,12 +11,68 @@ pub struct ToolDefinition {
     pub input_schema: Value,
 }
 
+/// Deprecated MCP tool names retained as aliases for one release.
+///
+/// Mapping is `(old_name, Some(new_name))` when there's a direct equivalent,
+/// or `(old_name, None)` when no canonical replacement exists (legacy callers
+/// keep working, but the tool is no longer advertised in discovery).
+pub const DEPRECATED_TOOLS: &[(&str, Option<&str>)] = &[
+    ("falcon_check_file", Some("lint_file")),
+    ("falcon_analyze", Some("review")),
+    ("falcon_explain_rule", Some("explain")),
+    ("falcon_fix", Some("fix_safe")),
+    ("falcon_ai_score", None),
+    ("falcon_conventions", None),
+    ("falcon_provenance", None),
+];
+
+/// The locked surface — exactly 5 tools advertised to clients.
 pub fn list_tools() -> Vec<ToolDefinition> {
     vec![
         ToolDefinition {
-            name: "falcon_analyze".to_string(),
-            description: "Run Falcon static analysis on a Flutter/Dart project or file. Returns issues with rule name, severity, file, line, and message.".to_string(),
+            name: "lint_file".to_string(),
+            description: "Analyze a single Dart file for lint issues. Faster than full project analysis. Use after generating or modifying code.".to_string(),
             input_schema: serde_json::json!({
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "Path to the Dart file to check"
+                    },
+                    "source": {
+                        "type": "string",
+                        "description": "Optional: Dart source code to analyze (if provided, file_path is used only for context)"
+                    }
+                },
+                "required": ["file_path"]
+            }),
+        },
+        ToolDefinition {
+            name: "lint_diff".to_string(),
+            description: "Analyze only the files changed relative to a base git ref (default: origin/main). Stubbed in this release — returns a marker indicating changed-file scoping is not yet implemented.".to_string(),
+            input_schema: serde_json::json!({
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Path to the Flutter/Dart project directory (repository root)"
+                    },
+                    "base_ref": {
+                        "type": "string",
+                        "description": "Git ref to diff against (default: origin/main)",
+                        "default": "origin/main"
+                    }
+                },
+                "required": ["path"]
+            }),
+        },
+        ToolDefinition {
+            name: "review".to_string(),
+            description: "Run Falcon static analysis on a Flutter/Dart project. Returns issues with rule name, severity, file, line, and message.".to_string(),
+            input_schema: serde_json::json!({
+                "$schema": "http://json-schema.org/draft-07/schema#",
                 "type": "object",
                 "properties": {
                     "path": {
@@ -33,41 +89,10 @@ pub fn list_tools() -> Vec<ToolDefinition> {
             }),
         },
         ToolDefinition {
-            name: "falcon_ai_score".to_string(),
-            description: "Calculate AI Code Quality Score (0-100) with 6-dimension breakdown: Resource Safety, Error Handling, Type Safety, Security, Convention Match, Complexity.".to_string(),
-            input_schema: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": "Path to the Flutter/Dart project directory"
-                    }
-                },
-                "required": ["path"]
-            }),
-        },
-        ToolDefinition {
-            name: "falcon_check_file".to_string(),
-            description: "Analyze a single Dart file for lint issues. Faster than full project analysis. Use after generating or modifying code.".to_string(),
-            input_schema: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "file_path": {
-                        "type": "string",
-                        "description": "Path to the Dart file to check"
-                    },
-                    "source": {
-                        "type": "string",
-                        "description": "Optional: Dart source code to analyze (if provided, file_path is used only for context)"
-                    }
-                },
-                "required": ["file_path"]
-            }),
-        },
-        ToolDefinition {
-            name: "falcon_explain_rule".to_string(),
+            name: "explain".to_string(),
             description: "Explain a Falcon lint rule with examples, rationale, and fix suggestions.".to_string(),
             input_schema: serde_json::json!({
+                "$schema": "http://json-schema.org/draft-07/schema#",
                 "type": "object",
                 "properties": {
                     "rule": {
@@ -79,9 +104,10 @@ pub fn list_tools() -> Vec<ToolDefinition> {
             }),
         },
         ToolDefinition {
-            name: "falcon_fix".to_string(),
-            description: "Generate auto-fix suggestions for lint issues in a project. Returns original and replacement code.".to_string(),
+            name: "fix_safe".to_string(),
+            description: "Generate auto-fix suggestions for lint issues in a project. Returns original and replacement code. Safe by default (preview-only).".to_string(),
             input_schema: serde_json::json!({
+                "$schema": "http://json-schema.org/draft-07/schema#",
                 "type": "object",
                 "properties": {
                     "path": {
@@ -97,47 +123,46 @@ pub fn list_tools() -> Vec<ToolDefinition> {
                 "required": ["path"]
             }),
         },
-        ToolDefinition {
-            name: "falcon_conventions".to_string(),
-            description: "Auto-detect team conventions (naming patterns, architecture, state management, error handling) from a Flutter project.".to_string(),
-            input_schema: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": "Path to the Flutter/Dart project directory"
-                    }
-                },
-                "required": ["path"]
-            }),
-        },
-        ToolDefinition {
-            name: "falcon_provenance".to_string(),
-            description: "Analyze code provenance — detect AI-generated vs human-written vs code-generated files.".to_string(),
-            input_schema: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": "Path to the Flutter/Dart project directory"
-                    }
-                },
-                "required": ["path"]
-            }),
-        },
     ]
 }
 
 /// Execute a tool by name with the given arguments.
+///
+/// Accepts both the new canonical names and the deprecated old names. When an
+/// old name is used we log a deprecation warning and route to the same handler.
 pub fn execute_tool(name: &str, args: &Value) -> Result<Value, String> {
+    // Deprecation routing: log + map old name to handler.
+    if let Some((_, new_opt)) = DEPRECATED_TOOLS.iter().find(|(old, _)| *old == name) {
+        match new_opt {
+            Some(new) => log::warn!(
+                "deprecated MCP tool name '{}' \u{2014} use '{}'",
+                name,
+                new
+            ),
+            None => log::warn!(
+                "deprecated MCP tool name '{}' \u{2014} no canonical replacement; this tool will be removed in a future release",
+                name
+            ),
+        }
+    }
+
     match name {
-        "falcon_analyze" => execute_analyze(args),
-        "falcon_ai_score" => execute_ai_score(args),
+        // New canonical names.
+        "lint_file" => execute_check_file(args),
+        "lint_diff" => execute_lint_diff(args),
+        "review" => execute_analyze(args),
+        "explain" => execute_explain_rule(args),
+        "fix_safe" => execute_fix(args),
+
+        // Backward-compat aliases (still dispatchable, not in list_tools()).
         "falcon_check_file" => execute_check_file(args),
+        "falcon_analyze" => execute_analyze(args),
         "falcon_explain_rule" => execute_explain_rule(args),
         "falcon_fix" => execute_fix(args),
+        "falcon_ai_score" => execute_ai_score(args),
         "falcon_conventions" => execute_conventions(args),
         "falcon_provenance" => execute_provenance(args),
+
         _ => Err(format!("Unknown tool: {}", name)),
     }
 }
@@ -350,4 +375,167 @@ fn execute_provenance(args: &Value) -> Result<Value, String> {
         "unknown_files": summary.unknown_files,
         "ai_percentage": summary.ai_percentage
     }))
+}
+
+/// Stub handler for `lint_diff`. Changed-file scoping (`git diff base_ref...HEAD`)
+/// is intentionally not implemented yet — the tool is reserved in the surface
+/// so client schemas don't churn when we land it.
+fn execute_lint_diff(args: &Value) -> Result<Value, String> {
+    let path = get_string_arg(args, "path")?;
+    let base_ref = args
+        .get("base_ref")
+        .and_then(|v| v.as_str())
+        .unwrap_or("origin/main")
+        .to_string();
+
+    Ok(serde_json::json!({
+        "path": path,
+        "base_ref": base_ref,
+        "not_yet_implemented_changed_file_scoping": true,
+        "message": "lint_diff is reserved in the MCP surface; changed-file scoping ships in a follow-up. Use 'review' for now.",
+        "issues": []
+    }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    /// The 5 canonical tool names — locked surface.
+    const CANONICAL_TOOLS: &[&str] = &["lint_file", "lint_diff", "review", "explain", "fix_safe"];
+
+    #[test]
+    fn list_tools_returns_exactly_five() {
+        let tools = list_tools();
+        assert_eq!(
+            tools.len(),
+            5,
+            "MCP surface must be exactly 5 tools, got {}",
+            tools.len()
+        );
+        let names: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
+        for canon in CANONICAL_TOOLS {
+            assert!(
+                names.contains(canon),
+                "missing canonical tool '{}' in list_tools()",
+                canon
+            );
+        }
+        // No old names should appear in discovery.
+        for (old, _) in DEPRECATED_TOOLS {
+            assert!(
+                !names.contains(old),
+                "deprecated tool '{}' must not appear in list_tools()",
+                old
+            );
+        }
+    }
+
+    #[test]
+    fn list_tools_have_valid_input_schemas() {
+        for tool in list_tools() {
+            let schema = &tool.input_schema;
+            assert_eq!(
+                schema.get("type").and_then(|v| v.as_str()),
+                Some("object"),
+                "tool '{}' inputSchema must have type=object",
+                tool.name
+            );
+            assert!(
+                schema.get("properties").is_some(),
+                "tool '{}' inputSchema must declare properties",
+                tool.name
+            );
+        }
+    }
+
+    #[test]
+    fn canonical_names_are_dispatchable() {
+        // Use intentionally-bad args so handlers exit early without doing work.
+        // We only assert that we DO NOT get the "Unknown tool" error path.
+        for name in CANONICAL_TOOLS {
+            let result = execute_tool(name, &json!({}));
+            if let Err(e) = &result {
+                assert!(
+                    !e.starts_with("Unknown tool"),
+                    "canonical tool '{}' returned Unknown tool error: {}",
+                    name,
+                    e
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn deprecated_names_still_dispatchable() {
+        for (old, _) in DEPRECATED_TOOLS {
+            let result = execute_tool(old, &json!({}));
+            if let Err(e) = &result {
+                assert!(
+                    !e.starts_with("Unknown tool"),
+                    "deprecated tool '{}' must remain dispatchable (alias path), got: {}",
+                    old,
+                    e
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn unknown_tool_returns_clear_error() {
+        let result = execute_tool("totally_made_up_tool", &json!({}));
+        match result {
+            Err(e) => assert!(
+                e.starts_with("Unknown tool"),
+                "expected 'Unknown tool' prefix, got: {}",
+                e
+            ),
+            Ok(v) => panic!("expected error for unknown tool, got Ok({:?})", v),
+        }
+    }
+
+    #[test]
+    fn lint_diff_stub_contains_marker() {
+        let result = execute_tool(
+            "lint_diff",
+            &json!({ "path": "/tmp/anywhere", "base_ref": "origin/main" }),
+        )
+        .expect("lint_diff stub should not error on valid args");
+
+        assert_eq!(
+            result.get("not_yet_implemented_changed_file_scoping"),
+            Some(&json!(true)),
+            "lint_diff stub must include the documented marker field"
+        );
+        assert_eq!(result.get("base_ref"), Some(&json!("origin/main")));
+        assert_eq!(result.get("path"), Some(&json!("/tmp/anywhere")));
+    }
+
+    #[test]
+    fn lint_diff_defaults_base_ref() {
+        let result = execute_tool("lint_diff", &json!({ "path": "/tmp/anywhere" })).expect("ok");
+        assert_eq!(result.get("base_ref"), Some(&json!("origin/main")));
+    }
+
+    #[test]
+    fn deprecated_tools_table_covers_all_old_names() {
+        // Sanity: every old name must have an entry in DEPRECATED_TOOLS.
+        let old_names: Vec<&str> = DEPRECATED_TOOLS.iter().map(|(o, _)| *o).collect();
+        for expected in &[
+            "falcon_check_file",
+            "falcon_analyze",
+            "falcon_explain_rule",
+            "falcon_fix",
+            "falcon_ai_score",
+            "falcon_conventions",
+            "falcon_provenance",
+        ] {
+            assert!(
+                old_names.contains(expected),
+                "DEPRECATED_TOOLS missing entry for '{}'",
+                expected
+            );
+        }
+    }
 }
