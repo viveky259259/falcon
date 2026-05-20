@@ -143,7 +143,11 @@ void main() {
   }
 }
 "#);
-        assert_eq!(issues.len(), 1, "empty body after typed on-clause should fire");
+        assert_eq!(
+            issues.len(),
+            1,
+            "empty body after typed on-clause should fire"
+        );
     }
 
     // ---- negatives -------------------------------------------------------
@@ -178,5 +182,96 @@ void main() {
 void main() { print('hi'); }
 "#);
         assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn typed_on_clause_with_handler_is_ok() {
+        // `on FormatException catch (e)` with a non-empty body must NOT fire.
+        let issues = run(r#"
+void main() {
+  try {
+    doIt();
+  } on FormatException catch (e) {
+    log(e.toString());
+  }
+}
+"#);
+        assert!(
+            issues.is_empty(),
+            "typed on-clause with handler must not be flagged"
+        );
+    }
+
+    #[test]
+    fn catch_with_stacktrace_param_empty_is_flagged() {
+        // `catch (e, st)` with stacktrace param, empty body — still silent.
+        let issues = run(r#"
+void main() {
+  try {
+    doIt();
+  } catch (e, st) {}
+}
+"#);
+        assert_eq!(
+            issues.len(),
+            1,
+            "catch with stacktrace parameter and empty body should fire"
+        );
+    }
+
+    #[test]
+    fn catch_with_stacktrace_param_with_handler_is_ok() {
+        let issues = run(r#"
+void main() {
+  try {
+    doIt();
+  } catch (e, st) {
+    log(e.toString(), stackTrace: st);
+  }
+}
+"#);
+        assert!(
+            issues.is_empty(),
+            "catch (e, st) with body must not be flagged"
+        );
+    }
+
+    #[test]
+    fn nested_try_only_innermost_empty_catch_flagged() {
+        // Outer catch logs; inner catch is empty.  Only the inner should fire.
+        let issues = run(r#"
+void main() {
+  try {
+    try {
+      doInner();
+    } catch (e) {}
+  } catch (e) {
+    log(e.toString());
+  }
+}
+"#);
+        assert_eq!(
+            issues.len(),
+            1,
+            "only the innermost empty catch should be flagged"
+        );
+    }
+
+    #[test]
+    fn catch_body_with_single_return_is_not_flagged() {
+        // A `return;` is a deliberate handling action, not a silent swallow.
+        let issues = run(r#"
+int? maybeParse(String s) {
+  try {
+    return int.parse(s);
+  } catch (e) {
+    return null;
+  }
+}
+"#);
+        assert!(
+            issues.is_empty(),
+            "catch whose body is a return statement is handling the error"
+        );
     }
 }

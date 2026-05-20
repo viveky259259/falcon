@@ -159,3 +159,65 @@ fn test_flutter_fixture_rules() {
 
     assert!(!issues.is_empty(), "Flutter fixture should trigger rules");
 }
+
+/// End-to-end smoke test: feed a single representative Dart file containing
+/// multiple intentionally-bad patterns through the full default rule registry
+/// and assert that several distinct rule families fire.  This pins down the
+/// registry's ability to dispatch many rules over the same source in one pass.
+#[test]
+fn test_registry_pipeline_hits_multiple_rules() {
+    let source = r#"
+// Representative Dart file exercising several rule categories at once.
+
+const apiKey = 'sk_live_real_lookin_key_123';
+
+dynamic globalConfig;
+
+void load() {
+  try {
+    fetchSomething();
+  } catch (e) {}
+}
+
+class _MyWidgetState extends State<MyWidget> {
+  final TextEditingController controller = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    print('rebuilding');
+    return Container();
+  }
+}
+"#;
+
+    let config = FalconConfig::default();
+    let issues = parse_and_check(source, &config);
+
+    let rule_names: std::collections::HashSet<&str> =
+        issues.iter().map(|i| i.rule.as_str()).collect();
+
+    // We don't pin down the exact count (rules evolve), but the registry
+    // pipeline must surface at least these distinct families.
+    let expected_rules = [
+        "avoid-hardcoded-credentials",
+        "avoid-empty-catch",
+        "avoid-dynamic",
+        "ensure-dispose-lifecycle",
+    ];
+    for rule in &expected_rules {
+        assert!(
+            rule_names.contains(rule),
+            "Expected rule '{}' to fire on the representative fixture. Got: {:?}",
+            rule,
+            rule_names
+        );
+    }
+
+    // And the total should be > 3, proving multiple checks ran in one pass.
+    assert!(
+        issues.len() >= expected_rules.len(),
+        "Expected at least {} issues across distinct rules, got {}",
+        expected_rules.len(),
+        issues.len()
+    );
+}

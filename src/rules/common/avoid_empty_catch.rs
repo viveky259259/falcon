@@ -84,3 +84,56 @@ fn is_print_only(inner: &str) -> bool {
     let trimmed = inner.trim().trim_end_matches(';').trim();
     trimmed.starts_with("print(") && !trimmed.contains('\n')
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::DartParser;
+    use std::path::PathBuf;
+
+    fn run(source: &str) -> Vec<Issue> {
+        let rule = AvoidEmptyCatch;
+        let mut parser = DartParser::new().unwrap();
+        let tree = parser.parse(source).unwrap();
+        rule.check(tree.root_node(), source, &PathBuf::from("lib/foo.dart"))
+    }
+
+    #[test]
+    fn empty_catch_is_flagged() {
+        let issues = run(r#"
+void main() {
+  try { doIt(); } catch (e) {}
+}
+"#);
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].rule, "avoid-empty-catch");
+    }
+
+    #[test]
+    fn print_only_catch_is_flagged() {
+        let issues = run(r#"
+void main() {
+  try { doIt(); } catch (e) { print(e); }
+}
+"#);
+        assert_eq!(issues.len(), 1, "print-only catch should be flagged");
+        assert!(issues[0].message.contains("only prints"));
+    }
+
+    #[test]
+    fn catch_with_logger_is_ok() {
+        let issues = run(r#"
+void main() {
+  try {
+    doIt();
+  } catch (e) {
+    logger.error('boom', e);
+  }
+}
+"#);
+        assert!(
+            issues.is_empty(),
+            "non-print, non-empty catch must not be flagged"
+        );
+    }
+}

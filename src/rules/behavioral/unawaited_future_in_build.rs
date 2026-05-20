@@ -113,12 +113,7 @@ fn scan_body(body: Node, source: &str, file: &Path, issues: &mut Vec<Issue>) {
     }
 }
 
-fn walk_for_expression_statements(
-    node: Node,
-    source: &str,
-    file: &Path,
-    issues: &mut Vec<Issue>,
-) {
+fn walk_for_expression_statements(node: Node, source: &str, file: &Path, issues: &mut Vec<Issue>) {
     let kind = node.kind();
     // Skip nested closure bodies — their contents execute asynchronously,
     // not during the build call itself.
@@ -268,7 +263,10 @@ class Foo extends StatelessWidget {
   }
 }
 "#);
-        assert!(issues.is_empty(), "unawaited(...) wrapper must not be flagged");
+        assert!(
+            issues.is_empty(),
+            "unawaited(...) wrapper must not be flagged"
+        );
     }
 
     #[test]
@@ -303,5 +301,56 @@ class Foo extends StatelessWidget {
             issues.is_empty(),
             "Future inside a nested closure must NOT be flagged"
         );
+    }
+
+    #[test]
+    fn future_wait_in_build_is_flagged() {
+        // Future.wait is a common pattern AI emits when "loading multiple things".
+        let issues = run(r#"
+class Foo extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    Future.wait([fetchA(), fetchB()]);
+    return SizedBox();
+  }
+}
+"#);
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].rule, "unawaited-future-in-build");
+    }
+
+    #[test]
+    fn future_in_initstate_is_ok() {
+        // initState is the canonical correct location for kicking off async work.
+        let issues = run(r#"
+class _S extends State<W> {
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(Duration(seconds: 1));
+  }
+
+  @override
+  Widget build(BuildContext context) => Container();
+}
+"#);
+        assert!(
+            issues.is_empty(),
+            "rule must only fire inside build(), not initState()"
+        );
+    }
+
+    #[test]
+    fn catch_error_chain_in_build_is_flagged() {
+        let issues = run(r#"
+class Foo extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    fetchData().catchError((e) => print(e));
+    return SizedBox();
+  }
+}
+"#);
+        assert_eq!(issues.len(), 1);
     }
 }
