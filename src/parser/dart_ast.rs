@@ -158,3 +158,93 @@ pub fn get_class_methods(node: Node) -> Vec<Node> {
     }
     methods
 }
+
+#[cfg(test)]
+mod tests {
+    //! Helper coverage for AST classification predicates and name extraction.
+    use super::*;
+    use crate::parser::{find_descendants_by_kind, DartParser};
+
+    fn parse(src: &str) -> tree_sitter::Tree {
+        let mut p = DartParser::new().unwrap();
+        p.parse(src).unwrap()
+    }
+
+    #[test]
+    fn classification_predicates_split_class_like_and_function_like() {
+        let src = r#"
+            class C {}
+            enum E { a, b }
+            mixin M {}
+            extension X on String { void foo() {} }
+            int top() => 1;
+        "#;
+        let tree = parse(src);
+        let root = tree.root_node();
+
+        for kind in [
+            "class_declaration",
+            "enum_declaration",
+            "mixin_declaration",
+            "extension_declaration",
+        ] {
+            for n in find_descendants_by_kind(root, kind) {
+                assert!(is_class_like(n), "{} should be class-like", kind);
+                assert!(is_declaration(n), "{} should be a declaration", kind);
+                assert!(!is_function_like(n), "{} should NOT be function-like", kind);
+            }
+        }
+
+        let fns = find_descendants_by_kind(root, "function_signature");
+        assert!(!fns.is_empty(), "expected at least one function_signature");
+        for n in fns {
+            assert!(is_function_like(n));
+            assert!(!is_class_like(n));
+        }
+    }
+
+    #[test]
+    fn get_declaration_name_extracts_class_name_and_handles_anonymous() {
+        let src = "class Widget {} void main() { { } }";
+        let tree = parse(src);
+        let root = tree.root_node();
+
+        let class = find_descendants_by_kind(root, "class_declaration")
+            .into_iter()
+            .next()
+            .expect("class_declaration");
+        assert_eq!(get_declaration_name(class, src), Some("Widget"));
+
+        // A `block` has no identifier child, so name extraction returns None.
+        let blocks = find_descendants_by_kind(root, "block");
+        assert!(!blocks.is_empty());
+        for b in blocks {
+            assert!(get_declaration_name(b, src).is_none());
+        }
+    }
+
+    #[test]
+    fn function_param_and_class_method_helpers_agree_with_grammar() {
+        // Two-arg function → two formal parameters.
+        let src1 = "int add(int a, int b) => a + b;";
+        let tree1 = parse(src1);
+        let sig = find_descendants_by_kind(tree1.root_node(), "function_signature")
+            .into_iter()
+            .next()
+            .expect("function_signature");
+        assert_eq!(get_function_parameters(sig).len(), 2);
+
+        // `class A` has two methods (`m`, `n`); `field` must NOT be counted.
+        let src2 = "class A { void m() {} int n(int x) => x; int field = 0; }";
+        let tree2 = parse(src2);
+        let class = find_descendants_by_kind(tree2.root_node(), "class_declaration")
+            .into_iter()
+            .next()
+            .unwrap();
+        let methods = get_class_methods(class);
+        assert!(methods.len() >= 2, "got {}", methods.len());
+        for m in methods {
+            assert!(is_function_like(m));
+        }
+    }
+}

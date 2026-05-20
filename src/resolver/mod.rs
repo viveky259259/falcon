@@ -274,3 +274,85 @@ fn parse_pubspec_dependencies(content: &str) -> Vec<String> {
     deps.retain(|d| d != "flutter" && d != "flutter_test" && d != "flutter_localizations");
     deps
 }
+
+#[cfg(test)]
+mod tests {
+    //! Foundation coverage for the project-level resolver. The richer name /
+    //! import resolver described in the EPIC 3.1 council spec is not yet
+    //! implemented; once it lands these tests will be extended (or moved).
+    use super::*;
+    use crate::config::FalconConfig;
+
+    #[test]
+    fn extract_import_uri_handles_single_quoted_strings() {
+        assert_eq!(
+            extract_import_uri("import 'package:foo/foo.dart';"),
+            Some("package:foo/foo.dart".to_string())
+        );
+        assert_eq!(
+            extract_import_uri("export 'src/api.dart';"),
+            Some("src/api.dart".to_string())
+        );
+        // Missing quotes → None, no panic.
+        assert_eq!(extract_import_uri("import dart:async;"), None);
+    }
+
+    #[test]
+    fn extract_package_name_pulls_package_from_uri() {
+        assert_eq!(
+            extract_package_name("import 'package:flutter/material.dart';"),
+            Some("flutter".to_string())
+        );
+        assert_eq!(
+            extract_package_name("import 'package:my_pkg/src/x.dart';"),
+            Some("my_pkg".to_string())
+        );
+        // A non-package import returns None.
+        assert_eq!(extract_package_name("import 'dart:async';"), None);
+        // No slash after `package:` → cannot determine name → None.
+        assert_eq!(extract_package_name("package:flutter"), None);
+    }
+
+    #[test]
+    fn parse_pubspec_dependencies_lists_top_level_deps_only() {
+        let pubspec = r#"
+name: demo
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.0.0
+  provider: ^6.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  beta: ^2.0.0
+"#;
+        let deps = parse_pubspec_dependencies(pubspec);
+        // Top-level deps included; flutter/flutter_test filtered; dev_deps NOT
+        // parsed (we stop at the next section).
+        assert!(deps.contains(&"http".to_string()), "got: {:?}", deps);
+        assert!(deps.contains(&"provider".to_string()));
+        assert!(!deps.contains(&"flutter".to_string()));
+        assert!(!deps.contains(&"flutter_test".to_string()));
+        assert!(
+            !deps.contains(&"beta".to_string()),
+            "must stop at next section; got {:?}",
+            deps
+        );
+    }
+
+    #[test]
+    fn project_resolver_new_handles_empty_directory() {
+        // Constructibility smoke: ProjectResolver should walk an empty dir
+        // without error and surface zero Dart files.
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let cfg = FalconConfig::default();
+        let r = ProjectResolver::new(tmp.path(), &cfg).expect("new should succeed");
+        assert!(r.dart_files.is_empty());
+        // find_unused_dependencies returns Ok([]) when there is no pubspec.
+        let issues = r.find_unused_dependencies().expect("no pubspec is fine");
+        assert!(issues.is_empty());
+    }
+}
