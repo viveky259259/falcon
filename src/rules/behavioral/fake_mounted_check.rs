@@ -342,7 +342,10 @@ class _S extends State<W> {
   }
 }
 "#);
-        assert!(issues.is_empty(), "no await means no async gap to worry about");
+        assert!(
+            issues.is_empty(),
+            "no await means no async gap to worry about"
+        );
     }
 
     #[test]
@@ -402,6 +405,68 @@ class _S extends State<W> {
             issues.len(),
             1,
             "if (!mounted) without early exit does not satisfy the re-check"
+        );
+    }
+
+    #[test]
+    fn nested_mounted_recheck_inside_re_guarded_block_is_ok() {
+        // Canonical pattern: outer if(mounted) → await → inner if(mounted) { setState }.
+        // This is the EXACT shape the rule was designed to bless.
+        let issues = run(r#"
+class _S extends State<W> {
+  Future<void> load() async {
+    if (mounted) {
+      await fetchData();
+      if (mounted) {
+        setState(() {});
+      }
+    }
+  }
+}
+"#);
+        assert!(
+            issues.is_empty(),
+            "outer mounted + post-await mounted re-check is correct"
+        );
+    }
+
+    #[test]
+    fn early_negated_mounted_return_before_setstate_is_ok() {
+        // `if (!mounted) return;` as a guard immediately after await is the
+        // most idiomatic correct pattern; it must never be flagged.
+        let issues = run(r#"
+class _S extends State<W> {
+  Future<void> load() async {
+    if (mounted) {
+      await fetchData();
+      if (!mounted) return;
+      setState(() {});
+    }
+  }
+}
+"#);
+        assert!(
+            issues.is_empty(),
+            "early-out `if (!mounted) return;` is the correct shape"
+        );
+    }
+
+    #[test]
+    fn no_mounted_check_at_all_is_not_flagged() {
+        // The rule narrowly targets the *fake* mounted check.  Methods that
+        // never wrap in if (mounted) at all are out of scope here (other rules
+        // catch them).
+        let issues = run(r#"
+class _S extends State<W> {
+  Future<void> load() async {
+    await fetchData();
+    setState(() {});
+  }
+}
+"#);
+        assert!(
+            issues.is_empty(),
+            "method with no outer if(mounted) should not be flagged by this rule"
         );
     }
 }

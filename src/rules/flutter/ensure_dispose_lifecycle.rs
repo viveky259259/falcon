@@ -83,3 +83,71 @@ impl Rule for EnsureDisposeLifecycle {
         issues
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::DartParser;
+    use std::path::PathBuf;
+
+    fn run(source: &str) -> Vec<Issue> {
+        let rule = EnsureDisposeLifecycle;
+        let mut parser = DartParser::new().unwrap();
+        let tree = parser.parse(source).unwrap();
+        rule.check(tree.root_node(), source, &PathBuf::from("lib/foo.dart"))
+    }
+
+    #[test]
+    fn controller_without_dispose_is_flagged() {
+        let issues = run(r#"
+class _S extends State<W> {
+  final TextEditingController controller = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) => Container();
+}
+"#);
+        assert!(
+            !issues.is_empty(),
+            "controller without dispose() should be flagged"
+        );
+        assert_eq!(issues[0].rule, "ensure-dispose-lifecycle");
+        assert!(issues[0].message.contains("TextEditingController"));
+    }
+
+    #[test]
+    fn controller_with_dispose_is_ok() {
+        let issues = run(r#"
+class _S extends State<W> {
+  final TextEditingController controller = TextEditingController();
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Container();
+}
+"#);
+        assert!(
+            issues.is_empty(),
+            "State that overrides dispose() must not be flagged"
+        );
+    }
+
+    #[test]
+    fn non_state_class_with_controller_is_not_flagged() {
+        // Plain class — rule only applies to State<...> subclasses.
+        let issues = run(r#"
+class Service {
+  final TextEditingController controller = TextEditingController();
+}
+"#);
+        assert!(
+            issues.is_empty(),
+            "non-State class is out of scope for ensure-dispose-lifecycle"
+        );
+    }
+}
