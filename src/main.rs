@@ -235,6 +235,21 @@ enum Commands {
         /// POST a JSON summary to this webhook URL when errors are found
         #[arg(long)]
         webhook: Option<String>,
+
+        /// Live monitor interval in seconds (memory + issue snapshots).
+        /// Min 5, max 600, default 30.
+        #[arg(
+            long,
+            default_value_t = falcon::flutter_run::monitor::DEFAULT_MONITOR_INTERVAL_SECS,
+            value_parser = clap::value_parser!(u64)
+                .range(falcon::flutter_run::monitor::MIN_MONITOR_INTERVAL_SECS
+                    ..=falcon::flutter_run::monitor::MAX_MONITOR_INTERVAL_SECS),
+        )]
+        monitor_interval: u64,
+
+        /// Disable the live memory / issues monitor entirely
+        #[arg(long)]
+        no_monitor: bool,
     },
 
     /// Proxy to the Flutter SDK — exposes every `flutter` subcommand (run, build, test, pub, doctor, …)
@@ -2186,6 +2201,8 @@ fn run(cli: Cli) -> Result<()> {
             flavor,
             notify,
             webhook,
+            monitor_interval,
+            no_monitor,
         } => {
             // Resolve output_dir relative to path when it is the default "."
             let resolved_output = if output_dir == PathBuf::from(".") {
@@ -2201,6 +2218,8 @@ fn run(cli: Cli) -> Result<()> {
                 flavor,
                 notify,
                 webhook,
+                monitor_interval: std::time::Duration::from_secs(monitor_interval),
+                monitor_enabled: !no_monitor,
             };
 
             let report = falcon::flutter_run::run_flutter_app(&config)?;
