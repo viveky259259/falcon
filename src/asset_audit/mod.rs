@@ -1019,6 +1019,46 @@ fn extract_rgb(hex: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    // ── helpers ────────────────────────────────────────────────────────────────
+
+    fn make_file(dir: &Path, rel: &str, content: &[u8]) {
+        let full = dir.join(rel);
+        if let Some(parent) = full.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        let mut f = fs::File::create(&full).unwrap();
+        f.write_all(content).unwrap();
+    }
+
+    // ── AuditConfig::default ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_audit_config_default_threshold() {
+        let cfg = AuditConfig::default();
+        assert_eq!(cfg.oversized_threshold_bytes, 200 * 1024);
+    }
+
+    #[test]
+    fn test_audit_config_default_image_extensions() {
+        let cfg = AuditConfig::default();
+        assert!(cfg.image_extensions.contains(&"png"));
+        assert!(cfg.image_extensions.contains(&"jpg"));
+        assert!(cfg.image_extensions.contains(&"svg"));
+        assert!(cfg.image_extensions.contains(&"webp"));
+    }
+
+    #[test]
+    fn test_audit_config_default_webp_candidates() {
+        let cfg = AuditConfig::default();
+        assert!(cfg.webp_conversion_candidates.contains(&"png"));
+        assert!(cfg.webp_conversion_candidates.contains(&"jpg"));
+        assert!(cfg.webp_conversion_candidates.contains(&"jpeg"));
+    }
+
+    // ── AssetSeverity methods ─────────────────────────────────────────────────
 
     #[test]
     fn test_asset_severity_ordering() {
@@ -1027,11 +1067,151 @@ mod tests {
     }
 
     #[test]
+    fn test_asset_severity_score_deduction() {
+        assert_eq!(AssetSeverity::Info.score_deduction(), 2);
+        assert_eq!(AssetSeverity::Warning.score_deduction(), 5);
+        assert_eq!(AssetSeverity::Error.score_deduction(), 10);
+    }
+
+    #[test]
+    fn test_asset_severity_color_name() {
+        assert_eq!(AssetSeverity::Info.color_name(), "blue");
+        assert_eq!(AssetSeverity::Warning.color_name(), "yellow");
+        assert_eq!(AssetSeverity::Error.color_name(), "red");
+    }
+
+    #[test]
+    fn test_asset_severity_symbol() {
+        assert_eq!(AssetSeverity::Info.symbol(), "ℹ");
+        assert_eq!(AssetSeverity::Warning.symbol(), "⚠");
+        assert_eq!(AssetSeverity::Error.symbol(), "✕");
+    }
+
+    #[test]
+    fn test_asset_severity_equality() {
+        assert_eq!(AssetSeverity::Info, AssetSeverity::Info);
+        assert_ne!(AssetSeverity::Info, AssetSeverity::Warning);
+    }
+
+    // ── format_bytes ──────────────────────────────────────────────────────────
+
+    #[test]
     fn test_format_bytes() {
         assert_eq!(format_bytes(512), "512 B");
         assert_eq!(format_bytes(1024), "1.0 KB");
         assert_eq!(format_bytes(1024 * 1024), "1.0 MB");
     }
+
+    #[test]
+    fn test_format_bytes_zero() {
+        assert_eq!(format_bytes(0), "0 B");
+    }
+
+    #[test]
+    fn test_format_bytes_boundary_kb() {
+        // 1023 bytes is still in B range
+        assert!(format_bytes(1023).ends_with(" B"));
+        // 1024 bytes is exactly 1.0 KB
+        assert_eq!(format_bytes(1024), "1.0 KB");
+    }
+
+    #[test]
+    fn test_format_bytes_large_mb() {
+        let result = format_bytes(5 * 1024 * 1024);
+        assert!(result.contains("MB"));
+        assert!(result.contains("5.0"));
+    }
+
+    #[test]
+    fn test_format_bytes_fractional_kb() {
+        // 1536 bytes = 1.5 KB
+        let result = format_bytes(1536);
+        assert!(result.contains("KB"));
+        assert!(result.contains("1.5"));
+    }
+
+    // ── format_score ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_format_score_green() {
+        let score = format_score(95);
+        assert!(score.contains("95"));
+    }
+
+    #[test]
+    fn test_format_score_yellow() {
+        let score = format_score(75);
+        assert!(score.contains("75"));
+    }
+
+    #[test]
+    fn test_format_score_red() {
+        let score = format_score(50);
+        assert!(score.contains("50"));
+    }
+
+    #[test]
+    fn test_format_score_boundary_90() {
+        // 90 is the lower bound for green
+        let score = format_score(90);
+        assert!(score.contains("90"));
+    }
+
+    #[test]
+    fn test_format_score_boundary_70() {
+        // 70 is the lower bound for yellow
+        let score = format_score(70);
+        assert!(score.contains("70"));
+    }
+
+    #[test]
+    fn test_format_score_zero() {
+        let score = format_score(0);
+        assert!(score.contains("0"));
+    }
+
+    #[test]
+    fn test_format_score_100() {
+        let score = format_score(100);
+        assert!(score.contains("100"));
+    }
+
+    // ── extract_rgb ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_extract_rgb_green() {
+        assert_eq!(extract_rgb("#10b981"), "16, 185, 129");
+    }
+
+    #[test]
+    fn test_extract_rgb_without_hash() {
+        assert_eq!(extract_rgb("ff0000"), "255, 0, 0");
+    }
+
+    #[test]
+    fn test_extract_rgb_black() {
+        assert_eq!(extract_rgb("#000000"), "0, 0, 0");
+    }
+
+    #[test]
+    fn test_extract_rgb_white() {
+        assert_eq!(extract_rgb("#ffffff"), "255, 255, 255");
+    }
+
+    #[test]
+    fn test_extract_rgb_invalid_falls_back() {
+        // Non-6-char hex falls back to the default purple
+        let result = extract_rgb("#abc");
+        assert_eq!(result, "99, 102, 241");
+    }
+
+    #[test]
+    fn test_extract_rgb_empty_falls_back() {
+        let result = extract_rgb("");
+        assert_eq!(result, "99, 102, 241");
+    }
+
+    // ── extract_asset_references ──────────────────────────────────────────────
 
     #[test]
     fn test_extract_asset_references() {
@@ -1055,20 +1235,618 @@ mod tests {
     }
 
     #[test]
-    fn test_format_score_green() {
-        let score = format_score(95);
-        assert!(score.contains("95"));
+    fn test_extract_asset_references_multiple_on_same_line() {
+        let mut referenced = HashSet::new();
+        extract_asset_references(
+            "var a = 'assets/a.png'; var b = 'assets/b.png';",
+            &mut referenced,
+        );
+        assert!(referenced.contains(&PathBuf::from("assets/a.png")));
+        assert!(referenced.contains(&PathBuf::from("assets/b.png")));
     }
 
     #[test]
-    fn test_format_score_yellow() {
-        let score = format_score(75);
-        assert!(score.contains("75"));
+    fn test_extract_asset_references_escape_sequence() {
+        // An escaped backslash inside a string should not break parsing
+        let mut referenced = HashSet::new();
+        extract_asset_references(r"var x = 'assets/img\\test.png';", &mut referenced);
+        // The path is collected (backslash is part of the string)
+        assert!(!referenced.is_empty());
     }
 
     #[test]
-    fn test_format_score_red() {
-        let score = format_score(50);
-        assert!(score.contains("50"));
+    fn test_extract_asset_references_empty_string_ignored() {
+        let mut referenced = HashSet::new();
+        extract_asset_references("var x = '';", &mut referenced);
+        assert!(referenced.is_empty());
+    }
+
+    #[test]
+    fn test_extract_asset_references_non_asset_string_ignored() {
+        let mut referenced = HashSet::new();
+        extract_asset_references("var x = 'images/logo.png';", &mut referenced);
+        // Does NOT start with 'assets/' so should be ignored
+        assert!(referenced.is_empty());
+    }
+
+    // ── parse_pubspec_assets ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_parse_pubspec_assets_no_pubspec() {
+        let dir = TempDir::new().unwrap();
+        let result = parse_pubspec_assets(dir.path()).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_parse_pubspec_assets_with_assets() {
+        let dir = TempDir::new().unwrap();
+        let pubspec = "name: myapp\nflutter:\n  assets:\n    - assets/logo.png\n    - assets/icon.png\n";
+        make_file(dir.path(), "pubspec.yaml", pubspec.as_bytes());
+        let result = parse_pubspec_assets(dir.path()).unwrap();
+        assert!(result.contains(&PathBuf::from("assets/logo.png")));
+        assert!(result.contains(&PathBuf::from("assets/icon.png")));
+    }
+
+    #[test]
+    fn test_parse_pubspec_assets_empty_assets_section() {
+        let dir = TempDir::new().unwrap();
+        let pubspec = "name: myapp\nflutter:\n  uses-material-design: true\n";
+        make_file(dir.path(), "pubspec.yaml", pubspec.as_bytes());
+        let result = parse_pubspec_assets(dir.path()).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_parse_pubspec_assets_comment_lines_skipped() {
+        let dir = TempDir::new().unwrap();
+        let pubspec =
+            "name: myapp\nflutter:\n  assets:\n    # a comment\n    - assets/real.png\n";
+        make_file(dir.path(), "pubspec.yaml", pubspec.as_bytes());
+        let result = parse_pubspec_assets(dir.path()).unwrap();
+        assert!(result.contains(&PathBuf::from("assets/real.png")));
+        // Comment lines should not produce paths
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_pubspec_assets_section_ends_at_non_dash_line() {
+        let dir = TempDir::new().unwrap();
+        // After the assets section ends we have another key
+        let pubspec =
+            "name: myapp\nflutter:\n  assets:\n    - assets/img.png\n  uses-material-design: true\n";
+        make_file(dir.path(), "pubspec.yaml", pubspec.as_bytes());
+        let result = parse_pubspec_assets(dir.path()).unwrap();
+        assert!(result.contains(&PathBuf::from("assets/img.png")));
+        assert_eq!(result.len(), 1);
+    }
+
+    // ── collect_assets ────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_collect_assets_finds_png() {
+        let dir = TempDir::new().unwrap();
+        make_file(dir.path(), "assets/logo.png", b"\x89PNG\r\n\x1a\n");
+        let cfg = AuditConfig::default();
+        let assets = collect_assets(dir.path(), &cfg).unwrap();
+        assert!(!assets.is_empty());
+        let names: Vec<_> = assets.iter().map(|(p, _)| p.to_string_lossy().to_string()).collect();
+        assert!(names.iter().any(|n| n.contains("logo.png")));
+    }
+
+    #[test]
+    fn test_collect_assets_skips_build_dir() {
+        let dir = TempDir::new().unwrap();
+        make_file(dir.path(), "build/outputs/logo.png", b"\x89PNG");
+        let cfg = AuditConfig::default();
+        let assets = collect_assets(dir.path(), &cfg).unwrap();
+        // File inside /build/ must be excluded
+        assert!(assets.is_empty());
+    }
+
+    #[test]
+    fn test_collect_assets_skips_git_dir() {
+        let dir = TempDir::new().unwrap();
+        make_file(dir.path(), ".git/objects/logo.png", b"\x89PNG");
+        let cfg = AuditConfig::default();
+        let assets = collect_assets(dir.path(), &cfg).unwrap();
+        assert!(assets.is_empty());
+    }
+
+    #[test]
+    fn test_collect_assets_ignores_dart_files() {
+        let dir = TempDir::new().unwrap();
+        make_file(dir.path(), "lib/main.dart", b"void main() {}");
+        let cfg = AuditConfig::default();
+        let assets = collect_assets(dir.path(), &cfg).unwrap();
+        assert!(assets.is_empty());
+    }
+
+    #[test]
+    fn test_collect_assets_multiple_extensions() {
+        let dir = TempDir::new().unwrap();
+        make_file(dir.path(), "assets/a.png", b"\x89PNG");
+        make_file(dir.path(), "assets/b.jpg", b"\xff\xd8\xff");
+        make_file(dir.path(), "assets/c.svg", b"<svg></svg>");
+        let cfg = AuditConfig::default();
+        let assets = collect_assets(dir.path(), &cfg).unwrap();
+        assert_eq!(assets.len(), 3);
+    }
+
+    // ── find_referenced_assets ────────────────────────────────────────────────
+
+    #[test]
+    fn test_find_referenced_assets_from_dart_file() {
+        let dir = TempDir::new().unwrap();
+        let dart_src = "Widget build(ctx) => Image.asset('assets/images/logo.png');";
+        make_file(dir.path(), "lib/main.dart", dart_src.as_bytes());
+        let referenced = find_referenced_assets(dir.path()).unwrap();
+        assert!(referenced.contains(&PathBuf::from("assets/images/logo.png")));
+    }
+
+    #[test]
+    fn test_find_referenced_assets_skips_comments() {
+        let dir = TempDir::new().unwrap();
+        let dart_src = "// Image.asset('assets/hidden.png')\nvar x = 1;";
+        make_file(dir.path(), "lib/widget.dart", dart_src.as_bytes());
+        let referenced = find_referenced_assets(dir.path()).unwrap();
+        // Commented-out references should NOT be collected
+        assert!(!referenced.contains(&PathBuf::from("assets/hidden.png")));
+    }
+
+    #[test]
+    fn test_find_referenced_assets_non_dart_files_ignored() {
+        let dir = TempDir::new().unwrap();
+        // A yaml file with an asset path should not contribute references
+        make_file(
+            dir.path(),
+            "config.yaml",
+            b"path: 'assets/background.png'",
+        );
+        let referenced = find_referenced_assets(dir.path()).unwrap();
+        assert!(referenced.is_empty());
+    }
+
+    #[test]
+    fn test_find_referenced_assets_empty_dir() {
+        let dir = TempDir::new().unwrap();
+        let referenced = find_referenced_assets(dir.path()).unwrap();
+        assert!(referenced.is_empty());
+    }
+
+    // ── compute_file_hash ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_compute_file_hash_returns_ok() {
+        let dir = TempDir::new().unwrap();
+        make_file(dir.path(), "test.bin", b"hello world");
+        let hash = compute_file_hash(&dir.path().join("test.bin"));
+        assert!(hash.is_ok());
+    }
+
+    #[test]
+    fn test_compute_file_hash_same_content_same_hash() {
+        let dir = TempDir::new().unwrap();
+        make_file(dir.path(), "a.bin", b"identical content");
+        make_file(dir.path(), "b.bin", b"identical content");
+        let ha = compute_file_hash(&dir.path().join("a.bin")).unwrap();
+        let hb = compute_file_hash(&dir.path().join("b.bin")).unwrap();
+        assert_eq!(ha, hb);
+    }
+
+    #[test]
+    fn test_compute_file_hash_different_content_different_hash() {
+        let dir = TempDir::new().unwrap();
+        make_file(dir.path(), "a.bin", b"content A");
+        make_file(dir.path(), "b.bin", b"content B");
+        let ha = compute_file_hash(&dir.path().join("a.bin")).unwrap();
+        let hb = compute_file_hash(&dir.path().join("b.bin")).unwrap();
+        assert_ne!(ha, hb);
+    }
+
+    #[test]
+    fn test_compute_file_hash_empty_file() {
+        let dir = TempDir::new().unwrap();
+        make_file(dir.path(), "empty.bin", b"");
+        let hash = compute_file_hash(&dir.path().join("empty.bin"));
+        assert!(hash.is_ok());
+        assert_eq!(hash.unwrap(), 0);
+    }
+
+    #[test]
+    fn test_compute_file_hash_nonexistent_returns_err() {
+        let dir = TempDir::new().unwrap();
+        let result = compute_file_hash(&dir.path().join("no_such_file.bin"));
+        assert!(result.is_err());
+    }
+
+    // ── find_duplicates ───────────────────────────────────────────────────────
+
+    #[test]
+    fn test_find_duplicates_identical_files() {
+        let dir = TempDir::new().unwrap();
+        make_file(dir.path(), "assets/a.png", b"\x89PNG same content");
+        make_file(dir.path(), "assets/b.png", b"\x89PNG same content");
+        let assets = vec![
+            (PathBuf::from("assets/a.png"), 18u64),
+            (PathBuf::from("assets/b.png"), 18u64),
+        ];
+        let dups = find_duplicates(dir.path(), &assets).unwrap();
+        assert_eq!(dups.len(), 1);
+        assert_eq!(dups[0].len(), 2);
+    }
+
+    #[test]
+    fn test_find_duplicates_no_duplicates() {
+        let dir = TempDir::new().unwrap();
+        make_file(dir.path(), "assets/a.png", b"content A");
+        make_file(dir.path(), "assets/b.png", b"content B");
+        let assets = vec![
+            (PathBuf::from("assets/a.png"), 9u64),
+            (PathBuf::from("assets/b.png"), 9u64),
+        ];
+        let dups = find_duplicates(dir.path(), &assets).unwrap();
+        assert!(dups.is_empty());
+    }
+
+    #[test]
+    fn test_find_duplicates_empty_asset_list() {
+        let dir = TempDir::new().unwrap();
+        let dups = find_duplicates(dir.path(), &[]).unwrap();
+        assert!(dups.is_empty());
+    }
+
+    // ── check_svg_optimization ────────────────────────────────────────────────
+
+    #[test]
+    fn test_check_svg_optimization_clean_svg() {
+        let dir = TempDir::new().unwrap();
+        make_file(dir.path(), "assets/icon.svg", b"<svg><circle/></svg>");
+        let paths = vec![PathBuf::from("assets/icon.svg")];
+        let result = check_svg_optimization(dir.path(), &paths).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_check_svg_optimization_embedded_font() {
+        let dir = TempDir::new().unwrap();
+        let svg = b"<svg><defs><font-face/></font></defs></svg>";
+        make_file(dir.path(), "assets/font.svg", svg);
+        let paths = vec![PathBuf::from("assets/font.svg")];
+        let result = check_svg_optimization(dir.path(), &paths).unwrap();
+        assert_eq!(result.len(), 1);
+        assert!(result[0].1.contains("embedded fonts"));
+    }
+
+    #[test]
+    fn test_check_svg_optimization_doctype_flag() {
+        let dir = TempDir::new().unwrap();
+        let svg = b"<!DOCTYPE svg PUBLIC><svg></svg>";
+        make_file(dir.path(), "assets/legacy.svg", svg);
+        let paths = vec![PathBuf::from("assets/legacy.svg")];
+        let result = check_svg_optimization(dir.path(), &paths).unwrap();
+        assert_eq!(result.len(), 1);
+        assert!(result[0].1.contains("DOCTYPE"));
+    }
+
+    #[test]
+    fn test_check_svg_optimization_xml_metadata_large() {
+        let dir = TempDir::new().unwrap();
+        // Make content > 500 bytes containing <?xml
+        let mut svg = String::from("<?xml version=\"1.0\"?><svg>");
+        for _ in 0..50 {
+            svg.push_str("<rect width=\"10\" height=\"10\"/>");
+        }
+        svg.push_str("</svg>");
+        make_file(dir.path(), "assets/meta.svg", svg.as_bytes());
+        let paths = vec![PathBuf::from("assets/meta.svg")];
+        let result = check_svg_optimization(dir.path(), &paths).unwrap();
+        assert!(!result.is_empty());
+        assert!(result[0].1.contains("metadata"));
+    }
+
+    #[test]
+    fn test_check_svg_optimization_missing_file_skipped() {
+        let dir = TempDir::new().unwrap();
+        // Path doesn't exist — should be silently skipped, not panic
+        let paths = vec![PathBuf::from("assets/missing.svg")];
+        let result = check_svg_optimization(dir.path(), &paths).unwrap();
+        assert!(result.is_empty());
+    }
+
+    // ── audit_assets / audit_assets_with_threshold ────────────────────────────
+
+    #[test]
+    fn test_audit_assets_empty_project() {
+        let dir = TempDir::new().unwrap();
+        let report = audit_assets(dir.path()).unwrap();
+        assert_eq!(report.total_assets, 0);
+        assert_eq!(report.total_size_bytes, 0);
+        assert!(report.issues.is_empty());
+        assert_eq!(report.score, 100);
+    }
+
+    #[test]
+    fn test_audit_assets_with_threshold_custom_kb() {
+        let dir = TempDir::new().unwrap();
+        // Create a 10 KB image — below 200 KB default but above 5 KB custom threshold
+        let data = vec![0u8; 10 * 1024];
+        make_file(dir.path(), "assets/img.png", &data);
+        // Use a 5 KB threshold — should flag the file as oversized
+        let report = audit_assets_with_threshold(dir.path(), 5).unwrap();
+        let oversized: Vec<_> = report
+            .issues
+            .iter()
+            .filter(|i| i.category == "Oversized")
+            .collect();
+        assert!(!oversized.is_empty());
+    }
+
+    #[test]
+    fn test_audit_assets_counts_files_and_size() {
+        let dir = TempDir::new().unwrap();
+        make_file(dir.path(), "assets/a.png", b"\x89PNG data");
+        make_file(dir.path(), "assets/b.png", b"\x89PNG data2");
+        let report = audit_assets(dir.path()).unwrap();
+        assert_eq!(report.total_assets, 2);
+        assert!(report.total_size_bytes > 0);
+    }
+
+    #[test]
+    fn test_audit_assets_score_decrements_on_issues() {
+        let dir = TempDir::new().unwrap();
+        // Oversized image triggers a Warning (5 deduction each)
+        let data = vec![0u8; 300 * 1024]; // 300 KB > 200 KB threshold
+        make_file(dir.path(), "assets/big.png", &data);
+        let report = audit_assets(dir.path()).unwrap();
+        assert!(report.score < 100);
+    }
+
+    #[test]
+    fn test_audit_assets_unused_declared_asset() {
+        let dir = TempDir::new().unwrap();
+        // Declare asset in pubspec but do NOT create a Dart reference
+        let pubspec =
+            "name: app\nflutter:\n  assets:\n    - assets/unused.png\n";
+        make_file(dir.path(), "pubspec.yaml", pubspec.as_bytes());
+        // Create the actual file so it is considered "exists"
+        make_file(dir.path(), "assets/unused.png", b"\x89PNG");
+        let report = audit_assets(dir.path()).unwrap();
+        let unused: Vec<_> = report
+            .issues
+            .iter()
+            .filter(|i| i.category == "Unused")
+            .collect();
+        assert!(!unused.is_empty());
+    }
+
+    #[test]
+    fn test_audit_assets_duplicate_detection() {
+        let dir = TempDir::new().unwrap();
+        make_file(dir.path(), "assets/copy1.png", b"\x89PNG identical");
+        make_file(dir.path(), "assets/copy2.png", b"\x89PNG identical");
+        let report = audit_assets(dir.path()).unwrap();
+        let dups: Vec<_> = report
+            .issues
+            .iter()
+            .filter(|i| i.category == "Duplicate Asset")
+            .collect();
+        assert!(!dups.is_empty());
+    }
+
+    #[test]
+    fn test_audit_assets_webp_candidate_flagged() {
+        let dir = TempDir::new().unwrap();
+        // A PNG > 50 KB with no webp sibling triggers "No WebP Alternative"
+        let data = vec![0u8; 60 * 1024];
+        make_file(dir.path(), "assets/banner.png", &data);
+        let report = audit_assets(dir.path()).unwrap();
+        let no_webp: Vec<_> = report
+            .issues
+            .iter()
+            .filter(|i| i.category == "No WebP Alternative")
+            .collect();
+        assert!(!no_webp.is_empty());
+    }
+
+    #[test]
+    fn test_audit_assets_webp_candidate_not_flagged_when_webp_exists() {
+        let dir = TempDir::new().unwrap();
+        // A PNG > 50 KB AND a matching .webp file — should not be flagged
+        let data = vec![0u8; 60 * 1024];
+        make_file(dir.path(), "assets/banner.png", &data);
+        make_file(dir.path(), "assets/banner.webp", &data);
+        let report = audit_assets(dir.path()).unwrap();
+        let no_webp: Vec<_> = report
+            .issues
+            .iter()
+            .filter(|i| i.category == "No WebP Alternative")
+            .collect();
+        assert!(no_webp.is_empty());
+    }
+
+    #[test]
+    fn test_audit_assets_svg_unoptimized_issue() {
+        let dir = TempDir::new().unwrap();
+        let svg = b"<svg><defs></defs></svg>";
+        make_file(dir.path(), "assets/icon.svg", svg);
+        let report = audit_assets(dir.path()).unwrap();
+        let svg_issues: Vec<_> = report
+            .issues
+            .iter()
+            .filter(|i| i.category == "Unoptimized SVG")
+            .collect();
+        assert!(!svg_issues.is_empty());
+    }
+
+    #[test]
+    fn test_audit_assets_potential_savings_nonzero_for_issues() {
+        let dir = TempDir::new().unwrap();
+        let data = vec![0u8; 300 * 1024];
+        make_file(dir.path(), "assets/bigimg.png", &data);
+        let report = audit_assets(dir.path()).unwrap();
+        assert!(report.potential_savings_bytes > 0);
+    }
+
+    // ── write_asset_html_report / generate_html_report ────────────────────────
+
+    #[test]
+    fn test_write_asset_html_report_creates_file() {
+        let dir = TempDir::new().unwrap();
+        let report = AssetAuditReport {
+            total_assets: 0,
+            total_size_bytes: 0,
+            issues: vec![],
+            potential_savings_bytes: 0,
+            score: 100,
+        };
+        let out = dir.path().join("report.html");
+        write_asset_html_report(&report, &out).unwrap();
+        assert!(out.exists());
+    }
+
+    #[test]
+    fn test_write_asset_html_report_contains_score() {
+        let dir = TempDir::new().unwrap();
+        let report = AssetAuditReport {
+            total_assets: 3,
+            total_size_bytes: 1024,
+            issues: vec![],
+            potential_savings_bytes: 0,
+            score: 87,
+        };
+        let out = dir.path().join("report.html");
+        write_asset_html_report(&report, &out).unwrap();
+        let contents = fs::read_to_string(&out).unwrap();
+        assert!(contents.contains("87"));
+    }
+
+    #[test]
+    fn test_generate_html_report_no_issues_message() {
+        let report = AssetAuditReport {
+            total_assets: 0,
+            total_size_bytes: 0,
+            issues: vec![],
+            potential_savings_bytes: 0,
+            score: 100,
+        };
+        let html = generate_html_report(&report);
+        assert!(html.contains("All assets are optimized"));
+    }
+
+    #[test]
+    fn test_generate_html_report_contains_issue_category() {
+        let issue = AssetIssue {
+            severity: AssetSeverity::Warning,
+            category: "Oversized".to_string(),
+            file: PathBuf::from("assets/big.png"),
+            detail: "Too large".to_string(),
+            suggestion: "Compress it".to_string(),
+            savings_bytes: 1024,
+        };
+        let report = AssetAuditReport {
+            total_assets: 1,
+            total_size_bytes: 5000,
+            issues: vec![issue],
+            potential_savings_bytes: 1024,
+            score: 95,
+        };
+        let html = generate_html_report(&report);
+        assert!(html.contains("Oversized"));
+        assert!(html.contains("big.png"));
+    }
+
+    #[test]
+    fn test_generate_html_report_score_color_green() {
+        let report = AssetAuditReport {
+            total_assets: 0,
+            total_size_bytes: 0,
+            issues: vec![],
+            potential_savings_bytes: 0,
+            score: 95,
+        };
+        let html = generate_html_report(&report);
+        // Green color hex
+        assert!(html.contains("#10b981"));
+    }
+
+    #[test]
+    fn test_generate_html_report_score_color_yellow() {
+        let mut issues = Vec::new();
+        // Create enough warnings to push score into 70-89 range
+        for i in 0..4 {
+            issues.push(AssetIssue {
+                severity: AssetSeverity::Warning,
+                category: "Oversized".to_string(),
+                file: PathBuf::from(format!("assets/img{}.png", i)),
+                detail: "too big".to_string(),
+                suggestion: "compress".to_string(),
+                savings_bytes: 0,
+            });
+        }
+        let report = AssetAuditReport {
+            total_assets: 4,
+            total_size_bytes: 1000,
+            issues,
+            potential_savings_bytes: 0,
+            score: 80, // Manually set for simplicity
+        };
+        let html = generate_html_report(&report);
+        assert!(html.contains("#f59e0b"));
+    }
+
+    #[test]
+    fn test_generate_html_report_score_color_red() {
+        let report = AssetAuditReport {
+            total_assets: 0,
+            total_size_bytes: 0,
+            issues: vec![],
+            potential_savings_bytes: 0,
+            score: 60,
+        };
+        let html = generate_html_report(&report);
+        assert!(html.contains("#ef4444"));
+    }
+
+    #[test]
+    fn test_generate_html_report_severity_counts() {
+        let issues = vec![
+            AssetIssue {
+                severity: AssetSeverity::Error,
+                category: "Cat".to_string(),
+                file: PathBuf::from("a.png"),
+                detail: "d".to_string(),
+                suggestion: "s".to_string(),
+                savings_bytes: 0,
+            },
+            AssetIssue {
+                severity: AssetSeverity::Warning,
+                category: "Cat".to_string(),
+                file: PathBuf::from("b.png"),
+                detail: "d".to_string(),
+                suggestion: "s".to_string(),
+                savings_bytes: 0,
+            },
+            AssetIssue {
+                severity: AssetSeverity::Info,
+                category: "Cat".to_string(),
+                file: PathBuf::from("c.png"),
+                detail: "d".to_string(),
+                suggestion: "s".to_string(),
+                savings_bytes: 0,
+            },
+        ];
+        let report = AssetAuditReport {
+            total_assets: 3,
+            total_size_bytes: 0,
+            issues,
+            potential_savings_bytes: 0,
+            score: 83,
+        };
+        let html = generate_html_report(&report);
+        // All three severity badges should appear
+        assert!(html.contains("Error"));
+        assert!(html.contains("Warning"));
+        assert!(html.contains("Info"));
     }
 }
