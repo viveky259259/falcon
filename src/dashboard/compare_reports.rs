@@ -637,6 +637,436 @@ fn compare_row(
     ));
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dashboard::snapshot::{AnalysisSnapshot, IssueSummary, MetricsSummary};
+    use std::collections::HashMap;
+    use std::sync::Once;
+
+    static INIT: Once = Once::new();
+    fn disable_colors() {
+        INIT.call_once(|| {
+            colored::control::set_override(false);
+        });
+    }
+
+    fn sample_snapshot() -> AnalysisSnapshot {
+        AnalysisSnapshot {
+            timestamp: "2026-05-25T00:00:00Z".to_string(),
+            commit_hash: Some("abc123".to_string()),
+            commit_message: Some("test commit".to_string()),
+            branch: Some("main".to_string()),
+            file_count: 10,
+            total_lines: 1000,
+            health_score: 80.0,
+            issues: IssueSummary {
+                errors: 1,
+                warnings: 2,
+                info: 3,
+                total: 6,
+            },
+            metrics_summary: MetricsSummary {
+                avg_cyclomatic: 3.5,
+                max_cyclomatic: 10,
+                avg_maintainability: 70.0,
+                avg_lines_per_file: 100.0,
+                god_file_count: 1,
+            },
+            rule_counts: HashMap::new(),
+            per_package: vec![],
+        }
+    }
+
+    // --- Delta<usize> tests ---
+
+    #[test]
+    fn delta_usize_diff_positive_for_increase() {
+        let d = Delta { before: 5usize, after: 10usize };
+        assert_eq!(d.diff(), 5i64);
+    }
+
+    #[test]
+    fn delta_usize_diff_negative_for_decrease() {
+        let d = Delta { before: 10usize, after: 3usize };
+        assert_eq!(d.diff(), -7i64);
+    }
+
+    #[test]
+    fn delta_usize_diff_zero_for_unchanged() {
+        let d = Delta { before: 7usize, after: 7usize };
+        assert_eq!(d.diff(), 0i64);
+    }
+
+    // --- Delta<f64> tests ---
+
+    #[test]
+    fn delta_f64_diff_returns_difference() {
+        let d = Delta { before: 1.0f64, after: 3.5f64 };
+        assert!((d.diff() - 2.5).abs() < 1e-10);
+    }
+
+    // --- Delta<u32> tests ---
+
+    #[test]
+    fn delta_u32_diff_negative_for_decrease() {
+        let d = Delta { before: 10u32, after: 4u32 };
+        assert_eq!(d.diff(), -6i64);
+    }
+
+    // --- compare_snapshots tests ---
+
+    #[test]
+    fn compare_snapshots_finds_rules_added() {
+        let run1 = sample_snapshot();
+        let mut run2 = sample_snapshot();
+        run2.rule_counts.insert("rule-a".to_string(), 3);
+        let result = compare_snapshots(&run1, &run2);
+        assert!(
+            result.deltas.rules_added.iter().any(|(r, c)| r == "rule-a" && *c == 3),
+            "rules_added should contain (\"rule-a\", 3)"
+        );
+    }
+
+    #[test]
+    fn compare_snapshots_finds_rules_removed() {
+        let mut run1 = sample_snapshot();
+        run1.rule_counts.insert("rule-x".to_string(), 5);
+        let run2 = sample_snapshot();
+        let result = compare_snapshots(&run1, &run2);
+        assert!(
+            result.deltas.rules_removed.iter().any(|(r, c)| r == "rule-x" && *c == 5),
+            "rules_removed should contain (\"rule-x\", 5)"
+        );
+    }
+
+    #[test]
+    fn compare_snapshots_finds_rules_changed() {
+        let mut run1 = sample_snapshot();
+        run1.rule_counts.insert("rule-y".to_string(), 2);
+        let mut run2 = sample_snapshot();
+        run2.rule_counts.insert("rule-y".to_string(), 7);
+        let result = compare_snapshots(&run1, &run2);
+        assert!(
+            result.deltas.rules_changed.iter().any(|(r, d)| r == "rule-y" && *d == 5),
+            "rules_changed should contain (\"rule-y\", 5)"
+        );
+    }
+
+    #[test]
+    fn compare_snapshots_unchanged_rules_omitted() {
+        let mut run1 = sample_snapshot();
+        run1.rule_counts.insert("rule-z".to_string(), 4);
+        let mut run2 = sample_snapshot();
+        run2.rule_counts.insert("rule-z".to_string(), 4);
+        let result = compare_snapshots(&run1, &run2);
+        assert!(
+            !result.deltas.rules_added.iter().any(|(r, _)| r == "rule-z"),
+            "rule-z should not be in rules_added"
+        );
+        assert!(
+            !result.deltas.rules_removed.iter().any(|(r, _)| r == "rule-z"),
+            "rule-z should not be in rules_removed"
+        );
+        assert!(
+            !result.deltas.rules_changed.iter().any(|(r, _)| r == "rule-z"),
+            "rule-z should not be in rules_changed"
+        );
+    }
+
+    #[test]
+    fn compare_snapshots_rules_changed_sorted_by_abs_value() {
+        let mut run1 = sample_snapshot();
+        run1.rule_counts.insert("rule-a".to_string(), 10);
+        run1.rule_counts.insert("rule-b".to_string(), 5);
+        run1.rule_counts.insert("rule-c".to_string(), 1);
+        let mut run2 = sample_snapshot();
+        // rule-a: 10 -> 11 => delta +1 (abs=1)
+        run2.rule_counts.insert("rule-a".to_string(), 11);
+        // rule-b: 5 -> 15 => delta +10 (abs=10)
+        run2.rule_counts.insert("rule-b".to_string(), 15);
+        // rule-c: 1 -> 6 => delta +5 (abs=5)
+        run2.rule_counts.insert("rule-c".to_string(), 6);
+        let result = compare_snapshots(&run1, &run2);
+        let changed = &result.deltas.rules_changed;
+        assert_eq!(changed.len(), 3);
+        // sorted by abs descending: rule-b(10), rule-c(5), rule-a(1)
+        assert_eq!(changed[0].0, "rule-b");
+        assert_eq!(changed[0].1, 10i64);
+        assert_eq!(changed[1].0, "rule-c");
+        assert_eq!(changed[1].1, 5i64);
+        assert_eq!(changed[2].0, "rule-a");
+        assert_eq!(changed[2].1, 1i64);
+    }
+
+    #[test]
+    fn compare_snapshots_carries_through_summary_fields() {
+        let run1 = sample_snapshot();
+        let mut run2 = sample_snapshot();
+        run2.file_count = 20;
+        run2.total_lines = 2000;
+        run2.health_score = 90.0;
+        run2.issues.errors = 5;
+        run2.issues.warnings = 6;
+        run2.issues.info = 7;
+        let result = compare_snapshots(&run1, &run2);
+        assert_eq!(result.deltas.files.before, 10);
+        assert_eq!(result.deltas.files.after, 20);
+        assert_eq!(result.deltas.lines.before, 1000);
+        assert_eq!(result.deltas.lines.after, 2000);
+        assert!((result.deltas.health.before - 80.0).abs() < 1e-10);
+        assert!((result.deltas.health.after - 90.0).abs() < 1e-10);
+        assert_eq!(result.deltas.errors.before, 1);
+        assert_eq!(result.deltas.errors.after, 5);
+        assert_eq!(result.deltas.warnings.before, 2);
+        assert_eq!(result.deltas.warnings.after, 6);
+        assert_eq!(result.deltas.info.before, 3);
+        assert_eq!(result.deltas.info.after, 7);
+    }
+
+    #[test]
+    fn compare_snapshots_files_delta() {
+        let run1 = sample_snapshot();
+        let mut run2 = sample_snapshot();
+        run2.file_count = 15;
+        let result = compare_snapshots(&run1, &run2);
+        assert_eq!(result.deltas.files.before, 10);
+        assert_eq!(result.deltas.files.after, 15);
+    }
+
+    #[test]
+    fn compare_snapshots_lines_delta() {
+        let run1 = sample_snapshot();
+        let mut run2 = sample_snapshot();
+        run2.total_lines = 1500;
+        let result = compare_snapshots(&run1, &run2);
+        assert_eq!(result.deltas.lines.before, 1000);
+        assert_eq!(result.deltas.lines.after, 1500);
+    }
+
+    #[test]
+    fn compare_snapshots_health_delta() {
+        let run1 = sample_snapshot();
+        let mut run2 = sample_snapshot();
+        run2.health_score = 92.5;
+        let result = compare_snapshots(&run1, &run2);
+        assert!((result.deltas.health.before - 80.0).abs() < 1e-10);
+        assert!((result.deltas.health.after - 92.5).abs() < 1e-10);
+    }
+
+    #[test]
+    fn compare_snapshots_errors_warnings_info_delta() {
+        let run1 = sample_snapshot();
+        let mut run2 = sample_snapshot();
+        run2.issues.errors = 10;
+        run2.issues.warnings = 20;
+        run2.issues.info = 30;
+        let result = compare_snapshots(&run1, &run2);
+        assert_eq!(result.deltas.errors.before, 1);
+        assert_eq!(result.deltas.errors.after, 10);
+        assert_eq!(result.deltas.warnings.before, 2);
+        assert_eq!(result.deltas.warnings.after, 20);
+        assert_eq!(result.deltas.info.before, 3);
+        assert_eq!(result.deltas.info.after, 30);
+    }
+
+    #[test]
+    fn compare_snapshots_metrics_summary_deltas() {
+        let run1 = sample_snapshot();
+        let mut run2 = sample_snapshot();
+        run2.metrics_summary.avg_cyclomatic = 5.0;
+        run2.metrics_summary.max_cyclomatic = 20;
+        run2.metrics_summary.avg_maintainability = 85.0;
+        run2.metrics_summary.god_file_count = 3;
+        let result = compare_snapshots(&run1, &run2);
+        assert!((result.deltas.avg_cc.before - 3.5).abs() < 1e-10);
+        assert!((result.deltas.avg_cc.after - 5.0).abs() < 1e-10);
+        assert_eq!(result.deltas.max_cc.before, 10u32);
+        assert_eq!(result.deltas.max_cc.after, 20u32);
+        assert!((result.deltas.avg_mi.before - 70.0).abs() < 1e-10);
+        assert!((result.deltas.avg_mi.after - 85.0).abs() < 1e-10);
+        assert_eq!(result.deltas.god_files.before, 1);
+        assert_eq!(result.deltas.god_files.after, 3);
+    }
+
+    // --- is_negligible tests ---
+    // Implementation: diff.abs() < 0.5 || format!("{:.0}", diff) == "0" || format!("{:.0}", diff) == "-0"
+    // Note: 0.05.abs() < 0.5 => true; 1.0.abs() < 0.5 => false; -0.01.abs() < 0.5 => true
+
+    #[test]
+    fn is_negligible_returns_true_for_small_diff() {
+        // 0.05 < 0.5 => negligible
+        assert!(is_negligible(0.05));
+    }
+
+    #[test]
+    fn is_negligible_returns_false_for_larger_diff() {
+        // 1.0 >= 0.5 and format is "1" => not negligible
+        assert!(!is_negligible(1.0));
+    }
+
+    #[test]
+    fn is_negligible_handles_negative() {
+        // -0.01.abs() = 0.01 < 0.5 => negligible
+        assert!(is_negligible(-0.01));
+    }
+
+    // --- delta_badge_html tests ---
+
+    #[test]
+    fn delta_badge_html_for_positive_diff_higher_is_better() {
+        disable_colors();
+        let html = delta_badge_html(5.0, true);
+        // diff=5.0 is not negligible; diff>0 and higher_is_better => delta-good
+        assert!(html.contains("delta-good"), "Expected delta-good class, got: {}", html);
+        assert!(html.contains("+5"), "Expected +5 in output, got: {}", html);
+    }
+
+    #[test]
+    fn delta_badge_html_for_negative_diff_higher_is_better() {
+        disable_colors();
+        let html = delta_badge_html(-5.0, true);
+        // diff=-5.0 is not negligible; diff<0 and higher_is_better => delta-bad
+        assert!(html.contains("delta-bad"), "Expected delta-bad class, got: {}", html);
+        assert!(html.contains("-5"), "Expected -5 in output, got: {}", html);
+    }
+
+    #[test]
+    fn delta_badge_html_for_positive_diff_lower_is_better() {
+        disable_colors();
+        let html = delta_badge_html(5.0, false);
+        // diff=5.0 is not negligible; diff>0 and !higher_is_better => delta-bad
+        assert!(html.contains("delta-bad"), "Expected delta-bad class (positive is bad), got: {}", html);
+        assert!(html.contains("+5"), "Expected +5 in output, got: {}", html);
+    }
+
+    #[test]
+    fn delta_badge_html_for_negligible_returns_neutral() {
+        disable_colors();
+        // 0.0 is negligible (abs < 0.5)
+        let html = delta_badge_html(0.0, true);
+        assert!(html.contains("delta-neutral"), "Expected delta-neutral class, got: {}", html);
+        // The neutral badge shows "0"
+        assert!(html.contains(">0<"), "Expected literal 0 in span, got: {}", html);
+    }
+
+    // --- esc tests ---
+
+    #[test]
+    fn esc_replaces_lt() {
+        assert_eq!(esc("a<b"), "a&lt;b");
+    }
+
+    #[test]
+    fn esc_replaces_gt() {
+        assert_eq!(esc("a>b"), "a&gt;b");
+    }
+
+    #[test]
+    fn esc_replaces_amp() {
+        assert_eq!(esc("a&b"), "a&amp;b");
+    }
+
+    #[test]
+    fn esc_replaces_quote_if_implemented() {
+        // Implementation replaces '"' with "&quot;"
+        assert_eq!(esc("a\"b"), "a&quot;b");
+    }
+
+    #[test]
+    fn esc_passes_through_safe_chars() {
+        assert_eq!(esc("hello world"), "hello world");
+    }
+
+    // --- build_comparison_html tests ---
+
+    #[test]
+    fn build_comparison_html_contains_doctype_and_html_tags() {
+        let run1 = sample_snapshot();
+        let run2 = sample_snapshot();
+        let result = compare_snapshots(&run1, &run2);
+        let html = build_comparison_html(&result);
+        assert!(html.contains("<!DOCTYPE html>"), "Expected DOCTYPE, got beginning: {}", &html[..100.min(html.len())]);
+        assert!(html.contains("<html"), "Expected <html tag");
+    }
+
+    #[test]
+    fn build_comparison_html_includes_run_metadata() {
+        let mut run1 = sample_snapshot();
+        run1.commit_hash = Some("abc111".to_string());
+        run1.branch = Some("feature-x".to_string());
+        let mut run2 = sample_snapshot();
+        run2.commit_hash = Some("def222".to_string());
+        run2.branch = Some("main".to_string());
+        let result = compare_snapshots(&run1, &run2);
+        let html = build_comparison_html(&result);
+        // Branch names appear in the runs-row section
+        assert!(html.contains("feature-x"), "Expected run1 branch in HTML");
+        assert!(html.contains("main"), "Expected run2 branch in HTML");
+    }
+
+    #[test]
+    fn build_comparison_html_includes_file_count_delta() {
+        let run1 = sample_snapshot(); // file_count=10
+        let mut run2 = sample_snapshot();
+        run2.file_count = 15;
+        let result = compare_snapshots(&run1, &run2);
+        let html = build_comparison_html(&result);
+        assert!(html.contains("10"), "Expected run1.file_count=10 in HTML");
+        assert!(html.contains("15"), "Expected run2.file_count=15 in HTML");
+    }
+
+    #[test]
+    fn build_comparison_html_includes_health_score_section() {
+        let run1 = sample_snapshot();
+        let run2 = sample_snapshot();
+        let result = compare_snapshots(&run1, &run2);
+        let html = build_comparison_html(&result);
+        assert!(
+            html.contains("Health") || html.contains("health"),
+            "Expected 'Health' in output, got snippet: {}",
+            &html[..200.min(html.len())]
+        );
+    }
+
+    #[test]
+    fn build_comparison_html_lists_rules_changed() {
+        let mut run1 = sample_snapshot();
+        run1.rule_counts.insert("my-special-rule".to_string(), 2);
+        let mut run2 = sample_snapshot();
+        run2.rule_counts.insert("my-special-rule".to_string(), 9);
+        let result = compare_snapshots(&run1, &run2);
+        let html = build_comparison_html(&result);
+        assert!(html.contains("my-special-rule"), "Expected rule name in HTML output");
+    }
+
+    // --- compare_row tests ---
+
+    #[test]
+    fn compare_row_basic_output() {
+        disable_colors();
+        let mut html = String::new();
+        compare_row(&mut html, "Files", "10", "15", 5.0, false);
+        assert!(html.contains("Files"), "Expected label 'Files'");
+        assert!(html.contains("10"), "Expected before value '10'");
+        assert!(html.contains("15"), "Expected after value '15'");
+        // diff=5.0, not negligible => arrow should be "→"
+        assert!(html.contains("→"), "Expected → arrow for non-negligible diff");
+        // diff=5.0, lower_is_better => delta-bad badge
+        assert!(html.contains("delta-bad"), "Expected delta-bad badge for positive diff with lower_is_better");
+    }
+
+    #[test]
+    fn compare_row_negligible_uses_dash_arrow() {
+        disable_colors();
+        let mut html = String::new();
+        // diff=0.0 is negligible
+        compare_row(&mut html, "Health", "80", "80", 0.0, true);
+        assert!(html.contains("─"), "Expected ─ arrow for negligible diff");
+        assert!(html.contains("delta-neutral"), "Expected delta-neutral badge for negligible diff");
+    }
+}
+
 pub fn list_history(root: &Path) -> anyhow::Result<()> {
     let history = super::snapshot::load_history(root)?;
     if history.is_empty() {
