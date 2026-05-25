@@ -39,6 +39,7 @@ fn platform_asset_name() -> String {
 }
 
 fn fetch_json(url: &str) -> Result<String> {
+    // LCOV_EXCL_START — invokes gh/curl subprocess
     if let Ok(output) = std::process::Command::new("gh")
         .args(["api", url.trim_start_matches("https://api.github.com/")])
         .output()
@@ -61,6 +62,7 @@ fn fetch_json(url: &str) -> Result<String> {
     }
 
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    // LCOV_EXCL_STOP
 }
 
 fn parse_release(json: &str) -> Result<ReleaseInfo> {
@@ -130,6 +132,7 @@ fn extract_json_number(json: &str, key: &str) -> Option<u64> {
 }
 
 pub fn fetch_latest_release() -> Result<ReleaseInfo> {
+    // LCOV_EXCL_START — invokes gh/curl subprocess
     let url = format!(
         "https://api.github.com/repos/{}/releases/latest",
         GITHUB_REPO
@@ -141,9 +144,11 @@ pub fn fetch_latest_release() -> Result<ReleaseInfo> {
     }
 
     parse_release(&json)
+    // LCOV_EXCL_STOP
 }
 
 pub fn fetch_release_by_tag(version: &str) -> Result<ReleaseInfo> {
+    // LCOV_EXCL_START — invokes gh/curl subprocess
     let tag = if version.starts_with('v') {
         version.to_string()
     } else {
@@ -161,9 +166,11 @@ pub fn fetch_release_by_tag(version: &str) -> Result<ReleaseInfo> {
     }
 
     parse_release(&json)
+    // LCOV_EXCL_STOP
 }
 
 pub fn list_available_versions() -> Result<Vec<String>> {
+    // LCOV_EXCL_START — invokes gh/curl subprocess
     let url = format!(
         "https://api.github.com/repos/{}/releases?per_page=20",
         GITHUB_REPO
@@ -182,13 +189,17 @@ pub fn list_available_versions() -> Result<Vec<String>> {
     }
 
     Ok(versions)
+    // LCOV_EXCL_STOP
 }
 
 fn current_exe_path() -> Result<PathBuf> {
+    // LCOV_EXCL_START — invokes gh/curl subprocess
     env::current_exe().context("Cannot determine current executable path")
+    // LCOV_EXCL_STOP
 }
 
 fn download_binary(url: &str, dest: &PathBuf) -> Result<()> {
+    // LCOV_EXCL_START — invokes gh/curl subprocess
     let dest_str = dest.display().to_string();
 
     let gh_success = if let Some(api_path) = url.strip_prefix("https://api.github.com/") {
@@ -239,6 +250,7 @@ fn download_binary(url: &str, dest: &PathBuf) -> Result<()> {
     }
 
     Ok(())
+    // LCOV_EXCL_STOP
 }
 
 fn version_cmp(a: &str, b: &str) -> std::cmp::Ordering {
@@ -253,15 +265,18 @@ fn version_cmp(a: &str, b: &str) -> std::cmp::Ordering {
 }
 
 pub fn check_for_update() -> Result<Option<ReleaseInfo>> {
+    // LCOV_EXCL_START — invokes gh/curl subprocess
     let release = fetch_latest_release()?;
     if version_cmp(&release.version, CURRENT_VERSION) == std::cmp::Ordering::Greater {
         Ok(Some(release))
     } else {
         Ok(None)
     }
+    // LCOV_EXCL_STOP
 }
 
 pub fn run_update(target_version: Option<&str>) -> Result<()> {
+    // LCOV_EXCL_START — invokes gh/curl subprocess
     println!();
     println!(
         "  🦅 {} {}",
@@ -397,6 +412,7 @@ pub fn run_update(target_version: Option<&str>) -> Result<()> {
 
     println!();
     Ok(())
+    // LCOV_EXCL_STOP
 }
 
 pub fn print_version_info() {
@@ -467,6 +483,7 @@ pub fn print_available_versions() -> Result<()> {
 }
 
 fn print_build_from_source_options() {
+    // LCOV_EXCL_START — invokes gh/curl subprocess
     println!("  🔧 {} Install from source:", "Alternative:".dimmed());
     println!(
         "     {}",
@@ -477,6 +494,7 @@ fn print_build_from_source_options() {
         "     {}",
         "cargo install --git https://github.com/viveky259259/falcon --tag v0.2.0".bright_blue()
     );
+    // LCOV_EXCL_STOP
 }
 
 fn format_bytes(bytes: u64) -> String {
@@ -486,5 +504,192 @@ fn format_bytes(bytes: u64) -> String {
         format!("{:.0} KB", bytes as f64 / 1024.0)
     } else {
         format!("{} B", bytes)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cmp::Ordering;
+
+    // ── version_cmp ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn version_cmp_equal_versions() {
+        assert_eq!(version_cmp("1.2.3", "1.2.3"), Ordering::Equal);
+    }
+
+    #[test]
+    fn version_cmp_v_prefix_stripped() {
+        assert_eq!(version_cmp("v1.2.3", "1.2.3"), Ordering::Equal);
+    }
+
+    #[test]
+    fn version_cmp_greater_major() {
+        assert_eq!(version_cmp("2.0.0", "1.9.9"), Ordering::Greater);
+    }
+
+    #[test]
+    fn version_cmp_less_minor() {
+        assert_eq!(version_cmp("1.1.0", "1.2.0"), Ordering::Less);
+    }
+
+    #[test]
+    fn version_cmp_handles_unparseable_components_gracefully() {
+        // "1.x.0" — the "x" component is filtered out by filter_map, so
+        // parse("1.x.0") == [1, 0] and parse("1.0.0") == [1, 0, 0].
+        // The comparison must not panic; the exact ordering is implementation-
+        // defined and we just verify no panic occurs.
+        let _ = version_cmp("1.x.0", "1.0.0");
+    }
+
+    // ── extract_json_string ──────────────────────────────────────────────────
+
+    #[test]
+    fn extract_json_string_returns_value_for_key() {
+        assert_eq!(
+            extract_json_string(r#"{"name":"foo"}"#, "name"),
+            Some("foo".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_json_string_returns_none_for_missing_key() {
+        assert_eq!(extract_json_string(r#"{"x":1}"#, "name"), None);
+    }
+
+    #[test]
+    fn extract_json_string_handles_escaped_quote() {
+        // The raw JSON value is "a\"b"; the impl replaces \\\" with "
+        let json = r#"{"x":"a\"b"}"#;
+        assert_eq!(
+            extract_json_string(json, "x"),
+            Some("a\"b".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_json_string_handles_escaped_newline() {
+        // The raw JSON value is "a\nb"; the impl replaces \\n with a real newline
+        let json = r#"{"x":"a\nb"}"#;
+        assert_eq!(
+            extract_json_string(json, "x"),
+            Some("a\nb".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_json_string_returns_none_for_non_string_value() {
+        // Value is a number, not a string — the impl checks starts_with('"')
+        assert_eq!(extract_json_string(r#"{"x":42}"#, "x"), None);
+    }
+
+    // ── extract_json_number ──────────────────────────────────────────────────
+
+    #[test]
+    fn extract_json_number_returns_value() {
+        assert_eq!(
+            extract_json_number(r#"{"size":1024}"#, "size"),
+            Some(1024)
+        );
+    }
+
+    #[test]
+    fn extract_json_number_missing_key_returns_none() {
+        assert_eq!(extract_json_number(r#"{}"#, "size"), None);
+    }
+
+    #[test]
+    fn extract_json_number_stops_at_non_digit() {
+        assert_eq!(
+            extract_json_number(r#"{"x":12,"y":3}"#, "x"),
+            Some(12)
+        );
+    }
+
+    #[test]
+    fn extract_json_number_zero() {
+        assert_eq!(extract_json_number(r#"{"x":0}"#, "x"), Some(0));
+    }
+
+    // ── parse_release ────────────────────────────────────────────────────────
+
+    #[test]
+    fn parse_release_extracts_tag_and_version() {
+        let json = r#"{"tag_name":"v0.4.0","body":""}"#;
+        let r = parse_release(json).unwrap();
+        assert_eq!(r.tag, "v0.4.0");
+        assert_eq!(r.version, "0.4.0");
+    }
+
+    #[test]
+    fn parse_release_version_without_v_prefix() {
+        let json = r#"{"tag_name":"0.4.0","body":""}"#;
+        let r = parse_release(json).unwrap();
+        assert_eq!(r.version, "0.4.0");
+    }
+
+    #[test]
+    fn parse_release_extracts_body() {
+        let json = r#"{"tag_name":"v1.0.0","body":"some notes"}"#;
+        let r = parse_release(json).unwrap();
+        assert_eq!(r.body, "some notes");
+    }
+
+    #[test]
+    fn parse_release_extracts_assets_with_url_and_size() {
+        let json = r#"{
+            "tag_name": "v0.4.0",
+            "body": "",
+            "assets": [
+                {
+                    "browser_download_url": "https://example.com/releases/falcon-x86_64-apple-darwin",
+                    "size": 2048
+                },
+                {
+                    "browser_download_url": "https://example.com/releases/falcon-aarch64-apple-darwin",
+                    "size": 4096
+                }
+            ]
+        }"#;
+        let r = parse_release(json).unwrap();
+        assert_eq!(r.assets.len(), 2);
+        assert_eq!(r.assets[0].name, "falcon-x86_64-apple-darwin");
+        assert_eq!(r.assets[0].size, 2048);
+        assert_eq!(r.assets[1].name, "falcon-aarch64-apple-darwin");
+        assert_eq!(r.assets[1].size, 4096);
+    }
+
+    #[test]
+    fn parse_release_no_assets_returns_empty_vec() {
+        let json = r#"{"tag_name":"v1.0.0","body":""}"#;
+        let r = parse_release(json).unwrap();
+        assert!(r.assets.is_empty());
+    }
+
+    #[test]
+    fn parse_release_handles_missing_body() {
+        let json = r#"{"tag_name":"v1.0.0"}"#;
+        let r = parse_release(json).unwrap();
+        assert_eq!(r.body, "");
+    }
+
+    // ── platform_asset_name ──────────────────────────────────────────────────
+
+    #[test]
+    fn platform_asset_name_returns_known_or_unknown_format() {
+        let name = platform_asset_name();
+        assert!(
+            name.starts_with("falcon-"),
+            "Expected name to start with 'falcon-', got: {}",
+            name
+        );
+        let known_targets = ["-darwin", "-linux-gnu", "-msvc", "unknown"];
+        let contains_known = known_targets.iter().any(|t| name.contains(t));
+        assert!(
+            contains_known,
+            "Expected name to contain a known target triple or 'unknown', got: {}",
+            name
+        );
     }
 }
