@@ -201,6 +201,17 @@ enum Commands {
         format: PreflightOutputFormat,
     },
 
+    /// Verify the Flutter project is ready for Maestro UI testing (ensureSemantics + Semantics coverage).
+    #[command(name = "check-a11y")]
+    CheckA11y {
+        /// Path to the Flutter project.
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        /// Output format.
+        #[arg(long, value_enum, default_value = "text")]
+        format: PreflightOutputFormat,
+    },
+
     /// Generate a default falcon.yaml configuration file
     #[command(display_order = 7)]
     Init {
@@ -1995,6 +2006,11 @@ fn run(cli: Cli) -> Result<()> {
         Commands::CheckAssets { path, format } => {
             let config = falcon::config::FalconConfig::load(&path).unwrap_or_default();
             let code = falcon::check_assets::run(&path, format, &config)?;
+            process::exit(code);
+        }
+        Commands::CheckA11y { path, format } => {
+            let config = falcon::config::FalconConfig::load(&path).unwrap_or_default();
+            let code = falcon::check_a11y::run(&path, format, &config)?;
             process::exit(code);
         }
         Commands::Init { path } => {
