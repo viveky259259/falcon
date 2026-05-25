@@ -54,8 +54,10 @@ pub fn render(issues: &[PreflightIssue], format: OutputFormat) -> String {
         OutputFormat::Text => render_text(issues),
         OutputFormat::Json => render_json(issues),
         OutputFormat::Sarif => {
-            // Deferred to the analyze-rollup PR; for now fall back to JSON to keep
-            // CI pipelines from blowing up if they pass --format sarif early.
+            eprintln!(
+                "  ⚠ Falcon: --format sarif not yet implemented (lands in analyze-rollup follow-up). \
+Falling back to JSON. Track at docs/superpowers/specs/2026-05-25-preflight-checks-design.md."
+            );
             render_json(issues)
         }
     }
