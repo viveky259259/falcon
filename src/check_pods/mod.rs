@@ -13,7 +13,7 @@ const RULE_ID_PODFILE_MISSING: &str = "pods/podfile-not-found";
 const RULE_ID_DEPLOYMENT_TARGET_LOW: &str = "pods/deployment-target-too-low";
 const RULE_ID_PLATFORM_NOT_SET: &str = "pods/platform-not-set";
 
-const DEFAULT_IOS_PODFILE_TARGET: &str = "12.0";
+const DEFAULT_IOS_PODFILE_TARGET: &str = "9.0";  // CocoaPods default when no `platform :ios` is set.
 const DEFAULT_IOS_PODSPEC_TARGET: &str = "9.0";
 
 pub fn run(
@@ -60,9 +60,7 @@ pub fn run(
                 "No `platform :ios, 'X.Y'` directive found in ios/Podfile. \
 CocoaPods will default to {DEFAULT_IOS_PODFILE_TARGET}, which may be lower than your plugins need."
             ),
-            suggestion: Some(format!(
-                "Add `platform :ios, '{DEFAULT_IOS_PODFILE_TARGET}'` (or a higher version) near the top of ios/Podfile."
-            )),
+            suggestion: Some("Add `platform :ios, '13.0'` (or a higher version) near the top of ios/Podfile.".into()),
         });
     }
 
