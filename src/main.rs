@@ -1928,7 +1928,13 @@ fn run(cli: Cli) -> Result<()> {
             }
 
             let analyze_exit: i32 = if should_fail(&final_report, &fail_on) { 1 } else { 0 };
-            let preflight_exit = run_preflight_rollup(&path, &falcon_config)?;
+            let preflight_exit = match run_preflight_rollup(&path, &falcon_config) {
+                Ok(code) => code,
+                Err(e) => {
+                    eprintln!("\n  ⚠ Pre-flight rollup failed: {e}. Continuing with analyze exit code only.");
+                    0
+                }
+            };
             process::exit(analyze_exit.max(preflight_exit));
         }
         Commands::Smells {
