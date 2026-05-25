@@ -32,6 +32,12 @@ pub const INTERACTIVE_WIDGETS: &[&str] = &[
 /// `Semantics(identifier:)`. The spec's "within 3 ancestors" rule.
 const ANCESTOR_LOOKBACK: usize = 3;
 
+/// Multiplier on `ANCESTOR_LOOKBACK` for the maximum tree-sitter AST layers we
+/// will walk upward looking for a wrapping Semantics widget. Widget calls in
+/// the tree-sitter-dart grammar are 2-4 intermediate nodes deep per logical
+/// ancestor; this gives a comfortable margin without unbounded traversal.
+const ANCESTOR_NODE_BUDGET_MULTIPLIER: usize = 8;
+
 /// A single interactive-widget occurrence found in the source.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WidgetOccurrence {
@@ -96,7 +102,7 @@ fn nearest_semantics_with_identifier(node: Node<'_>, source: &str, lookback: usi
     let mut widgets_seen = 0usize;
     // Walk up enough layers. Each "widget" occupies several AST levels
     // (named_argument → argument → arguments → argument_part → selector).
-    let mut layers_remaining = lookback * 8;
+    let mut layers_remaining = lookback * ANCESTOR_NODE_BUDGET_MULTIPLIER;
     while let Some(n) = current {
         if layers_remaining == 0 {
             break;
