@@ -134,6 +134,17 @@ mod tests {
     use super::*;
     use crate::config::{PreflightConfig, PreflightSuppression};
     use tempfile::TempDir;
+    use std::sync::{Mutex, MutexGuard};
+
+    // Mutex to serialize env-var tests so they don't interfere with each other.
+    static ENV_MUTEX: Mutex<()> = Mutex::new(());
+
+    /// Acquire a global env-var lock. Tests that set FALCON_PUB_CACHE must
+    /// hold this guard for their entire body to avoid clobbering each other
+    /// under `cargo test`'s default parallel execution.
+    fn env_lock() -> MutexGuard<'static, ()> {
+        ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner())
+    }
 
     fn write(path: &Path, contents: &str) {
         if let Some(parent) = path.parent() {
@@ -142,11 +153,12 @@ mod tests {
         std::fs::write(path, contents).unwrap();
     }
 
-    fn fixture() -> (TempDir, TempDir) {
+    fn fixture() -> (TempDir, TempDir, MutexGuard<'static, ()>) {
+        let guard = env_lock();
         let project = TempDir::new().unwrap();
         let pub_cache = TempDir::new().unwrap();
         std::env::set_var("FALCON_PUB_CACHE", pub_cache.path());
-        (project, pub_cache)
+        (project, pub_cache, guard)
     }
 
     fn write_podfile(project: &Path, version: Option<&str>) {
@@ -184,14 +196,14 @@ mod tests {
 
     #[test]
     fn no_podfile_emits_info_exit_zero() {
-        let (project, _cache) = fixture();
+        let (project, _cache, _guard) = fixture();
         let code = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false).unwrap();
         assert_eq!(code, 0);
     }
 
     #[test]
     fn missing_platform_directive_emits_warning() {
-        let (project, _cache) = fixture();
+        let (project, _cache, _guard) = fixture();
         write_podfile(project.path(), None);
         let code = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false).unwrap();
         assert_eq!(code, 1);
@@ -199,7 +211,7 @@ mod tests {
 
     #[test]
     fn plugin_requires_higher_than_podfile_emits_error() {
-        let (project, cache) = fixture();
+        let (project, cache, _guard) = fixture();
         write_podfile(project.path(), Some("12.0"));
         write_lock(project.path(), &[("location", "8.0.0")]);
         write_plugin(cache.path(), "location", "8.0.0", Some("13.0"));
@@ -209,7 +221,7 @@ mod tests {
 
     #[test]
     fn plugin_equal_to_podfile_is_clean() {
-        let (project, cache) = fixture();
+        let (project, cache, _guard) = fixture();
         write_podfile(project.path(), Some("13.0"));
         write_lock(project.path(), &[("location", "8.0.0")]);
         write_plugin(cache.path(), "location", "8.0.0", Some("13.0"));
@@ -219,7 +231,7 @@ mod tests {
 
     #[test]
     fn plugin_lower_than_podfile_is_clean() {
-        let (project, cache) = fixture();
+        let (project, cache, _guard) = fixture();
         write_podfile(project.path(), Some("14.0"));
         write_lock(project.path(), &[("location", "8.0.0")]);
         write_plugin(cache.path(), "location", "8.0.0", Some("11.0"));
@@ -229,7 +241,7 @@ mod tests {
 
     #[test]
     fn multiple_plugins_max_target_named_in_error() {
-        let (project, cache) = fixture();
+        let (project, cache, _guard) = fixture();
         write_podfile(project.path(), Some("12.0"));
         write_lock(project.path(), &[("a", "1.0.0"), ("b", "2.0.0"), ("c", "3.0.0")]);
         write_plugin(cache.path(), "a", "1.0.0", Some("13.0"));
@@ -241,7 +253,7 @@ mod tests {
 
     #[test]
     fn plugin_without_podspec_target_uses_cocoapods_default() {
-        let (project, cache) = fixture();
+        let (project, cache, _guard) = fixture();
         write_podfile(project.path(), Some("10.0"));
         write_lock(project.path(), &[("x", "1.0.0")]);
         write_plugin(cache.path(), "x", "1.0.0", None);
@@ -251,7 +263,7 @@ mod tests {
 
     #[test]
     fn suppression_silences_low_target_error() {
-        let (project, cache) = fixture();
+        let (project, cache, _guard) = fixture();
         write_podfile(project.path(), Some("12.0"));
         write_lock(project.path(), &[("location", "8.0.0")]);
         write_plugin(cache.path(), "location", "8.0.0", Some("13.0"));
