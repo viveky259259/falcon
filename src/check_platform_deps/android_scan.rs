@@ -4,11 +4,25 @@
 
 use std::path::Path;
 
+fn looks_like_uses_permission_tag_start(rest: &str) -> bool {
+    const NEEDLE: &[u8] = b"<uses-permission";
+    if !rest.starts_with("<uses-permission") {
+        return false;
+    }
+    matches!(rest.as_bytes().get(NEEDLE.len()), Some(b' ' | b'\t' | b'\n' | b'/' | b'>'))
+}
+
 pub fn extract_uses_permissions(manifest_xml: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut remaining = manifest_xml;
     while let Some(idx) = remaining.find("<uses-permission") {
         let after = &remaining[idx..];
+        // Skip <uses-permission-sdk-23 and other extended tags.
+        if !looks_like_uses_permission_tag_start(after) {
+            // Advance past this non-matching occurrence to avoid infinite loop.
+            remaining = &after[1..];
+            continue;
+        }
         let end = match after.find('>') {
             Some(e) => e,
             None => break,
@@ -112,5 +126,15 @@ mod tests {
     fn scan_plugin_manifest_no_file_returns_empty() {
         let tmp = TempDir::new().unwrap();
         assert!(scan_plugin_manifest(tmp.path()).is_empty());
+    }
+
+    #[test]
+    fn extract_uses_permissions_does_not_match_sdk_23_variant() {
+        let xml = r#"<manifest>
+  <uses-permission-sdk-23 android:name="android.permission.NOT_THIS_ONE"/>
+  <uses-permission android:name="android.permission.CAMERA"/>
+</manifest>"#;
+        let perms = extract_uses_permissions(xml);
+        assert_eq!(perms, vec!["android.permission.CAMERA".to_string()]);
     }
 }
