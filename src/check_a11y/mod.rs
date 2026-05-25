@@ -13,6 +13,25 @@ const RULE_ID_COMMENTED_ENSURE_SEMANTICS: &str = "a11y/commented-ensure-semantic
 const RULE_ID_LOW_COVERAGE: &str = "a11y/low-interactive-coverage";
 const RULE_ID_UNWRAPPED_WIDGET: &str = "a11y/unwrapped-interactive-widget";
 
+/// Parse the `require_ensure_semantics` config knob to a `Severity` or `None` (off).
+/// Accepted values: "error" | "warning" | "info" | "off". Default: "warning".
+fn ensure_semantics_severity(config: &FalconConfig) -> Option<Severity> {
+    let knob = config
+        .preflight
+        .config
+        .get("check-a11y")
+        .and_then(|c| c.get("require_ensure_semantics"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("warning");
+    match knob {
+        "error" => Some(Severity::Error),
+        "warning" => Some(Severity::Warning),
+        "info" => Some(Severity::Info),
+        "off" => None,
+        _ => Some(Severity::Warning),
+    }
+}
+
 /// Run the check. Returns exit code: 0 clean, 1 warnings only, 2 errors.
 pub fn run(root: &Path, format: OutputFormat, config: &FalconConfig) -> Result<i32> {
     let mut issues: Vec<PreflightIssue> = Vec::new();
@@ -35,37 +54,41 @@ pub fn run(root: &Path, format: OutputFormat, config: &FalconConfig) -> Result<i
             main_check::MainCheckResult::Present => {}
             main_check::MainCheckResult::Missing
             | main_check::MainCheckResult::NoMainFunction => {
-                issues.push(PreflightIssue {
-                    rule_id: RULE_ID_MISSING_ENSURE_SEMANTICS.into(),
-                    severity: Severity::Error,
-                    title: "Missing ensureSemantics() call".into(),
-                    file: Some(rel.clone()),
-                    line: None,
-                    plugin: None,
-                    message: "lib/main.dart does not call SemanticsBinding.instance.ensureSemantics(). \
+                if let Some(severity) = ensure_semantics_severity(config) {
+                    issues.push(PreflightIssue {
+                        rule_id: RULE_ID_MISSING_ENSURE_SEMANTICS.into(),
+                        severity,
+                        title: "Missing ensureSemantics() call".into(),
+                        file: Some(rel.clone()),
+                        line: None,
+                        plugin: None,
+                        message: "lib/main.dart does not call SemanticsBinding.instance.ensureSemantics(). \
 Maestro UI tests on iOS will see an empty accessibility tree."
-                        .into(),
-                    suggestion: Some(
-                        "Add `SemanticsBinding.instance.ensureSemantics();` after \
-WidgetsFlutterBinding.ensureInitialized() and before runApp() in main()."
                             .into(),
-                    ),
-                });
+                        suggestion: Some(
+                            "Add `SemanticsBinding.instance.ensureSemantics();` after \
+WidgetsFlutterBinding.ensureInitialized() and before runApp() in main()."
+                                .into(),
+                        ),
+                    });
+                }
             }
             main_check::MainCheckResult::CommentedOut => {
-                issues.push(PreflightIssue {
-                    rule_id: RULE_ID_COMMENTED_ENSURE_SEMANTICS.into(),
-                    severity: Severity::Error,
-                    title: "ensureSemantics() is commented out".into(),
-                    file: Some(rel),
-                    line: None,
-                    plugin: None,
-                    message:
-                        "lib/main.dart contains a commented-out call to ensureSemantics(); \
+                if let Some(severity) = ensure_semantics_severity(config) {
+                    issues.push(PreflightIssue {
+                        rule_id: RULE_ID_COMMENTED_ENSURE_SEMANTICS.into(),
+                        severity,
+                        title: "ensureSemantics() is commented out".into(),
+                        file: Some(rel),
+                        line: None,
+                        plugin: None,
+                        message:
+                            "lib/main.dart contains a commented-out call to ensureSemantics(); \
 Maestro UI tests on iOS will see an empty accessibility tree."
-                            .into(),
-                    suggestion: Some("Uncomment the SemanticsBinding.instance.ensureSemantics() call.".into()),
-                });
+                                .into(),
+                        suggestion: Some("Uncomment the SemanticsBinding.instance.ensureSemantics() call.".into()),
+                    });
+                }
             }
         }
     } else {
@@ -206,11 +229,11 @@ mod tests {
     }
 
     #[test]
-    fn missing_ensure_semantics_exits_two() {
+    fn missing_ensure_semantics_exits_one_by_default() {
         let tmp = TempDir::new().unwrap();
         write(&tmp.path().join("lib/main.dart"), &basic_main(false));
         let code = run(tmp.path(), OutputFormat::Text, &FalconConfig::default()).unwrap();
-        assert_eq!(code, 2);
+        assert_eq!(code, 1);
     }
 
     #[test]
@@ -316,12 +339,40 @@ class Page extends StatelessWidget {
     }
 
     #[test]
-    fn commented_out_ensure_semantics_exits_two() {
+    fn commented_out_ensure_semantics_exits_one_by_default() {
         let tmp = TempDir::new().unwrap();
         let src = "void main() {\n  // SemanticsBinding.instance.ensureSemantics();\n  runApp(MyApp());\n}\n";
         write(&tmp.path().join("lib/main.dart"), src);
         let code = run(tmp.path(), OutputFormat::Text, &FalconConfig::default()).unwrap();
+        assert_eq!(code, 1);
+    }
+
+    #[test]
+    fn missing_ensure_semantics_with_require_error_config_exits_two() {
+        let tmp = TempDir::new().unwrap();
+        write(&tmp.path().join("lib/main.dart"), &basic_main(false));
+        let mut cfg = FalconConfig::default();
+        let mut tunings = std::collections::HashMap::new();
+        let yaml: serde_yaml::Value =
+            serde_yaml::from_str("require_ensure_semantics: \"error\"").unwrap();
+        tunings.insert("check-a11y".to_string(), yaml);
+        cfg.preflight = PreflightConfig { suppress: vec![], config: tunings };
+        let code = run(tmp.path(), OutputFormat::Text, &cfg).unwrap();
         assert_eq!(code, 2);
+    }
+
+    #[test]
+    fn missing_ensure_semantics_with_off_config_exits_zero() {
+        let tmp = TempDir::new().unwrap();
+        write(&tmp.path().join("lib/main.dart"), &basic_main(false));
+        let mut cfg = FalconConfig::default();
+        let mut tunings = std::collections::HashMap::new();
+        let yaml: serde_yaml::Value =
+            serde_yaml::from_str("require_ensure_semantics: \"off\"").unwrap();
+        tunings.insert("check-a11y".to_string(), yaml);
+        cfg.preflight = PreflightConfig { suppress: vec![], config: tunings };
+        let code = run(tmp.path(), OutputFormat::Text, &cfg).unwrap();
+        assert_eq!(code, 0);
     }
 
     #[test]

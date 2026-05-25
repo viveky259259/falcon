@@ -15,7 +15,7 @@ fn write(path: &std::path::Path, contents: &str) {
 }
 
 #[test]
-fn check_a11y_exits_two_on_missing_ensure_semantics() {
+fn check_a11y_exits_one_on_missing_ensure_semantics() {
     let tmp = TempDir::new().unwrap();
     write(
         &tmp.path().join("lib/main.dart"),
@@ -28,7 +28,7 @@ fn check_a11y_exits_two_on_missing_ensure_semantics() {
         .output()
         .expect("failed to execute falcon");
 
-    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(output.status.code(), Some(1));
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("ensureSemantics"), "stdout: {stdout}");
 }
@@ -65,7 +65,7 @@ fn check_a11y_json_format() {
         .output()
         .expect("failed to execute falcon");
 
-    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(output.status.code(), Some(1));
     let stdout = String::from_utf8_lossy(&output.stdout);
     let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
     assert_eq!(parsed["schema_version"], serde_json::json!(1));
