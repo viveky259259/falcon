@@ -50,6 +50,7 @@ Next module to work on (lowest-covered, not excluded, smallest): ~~visitor~~ ~~s
 | 2026-05-25 | src/reporters/console.rs           | 0.00%   | 97.88%   | 03a1b13 |
 | 2026-05-25 | src/flutter_run/mod.rs             | 0.00%   | 77.43%*  | 0afdb76 |
 | 2026-05-25 | src/dashboard/compare_reports.rs   | 0.00%   | 60.85%*  | becc5bf |
+| 2026-05-25 | src/dashboard/compare_reports (r2) | 65.05%  | 81.07%   | 8c0c4cb |
 | 2026-05-25 | src/reporters/html.rs              | 0.00%   | 95.50%   | 4e93f14 |
 | 2026-05-25 | src/self_update.rs                 | 0.00%   | 44.65%*  | fff9e1f |
 | 2026-05-25 | src/runtime/tools.rs               | 40.03%  | 71.54%   | 2ff21e1 |
