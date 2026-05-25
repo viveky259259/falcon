@@ -33,10 +33,12 @@ fn parse_platform(podfile: &str, kind: &str) -> PodfilePlatform {
 }
 
 fn strip_comment(line: &str) -> &str {
-    match line.find('#') {
-        Some(idx) => &line[..idx],
-        None => line,
+    for (idx, ch) in line.char_indices() {
+        if ch == '#' {
+            return &line[..idx];
+        }
     }
+    line
 }
 
 fn extract_first_quoted(s: &str) -> Option<String> {
