@@ -9,6 +9,7 @@ pub mod benchmark;
 pub mod benchmark_compare;
 pub mod check_a11y;
 pub mod check_assets;
+pub mod check_platform_deps;
 pub mod check_pods;
 pub mod ci;
 pub mod community;
