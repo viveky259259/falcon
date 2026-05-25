@@ -1202,6 +1202,23 @@ enum Commands {
         path: PathBuf,
     },
 
+    /// Verify Info.plist / AndroidManifest.xml declare every key the project's plugins require.
+    #[command(name = "check-platform-deps", display_order = 2)]
+    CheckPlatformDeps {
+        /// Path to the Flutter project.
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        /// Re-scan plugins even if .falcon/plugin-requirements.yaml is current.
+        #[arg(long)]
+        refresh: bool,
+        /// Restrict scan to one platform.
+        #[arg(long, value_enum)]
+        platform: Option<falcon::preflight::TargetPlatform>,
+        /// Output format.
+        #[arg(long, value_enum, default_value = "text")]
+        format: PreflightOutputFormat,
+    },
+
     /// Analyze code generation quality (.g.dart, .freezed.dart, etc.)
     #[command(name = "check-codegen", display_order = 2)]
     CheckCodegen {
@@ -3998,6 +4015,11 @@ fn run(cli: Cli) -> Result<()> {
             if !issues.is_empty() {
                 get_reporter(&OutputFormat::Console, &PathBuf::from("")).report_issues(&issues);
             }
+        }
+        Commands::CheckPlatformDeps { path, refresh, platform, format } => {
+            let config = falcon::config::FalconConfig::load(&path).unwrap_or_default();
+            let code = falcon::check_platform_deps::run(&path, format, &config, refresh, platform)?;
+            process::exit(code);
         }
         Commands::CheckCodegen { path } => {
             let report = falcon::analysis::codegen_quality::analyze_codegen(&path);
