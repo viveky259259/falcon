@@ -94,28 +94,46 @@ pub fn write_cache(project_root: &Path, doc: &GeneratedRequirements) -> Result<(
 pub fn new_empty_for(project_root: &Path) -> GeneratedRequirements {
     GeneratedRequirements {
         schema_version: SCHEMA_VERSION,
-        generated_at: now_iso8601(),
+        generated_at: now_iso8601_string(),
         pubspec_lock_sha256: pubspec_lock_sha256(project_root),
         plugins: BTreeMap::new(),
     }
 }
 
-fn now_iso8601() -> String {
+/// Format the current UTC time as ISO 8601 (`YYYY-MM-DDTHH:MM:SSZ`).
+pub fn now_iso8601_string() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
-    let mins = secs / 60;
-    let hours = mins / 60;
-    let days = hours / 24;
+    let sec_of_day = (secs % 86_400) as u32;
+    let days_since_epoch = (secs / 86_400) as i64;
+    let (year, month, day) = days_to_ymd(days_since_epoch);
+    let hour = sec_of_day / 3600;
+    let minute = (sec_of_day / 60) % 60;
+    let second = sec_of_day % 60;
     format!(
-        "1970-01-01T{:02}:{:02}:{:02}Z+{}d",
-        hours % 24,
-        mins % 60,
-        secs % 60,
-        days
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+        year, month, day, hour, minute, second
     )
+}
+
+/// Convert days-since-1970-01-01 to (year, month, day). Based on the
+/// Howard Hinnant civil_from_days algorithm. Valid for all positive day
+/// counts representable in i64.
+fn days_to_ymd(days: i64) -> (i32, u32, u32) {
+    let days = days + 719_468;
+    let era = if days >= 0 { days } else { days - 146_096 } / 146_097;
+    let doe = (days - era * 146_097) as u32;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe as i32 + era as i32 * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    (y, m, d)
 }
 
 #[cfg(test)]
@@ -188,5 +206,23 @@ mod tests {
         )
         .unwrap();
         assert!(read_cache(tmp.path()).is_none());
+    }
+
+    #[test]
+    fn now_iso8601_string_is_valid_format() {
+        let s = now_iso8601_string();
+        // Must be exactly 20 chars: YYYY-MM-DDTHH:MM:SSZ
+        assert_eq!(s.len(), 20, "expected 20 chars, got: {s}");
+        // Year must be >= 2026
+        let year: i32 = s[..4].parse().expect("year should be numeric");
+        assert!(year >= 2026, "year should be >= 2026, got {year}");
+        // Separator chars at known positions
+        assert_eq!(&s[4..5], "-", "char 4 should be '-'");
+        assert_eq!(&s[7..8], "-", "char 7 should be '-'");
+        assert_eq!(&s[10..11], "T", "char 10 should be 'T'");
+        assert_eq!(&s[13..14], ":", "char 13 should be ':'");
+        assert_eq!(&s[16..17], ":", "char 16 should be ':'");
+        // Must end with Z
+        assert_eq!(&s[19..20], "Z", "last char should be 'Z'");
     }
 }
