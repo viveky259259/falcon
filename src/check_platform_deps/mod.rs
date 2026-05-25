@@ -25,7 +25,15 @@ pub fn run(
     platform: Option<TargetPlatform>,
 ) -> Result<i32> {
     let pub_cache = locate_pub_cache();
-    let installed = iter_installed_plugins(root, &pub_cache).unwrap_or_default();
+    let installed = match iter_installed_plugins(root, &pub_cache) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!(
+                "  \u{26a0} Falcon: failed to read pubspec.lock or pub-cache: {e}. Skipping plugin scan."
+            );
+            Vec::new()
+        }
+    };
 
     let lock_sha = generated::pubspec_lock_sha256(root);
     let cached = if refresh {

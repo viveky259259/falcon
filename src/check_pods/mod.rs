@@ -65,7 +65,15 @@ CocoaPods will default to {DEFAULT_IOS_PODFILE_TARGET}, which may be lower than 
     }
 
     let pub_cache = locate_pub_cache();
-    let plugins = iter_installed_plugins(root, &pub_cache).unwrap_or_default();
+    let plugins = match iter_installed_plugins(root, &pub_cache) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!(
+                "  \u{26a0} Falcon: failed to read pubspec.lock or pub-cache: {e}. Skipping plugin scan."
+            );
+            Vec::new()
+        }
+    };
     let mut max_target = podfile_target_str.clone();
     let mut binding_plugins: Vec<(String, String)> = Vec::new();
 
