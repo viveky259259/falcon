@@ -131,33 +131,39 @@ pub fn compare_snapshots(run1: &AnalysisSnapshot, run2: &AnalysisSnapshot) -> Co
     }
 }
 
-pub fn print_comparison(result: &ComparisonResult) {
+pub fn format_comparison(result: &ComparisonResult) -> String {
+    use std::fmt::Write;
     let r1 = &result.run1;
     let r2 = &result.run2;
     let d = &result.deltas;
 
-    println!();
-    println!(
+    let mut out = String::new();
+
+    out.push('\n');
+    writeln!(
+        out,
         "  🦅 {} {}",
         "falcon".bright_blue().bold(),
         "Report Comparison".bold()
-    );
-    println!();
-    println!(
+    ).unwrap();
+    out.push('\n');
+    writeln!(
+        out,
         "  🏷  {} {} ({} {})",
         "Run 1:".dimmed(),
         r1.timestamp,
         "🌿",
         r1.branch.as_deref().unwrap_or("—").bright_cyan()
-    );
-    println!(
+    ).unwrap();
+    writeln!(
+        out,
         "  🏷  {} {} ({} {})",
         "Run 2:".dimmed(),
         r2.timestamp,
         "🌿",
         r2.branch.as_deref().unwrap_or("—").bright_cyan()
-    );
-    println!();
+    ).unwrap();
+    out.push('\n');
 
     let health_icon = if d.health.diff() > 0.5 {
         "📈"
@@ -166,115 +172,121 @@ pub fn print_comparison(result: &ComparisonResult) {
     } else {
         "📊"
     };
-    println!("  {} {}", health_icon, "── Overview ──".dimmed());
-    print_delta_row(
+    writeln!(out, "  {} {}", health_icon, "── Overview ──".dimmed()).unwrap();
+    writeln!(out, "{}", format_delta_row(
         "💚 Health Score",
         &format!("{:.0}", d.health.before),
         &format!("{:.0}", d.health.after),
         d.health.diff(),
         true,
-    );
-    print_delta_row(
+    )).unwrap();
+    writeln!(out, "{}", format_delta_row(
         "📁 Files",
         &d.files.before.to_string(),
         &d.files.after.to_string(),
         d.files.diff() as f64,
         false,
-    );
-    print_delta_row(
+    )).unwrap();
+    writeln!(out, "{}", format_delta_row(
         "📝 Lines",
         &d.lines.before.to_string(),
         &d.lines.after.to_string(),
         d.lines.diff() as f64,
         false,
-    );
-    print_delta_row(
+    )).unwrap();
+    writeln!(out, "{}", format_delta_row(
         "⚡ Total Issues",
         &d.total_issues.before.to_string(),
         &d.total_issues.after.to_string(),
         d.total_issues.diff() as f64,
         false,
-    );
-    println!();
+    )).unwrap();
+    out.push('\n');
 
-    println!("  🔍 {}", "── Issues ──".dimmed());
-    print_delta_row(
+    writeln!(out, "  🔍 {}", "── Issues ──".dimmed()).unwrap();
+    writeln!(out, "{}", format_delta_row(
         "🔴 Errors",
         &d.errors.before.to_string(),
         &d.errors.after.to_string(),
         d.errors.diff() as f64,
         false,
-    );
-    print_delta_row(
+    )).unwrap();
+    writeln!(out, "{}", format_delta_row(
         "🟡 Warnings",
         &d.warnings.before.to_string(),
         &d.warnings.after.to_string(),
         d.warnings.diff() as f64,
         false,
-    );
-    print_delta_row(
+    )).unwrap();
+    writeln!(out, "{}", format_delta_row(
         "🔵 Info",
         &d.info.before.to_string(),
         &d.info.after.to_string(),
         d.info.diff() as f64,
         false,
-    );
-    println!();
+    )).unwrap();
+    out.push('\n');
 
-    println!("  📐 {}", "── Metrics ──".dimmed());
-    print_delta_row(
+    writeln!(out, "  📐 {}", "── Metrics ──".dimmed()).unwrap();
+    writeln!(out, "{}", format_delta_row(
         "🔄 Avg CC",
         &format!("{:.1}", d.avg_cc.before),
         &format!("{:.1}", d.avg_cc.after),
         d.avg_cc.diff(),
         false,
-    );
-    print_delta_row(
+    )).unwrap();
+    writeln!(out, "{}", format_delta_row(
         "🔺 Max CC",
         &d.max_cc.before.to_string(),
         &d.max_cc.after.to_string(),
         d.max_cc.diff() as f64,
         false,
-    );
-    print_delta_row(
+    )).unwrap();
+    writeln!(out, "{}", format_delta_row(
         "🛡  Avg MI",
         &format!("{:.1}", d.avg_mi.before),
         &format!("{:.1}", d.avg_mi.after),
         d.avg_mi.diff(),
         true,
-    );
-    print_delta_row(
+    )).unwrap();
+    writeln!(out, "{}", format_delta_row(
         "🏗  God Files",
         &d.god_files.before.to_string(),
         &d.god_files.after.to_string(),
         d.god_files.diff() as f64,
         false,
-    );
-    println!();
+    )).unwrap();
+    out.push('\n');
 
     if !d.rules_changed.is_empty() {
-        println!("  📋 {}", "── Rule Changes (top 10) ──".dimmed());
+        writeln!(out, "  📋 {}", "── Rule Changes (top 10) ──".dimmed()).unwrap();
         for (rule, delta) in d.rules_changed.iter().take(10) {
             let (icon, arrow) = if *delta > 0 {
                 ("⬆ ", format!("+{}", delta).red().to_string())
             } else {
                 ("⬇ ", format!("{}", delta).green().to_string())
             };
-            println!("    {} {} {}", icon, arrow, rule.dimmed());
+            writeln!(out, "    {} {} {}", icon, arrow, rule.dimmed()).unwrap();
         }
-        println!();
+        out.push('\n');
     }
 
     if !d.rules_added.is_empty() {
-        println!("  🆕 {} new rule(s) detected", d.rules_added.len());
+        writeln!(out, "  🆕 {} new rule(s) detected", d.rules_added.len()).unwrap();
     }
     if !d.rules_removed.is_empty() {
-        println!("  ✅ {} rule(s) resolved", d.rules_removed.len());
+        writeln!(out, "  ✅ {} rule(s) resolved", d.rules_removed.len()).unwrap();
     }
-    println!();
+    out.push('\n');
+
+    out
 }
 
-fn print_delta_row(label: &str, before: &str, after: &str, diff: f64, higher_is_better: bool) {
+pub fn print_comparison(result: &ComparisonResult) {
+    print!("{}", format_comparison(result));
+}
+
+fn format_delta_row(label: &str, before: &str, after: &str, diff: f64, higher_is_better: bool) -> String {
     let negligible = is_negligible(diff);
 
     let arrow = if negligible {
@@ -311,14 +323,14 @@ fn print_delta_row(label: &str, before: &str, after: &str, diff: f64, higher_is_
         }
     };
 
-    println!(
+    format!(
         "    {:<18} {:>8} → {:<8}  {} {}",
         label,
         before.dimmed(),
         after,
         arrow,
         diff_str
-    );
+    )
 }
 
 pub fn generate_html_comparison(result: &ComparisonResult, output: &Path) -> anyhow::Result<()> {
@@ -1064,6 +1076,181 @@ mod tests {
         compare_row(&mut html, "Health", "80", "80", 0.0, true);
         assert!(html.contains("─"), "Expected ─ arrow for negligible diff");
         assert!(html.contains("delta-neutral"), "Expected delta-neutral badge for negligible diff");
+    }
+
+    // --- format_delta_row tests ---
+
+    #[test]
+    fn format_delta_row_label_appears_in_output() {
+        disable_colors();
+        let row = format_delta_row("MyLabel", "10", "20", 10.0, false);
+        assert!(row.contains("MyLabel"), "Expected label in row output");
+    }
+
+    #[test]
+    fn format_delta_row_before_and_after_values_appear() {
+        disable_colors();
+        let row = format_delta_row("Files", "100", "200", 100.0, false);
+        assert!(row.contains("100"), "Expected before value in row");
+        assert!(row.contains("200"), "Expected after value in row");
+    }
+
+    #[test]
+    fn format_delta_row_improvement_higher_is_better_true() {
+        disable_colors();
+        // positive diff with higher_is_better=true => improvement => diff shown as +N (no color in test)
+        let row = format_delta_row("Health", "70", "80", 10.0, true);
+        assert!(row.contains("+10"), "Expected +10 in improvement row");
+        // Arrow should be ▲ (upward)
+        assert!(row.contains("▲"), "Expected ▲ arrow for positive diff");
+    }
+
+    #[test]
+    fn format_delta_row_regression_higher_is_better_true() {
+        disable_colors();
+        // negative diff with higher_is_better=true => regression
+        let row = format_delta_row("Health", "80", "70", -10.0, true);
+        assert!(row.contains("-10"), "Expected -10 in regression row");
+        assert!(row.contains("▼"), "Expected ▼ arrow for negative diff");
+    }
+
+    #[test]
+    fn format_delta_row_regression_higher_is_better_false() {
+        disable_colors();
+        // positive diff with higher_is_better=false => regression (more issues = bad)
+        let row = format_delta_row("Issues", "5", "15", 10.0, false);
+        assert!(row.contains("+10"), "Expected +10 in regression row (lower_is_better)");
+        assert!(row.contains("▲"), "Expected ▲ arrow for positive diff");
+    }
+
+    #[test]
+    fn format_delta_row_improvement_higher_is_better_false() {
+        disable_colors();
+        // negative diff with higher_is_better=false => improvement (fewer issues = good)
+        let row = format_delta_row("Issues", "15", "5", -10.0, false);
+        assert!(row.contains("-10"), "Expected -10 in improvement row (lower_is_better)");
+        assert!(row.contains("▼"), "Expected ▼ arrow for negative diff");
+    }
+
+    #[test]
+    fn format_delta_row_negligible_diff_renders_dash_arrow() {
+        disable_colors();
+        let row = format_delta_row("Score", "80", "80", 0.0, true);
+        assert!(row.contains("─"), "Expected ─ dash arrow for negligible diff");
+        // diff renders as 0 not +0
+        assert!(row.contains('0'), "Expected 0 in negligible diff row");
+    }
+
+    #[test]
+    fn format_delta_row_no_trailing_newline() {
+        disable_colors();
+        let row = format_delta_row("Test", "1", "2", 1.0, true);
+        assert!(!row.ends_with('\n'), "format_delta_row must NOT have trailing newline");
+    }
+
+    // --- format_comparison tests ---
+
+    #[test]
+    fn format_comparison_empty_deltas_contains_section_headers() {
+        disable_colors();
+        let run1 = sample_snapshot();
+        let run2 = sample_snapshot();
+        let result = compare_snapshots(&run1, &run2);
+        let out = format_comparison(&result);
+        assert!(out.contains("Overview"), "Expected Overview section header");
+        assert!(out.contains("Issues"), "Expected Issues section header");
+        assert!(out.contains("Metrics"), "Expected Metrics section header");
+    }
+
+    #[test]
+    fn format_comparison_contains_run1_and_run2_metadata() {
+        disable_colors();
+        let mut run1 = sample_snapshot();
+        run1.branch = Some("branch-one".to_string());
+        run1.timestamp = "2026-01-01T00:00:00Z".to_string();
+        let mut run2 = sample_snapshot();
+        run2.branch = Some("branch-two".to_string());
+        run2.timestamp = "2026-02-01T00:00:00Z".to_string();
+        let result = compare_snapshots(&run1, &run2);
+        let out = format_comparison(&result);
+        assert!(out.contains("branch-one"), "Expected run1 branch in output");
+        assert!(out.contains("branch-two"), "Expected run2 branch in output");
+        assert!(out.contains("2026-01-01"), "Expected run1 timestamp in output");
+        assert!(out.contains("2026-02-01"), "Expected run2 timestamp in output");
+    }
+
+    #[test]
+    fn format_comparison_with_rule_changes() {
+        disable_colors();
+        let mut run1 = sample_snapshot();
+        run1.rule_counts.insert("avoid_print".to_string(), 3);
+        let mut run2 = sample_snapshot();
+        run2.rule_counts.insert("avoid_print".to_string(), 8);
+        let result = compare_snapshots(&run1, &run2);
+        let out = format_comparison(&result);
+        assert!(out.contains("avoid_print"), "Expected changed rule name in output");
+        assert!(out.contains("Rule Changes"), "Expected Rule Changes section header");
+    }
+
+    #[test]
+    fn format_comparison_with_file_count_changes() {
+        disable_colors();
+        let run1 = sample_snapshot(); // file_count=10
+        let mut run2 = sample_snapshot();
+        run2.file_count = 25;
+        let result = compare_snapshots(&run1, &run2);
+        let out = format_comparison(&result);
+        assert!(out.contains("10"), "Expected run1 file count in output");
+        assert!(out.contains("25"), "Expected run2 file count in output");
+    }
+
+    #[test]
+    fn format_comparison_large_positive_health_delta() {
+        disable_colors();
+        let mut run1 = sample_snapshot();
+        run1.health_score = 20.0;
+        let mut run2 = sample_snapshot();
+        run2.health_score = 95.0;
+        let result = compare_snapshots(&run1, &run2);
+        let out = format_comparison(&result);
+        // Should show 📈 since health improved > 0.5
+        assert!(out.contains("📈"), "Expected 📈 icon for large positive health delta");
+    }
+
+    #[test]
+    fn format_comparison_large_negative_health_delta() {
+        disable_colors();
+        let mut run1 = sample_snapshot();
+        run1.health_score = 90.0;
+        let mut run2 = sample_snapshot();
+        run2.health_score = 20.0;
+        let result = compare_snapshots(&run1, &run2);
+        let out = format_comparison(&result);
+        // Should show 📉 since health declined > 0.5
+        assert!(out.contains("📉"), "Expected 📉 icon for large negative health delta");
+    }
+
+    #[test]
+    fn format_comparison_with_rules_added_and_removed() {
+        disable_colors();
+        let mut run1 = sample_snapshot();
+        run1.rule_counts.insert("old_rule".to_string(), 5);
+        let mut run2 = sample_snapshot();
+        run2.rule_counts.insert("new_rule".to_string(), 3);
+        let result = compare_snapshots(&run1, &run2);
+        let out = format_comparison(&result);
+        assert!(out.contains("new rule(s) detected"), "Expected new rule count in output");
+        assert!(out.contains("rule(s) resolved"), "Expected resolved rule count in output");
+    }
+
+    #[test]
+    fn format_comparison_ends_with_newline() {
+        disable_colors();
+        let run1 = sample_snapshot();
+        let run2 = sample_snapshot();
+        let result = compare_snapshots(&run1, &run2);
+        let out = format_comparison(&result);
+        assert!(out.ends_with('\n'), "format_comparison output must end with newline");
     }
 }
 
