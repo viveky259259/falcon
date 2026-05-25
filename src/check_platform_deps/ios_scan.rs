@@ -52,7 +52,7 @@ fn dedupe(mut v: Vec<RequiredInfoPlistKey>) -> Vec<RequiredInfoPlistKey> {
     v
 }
 
-pub fn unique_keys(reqs: &[RequiredInfoPlistKey]) -> Vec<&'static str> {
+pub(crate) fn unique_keys(reqs: &[RequiredInfoPlistKey]) -> Vec<&'static str> {
     let mut set: Vec<&'static str> = reqs.iter().map(|r| r.key).collect();
     set.sort();
     set.dedup();

@@ -91,7 +91,7 @@ pub fn write_cache(project_root: &Path, doc: &GeneratedRequirements) -> Result<(
     Ok(())
 }
 
-pub fn new_empty_for(project_root: &Path) -> GeneratedRequirements {
+pub(crate) fn new_empty_for(project_root: &Path) -> GeneratedRequirements {
     GeneratedRequirements {
         schema_version: SCHEMA_VERSION,
         generated_at: now_iso8601_string(),
