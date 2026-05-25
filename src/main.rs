@@ -191,7 +191,7 @@ enum Commands {
     },
 
     /// Verify every asset declared in pubspec.yaml exists on disk (pre-flight check).
-    #[command(name = "check-assets")]
+    #[command(name = "check-assets", display_order = 50)]
     CheckAssets {
         /// Path to the Flutter project.
         #[arg(default_value = ".")]
@@ -202,7 +202,7 @@ enum Commands {
     },
 
     /// Verify the Flutter project is ready for Maestro UI testing (ensureSemantics + Semantics coverage).
-    #[command(name = "check-a11y")]
+    #[command(name = "check-a11y", display_order = 51)]
     CheckA11y {
         /// Path to the Flutter project.
         #[arg(default_value = ".")]
@@ -213,7 +213,7 @@ enum Commands {
     },
 
     /// Verify ios/Podfile deployment target is ≥ every plugin's required minimum.
-    #[command(name = "check-pods")]
+    #[command(name = "check-pods", display_order = 52)]
     CheckPods {
         /// Path to the Flutter project.
         #[arg(default_value = ".")]
@@ -1203,7 +1203,7 @@ enum Commands {
     },
 
     /// Verify Info.plist / AndroidManifest.xml declare every key the project's plugins require.
-    #[command(name = "check-platform-deps", display_order = 2)]
+    #[command(name = "check-platform-deps", display_order = 53)]
     CheckPlatformDeps {
         /// Path to the Flutter project.
         #[arg(default_value = ".")]
