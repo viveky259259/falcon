@@ -212,6 +212,20 @@ enum Commands {
         format: PreflightOutputFormat,
     },
 
+    /// Verify ios/Podfile deployment target is ≥ every plugin's required minimum.
+    #[command(name = "check-pods")]
+    CheckPods {
+        /// Path to the Flutter project.
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        /// Re-scan plugin podspecs even if cached results would be reused.
+        #[arg(long)]
+        refresh: bool,
+        /// Output format.
+        #[arg(long, value_enum, default_value = "text")]
+        format: PreflightOutputFormat,
+    },
+
     /// Generate a default falcon.yaml configuration file
     #[command(display_order = 7)]
     Init {
@@ -2011,6 +2025,11 @@ fn run(cli: Cli) -> Result<()> {
         Commands::CheckA11y { path, format } => {
             let config = falcon::config::FalconConfig::load(&path).unwrap_or_default();
             let code = falcon::check_a11y::run(&path, format, &config)?;
+            process::exit(code);
+        }
+        Commands::CheckPods { path, refresh, format } => {
+            let config = falcon::config::FalconConfig::load(&path).unwrap_or_default();
+            let code = falcon::check_pods::run(&path, format, &config, refresh)?;
             process::exit(code);
         }
         Commands::Init { path } => {
