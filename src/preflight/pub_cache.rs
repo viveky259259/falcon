@@ -120,6 +120,7 @@ mod tests {
 
     #[test]
     fn locate_pub_cache_honors_falcon_env_first() {
+        let _guard = FALCON_ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         std::env::set_var("FALCON_PUB_CACHE", "/tmp/fake-falcon-cache");
         let p = locate_pub_cache();
         assert_eq!(p, PathBuf::from("/tmp/fake-falcon-cache"));
