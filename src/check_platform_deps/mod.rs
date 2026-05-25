@@ -2,3 +2,4 @@
 //! declare every key/permission the project's plugins require.
 
 pub mod apple_api_map;
+pub mod ios_scan;
