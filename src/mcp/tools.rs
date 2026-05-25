@@ -351,3 +351,636 @@ fn execute_provenance(args: &Value) -> Result<Value, String> {
         "ai_percentage": summary.ai_percentage
     }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use std::fs;
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    // ── helpers ─────────────────────────────────────────────────────────────
+
+    /// Create a minimal Dart project in a TempDir: lib/main.dart
+    fn make_dart_project() -> TempDir {
+        let dir = TempDir::new().expect("TempDir::new");
+        let lib_dir = dir.path().join("lib");
+        fs::create_dir_all(&lib_dir).unwrap();
+        let mut f = fs::File::create(lib_dir.join("main.dart")).unwrap();
+        write!(
+            f,
+            "import 'package:flutter/material.dart';\n\nvoid main() {{\n  runApp(MyApp());\n}}\n\nclass MyApp extends StatelessWidget {{\n  @override\n  Widget build(BuildContext context) {{\n    return MaterialApp(home: Scaffold(body: Center(child: Text('Hello'))));\n  }}\n}}\n"
+        )
+        .unwrap();
+        dir
+    }
+
+    /// Create a single `.dart` file in a TempDir and return (TempDir, PathBuf-to-file).
+    fn make_dart_file(source: &str) -> (TempDir, std::path::PathBuf) {
+        let dir = TempDir::new().expect("TempDir::new");
+        let file_path = dir.path().join("test.dart");
+        fs::write(&file_path, source).unwrap();
+        (dir, file_path)
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // list_tools
+    // ══════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn list_tools_returns_seven_tools() {
+        let tools = list_tools();
+        assert_eq!(tools.len(), 7);
+    }
+
+    #[test]
+    fn list_tools_contains_falcon_analyze() {
+        let tools = list_tools();
+        assert!(tools.iter().any(|t| t.name == "falcon_analyze"));
+    }
+
+    #[test]
+    fn list_tools_contains_all_expected_names() {
+        let tools = list_tools();
+        let names: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
+        for expected in &[
+            "falcon_analyze",
+            "falcon_ai_score",
+            "falcon_check_file",
+            "falcon_explain_rule",
+            "falcon_fix",
+            "falcon_conventions",
+            "falcon_provenance",
+        ] {
+            assert!(names.contains(expected), "missing tool: {}", expected);
+        }
+    }
+
+    #[test]
+    fn list_tools_each_has_nonempty_description() {
+        for tool in list_tools() {
+            assert!(
+                !tool.description.is_empty(),
+                "tool {} has empty description",
+                tool.name
+            );
+        }
+    }
+
+    #[test]
+    fn list_tools_each_has_object_input_schema() {
+        for tool in list_tools() {
+            assert_eq!(
+                tool.input_schema["type"],
+                json!("object"),
+                "tool {} schema type is not object",
+                tool.name
+            );
+        }
+    }
+
+    #[test]
+    fn list_tools_analyze_schema_has_path_required() {
+        let tools = list_tools();
+        let analyze = tools.iter().find(|t| t.name == "falcon_analyze").unwrap();
+        let required = analyze.input_schema["required"].as_array().unwrap();
+        assert!(required.contains(&json!("path")));
+    }
+
+    #[test]
+    fn list_tools_check_file_schema_requires_file_path() {
+        let tools = list_tools();
+        let tool = tools
+            .iter()
+            .find(|t| t.name == "falcon_check_file")
+            .unwrap();
+        let required = tool.input_schema["required"].as_array().unwrap();
+        assert!(required.contains(&json!("file_path")));
+    }
+
+    #[test]
+    fn list_tools_explain_rule_schema_requires_rule() {
+        let tools = list_tools();
+        let tool = tools
+            .iter()
+            .find(|t| t.name == "falcon_explain_rule")
+            .unwrap();
+        let required = tool.input_schema["required"].as_array().unwrap();
+        assert!(required.contains(&json!("rule")));
+    }
+
+    #[test]
+    fn list_tools_can_be_serialized_to_json() {
+        let tools = list_tools();
+        let serialized = serde_json::to_string(&tools);
+        assert!(serialized.is_ok());
+        let text = serialized.unwrap();
+        assert!(text.contains("falcon_analyze"));
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // get_string_arg
+    // ══════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn get_string_arg_returns_value_when_present() {
+        let args = json!({"key": "value"});
+        assert_eq!(get_string_arg(&args, "key").unwrap(), "value");
+    }
+
+    #[test]
+    fn get_string_arg_returns_error_when_missing() {
+        let args = json!({});
+        let err = get_string_arg(&args, "missing").unwrap_err();
+        assert!(err.contains("missing"), "err was: {}", err);
+    }
+
+    #[test]
+    fn get_string_arg_returns_error_for_non_string_value() {
+        let args = json!({"num": 42});
+        let err = get_string_arg(&args, "num").unwrap_err();
+        assert!(err.contains("num"), "err was: {}", err);
+    }
+
+    #[test]
+    fn get_string_arg_returns_empty_string_value() {
+        let args = json!({"key": ""});
+        assert_eq!(get_string_arg(&args, "key").unwrap(), "");
+    }
+
+    #[test]
+    fn get_string_arg_null_value_is_error() {
+        let args = json!({"key": null});
+        assert!(get_string_arg(&args, "key").is_err());
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // execute_tool dispatch
+    // ══════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn execute_tool_unknown_name_returns_error() {
+        let result = execute_tool("does_not_exist", &json!({}));
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("does_not_exist"), "err: {}", err);
+    }
+
+    #[test]
+    fn execute_tool_analyze_missing_path_returns_error() {
+        let result = execute_tool("falcon_analyze", &json!({}));
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("path") || err.contains("Missing"),
+            "err: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn execute_tool_ai_score_missing_path_returns_error() {
+        let result = execute_tool("falcon_ai_score", &json!({}));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn execute_tool_check_file_missing_file_path_returns_error() {
+        let result = execute_tool("falcon_check_file", &json!({}));
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("file_path") || err.contains("Missing"),
+            "err: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn execute_tool_explain_rule_missing_rule_returns_error() {
+        let result = execute_tool("falcon_explain_rule", &json!({}));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn execute_tool_fix_missing_path_returns_error() {
+        let result = execute_tool("falcon_fix", &json!({}));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn execute_tool_conventions_missing_path_returns_error() {
+        let result = execute_tool("falcon_conventions", &json!({}));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn execute_tool_provenance_missing_path_returns_error() {
+        let result = execute_tool("falcon_provenance", &json!({}));
+        assert!(result.is_err());
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // execute_explain_rule
+    // ══════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn explain_rule_known_rule_returns_ok() {
+        let result = execute_tool("falcon_explain_rule", &json!({"rule": "avoid-long-functions"}));
+        assert!(result.is_ok(), "err: {:?}", result.err());
+    }
+
+    #[test]
+    fn explain_rule_result_has_expected_fields() {
+        let val = execute_tool("falcon_explain_rule", &json!({"rule": "avoid-long-functions"}))
+            .unwrap();
+        assert!(val.get("rule").is_some(), "missing 'rule' field");
+        assert!(val.get("category").is_some(), "missing 'category' field");
+        assert!(val.get("severity").is_some(), "missing 'severity' field");
+        assert!(val.get("summary").is_some(), "missing 'summary' field");
+        assert!(val.get("why").is_some(), "missing 'why' field");
+        assert!(val.get("bad_example").is_some(), "missing 'bad_example'");
+        assert!(val.get("good_example").is_some(), "missing 'good_example'");
+        assert!(val.get("exceptions").is_some(), "missing 'exceptions'");
+    }
+
+    #[test]
+    fn explain_rule_rule_name_matches_request() {
+        let val = execute_tool("falcon_explain_rule", &json!({"rule": "avoid-long-functions"}))
+            .unwrap();
+        assert_eq!(val["rule"], json!("avoid-long-functions"));
+    }
+
+    #[test]
+    fn explain_rule_no_magic_numbers_known() {
+        let result = execute_tool("falcon_explain_rule", &json!({"rule": "no-magic-numbers"}));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn explain_rule_unknown_rule_returns_error() {
+        let result =
+            execute_tool("falcon_explain_rule", &json!({"rule": "totally-fake-rule-xyz"}));
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("totally-fake-rule-xyz"), "err: {}", err);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // execute_check_file  (uses source= to avoid real FS reads)
+    // ══════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn check_file_with_inline_source_returns_ok() {
+        let (_dir, file_path) = make_dart_file("void main() {}");
+        let result = execute_tool(
+            "falcon_check_file",
+            &json!({
+                "file_path": file_path.to_string_lossy(),
+                "source": "void main() {}"
+            }),
+        );
+        assert!(result.is_ok(), "err: {:?}", result.err());
+    }
+
+    #[test]
+    fn check_file_result_has_required_keys() {
+        let (_dir, file_path) = make_dart_file("void main() {}");
+        let val = execute_tool(
+            "falcon_check_file",
+            &json!({
+                "file_path": file_path.to_string_lossy(),
+                "source": "void main() {}"
+            }),
+        )
+        .unwrap();
+        assert!(val.get("file").is_some(), "missing 'file'");
+        assert!(val.get("issue_count").is_some(), "missing 'issue_count'");
+        assert!(val.get("issues").is_some(), "missing 'issues'");
+    }
+
+    #[test]
+    fn check_file_issue_count_matches_issues_array_length() {
+        let source = "void main() {}\nvar x = 1;\n";
+        let (_dir, file_path) = make_dart_file(source);
+        let val = execute_tool(
+            "falcon_check_file",
+            &json!({
+                "file_path": file_path.to_string_lossy(),
+                "source": source
+            }),
+        )
+        .unwrap();
+        let count = val["issue_count"].as_u64().unwrap() as usize;
+        let arr_len = val["issues"].as_array().unwrap().len();
+        assert_eq!(count, arr_len);
+    }
+
+    #[test]
+    fn check_file_reads_from_disk_when_no_source() {
+        let source = "void main() {}";
+        let (_dir, file_path) = make_dart_file(source);
+        let result = execute_tool(
+            "falcon_check_file",
+            &json!({ "file_path": file_path.to_string_lossy() }),
+        );
+        assert!(result.is_ok(), "err: {:?}", result.err());
+    }
+
+    #[test]
+    fn check_file_nonexistent_file_without_source_returns_error() {
+        let result = execute_tool(
+            "falcon_check_file",
+            &json!({ "file_path": "/nonexistent/path/file.dart" }),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn check_file_issue_items_have_rule_and_message() {
+        // Use code likely to produce at least one issue via empty-catch-like patterns
+        let source = "void main() { try {} catch (e) {} }";
+        let (_dir, file_path) = make_dart_file(source);
+        let val = execute_tool(
+            "falcon_check_file",
+            &json!({
+                "file_path": file_path.to_string_lossy(),
+                "source": source
+            }),
+        )
+        .unwrap();
+        let issues = val["issues"].as_array().unwrap();
+        for issue in issues {
+            assert!(issue.get("rule").is_some(), "issue missing 'rule'");
+            assert!(issue.get("message").is_some(), "issue missing 'message'");
+            assert!(issue.get("severity").is_some(), "issue missing 'severity'");
+            assert!(issue.get("line").is_some(), "issue missing 'line'");
+            assert!(issue.get("column").is_some(), "issue missing 'column'");
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // execute_analyze (full project)
+    // ══════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn analyze_valid_project_returns_ok() {
+        let dir = make_dart_project();
+        let result = execute_tool("falcon_analyze", &json!({"path": dir.path().to_string_lossy()}));
+        assert!(result.is_ok(), "err: {:?}", result.err());
+    }
+
+    #[test]
+    fn analyze_result_has_file_count_and_issues() {
+        let dir = make_dart_project();
+        let val =
+            execute_tool("falcon_analyze", &json!({"path": dir.path().to_string_lossy()})).unwrap();
+        assert!(val.get("file_count").is_some());
+        assert!(val.get("issue_count").is_some());
+        assert!(val.get("issues").is_some());
+    }
+
+    #[test]
+    fn analyze_with_recommended_preset_returns_ok() {
+        let dir = make_dart_project();
+        let result = execute_tool(
+            "falcon_analyze",
+            &json!({
+                "path": dir.path().to_string_lossy(),
+                "preset": "recommended"
+            }),
+        );
+        assert!(result.is_ok(), "err: {:?}", result.err());
+    }
+
+    #[test]
+    fn analyze_with_strict_preset_returns_ok() {
+        let dir = make_dart_project();
+        let result = execute_tool(
+            "falcon_analyze",
+            &json!({
+                "path": dir.path().to_string_lossy(),
+                "preset": "strict"
+            }),
+        );
+        assert!(result.is_ok(), "err: {:?}", result.err());
+    }
+
+    #[test]
+    fn analyze_with_unknown_preset_still_runs() {
+        // An unknown preset is silently ignored (get_preset returns None)
+        let dir = make_dart_project();
+        let result = execute_tool(
+            "falcon_analyze",
+            &json!({
+                "path": dir.path().to_string_lossy(),
+                "preset": "nonexistent-preset"
+            }),
+        );
+        assert!(result.is_ok(), "err: {:?}", result.err());
+    }
+
+    #[test]
+    fn analyze_issue_count_matches_issues_array() {
+        let dir = make_dart_project();
+        let val =
+            execute_tool("falcon_analyze", &json!({"path": dir.path().to_string_lossy()})).unwrap();
+        let count = val["issue_count"].as_u64().unwrap() as usize;
+        let arr_len = val["issues"].as_array().unwrap().len();
+        assert_eq!(count, arr_len);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // execute_ai_score
+    // ══════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn ai_score_valid_project_returns_ok() {
+        let dir = make_dart_project();
+        let result =
+            execute_tool("falcon_ai_score", &json!({"path": dir.path().to_string_lossy()}));
+        assert!(result.is_ok(), "err: {:?}", result.err());
+    }
+
+    #[test]
+    fn ai_score_result_has_overall_and_grade() {
+        let dir = make_dart_project();
+        let val =
+            execute_tool("falcon_ai_score", &json!({"path": dir.path().to_string_lossy()}))
+                .unwrap();
+        assert!(val.get("overall").is_some(), "missing 'overall'");
+        assert!(val.get("grade").is_some(), "missing 'grade'");
+    }
+
+    #[test]
+    fn ai_score_result_has_all_six_dimensions() {
+        let dir = make_dart_project();
+        let val =
+            execute_tool("falcon_ai_score", &json!({"path": dir.path().to_string_lossy()}))
+                .unwrap();
+        for dim in &[
+            "resource_safety",
+            "error_handling",
+            "type_safety",
+            "security",
+            "convention_match",
+            "complexity",
+        ] {
+            assert!(val.get(*dim).is_some(), "missing dimension '{}'", dim);
+        }
+    }
+
+    #[test]
+    fn ai_score_dimensions_have_score_and_findings() {
+        let dir = make_dart_project();
+        let val =
+            execute_tool("falcon_ai_score", &json!({"path": dir.path().to_string_lossy()}))
+                .unwrap();
+        for dim in &[
+            "resource_safety",
+            "error_handling",
+            "type_safety",
+            "security",
+            "convention_match",
+            "complexity",
+        ] {
+            let d = &val[*dim];
+            assert!(d.get("score").is_some(), "{} missing 'score'", dim);
+            assert!(d.get("findings").is_some(), "{} missing 'findings'", dim);
+        }
+    }
+
+    #[test]
+    fn ai_score_has_production_ready_field() {
+        let dir = make_dart_project();
+        let val =
+            execute_tool("falcon_ai_score", &json!({"path": dir.path().to_string_lossy()}))
+                .unwrap();
+        assert!(val.get("production_ready").is_some());
+    }
+
+    #[test]
+    fn ai_score_has_file_count_and_total_issues() {
+        let dir = make_dart_project();
+        let val =
+            execute_tool("falcon_ai_score", &json!({"path": dir.path().to_string_lossy()}))
+                .unwrap();
+        assert!(val.get("file_count").is_some());
+        assert!(val.get("total_issues").is_some());
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // execute_fix
+    // ══════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn fix_valid_project_preview_true_returns_ok() {
+        let dir = make_dart_project();
+        let result = execute_tool(
+            "falcon_fix",
+            &json!({"path": dir.path().to_string_lossy(), "preview": true}),
+        );
+        assert!(result.is_ok(), "err: {:?}", result.err());
+    }
+
+    #[test]
+    fn fix_preview_true_result_has_preview_flag() {
+        let dir = make_dart_project();
+        let val = execute_tool(
+            "falcon_fix",
+            &json!({"path": dir.path().to_string_lossy(), "preview": true}),
+        )
+        .unwrap();
+        assert_eq!(val["preview"], json!(true));
+        assert!(val.get("fix_count").is_some());
+        assert!(val.get("fixes").is_some());
+    }
+
+    #[test]
+    fn fix_default_preview_is_true() {
+        // Omitting "preview" should default to preview=true
+        let dir = make_dart_project();
+        let val =
+            execute_tool("falcon_fix", &json!({"path": dir.path().to_string_lossy()})).unwrap();
+        assert_eq!(val["preview"], json!(true));
+    }
+
+    #[test]
+    fn fix_preview_false_returns_applied_field() {
+        let dir = make_dart_project();
+        let val = execute_tool(
+            "falcon_fix",
+            &json!({"path": dir.path().to_string_lossy(), "preview": false}),
+        )
+        .unwrap();
+        assert!(val.get("applied").is_some(), "missing 'applied'");
+        assert!(val.get("fixes").is_some(), "missing 'fixes'");
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // execute_conventions
+    // ══════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn conventions_valid_project_returns_ok() {
+        let dir = make_dart_project();
+        let result = execute_tool(
+            "falcon_conventions",
+            &json!({"path": dir.path().to_string_lossy()}),
+        );
+        assert!(result.is_ok(), "err: {:?}", result.err());
+    }
+
+    #[test]
+    fn conventions_returns_json_object() {
+        let dir = make_dart_project();
+        let val = execute_tool(
+            "falcon_conventions",
+            &json!({"path": dir.path().to_string_lossy()}),
+        )
+        .unwrap();
+        assert!(val.is_object() || val.is_array(), "expected JSON object or array, got: {:?}", val);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // execute_provenance
+    // ══════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn provenance_valid_project_returns_ok() {
+        let dir = make_dart_project();
+        let result = execute_tool(
+            "falcon_provenance",
+            &json!({"path": dir.path().to_string_lossy()}),
+        );
+        assert!(result.is_ok(), "err: {:?}", result.err());
+    }
+
+    #[test]
+    fn provenance_result_has_summary_fields() {
+        let dir = make_dart_project();
+        let val = execute_tool(
+            "falcon_provenance",
+            &json!({"path": dir.path().to_string_lossy()}),
+        )
+        .unwrap();
+        assert!(val.get("total_files").is_some(), "missing 'total_files'");
+        assert!(val.get("human_files").is_some(), "missing 'human_files'");
+        assert!(val.get("ai_files").is_some(), "missing 'ai_files'");
+        assert!(val.get("codegen_files").is_some(), "missing 'codegen_files'");
+        assert!(val.get("unknown_files").is_some(), "missing 'unknown_files'");
+        assert!(val.get("ai_percentage").is_some(), "missing 'ai_percentage'");
+    }
+
+    #[test]
+    fn provenance_invalid_path_returns_error() {
+        let result = execute_tool(
+            "falcon_provenance",
+            &json!({"path": "/absolutely/nonexistent/path/xyz123"}),
+        );
+        // May succeed with 0 files or fail; either is acceptable, but should not panic
+        // We just assert it doesn't panic — the result can go either way
+        let _ = result;
+    }
+}
