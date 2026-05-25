@@ -7,6 +7,7 @@ pub mod api;
 pub mod asset_audit;
 pub mod benchmark;
 pub mod benchmark_compare;
+pub mod check_a11y;
 pub mod check_assets;
 pub mod ci;
 pub mod community;
