@@ -27,6 +27,9 @@ pub struct FalconConfig {
 
     #[serde(default)]
     pub preflight: PreflightConfig,
+
+    #[serde(default)]
+    pub analyze: AnalyzeConfig,
 }
 
 impl Default for FalconConfig {
@@ -38,6 +41,7 @@ impl Default for FalconConfig {
             exclude: default_excludes(),
             ai: crate::ai::config::AiConfig::default(),
             preflight: PreflightConfig::default(),
+            analyze: AnalyzeConfig::default(),
         }
     }
 }
@@ -224,6 +228,38 @@ pub struct PreflightSuppression {
     pub reason: String,
 }
 
+/// Configuration controlling how `falcon analyze` invokes the four pre-flight checks.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AnalyzeConfig {
+    #[serde(default)]
+    pub preflight: AnalyzePreflightConfig,
+}
+
+/// Tuning for the analyze-rollup of pre-flight checks.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnalyzePreflightConfig {
+    /// Whether to run the four pre-flight checks during `falcon analyze`. Default: true.
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// List of check names to skip. Valid values: "check-assets", "check-a11y",
+    /// "check-pods", "check-platform-deps".
+    #[serde(default)]
+    pub skip: Vec<String>,
+}
+
+impl Default for AnalyzePreflightConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            skip: Vec::new(),
+        }
+    }
+}
+
+fn default_true() -> bool {
+    true
+}
+
 fn bool_true() -> bool {
     true
 }
@@ -271,5 +307,27 @@ preflight:
         assert_eq!(cfg.preflight.suppress.len(), 1);
         assert_eq!(cfg.preflight.suppress[0].rule_id, "assets/missing-file");
         assert!(cfg.preflight.config.contains_key("check-assets"));
+    }
+
+    #[test]
+    fn analyze_preflight_default_is_enabled_no_skips() {
+        let cfg = FalconConfig::default();
+        assert!(cfg.analyze.preflight.enabled);
+        assert!(cfg.analyze.preflight.skip.is_empty());
+    }
+
+    #[test]
+    fn analyze_preflight_parses_disabled() {
+        let yaml = "analyze:\n  preflight:\n    enabled: false\n";
+        let cfg: FalconConfig = serde_yaml::from_str(yaml).unwrap();
+        assert!(!cfg.analyze.preflight.enabled);
+    }
+
+    #[test]
+    fn analyze_preflight_parses_skip_list() {
+        let yaml = "analyze:\n  preflight:\n    skip: [check-pods, check-platform-deps]\n";
+        let cfg: FalconConfig = serde_yaml::from_str(yaml).unwrap();
+        assert!(cfg.analyze.preflight.enabled); // still default-true
+        assert_eq!(cfg.analyze.preflight.skip, vec!["check-pods", "check-platform-deps"]);
     }
 }
