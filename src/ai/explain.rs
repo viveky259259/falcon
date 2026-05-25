@@ -260,3 +260,211 @@ fn build_explanation_db() -> HashMap<String, RuleExplanation> {
 
     db
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── truncate ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn truncate_short_string_unchanged() {
+        assert_eq!(truncate("hello", 10), "hello");
+    }
+
+    #[test]
+    fn truncate_exact_length_unchanged() {
+        let s = "1234567890";
+        assert_eq!(truncate(s, 10), "1234567890");
+    }
+
+    #[test]
+    fn truncate_long_string_adds_ellipsis() {
+        let result = truncate("abcdefghij", 7);
+        assert_eq!(result, "abcd...");
+        assert_eq!(result.len(), 7);
+    }
+
+    #[test]
+    fn truncate_empty_string() {
+        assert_eq!(truncate("", 5), "");
+    }
+
+    #[test]
+    fn truncate_max_zero_returns_ellipsis() {
+        // max = 3 → &s[..0] = "" → "..."
+        let result = truncate("hello", 3);
+        assert_eq!(result, "...");
+    }
+
+    #[test]
+    fn truncate_long_sentence() {
+        let s = "Functions exceeding the configured line threshold are flagged.";
+        let result = truncate(s, 20);
+        assert!(result.ends_with("..."));
+        assert_eq!(result.len(), 20);
+    }
+
+    // ── explain_rule ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn explain_rule_unknown_returns_none() {
+        assert!(explain_rule("this-rule-does-not-exist").is_none());
+    }
+
+    #[test]
+    fn explain_rule_empty_string_returns_none() {
+        assert!(explain_rule("").is_none());
+    }
+
+    #[test]
+    fn explain_rule_avoid_long_functions_exists() {
+        let exp = explain_rule("avoid-long-functions").expect("rule should exist");
+        assert_eq!(exp.name, "avoid-long-functions");
+        assert_eq!(exp.category, "Dart");
+        assert_eq!(exp.severity, "warning");
+        assert!(!exp.summary.is_empty());
+        assert!(!exp.why.is_empty());
+        assert!(!exp.bad_example.is_empty());
+        assert!(!exp.good_example.is_empty());
+    }
+
+    #[test]
+    fn explain_rule_no_magic_numbers_exists() {
+        let exp = explain_rule("no-magic-numbers").expect("rule should exist");
+        assert_eq!(exp.name, "no-magic-numbers");
+        assert_eq!(exp.severity, "info");
+        assert!(!exp.exceptions.is_empty());
+    }
+
+    #[test]
+    fn explain_rule_avoid_late_keyword_exists() {
+        let exp = explain_rule("avoid-late-keyword").expect("rule should exist");
+        assert_eq!(exp.name, "avoid-late-keyword");
+        assert_eq!(exp.category, "Dart");
+        assert!(!exp.exceptions.is_empty());
+    }
+
+    #[test]
+    fn explain_rule_avoid_dynamic_exists() {
+        let exp = explain_rule("avoid-dynamic").expect("rule should exist");
+        assert_eq!(exp.name, "avoid-dynamic");
+        assert_eq!(exp.severity, "warning");
+    }
+
+    #[test]
+    fn explain_rule_avoid_global_state_exists() {
+        let exp = explain_rule("avoid-global-state").expect("rule should exist");
+        assert_eq!(exp.name, "avoid-global-state");
+        assert_eq!(exp.category, "Dart");
+        assert!(exp.references.is_empty(), "global-state has no references");
+    }
+
+    #[test]
+    fn explain_rule_flutter_avoid_returning_widgets() {
+        let exp = explain_rule("avoid-returning-widgets").expect("rule should exist");
+        assert_eq!(exp.category, "Flutter");
+        assert_eq!(exp.severity, "warning");
+    }
+
+    #[test]
+    fn explain_rule_prefer_const_constructors() {
+        let exp = explain_rule("prefer-const-constructors").expect("rule should exist");
+        assert_eq!(exp.category, "Flutter");
+        assert_eq!(exp.severity, "info");
+    }
+
+    #[test]
+    fn explain_rule_avoid_unnecessary_setstate() {
+        let exp = explain_rule("avoid-unnecessary-setstate").expect("rule should exist");
+        assert_eq!(exp.category, "Flutter");
+        assert!(exp.exceptions.is_empty());
+    }
+
+    #[test]
+    fn explain_rule_dead_code_path() {
+        let exp = explain_rule("dead-code-path").expect("rule should exist");
+        assert_eq!(exp.category, "Detection");
+        assert_eq!(exp.severity, "warning");
+    }
+
+    #[test]
+    fn explain_rule_riverpod_ref_read() {
+        let exp = explain_rule("avoid-ref-read-inside-build").expect("rule should exist");
+        assert_eq!(exp.category, "Provider/Riverpod");
+        assert!(!exp.references.is_empty());
+    }
+
+    #[test]
+    fn explain_rule_bloc_public_methods() {
+        let exp = explain_rule("avoid-bloc-public-methods").expect("rule should exist");
+        assert_eq!(exp.category, "BLoC");
+        assert_eq!(exp.severity, "warning");
+    }
+
+    // ── build_explanation_db ─────────────────────────────────────────────────
+
+    #[test]
+    fn db_contains_at_least_ten_rules() {
+        let db = build_explanation_db();
+        assert!(db.len() >= 10, "expected ≥10 rules, got {}", db.len());
+    }
+
+    #[test]
+    fn db_all_rules_have_non_empty_name() {
+        let db = build_explanation_db();
+        for (key, rule) in &db {
+            assert!(!rule.name.is_empty(), "rule {} has empty name", key);
+        }
+    }
+
+    #[test]
+    fn db_all_rules_have_non_empty_summary() {
+        let db = build_explanation_db();
+        for (key, rule) in &db {
+            assert!(!rule.summary.is_empty(), "rule {} has empty summary", key);
+        }
+    }
+
+    #[test]
+    fn db_all_rules_have_non_empty_category() {
+        let db = build_explanation_db();
+        for (key, rule) in &db {
+            assert!(!rule.category.is_empty(), "rule {} has empty category", key);
+        }
+    }
+
+    #[test]
+    fn db_all_rules_have_non_empty_severity() {
+        let db = build_explanation_db();
+        for (key, rule) in &db {
+            assert!(!rule.severity.is_empty(), "rule {} has empty severity", key);
+        }
+    }
+
+    #[test]
+    fn db_key_matches_rule_name() {
+        let db = build_explanation_db();
+        for (key, rule) in &db {
+            assert_eq!(
+                key, &rule.name,
+                "DB key '{}' does not match rule name '{}'",
+                key, rule.name
+            );
+        }
+    }
+
+    #[test]
+    fn db_severities_are_valid_values() {
+        let valid = ["info", "warning", "error"];
+        let db = build_explanation_db();
+        for (key, rule) in &db {
+            assert!(
+                valid.contains(&rule.severity.as_str()),
+                "rule {} has unexpected severity '{}'",
+                key,
+                rule.severity
+            );
+        }
+    }
+}
