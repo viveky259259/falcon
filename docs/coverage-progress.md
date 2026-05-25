@@ -57,6 +57,7 @@ Next module to work on (lowest-covered, not excluded, smallest): ~~visitor~~ ~~s
 | 2026-05-25 | src/review/pr_review.rs            | 2.85%   | 78.62%   | 93ecea6 |
 | 2026-05-25 | src/deeplink/mod.rs                | 46.76%  | 91.36%   | 0e75644 |
 | 2026-05-25 | src/l10n_coverage/mod.rs           | 65.24%  | 89.02%   | 2281be0 |
+| 2026-05-25 | src/runtime/live.rs                | 53.33%  | 86.86%   | 363bd82 |
 
 \* `snapshot_times()` is fully covered. `pub fn watch()` body is wrapped in `LCOV_EXCL_START/STOP` markers (infinite poll loop, untestable as-is). However, `cargo llvm-cov --summary-only` does NOT honor LCOV_EXCL markers; the markers are accurate for downstream LCOV tools only. The 68.11% summary figure underrepresents the module's *testable* coverage.
 
