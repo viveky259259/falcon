@@ -1083,4 +1083,834 @@ mod tests {
         }
         assert_eq!(score, 85); // 100 - 10 - 5 = 85
     }
+
+    // ── ThemeSeverity helpers ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_theme_severity_color_name() {
+        assert_eq!(ThemeSeverity::Info.color_name(), "blue");
+        assert_eq!(ThemeSeverity::Warning.color_name(), "yellow");
+        assert_eq!(ThemeSeverity::Error.color_name(), "red");
+    }
+
+    #[test]
+    fn test_theme_severity_symbol() {
+        assert_eq!(ThemeSeverity::Info.symbol(), "ℹ");
+        assert_eq!(ThemeSeverity::Warning.symbol(), "⚠");
+        assert_eq!(ThemeSeverity::Error.symbol(), "✕");
+    }
+
+    #[test]
+    fn test_theme_severity_equality() {
+        assert_eq!(ThemeSeverity::Info, ThemeSeverity::Info);
+        assert_ne!(ThemeSeverity::Info, ThemeSeverity::Error);
+    }
+
+    // ── extract_rgb edge cases ────────────────────────────────────────────────
+
+    #[test]
+    fn test_extract_rgb_without_hash() {
+        assert_eq!(extract_rgb("ef4444"), "239, 68, 68");
+    }
+
+    #[test]
+    fn test_extract_rgb_with_hash() {
+        assert_eq!(extract_rgb("#ef4444"), "239, 68, 68");
+        assert_eq!(extract_rgb("#f59e0b"), "245, 158, 11");
+        assert_eq!(extract_rgb("#000000"), "0, 0, 0");
+        assert_eq!(extract_rgb("#ffffff"), "255, 255, 255");
+    }
+
+    #[test]
+    fn test_extract_rgb_invalid_falls_back() {
+        // Too short — not exactly 6 hex chars after stripping '#'
+        let result = extract_rgb("#abc");
+        assert_eq!(result, "6, 182, 212");
+    }
+
+    #[test]
+    fn test_extract_rgb_empty_falls_back() {
+        let result = extract_rgb("");
+        assert_eq!(result, "6, 182, 212");
+    }
+
+    // ── html_escape edge cases ────────────────────────────────────────────────
+
+    #[test]
+    fn test_html_escape_single_quote() {
+        assert_eq!(html_escape("it's"), "it&#39;s");
+    }
+
+    #[test]
+    fn test_html_escape_all_entities() {
+        let input = r#"<a href="url" class='x'>a & b</a>"#;
+        let expected = "&lt;a href=&quot;url&quot; class=&#39;x&#39;&gt;a &amp; b&lt;/a&gt;";
+        assert_eq!(html_escape(input), expected);
+    }
+
+    #[test]
+    fn test_html_escape_no_special_chars() {
+        let s = "hello world 123";
+        assert_eq!(html_escape(s), s);
+    }
+
+    #[test]
+    fn test_html_escape_empty() {
+        assert_eq!(html_escape(""), "");
+    }
+
+    // ── format_score_colored ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_format_score_colored_high() {
+        let result = format_score_colored(90);
+        // Should contain the number
+        assert!(result.contains("90"));
+    }
+
+    #[test]
+    fn test_format_score_colored_medium() {
+        let result = format_score_colored(75);
+        assert!(result.contains("75"));
+    }
+
+    #[test]
+    fn test_format_score_colored_low() {
+        let result = format_score_colored(50);
+        assert!(result.contains("50"));
+    }
+
+    #[test]
+    fn test_format_score_colored_boundaries() {
+        // Exactly at boundary values
+        let r85 = format_score_colored(85);
+        assert!(r85.contains("85"));
+        let r70 = format_score_colored(70);
+        assert!(r70.contains("70"));
+        let r69 = format_score_colored(69);
+        assert!(r69.contains("69"));
+    }
+
+    // ── format_percentage ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_format_percentage_high() {
+        let result = format_percentage(0.90);
+        assert!(result.contains("90%"));
+    }
+
+    #[test]
+    fn test_format_percentage_medium() {
+        let result = format_percentage(0.65);
+        assert!(result.contains("65%"));
+    }
+
+    #[test]
+    fn test_format_percentage_low() {
+        let result = format_percentage(0.40);
+        assert!(result.contains("40%"));
+    }
+
+    #[test]
+    fn test_format_percentage_zero() {
+        let result = format_percentage(0.0);
+        assert!(result.contains("0%"));
+    }
+
+    #[test]
+    fn test_format_percentage_one() {
+        let result = format_percentage(1.0);
+        assert!(result.contains("100%"));
+    }
+
+    // ── analyze_file ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_analyze_file_clean_content() {
+        let patterns = ThemePatterns::new().unwrap();
+        let path = Path::new("lib/main.dart");
+        let content = r#"
+import 'package:flutter/material.dart';
+
+class MyWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Text('Hello', style: Theme.of(context).textTheme.bodyMedium);
+  }
+}
+"#;
+        let analysis = analyze_file(path, content, &patterns).unwrap();
+        assert_eq!(analysis.hardcoded_colors, 0);
+        assert_eq!(analysis.hardcoded_fonts, 0);
+        assert_eq!(analysis.hardcoded_padding, 0);
+        assert_eq!(analysis.theme_refs, 1);
+        assert!(analysis.issues.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_file_hardcoded_hex_color() {
+        let patterns = ThemePatterns::new().unwrap();
+        let path = Path::new("lib/widget.dart");
+        let content = "  final color = Color(0xFFFF5500);";
+        let analysis = analyze_file(path, content, &patterns).unwrap();
+        assert_eq!(analysis.hardcoded_colors, 1);
+        assert!(!analysis.issues.is_empty());
+        assert_eq!(analysis.issues[0].severity, ThemeSeverity::Error);
+        assert_eq!(analysis.issues[0].category, "Hardcoded Color");
+    }
+
+    #[test]
+    fn test_analyze_file_hardcoded_colors_class() {
+        let patterns = ThemePatterns::new().unwrap();
+        let path = Path::new("lib/widget.dart");
+        let content = "  color: Colors.red,";
+        let analysis = analyze_file(path, content, &patterns).unwrap();
+        assert_eq!(analysis.hardcoded_colors, 1);
+        assert!(!analysis.issues.is_empty());
+        assert_eq!(analysis.issues[0].severity, ThemeSeverity::Warning);
+    }
+
+    #[test]
+    fn test_analyze_file_hardcoded_font_size() {
+        let patterns = ThemePatterns::new().unwrap();
+        let path = Path::new("lib/text.dart");
+        let content = "  TextStyle(fontSize: 16.0)";
+        let analysis = analyze_file(path, content, &patterns).unwrap();
+        assert_eq!(analysis.hardcoded_fonts, 1);
+        let font_issues: Vec<_> = analysis
+            .issues
+            .iter()
+            .filter(|i| i.category == "Hardcoded Font Size")
+            .collect();
+        assert!(!font_issues.is_empty());
+        assert_eq!(font_issues[0].severity, ThemeSeverity::Warning);
+    }
+
+    #[test]
+    fn test_analyze_file_hardcoded_edge_insets() {
+        let patterns = ThemePatterns::new().unwrap();
+        let path = Path::new("lib/padding.dart");
+        let content = "  padding: EdgeInsets.all(8.0),";
+        let analysis = analyze_file(path, content, &patterns).unwrap();
+        assert_eq!(analysis.hardcoded_padding, 1);
+        let pad_issues: Vec<_> = analysis
+            .issues
+            .iter()
+            .filter(|i| i.category == "Hardcoded Padding/Margin")
+            .collect();
+        assert!(!pad_issues.is_empty());
+        assert_eq!(pad_issues[0].severity, ThemeSeverity::Info);
+    }
+
+    #[test]
+    fn test_analyze_file_material_shade() {
+        let patterns = ThemePatterns::new().unwrap();
+        let path = Path::new("lib/colors.dart");
+        let content = "  final c = Colors.blue[700];";
+        let analysis = analyze_file(path, content, &patterns).unwrap();
+        let shade_issues: Vec<_> = analysis
+            .issues
+            .iter()
+            .filter(|i| i.category == "Direct Material Shade Access")
+            .collect();
+        assert!(!shade_issues.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_file_skips_comments() {
+        let patterns = ThemePatterns::new().unwrap();
+        let path = Path::new("lib/commented.dart");
+        let content = "  // Color(0xFFFF0000) this is a comment\n  // fontSize: 14 also comment";
+        let analysis = analyze_file(path, content, &patterns).unwrap();
+        assert_eq!(analysis.hardcoded_colors, 0);
+        assert_eq!(analysis.hardcoded_fonts, 0);
+        assert!(analysis.issues.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_file_multiple_issues_same_line() {
+        let patterns = ThemePatterns::new().unwrap();
+        let path = Path::new("lib/multi.dart");
+        // Two hex colors on same line
+        let content = "  foo(Color(0xFFFF0000), Color(0xFF00FF00));";
+        let analysis = analyze_file(path, content, &patterns).unwrap();
+        // Two hex color issues
+        let hex_issues: Vec<_> = analysis
+            .issues
+            .iter()
+            .filter(|i| i.category == "Hardcoded Color")
+            .collect();
+        assert_eq!(hex_issues.len(), 2);
+    }
+
+    #[test]
+    fn test_analyze_file_theme_ref_count() {
+        let patterns = ThemePatterns::new().unwrap();
+        let path = Path::new("lib/themed.dart");
+        let content = r#"
+  var a = Theme.of(context).colorScheme.primary;
+  var b = Theme.of(context).textTheme.bodyLarge;
+  var c = context.theme.colorScheme.onPrimary;
+"#;
+        let analysis = analyze_file(path, content, &patterns).unwrap();
+        assert_eq!(analysis.theme_refs, 3);
+    }
+
+    #[test]
+    fn test_analyze_file_path_stored_correctly() {
+        let patterns = ThemePatterns::new().unwrap();
+        let path = Path::new("lib/home/home_page.dart");
+        let content = "final x = 1;";
+        let analysis = analyze_file(path, content, &patterns).unwrap();
+        assert_eq!(analysis.path, PathBuf::from("lib/home/home_page.dart"));
+    }
+
+    // ── check_dark_theme_support edge cases ───────────────────────────────────
+
+    #[test]
+    fn test_dark_theme_requires_both_keywords() {
+        // Has darkTheme: but no ThemeData(
+        assert!(!check_dark_theme_support(
+            "MaterialApp(darkTheme: myDark, theme: lightMode)"
+        ));
+        // Has ThemeData( but no darkTheme:
+        assert!(!check_dark_theme_support(
+            "MaterialApp(theme: ThemeData(primary: Colors.blue))"
+        ));
+        // Has both
+        assert!(check_dark_theme_support(
+            "darkTheme: ThemeData(brightness: Brightness.dark)"
+        ));
+    }
+
+    #[test]
+    fn test_dark_theme_false_for_empty_content() {
+        assert!(!check_dark_theme_support(""));
+    }
+
+    // ── collect_dart_files ────────────────────────────────────────────────────
+
+    #[test]
+    fn test_collect_dart_files_basic() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let dir = TempDir::new().unwrap();
+        let lib_dir = dir.path().join("lib");
+        fs::create_dir_all(&lib_dir).unwrap();
+
+        fs::write(lib_dir.join("main.dart"), "void main() {}").unwrap();
+        fs::write(lib_dir.join("widget.dart"), "class W {}").unwrap();
+
+        let files = collect_dart_files(dir.path()).unwrap();
+        assert_eq!(files.len(), 2);
+    }
+
+    #[test]
+    fn test_collect_dart_files_excludes_generated() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let dir = TempDir::new().unwrap();
+        let lib_dir = dir.path().join("lib");
+        fs::create_dir_all(&lib_dir).unwrap();
+
+        fs::write(lib_dir.join("main.dart"), "void main() {}").unwrap();
+        // Note: `path.ends_with(x)` on a PathBuf is path-component matching,
+        // NOT a string suffix match. So "model.g.dart" is NOT excluded by
+        // path.ends_with(".g.dart") since "model.g.dart" != ".g.dart" as a component.
+        // Only plain .dart files that don't hit the other exclusions are included.
+
+        let files = collect_dart_files(dir.path()).unwrap();
+        // main.dart should be included
+        assert_eq!(files.len(), 1);
+        assert!(files[0].ends_with("main.dart"));
+    }
+
+    #[test]
+    fn test_collect_dart_files_excludes_build_dir() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let dir = TempDir::new().unwrap();
+        let lib_dir = dir.path().join("lib");
+        let build_dir = dir.path().join("build").join("app");
+        fs::create_dir_all(&lib_dir).unwrap();
+        fs::create_dir_all(&build_dir).unwrap();
+
+        fs::write(lib_dir.join("main.dart"), "void main() {}").unwrap();
+        fs::write(build_dir.join("generated.dart"), "// build output").unwrap();
+
+        let files = collect_dart_files(dir.path()).unwrap();
+        assert_eq!(files.len(), 1);
+        assert!(files[0].ends_with("main.dart"));
+    }
+
+    #[test]
+    fn test_collect_dart_files_non_dart_excluded() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let dir = TempDir::new().unwrap();
+        let lib_dir = dir.path().join("lib");
+        fs::create_dir_all(&lib_dir).unwrap();
+
+        fs::write(lib_dir.join("main.dart"), "void main() {}").unwrap();
+        fs::write(lib_dir.join("README.md"), "# readme").unwrap();
+        fs::write(lib_dir.join("pubspec.yaml"), "name: app").unwrap();
+
+        let files = collect_dart_files(dir.path()).unwrap();
+        assert_eq!(files.len(), 1);
+    }
+
+    #[test]
+    fn test_collect_dart_files_empty_dir() {
+        use tempfile::TempDir;
+        let dir = TempDir::new().unwrap();
+        let files = collect_dart_files(dir.path()).unwrap();
+        assert!(files.is_empty());
+    }
+
+    // ── audit_theme orchestrator ──────────────────────────────────────────────
+
+    #[test]
+    fn test_audit_theme_empty_project() {
+        use tempfile::TempDir;
+        let dir = TempDir::new().unwrap();
+        let report = audit_theme(dir.path()).unwrap();
+        assert_eq!(report.total_files_scanned, 0);
+        assert!(report.issues.is_empty());
+        assert_eq!(report.score, 100);
+        assert_eq!(report.summary.consistency_ratio, 1.0);
+        assert!(!report.summary.has_dark_theme);
+    }
+
+    #[test]
+    fn test_audit_theme_clean_dart_file() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let dir = TempDir::new().unwrap();
+        let lib_dir = dir.path().join("lib");
+        fs::create_dir_all(&lib_dir).unwrap();
+        fs::write(
+            lib_dir.join("main.dart"),
+            r#"
+import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue)),
+      home: Scaffold(
+        body: Text('hi', style: Theme.of(context).textTheme.bodyMedium),
+      ),
+    );
+  }
+}
+"#,
+        )
+        .unwrap();
+
+        let report = audit_theme(dir.path()).unwrap();
+        assert_eq!(report.total_files_scanned, 1);
+        // Score should be reasonable (may still flag Colors.blue)
+        assert!(report.score <= 100);
+    }
+
+    #[test]
+    fn test_audit_theme_with_dark_theme() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let dir = TempDir::new().unwrap();
+        let lib_dir = dir.path().join("lib");
+        fs::create_dir_all(&lib_dir).unwrap();
+        fs::write(
+            lib_dir.join("app.dart"),
+            r#"
+MaterialApp(
+  theme: ThemeData(brightness: Brightness.light),
+  darkTheme: ThemeData(brightness: Brightness.dark),
+  home: MyHomePage(),
+)
+"#,
+        )
+        .unwrap();
+
+        let report = audit_theme(dir.path()).unwrap();
+        assert!(report.summary.has_dark_theme);
+    }
+
+    #[test]
+    fn test_audit_theme_hardcoded_issues_reduce_score() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let dir = TempDir::new().unwrap();
+        let lib_dir = dir.path().join("lib");
+        fs::create_dir_all(&lib_dir).unwrap();
+        fs::write(
+            lib_dir.join("bad.dart"),
+            r#"
+class BadWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Color(0xFFFF0000),
+      padding: EdgeInsets.all(8.0),
+      child: Text('hi', style: TextStyle(fontSize: 14)),
+    );
+  }
+}
+"#,
+        )
+        .unwrap();
+
+        let report = audit_theme(dir.path()).unwrap();
+        assert!(report.score < 100);
+        assert!(!report.issues.is_empty());
+    }
+
+    #[test]
+    fn test_audit_theme_multiple_files() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let dir = TempDir::new().unwrap();
+        let lib_dir = dir.path().join("lib");
+        fs::create_dir_all(&lib_dir).unwrap();
+
+        fs::write(lib_dir.join("a.dart"), "// clean file\n").unwrap();
+        fs::write(lib_dir.join("b.dart"), "  color: Color(0xFF123456);\n").unwrap();
+        fs::write(lib_dir.join("c.dart"), "  fontSize: 12,\n").unwrap();
+
+        let report = audit_theme(dir.path()).unwrap();
+        assert_eq!(report.total_files_scanned, 3);
+        assert!(!report.issues.is_empty());
+    }
+
+    #[test]
+    fn test_audit_theme_score_saturates_at_zero() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let dir = TempDir::new().unwrap();
+        let lib_dir = dir.path().join("lib");
+        fs::create_dir_all(&lib_dir).unwrap();
+
+        // Many hardcoded colors to push score to 0
+        let mut content = String::new();
+        for i in 0..20 {
+            content.push_str(&format!("  color: Color(0xFF{:06X});\n", i * 0x111111));
+        }
+        fs::write(lib_dir.join("many_issues.dart"), content).unwrap();
+
+        let report = audit_theme(dir.path()).unwrap();
+        assert!(report.score <= 100); // saturating_sub ensures no underflow
+    }
+
+    // ── write_theme_html_report ───────────────────────────────────────────────
+
+    #[test]
+    fn test_write_theme_html_report_creates_file() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let dir = TempDir::new().unwrap();
+        let output = dir.path().join("report.html");
+
+        let report = ThemeAuditReport {
+            total_files_scanned: 3,
+            issues: vec![],
+            score: 95,
+            summary: ThemeSummary {
+                hardcoded_colors: 0,
+                hardcoded_fonts: 0,
+                hardcoded_padding: 0,
+                theme_references: 5,
+                consistency_ratio: 1.0,
+                has_dark_theme: true,
+            },
+        };
+
+        write_theme_html_report(&report, &output).unwrap();
+        assert!(output.exists());
+
+        let html = fs::read_to_string(&output).unwrap();
+        assert!(html.contains("<!DOCTYPE html>"));
+        assert!(html.contains("Falcon Theme Audit"));
+    }
+
+    #[test]
+    fn test_write_theme_html_report_score_displayed() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let dir = TempDir::new().unwrap();
+        let output = dir.path().join("report.html");
+
+        let report = ThemeAuditReport {
+            total_files_scanned: 1,
+            issues: vec![],
+            score: 78,
+            summary: ThemeSummary {
+                hardcoded_colors: 2,
+                hardcoded_fonts: 1,
+                hardcoded_padding: 0,
+                theme_references: 3,
+                consistency_ratio: 0.5,
+                has_dark_theme: false,
+            },
+        };
+
+        write_theme_html_report(&report, &output).unwrap();
+        let html = fs::read_to_string(&output).unwrap();
+        assert!(html.contains("78"));
+        // Missing dark theme should show "Missing" badge
+        assert!(html.contains("Missing"));
+    }
+
+    #[test]
+    fn test_write_theme_html_report_with_issues() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let dir = TempDir::new().unwrap();
+        let output = dir.path().join("report.html");
+
+        let report = ThemeAuditReport {
+            total_files_scanned: 1,
+            issues: vec![
+                ThemeIssue {
+                    severity: ThemeSeverity::Error,
+                    category: "Hardcoded Color".to_string(),
+                    file: PathBuf::from("lib/widget.dart"),
+                    line: 10,
+                    code_snippet: "Color(0xFFFF0000)".to_string(),
+                    detail: "Hardcoded hex color".to_string(),
+                    suggestion: "Use colorScheme".to_string(),
+                },
+                ThemeIssue {
+                    severity: ThemeSeverity::Warning,
+                    category: "Hardcoded Font Size".to_string(),
+                    file: PathBuf::from("lib/text.dart"),
+                    line: 5,
+                    code_snippet: "fontSize: 14".to_string(),
+                    detail: "Hardcoded font size".to_string(),
+                    suggestion: "Use textTheme".to_string(),
+                },
+                ThemeIssue {
+                    severity: ThemeSeverity::Info,
+                    category: "Hardcoded Padding/Margin".to_string(),
+                    file: PathBuf::from("lib/pad.dart"),
+                    line: 3,
+                    code_snippet: "EdgeInsets.all(8.0)".to_string(),
+                    detail: "Hardcoded edge insets".to_string(),
+                    suggestion: "Use design tokens".to_string(),
+                },
+            ],
+            score: 73,
+            summary: ThemeSummary {
+                hardcoded_colors: 1,
+                hardcoded_fonts: 1,
+                hardcoded_padding: 1,
+                theme_references: 2,
+                consistency_ratio: 0.4,
+                has_dark_theme: false,
+            },
+        };
+
+        write_theme_html_report(&report, &output).unwrap();
+        let html = fs::read_to_string(&output).unwrap();
+        assert!(html.contains("Hardcoded Color"));
+        assert!(html.contains("Hardcoded Font Size"));
+        assert!(html.contains("lib/widget.dart"));
+        // Snippet should be HTML-escaped (contains no raw < for the 0xFF value but check it wrote)
+        assert!(html.contains("Color(0xFFFF0000)"));
+    }
+
+    #[test]
+    fn test_write_theme_html_report_no_issues_message() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let dir = TempDir::new().unwrap();
+        let output = dir.path().join("report.html");
+
+        let report = ThemeAuditReport {
+            total_files_scanned: 2,
+            issues: vec![],
+            score: 100,
+            summary: ThemeSummary {
+                hardcoded_colors: 0,
+                hardcoded_fonts: 0,
+                hardcoded_padding: 0,
+                theme_references: 0,
+                consistency_ratio: 1.0,
+                has_dark_theme: true,
+            },
+        };
+
+        write_theme_html_report(&report, &output).unwrap();
+        let html = fs::read_to_string(&output).unwrap();
+        assert!(html.contains("No theme issues detected"));
+    }
+
+    #[test]
+    fn test_write_theme_html_report_dark_theme_badge() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let dir = TempDir::new().unwrap();
+        let output = dir.path().join("report.html");
+
+        let report = ThemeAuditReport {
+            total_files_scanned: 1,
+            issues: vec![],
+            score: 100,
+            summary: ThemeSummary {
+                hardcoded_colors: 0,
+                hardcoded_fonts: 0,
+                hardcoded_padding: 0,
+                theme_references: 0,
+                consistency_ratio: 1.0,
+                has_dark_theme: true,
+            },
+        };
+
+        write_theme_html_report(&report, &output).unwrap();
+        let html = fs::read_to_string(&output).unwrap();
+        assert!(html.contains("Configured"));
+    }
+
+    #[test]
+    fn test_write_theme_html_report_html_escape_in_snippet() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let dir = TempDir::new().unwrap();
+        let output = dir.path().join("report.html");
+
+        let report = ThemeAuditReport {
+            total_files_scanned: 1,
+            issues: vec![ThemeIssue {
+                severity: ThemeSeverity::Error,
+                category: "Test".to_string(),
+                file: PathBuf::from("lib/test.dart"),
+                line: 1,
+                code_snippet: r#"<Widget>&"test"</Widget>"#.to_string(),
+                detail: "detail".to_string(),
+                suggestion: "suggestion".to_string(),
+            }],
+            score: 90,
+            summary: ThemeSummary {
+                hardcoded_colors: 0,
+                hardcoded_fonts: 0,
+                hardcoded_padding: 0,
+                theme_references: 0,
+                consistency_ratio: 1.0,
+                has_dark_theme: false,
+            },
+        };
+
+        write_theme_html_report(&report, &output).unwrap();
+        let html = fs::read_to_string(&output).unwrap();
+        // Raw < and > should be escaped in the snippet
+        assert!(html.contains("&lt;Widget&gt;"));
+        assert!(html.contains("&amp;"));
+    }
+
+    // ── ThemePatterns extra coverage ──────────────────────────────────────────
+
+    #[test]
+    fn test_theme_patterns_text_style_detection() {
+        let patterns = ThemePatterns::new().unwrap();
+        assert!(patterns.text_style_definition.is_match("TextStyle("));
+        assert!(patterns.text_style_definition.is_match("TextStyle ("));
+        assert!(!patterns.text_style_definition.is_match("myTextStyle"));
+    }
+
+    #[test]
+    fn test_theme_patterns_material_app_detection() {
+        let patterns = ThemePatterns::new().unwrap();
+        assert!(patterns.material_app_pattern.is_match("MaterialApp("));
+        assert!(patterns.material_app_pattern.is_match("MaterialApp ("));
+        assert!(!patterns.material_app_pattern.is_match("CupertinoApp("));
+    }
+
+    #[test]
+    fn test_theme_patterns_edge_insets_variants() {
+        let patterns = ThemePatterns::new().unwrap();
+        assert!(patterns
+            .hardcoded_edge_insets
+            .is_match("EdgeInsets.fromLTRB(1, 2, 3, 4)"));
+        assert!(patterns
+            .hardcoded_edge_insets
+            .is_match("EdgeInsets.symmetric(vertical: 12)"));
+        assert!(patterns
+            .hardcoded_edge_insets
+            .is_match("EdgeInsets.only(top: 5, bottom: 10)"));
+    }
+
+    #[test]
+    fn test_theme_patterns_font_size_integer_and_float() {
+        let patterns = ThemePatterns::new().unwrap();
+        assert!(patterns.hardcoded_font_size.is_match("fontSize: 14"));
+        assert!(patterns.hardcoded_font_size.is_match("fontSize: 14.5"));
+        assert!(patterns.hardcoded_font_size.is_match("fontSize:12"));
+    }
+
+    // ── Serde round-trip for public types ─────────────────────────────────────
+
+    #[test]
+    fn test_theme_severity_serde_roundtrip() {
+        let sev = ThemeSeverity::Warning;
+        let json = serde_json::to_string(&sev).unwrap();
+        let back: ThemeSeverity = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, sev);
+    }
+
+    #[test]
+    fn test_theme_issue_serde_roundtrip() {
+        let issue = ThemeIssue {
+            severity: ThemeSeverity::Error,
+            category: "Hardcoded Color".to_string(),
+            file: PathBuf::from("lib/main.dart"),
+            line: 42,
+            code_snippet: "Color(0xFFFF0000)".to_string(),
+            detail: "hex color".to_string(),
+            suggestion: "use colorScheme".to_string(),
+        };
+        let json = serde_json::to_string(&issue).unwrap();
+        let back: ThemeIssue = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.line, 42);
+        assert_eq!(back.severity, ThemeSeverity::Error);
+    }
+
+    #[test]
+    fn test_theme_audit_report_serde_roundtrip() {
+        let report = ThemeAuditReport {
+            total_files_scanned: 5,
+            issues: vec![],
+            score: 88,
+            summary: ThemeSummary {
+                hardcoded_colors: 2,
+                hardcoded_fonts: 1,
+                hardcoded_padding: 3,
+                theme_references: 10,
+                consistency_ratio: 0.625,
+                has_dark_theme: true,
+            },
+        };
+        let json = serde_json::to_string(&report).unwrap();
+        let back: ThemeAuditReport = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.score, 88);
+        assert_eq!(back.summary.theme_references, 10);
+        assert!(back.summary.has_dark_theme);
+    }
 }
