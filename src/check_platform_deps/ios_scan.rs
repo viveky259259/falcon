@@ -20,6 +20,8 @@ pub fn scan_ios_sources(plugin_root: &Path) -> Vec<RequiredInfoPlistKey> {
             continue;
         }
         for entry in walkdir::WalkDir::new(&dir)
+            .max_depth(10)               // plugins rarely nest deeper than this
+            .follow_links(false)
             .into_iter()
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().is_file())
