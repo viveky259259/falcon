@@ -53,6 +53,7 @@ pub fn exit_code_for_issues(issues: &[PreflightIssue]) -> i32 {
 }
 
 pub mod reporter;
+pub mod pub_cache;
 
 #[cfg(test)]
 mod tests {
