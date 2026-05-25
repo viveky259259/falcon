@@ -208,7 +208,7 @@ Opt-out via `falcon.yaml`:
 ```yaml
 analyze:
   preflight:
-    enabled: true  # default
+    enabled: false  # default in v0.5 (soft rollout); will flip to true in v0.6
     skip: [check-pods]  # optional skip list
 ```
 

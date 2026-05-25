@@ -16,6 +16,11 @@ fn write(path: &std::path::Path, contents: &str) {
 
 /// Build a Flutter-ish project that triggers errors in multiple pre-flight checks.
 fn fixture_with_problems(tmp: &TempDir, cache: &TempDir) {
+    // Explicitly opt in to the rollup (default is false in v0.5 soft rollout).
+    write(
+        &tmp.path().join("falcon.yaml"),
+        "analyze:\n  preflight:\n    enabled: true\n",
+    );
     write(
         &tmp.path().join("pubspec.yaml"),
         "name: testapp\nversion: 1.0.0\nflutter:\n  assets:\n    - assets/missing.png\n",
@@ -62,7 +67,7 @@ fn analyze_rollup_skip_list_omits_named_checks() {
     fixture_with_problems(&tmp, &cache);
     write(
         &tmp.path().join("falcon.yaml"),
-        "analyze:\n  preflight:\n    skip:\n      - check-pods\n      - check-platform-deps\n",
+        "analyze:\n  preflight:\n    enabled: true\n    skip:\n      - check-pods\n      - check-platform-deps\n",
     );
 
     let output = Command::new(falcon_bin())

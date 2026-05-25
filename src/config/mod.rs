@@ -238,8 +238,9 @@ pub struct AnalyzeConfig {
 /// Tuning for the analyze-rollup of pre-flight checks.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalyzePreflightConfig {
-    /// Whether to run the four pre-flight checks during `falcon analyze`. Default: true.
-    #[serde(default = "default_true")]
+    /// Whether to run the four pre-flight checks during `falcon analyze`.
+    /// Default: false (soft-rollout default in v0.5; will flip to true in v0.6).
+    #[serde(default)]
     pub enabled: bool,
     /// List of check names to skip. Valid values: "check-assets", "check-a11y",
     /// "check-pods", "check-platform-deps".
@@ -250,14 +251,10 @@ pub struct AnalyzePreflightConfig {
 impl Default for AnalyzePreflightConfig {
     fn default() -> Self {
         Self {
-            enabled: true,
+            enabled: false,           // soft-rollout default; will flip to true in next major
             skip: Vec::new(),
         }
     }
-}
-
-fn default_true() -> bool {
-    true
 }
 
 fn bool_true() -> bool {
@@ -310,9 +307,9 @@ preflight:
     }
 
     #[test]
-    fn analyze_preflight_default_is_enabled_no_skips() {
+    fn analyze_preflight_default_is_disabled_no_skips() {
         let cfg = FalconConfig::default();
-        assert!(cfg.analyze.preflight.enabled);
+        assert!(!cfg.analyze.preflight.enabled);
         assert!(cfg.analyze.preflight.skip.is_empty());
     }
 
@@ -327,7 +324,7 @@ preflight:
     fn analyze_preflight_parses_skip_list() {
         let yaml = "analyze:\n  preflight:\n    skip: [check-pods, check-platform-deps]\n";
         let cfg: FalconConfig = serde_yaml::from_str(yaml).unwrap();
-        assert!(cfg.analyze.preflight.enabled); // still default-true
+        assert!(!cfg.analyze.preflight.enabled); // still default-false
         assert_eq!(cfg.analyze.preflight.skip, vec!["check-pods", "check-platform-deps"]);
     }
 }
