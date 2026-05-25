@@ -13,6 +13,7 @@ use falcon::reporters::json::JsonReporter;
 use falcon::reporters::sarif::SarifReporter;
 use falcon::reporters::sonar::SonarReporter;
 use falcon::reporters::Reporter;
+use falcon::preflight::OutputFormat as PreflightOutputFormat;
 use falcon::Falcon;
 use std::path::{Path, PathBuf};
 use std::process;
@@ -187,6 +188,17 @@ enum Commands {
         /// Output file path (for file-based formats)
         #[arg(short, long, default_value = "falcon-report.html")]
         output: PathBuf,
+    },
+
+    /// Verify every asset declared in pubspec.yaml exists on disk (pre-flight check).
+    #[command(name = "check-assets")]
+    CheckAssets {
+        /// Path to the Flutter project.
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        /// Output format.
+        #[arg(long, value_enum, default_value = "text")]
+        format: PreflightOutputFormat,
     },
 
     /// Generate a default falcon.yaml configuration file
@@ -1979,6 +1991,11 @@ fn run(cli: Cli) -> Result<()> {
             if !issues.is_empty() {
                 process::exit(1);
             }
+        }
+        Commands::CheckAssets { path, format } => {
+            let config = falcon::config::FalconConfig::load(&path).unwrap_or_default();
+            let code = falcon::check_assets::run(&path, format, &config)?;
+            process::exit(code);
         }
         Commands::Init { path } => {
             falcon::init_config(&path)?;
