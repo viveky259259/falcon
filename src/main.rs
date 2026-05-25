@@ -1927,9 +1927,9 @@ fn run(cli: Cli) -> Result<()> {
                 log::debug!("Could not save snapshot: {}", e);
             }
 
-            if should_fail(&final_report, &fail_on) {
-                process::exit(1);
-            }
+            let analyze_exit: i32 = if should_fail(&final_report, &fail_on) { 1 } else { 0 };
+            let preflight_exit = run_preflight_rollup(&path, &falcon_config)?;
+            process::exit(analyze_exit.max(preflight_exit));
         }
         Commands::Smells {
             path,
@@ -4436,4 +4436,39 @@ fn get_reporter(format: &OutputFormat, output: &PathBuf) -> Box<dyn Reporter> {
             output_path: Some(output.clone()),
         }),
     }
+}
+
+fn run_preflight_rollup(
+    path: &std::path::PathBuf,
+    config: &falcon::config::FalconConfig,
+) -> anyhow::Result<i32> {
+    if !config.analyze.preflight.enabled {
+        return Ok(0);
+    }
+    let skip = &config.analyze.preflight.skip;
+    let fmt = falcon::preflight::OutputFormat::Text;
+
+    let mut worst = 0;
+
+    if !skip.iter().any(|s| s == "check-assets") {
+        println!("\n── pre-flight: check-assets ──");
+        let code = falcon::check_assets::run(path, fmt, config)?;
+        worst = worst.max(code);
+    }
+    if !skip.iter().any(|s| s == "check-a11y") {
+        println!("\n── pre-flight: check-a11y ──");
+        let code = falcon::check_a11y::run(path, fmt, config)?;
+        worst = worst.max(code);
+    }
+    if !skip.iter().any(|s| s == "check-pods") {
+        println!("\n── pre-flight: check-pods ──");
+        let code = falcon::check_pods::run(path, fmt, config, false)?;
+        worst = worst.max(code);
+    }
+    if !skip.iter().any(|s| s == "check-platform-deps") {
+        println!("\n── pre-flight: check-platform-deps ──");
+        let code = falcon::check_platform_deps::run(path, fmt, config, false, None)?;
+        worst = worst.max(code);
+    }
+    Ok(worst)
 }
