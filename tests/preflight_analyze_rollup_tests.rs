@@ -56,6 +56,16 @@ fn analyze_rollup_runs_all_preflight_checks_and_takes_max_exit() {
     assert!(stdout.contains("check-a11y"), "stdout: {stdout}");
     assert!(stdout.contains("check-pods"), "stdout: {stdout}");
     assert!(stdout.contains("check-platform-deps"), "stdout: {stdout}");
+    // check-assets fired on the missing asset
+    assert!(
+        stdout.contains("Missing Asset") || stdout.contains("assets/missing.png"),
+        "check-assets did not flag the missing asset; stdout: {stdout}"
+    );
+    // check-platform-deps fired on the missing Info.plist key
+    assert!(
+        stdout.contains("NSLocationWhenInUseUsageDescription") || stdout.contains("missing-info-plist-key"),
+        "check-platform-deps did not flag the missing Info.plist key; stdout: {stdout}"
+    );
     // At least one preflight Error means exit code is 2 (max of analyze + preflight).
     assert_eq!(output.status.code(), Some(2), "stderr: {}", String::from_utf8_lossy(&output.stderr));
 }
