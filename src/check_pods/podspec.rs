@@ -1,5 +1,6 @@
 //! Scan a plugin's podspecs for `s.ios.deployment_target` (and macOS sibling).
 
+use super::podfile::extract_first_quoted;
 use std::path::{Path, PathBuf};
 
 /// One podspec's relevant deployment-target info.
@@ -58,30 +59,9 @@ pub fn extract_deployment_target(podspec: &str, platform: &str) -> Option<String
         if !trimmed.contains(&needle) {
             continue;
         }
-        if let Some(version) = first_quoted(trimmed) {
+        if let Some(version) = extract_first_quoted(trimmed) {
             return Some(version);
         }
-    }
-    None
-}
-
-fn first_quoted(s: &str) -> Option<String> {
-    let bytes = s.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        let c = bytes[i];
-        if c == b'\'' || c == b'"' {
-            let quote = c;
-            let start = i + 1;
-            let mut j = start;
-            while j < bytes.len() && bytes[j] != quote {
-                j += 1;
-            }
-            if j > start {
-                return std::str::from_utf8(&bytes[start..j]).ok().map(|s| s.to_string());
-            }
-        }
-        i += 1;
     }
     None
 }

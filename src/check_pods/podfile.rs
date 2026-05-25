@@ -41,7 +41,7 @@ fn strip_comment(line: &str) -> &str {
     line
 }
 
-fn extract_first_quoted(s: &str) -> Option<String> {
+pub(crate) fn extract_first_quoted(s: &str) -> Option<String> {
     let bytes = s.as_bytes();
     let mut i = 0;
     while i < bytes.len() {
