@@ -507,110 +507,146 @@ pub async fn collect_logging_report(
     })
 }
 
-pub fn print_memory_report(report: &MemoryToolReport) {
-    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
-    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
-    println!(
+pub fn format_memory_report(report: &MemoryToolReport) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+    writeln!(out, "{} {}", "VM Service:".bright_cyan(), report.vm_service_uri).unwrap();
+    writeln!(out, "{} {}", "Isolate:".bright_cyan(), report.isolate_id).unwrap();
+    writeln!(
+        out,
         "{} {:.2} MB",
         "Heap usage:".bright_cyan(),
         report.heap_usage_mb
-    );
-    println!(
+    )
+    .unwrap();
+    writeln!(
+        out,
         "{} {:.2} MB",
         "Heap capacity:".bright_cyan(),
         report.heap_capacity_mb
-    );
-    println!(
+    )
+    .unwrap();
+    writeln!(
+        out,
         "{} {:.2} MB",
         "External usage:".bright_cyan(),
         report.external_usage_mb
-    );
+    )
+    .unwrap();
 
     if !report.top_process_buckets.is_empty() {
-        println!();
-        println!("{}", "Top process memory buckets".bright_white().bold());
+        out.push('\n');
+        writeln!(out, "{}", "Top process memory buckets".bright_white().bold()).unwrap();
         for entry in &report.top_process_buckets {
             match &entry.description {
                 Some(description) => {
-                    println!(
+                    writeln!(
+                        out,
                         "  - {}: {:.2} MB ({})",
                         entry.name, entry.size_mb, description
-                    );
+                    )
+                    .unwrap();
                 }
-                None => println!("  - {}: {:.2} MB", entry.name, entry.size_mb),
+                None => writeln!(out, "  - {}: {:.2} MB", entry.name, entry.size_mb).unwrap(),
             }
         }
     }
 
     if !report.top_allocations.is_empty() {
-        println!();
-        println!("{}", "Top allocations".bright_white().bold());
+        out.push('\n');
+        writeln!(out, "{}", "Top allocations".bright_white().bold()).unwrap();
         for entry in &report.top_allocations {
-            println!(
+            writeln!(
+                out,
                 "  - {}: {:.2} MB current, {} instances",
                 entry.class, entry.bytes_current_mb, entry.instances_current
-            );
+            )
+            .unwrap();
         }
     }
+    out
 }
 
-pub fn print_network_report(report: &NetworkToolReport) {
-    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
-    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
-    println!("{} {}s", "Duration:".bright_cyan(), report.duration_secs);
-    println!(
+pub fn print_memory_report(report: &MemoryToolReport) {
+    print!("{}", format_memory_report(report));
+}
+
+pub fn format_network_report(report: &NetworkToolReport) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+    writeln!(out, "{} {}", "VM Service:".bright_cyan(), report.vm_service_uri).unwrap();
+    writeln!(out, "{} {}", "Isolate:".bright_cyan(), report.isolate_id).unwrap();
+    writeln!(out, "{} {}s", "Duration:".bright_cyan(), report.duration_secs).unwrap();
+    writeln!(
+        out,
         "{} {}",
         "HTTP requests:".bright_cyan(),
         report.total_requests
-    );
-    println!(
+    )
+    .unwrap();
+    writeln!(
+        out,
         "{} {}",
         "Failed requests:".bright_cyan(),
         report.failed_requests
-    );
-    println!(
+    )
+    .unwrap();
+    writeln!(
+        out,
         "{} {}",
         "Socket entries:".bright_cyan(),
         report.socket_count
-    );
-    println!(
+    )
+    .unwrap();
+    writeln!(
+        out,
         "{} {} bytes",
         "Received bytes:".bright_cyan(),
         report.total_bytes_received
-    );
-    println!(
+    )
+    .unwrap();
+    writeln!(
+        out,
         "{} {} bytes",
         "Socket read bytes:".bright_cyan(),
         report.total_socket_read_bytes
-    );
-    println!(
+    )
+    .unwrap();
+    writeln!(
+        out,
         "{} {} bytes",
         "Socket write bytes:".bright_cyan(),
         report.total_socket_write_bytes
-    );
-    println!(
+    )
+    .unwrap();
+    writeln!(
+        out,
         "{} {:.2} ms",
         "Max latency:".bright_cyan(),
         report.max_latency_ms
-    );
+    )
+    .unwrap();
     if !report.requests.is_empty() {
-        println!();
-        println!("{}", "Slowest requests".bright_white().bold());
+        out.push('\n');
+        writeln!(out, "{}", "Slowest requests".bright_white().bold()).unwrap();
         for request in &report.requests {
-            println!(
+            writeln!(
+                out,
                 "  - {} {} [{}] {:.2} ms",
                 request.method.as_deref().unwrap_or("?"),
                 request.uri.as_deref().unwrap_or("?"),
                 request.status.unwrap_or(0),
                 request.duration_ms.unwrap_or_default()
-            );
+            )
+            .unwrap();
         }
     }
     if !report.sockets.is_empty() {
-        println!();
-        println!("{}", "Busiest sockets".bright_white().bold());
+        out.push('\n');
+        writeln!(out, "{}", "Busiest sockets".bright_white().bold()).unwrap();
         for socket in &report.sockets {
-            println!(
+            writeln!(
+                out,
                 "  - {}:{} [{}] read={} write={} status={}",
                 socket.address.as_deref().unwrap_or("?"),
                 socket.port.unwrap_or(0),
@@ -618,225 +654,308 @@ pub fn print_network_report(report: &NetworkToolReport) {
                 socket.read_bytes,
                 socket.write_bytes,
                 socket.status.as_deref().unwrap_or("?")
-            );
+            )
+            .unwrap();
         }
     }
+    out
 }
 
-pub fn print_performance_report(report: &PerformanceToolReport) {
-    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
-    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
-    println!("{} {}s", "Duration:".bright_cyan(), report.duration_secs);
-    println!(
+pub fn print_network_report(report: &NetworkToolReport) {
+    print!("{}", format_network_report(report));
+}
+
+pub fn format_performance_report(report: &PerformanceToolReport) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+    writeln!(out, "{} {}", "VM Service:".bright_cyan(), report.vm_service_uri).unwrap();
+    writeln!(out, "{} {}", "Isolate:".bright_cyan(), report.isolate_id).unwrap();
+    writeln!(out, "{} {}s", "Duration:".bright_cyan(), report.duration_secs).unwrap();
+    writeln!(
+        out,
         "{} {}",
         "Timeline events:".bright_cyan(),
         report.timeline_event_count
-    );
+    )
+    .unwrap();
     if !report.top_event_counts.is_empty() {
-        println!();
-        println!("{}", "Top event counts".bright_white().bold());
+        out.push('\n');
+        writeln!(out, "{}", "Top event counts".bright_white().bold()).unwrap();
         for event in &report.top_event_counts {
-            println!("  - {}: {}", event.name, event.count);
+            writeln!(out, "  - {}: {}", event.name, event.count).unwrap();
         }
     }
     if !report.top_duration_events.is_empty() {
-        println!();
-        println!("{}", "Slowest events".bright_white().bold());
+        out.push('\n');
+        writeln!(out, "{}", "Slowest events".bright_white().bold()).unwrap();
         for event in &report.top_duration_events {
-            println!("  - {}: {:.2} ms", event.name, event.duration_ms);
+            writeln!(out, "  - {}: {:.2} ms", event.name, event.duration_ms).unwrap();
         }
     }
+    out
 }
 
-pub fn print_profiler_report(report: &ProfilerToolReport) {
-    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
-    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
-    println!("{} {}s", "Duration:".bright_cyan(), report.duration_secs);
-    println!("{} {}", "Sample count:".bright_cyan(), report.sample_count);
+pub fn print_performance_report(report: &PerformanceToolReport) {
+    print!("{}", format_performance_report(report));
+}
+
+pub fn format_profiler_report(report: &ProfilerToolReport) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+    writeln!(out, "{} {}", "VM Service:".bright_cyan(), report.vm_service_uri).unwrap();
+    writeln!(out, "{} {}", "Isolate:".bright_cyan(), report.isolate_id).unwrap();
+    writeln!(out, "{} {}s", "Duration:".bright_cyan(), report.duration_secs).unwrap();
+    writeln!(out, "{} {}", "Sample count:".bright_cyan(), report.sample_count).unwrap();
     if let Some(sample_period_micros) = report.sample_period_micros {
-        println!(
+        writeln!(
+            out,
             "{} {} µs",
             "Sample period:".bright_cyan(),
             sample_period_micros
-        );
+        )
+        .unwrap();
     }
     if let Some(max_stack_depth) = report.max_stack_depth {
-        println!("{} {}", "Max stack depth:".bright_cyan(), max_stack_depth);
+        writeln!(out, "{} {}", "Max stack depth:".bright_cyan(), max_stack_depth).unwrap();
     }
     if !report.hot_functions.is_empty() {
-        println!();
-        println!("{}", "Hot functions".bright_white().bold());
+        out.push('\n');
+        writeln!(out, "{}", "Hot functions".bright_white().bold()).unwrap();
         for function in &report.hot_functions {
-            println!("  - {}: {}", function.name, function.samples);
+            writeln!(out, "  - {}: {}", function.name, function.samples).unwrap();
         }
     }
+    out
 }
 
-pub fn print_debugger_report(report: &DebuggerToolReport) {
-    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
-    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
+pub fn print_profiler_report(report: &ProfilerToolReport) {
+    print!("{}", format_profiler_report(report));
+}
+
+pub fn format_debugger_report(report: &DebuggerToolReport) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+    writeln!(out, "{} {}", "VM Service:".bright_cyan(), report.vm_service_uri).unwrap();
+    writeln!(out, "{} {}", "Isolate:".bright_cyan(), report.isolate_id).unwrap();
     if let Some(name) = &report.isolate_name {
-        println!("{} {}", "Isolate name:".bright_cyan(), name);
+        writeln!(out, "{} {}", "Isolate name:".bright_cyan(), name).unwrap();
     }
-    println!(
+    writeln!(
+        out,
         "{} {}",
         "System isolate:".bright_cyan(),
         report.is_system_isolate
-    );
+    )
+    .unwrap();
     if let Some(kind) = &report.pause_event_kind {
-        println!("{} {}", "Pause event:".bright_cyan(), kind);
+        writeln!(out, "{} {}", "Pause event:".bright_cyan(), kind).unwrap();
     }
     if let Some(mode) = &report.exception_pause_mode {
-        println!("{} {}", "Exception pause mode:".bright_cyan(), mode);
+        writeln!(out, "{} {}", "Exception pause mode:".bright_cyan(), mode).unwrap();
     }
-    println!("{} {}", "Stack frames:".bright_cyan(), report.frame_count);
+    writeln!(out, "{} {}", "Stack frames:".bright_cyan(), report.frame_count).unwrap();
     if !report.frames.is_empty() {
-        println!();
-        println!("{}", "Top stack frames".bright_white().bold());
+        out.push('\n');
+        writeln!(out, "{}", "Top stack frames".bright_white().bold()).unwrap();
         for frame in &report.frames {
-            println!(
+            writeln!(
+                out,
                 "  - {} ({})",
                 frame.function.as_deref().unwrap_or("<unknown>"),
                 frame.script_uri.as_deref().unwrap_or("?")
-            );
+            )
+            .unwrap();
         }
     }
+    out
 }
 
-pub fn print_rebuilds_report(report: &RebuildsToolReport) {
-    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
-    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
+pub fn print_debugger_report(report: &DebuggerToolReport) {
+    print!("{}", format_debugger_report(report));
+}
+
+pub fn format_rebuilds_report(report: &RebuildsToolReport) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+    writeln!(out, "{} {}", "VM Service:".bright_cyan(), report.vm_service_uri).unwrap();
+    writeln!(out, "{} {}", "Isolate:".bright_cyan(), report.isolate_id).unwrap();
     if !report.stats_enabled {
-        println!(
+        writeln!(
+            out,
             "{}",
             "  Note: rebuild profiling is off — start the app with `--profile-widget-builds` or call `WidgetsBinding.instance.deferFirstFrame` in profile mode for accurate counts."
                 .yellow()
-        );
+        )
+        .unwrap();
     }
-    println!(
+    writeln!(
+        out,
         "{} {}",
         "Tracked widgets:".bright_cyan(),
         report.total_widgets
-    );
-    println!(
+    )
+    .unwrap();
+    writeln!(
+        out,
         "{} {}",
         "Total rebuilds:".bright_cyan(),
         report.total_rebuilds
-    );
+    )
+    .unwrap();
     if !report.top_widgets.is_empty() {
-        println!();
-        println!("{}", "Hot rebuilders".bright_white().bold());
+        out.push('\n');
+        writeln!(out, "{}", "Hot rebuilders".bright_white().bold()).unwrap();
         for entry in &report.top_widgets {
             match &entry.location {
-                Some(loc) => println!("  - {} × {}  ({})", entry.widget, entry.count, loc),
-                None => println!("  - {} × {}", entry.widget, entry.count),
+                Some(loc) => writeln!(out, "  - {} × {}  ({})", entry.widget, entry.count, loc).unwrap(),
+                None => writeln!(out, "  - {} × {}", entry.widget, entry.count).unwrap(),
             }
         }
     }
+    out
 }
 
-pub fn print_inspector_report(report: &InspectorToolReport) {
-    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
-    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
-    println!(
+pub fn print_rebuilds_report(report: &RebuildsToolReport) {
+    print!("{}", format_rebuilds_report(report));
+}
+
+pub fn format_inspector_report(report: &InspectorToolReport) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+    writeln!(out, "{} {}", "VM Service:".bright_cyan(), report.vm_service_uri).unwrap();
+    writeln!(out, "{} {}", "Isolate:".bright_cyan(), report.isolate_id).unwrap();
+    writeln!(
+        out,
         "{} {}",
         "Widget tree nodes:".bright_cyan(),
         report.total_nodes
-    );
-    println!("{} {}", "Max depth:".bright_cyan(), report.max_depth);
+    )
+    .unwrap();
+    writeln!(out, "{} {}", "Max depth:".bright_cyan(), report.max_depth).unwrap();
     if let Some(root) = &report.root {
-        println!(
+        writeln!(
+            out,
             "{} {} ({} children)",
             "Root:".bright_cyan(),
             root.widget,
             root.child_count
-        );
+        )
+        .unwrap();
         if let Some(loc) = &root.creation_location {
-            println!("  at {}", loc.dimmed());
+            writeln!(out, "  at {}", loc.dimmed()).unwrap();
         }
     }
     if let Some(selected) = &report.selected {
-        println!();
-        println!("{}", "Selected widget".bright_white().bold());
-        println!("  - {}", selected.widget);
+        out.push('\n');
+        writeln!(out, "{}", "Selected widget".bright_white().bold()).unwrap();
+        writeln!(out, "  - {}", selected.widget).unwrap();
         if let Some(desc) = &selected.description {
-            println!("    {}", desc.dimmed());
+            writeln!(out, "    {}", desc.dimmed()).unwrap();
         }
         if let Some(loc) = &selected.creation_location {
-            println!("    at {}", loc.dimmed());
+            writeln!(out, "    at {}", loc.dimmed()).unwrap();
         }
     }
     if !report.top_widgets.is_empty() {
-        println!();
-        println!("{}", "Top rebuilders".bright_white().bold());
+        out.push('\n');
+        writeln!(out, "{}", "Top rebuilders".bright_white().bold()).unwrap();
         for entry in &report.top_widgets {
-            println!("  - {} × {}", entry.widget, entry.count);
+            writeln!(out, "  - {} × {}", entry.widget, entry.count).unwrap();
         }
     }
+    out
 }
 
-pub fn print_reload_report(report: &ReloadToolReport) {
-    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
-    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
-    println!("{} {}", "Mode:".bright_cyan(), report.mode);
+pub fn print_inspector_report(report: &InspectorToolReport) {
+    print!("{}", format_inspector_report(report));
+}
+
+pub fn format_reload_report(report: &ReloadToolReport) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+    writeln!(out, "{} {}", "VM Service:".bright_cyan(), report.vm_service_uri).unwrap();
+    writeln!(out, "{} {}", "Isolate:".bright_cyan(), report.isolate_id).unwrap();
+    writeln!(out, "{} {}", "Mode:".bright_cyan(), report.mode).unwrap();
     if report.success {
-        println!(
+        writeln!(
+            out,
             "{} {} in {} ms",
             "Result:".bright_cyan(),
             "success".green().bold(),
             report.elapsed_ms
-        );
+        )
+        .unwrap();
     } else {
-        println!(
+        writeln!(
+            out,
             "{} {} in {} ms",
             "Result:".bright_cyan(),
             "failed".red().bold(),
             report.elapsed_ms
-        );
+        )
+        .unwrap();
     }
     if let Some(reason) = &report.reason {
-        println!("{} {}", "Reason:".bright_cyan(), reason);
+        writeln!(out, "{} {}", "Reason:".bright_cyan(), reason).unwrap();
     }
     if let Some(libs) = report.reloaded_libraries {
-        println!("{} {}", "Libraries reloaded:".bright_cyan(), libs);
+        writeln!(out, "{} {}", "Libraries reloaded:".bright_cyan(), libs).unwrap();
     }
-    println!(
+    writeln!(
+        out,
         "{} {}",
         "Widgets reassembled:".bright_cyan(),
         report.reassembled
-    );
+    )
+    .unwrap();
     if report.mode == "restart" {
-        println!(
+        writeln!(
+            out,
             "{}",
             "  Note: full hot restart (state reset) requires `flutter run` to be the controlling process. \
 This forces a reload of all sources and reassembles the widget tree, but constructor state is preserved.".dimmed()
-        );
+        )
+        .unwrap();
     }
+    out
 }
 
-pub fn print_logging_report(report: &LoggingToolReport) {
-    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
-    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
-    println!("{} {}s", "Duration:".bright_cyan(), report.duration_secs);
-    println!("{} {}", "Total events:".bright_cyan(), report.total_events);
+pub fn print_reload_report(report: &ReloadToolReport) {
+    print!("{}", format_reload_report(report));
+}
+
+pub fn format_logging_report(report: &LoggingToolReport) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+    writeln!(out, "{} {}", "VM Service:".bright_cyan(), report.vm_service_uri).unwrap();
+    writeln!(out, "{} {}", "Isolate:".bright_cyan(), report.isolate_id).unwrap();
+    writeln!(out, "{} {}s", "Duration:".bright_cyan(), report.duration_secs).unwrap();
+    writeln!(out, "{} {}", "Total events:".bright_cyan(), report.total_events).unwrap();
     if !report.stream_counts.is_empty() {
-        println!();
-        println!("{}", "Stream counts".bright_white().bold());
+        out.push('\n');
+        writeln!(out, "{}", "Stream counts".bright_white().bold()).unwrap();
         for count in &report.stream_counts {
-            println!("  - {}: {}", count.name, count.count);
+            writeln!(out, "  - {}: {}", count.name, count.count).unwrap();
         }
     }
     if !report.entries.is_empty() {
-        println!();
-        println!("{}", "Recent log entries".bright_white().bold());
+        out.push('\n');
+        writeln!(out, "{}", "Recent log entries".bright_white().bold()).unwrap();
         for entry in &report.entries {
-            println!(
+            writeln!(
+                out,
                 "  - [{}] {}",
                 entry.stream,
                 entry.message.as_deref().unwrap_or("<no message>")
-            );
+            )
+            .unwrap();
         }
     }
+    out
+}
+
+pub fn print_logging_report(report: &LoggingToolReport) {
+    print!("{}", format_logging_report(report));
 }
 
 #[derive(Debug)]
@@ -2533,5 +2652,563 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(node.description.as_deref(), Some("my desc"));
+    }
+
+    // ── format_memory_report ─────────────────────────────────────────────────
+
+    fn make_memory_report() -> MemoryToolReport {
+        MemoryToolReport {
+            vm_service_uri: "ws://localhost:8181/ws".to_string(),
+            isolate_id: "isolates/1".to_string(),
+            heap_usage_mb: 12.5,
+            heap_capacity_mb: 64.0,
+            external_usage_mb: 2.0,
+            top_process_buckets: vec![],
+            top_allocations: vec![],
+        }
+    }
+
+    #[test]
+    fn format_memory_report_empty_is_nonempty_and_has_header() {
+        colored::control::set_override(false);
+        let report = make_memory_report();
+        let s = format_memory_report(&report);
+        assert!(!s.is_empty());
+        assert!(s.contains("VM Service:"));
+        assert!(s.contains("Heap usage:"));
+    }
+
+    #[test]
+    fn format_memory_report_contains_heap_values() {
+        colored::control::set_override(false);
+        let report = make_memory_report();
+        let s = format_memory_report(&report);
+        assert!(s.contains("12.50 MB"));
+        assert!(s.contains("64.00 MB"));
+        assert!(s.contains("2.00 MB"));
+    }
+
+    #[test]
+    fn format_memory_report_populated_shows_buckets_and_allocations() {
+        colored::control::set_override(false);
+        let report = MemoryToolReport {
+            vm_service_uri: "ws://x:1".to_string(),
+            isolate_id: "iso/2".to_string(),
+            heap_usage_mb: 1.0,
+            heap_capacity_mb: 2.0,
+            external_usage_mb: 0.5,
+            top_process_buckets: vec![
+                ProcessBucketEntry { name: "dart_heap".to_string(), description: Some("DH".to_string()), size_mb: 10.0 },
+                ProcessBucketEntry { name: "code".to_string(), description: None, size_mb: 5.0 },
+            ],
+            top_allocations: vec![
+                AllocationEntry { class: "MyClass".to_string(), instances_current: 42, bytes_current_mb: 3.5, accumulated_size_mb: 7.0 },
+            ],
+        };
+        let s = format_memory_report(&report);
+        assert!(s.contains("Top process memory buckets"));
+        assert!(s.contains("dart_heap"));
+        assert!(s.contains("DH"));
+        assert!(s.contains("code"));
+        assert!(s.contains("Top allocations"));
+        assert!(s.contains("MyClass"));
+        assert!(s.contains("42 instances"));
+    }
+
+    // ── format_network_report ────────────────────────────────────────────────
+
+    fn make_network_report() -> NetworkToolReport {
+        NetworkToolReport {
+            vm_service_uri: "ws://localhost:8181/ws".to_string(),
+            isolate_id: "isolates/1".to_string(),
+            duration_secs: 5,
+            total_requests: 0,
+            failed_requests: 0,
+            total_bytes_received: 0,
+            max_latency_ms: 0.0,
+            socket_count: 0,
+            total_socket_read_bytes: 0,
+            total_socket_write_bytes: 0,
+            requests: vec![],
+            sockets: vec![],
+        }
+    }
+
+    #[test]
+    fn format_network_report_empty_has_header() {
+        colored::control::set_override(false);
+        let report = make_network_report();
+        let s = format_network_report(&report);
+        assert!(!s.is_empty());
+        assert!(s.contains("VM Service:"));
+        assert!(s.contains("HTTP requests:"));
+    }
+
+    #[test]
+    fn format_network_report_populated_shows_requests_and_sockets() {
+        colored::control::set_override(false);
+        let report = NetworkToolReport {
+            vm_service_uri: "ws://x".to_string(),
+            isolate_id: "iso/1".to_string(),
+            duration_secs: 10,
+            total_requests: 2,
+            failed_requests: 1,
+            total_bytes_received: 500,
+            max_latency_ms: 42.5,
+            socket_count: 1,
+            total_socket_read_bytes: 100,
+            total_socket_write_bytes: 50,
+            requests: vec![NetworkRequestSummary {
+                method: Some("GET".to_string()),
+                uri: Some("https://api.test/data".to_string()),
+                status: Some(200),
+                duration_ms: Some(42.5),
+                content_length: Some(500),
+            }],
+            sockets: vec![SocketSummary {
+                id: Some("s1".to_string()),
+                address: Some("1.2.3.4".to_string()),
+                port: Some(443),
+                socket_type: Some("tcp".to_string()),
+                status: Some("Open".to_string()),
+                read_bytes: 100,
+                write_bytes: 50,
+                last_read_time: None,
+                last_write_time: None,
+            }],
+        };
+        let s = format_network_report(&report);
+        assert!(s.contains("Slowest requests"));
+        assert!(s.contains("https://api.test/data"));
+        assert!(s.contains("Busiest sockets"));
+        assert!(s.contains("1.2.3.4"));
+        assert!(s.contains("42.50 ms"));
+    }
+
+    #[test]
+    fn format_network_report_total_requests_shown() {
+        colored::control::set_override(false);
+        let mut r = make_network_report();
+        r.total_requests = 7;
+        r.failed_requests = 2;
+        let s = format_network_report(&r);
+        assert!(s.contains("7"));
+        assert!(s.contains("2"));
+    }
+
+    // ── format_performance_report ────────────────────────────────────────────
+
+    fn make_performance_report() -> PerformanceToolReport {
+        PerformanceToolReport {
+            vm_service_uri: "ws://localhost:8181/ws".to_string(),
+            isolate_id: "isolates/1".to_string(),
+            duration_secs: 3,
+            timeline_event_count: 0,
+            top_event_counts: vec![],
+            top_duration_events: vec![],
+        }
+    }
+
+    #[test]
+    fn format_performance_report_empty_has_header() {
+        colored::control::set_override(false);
+        let report = make_performance_report();
+        let s = format_performance_report(&report);
+        assert!(!s.is_empty());
+        assert!(s.contains("Timeline events:"));
+    }
+
+    #[test]
+    fn format_performance_report_shows_event_counts() {
+        colored::control::set_override(false);
+        let report = PerformanceToolReport {
+            vm_service_uri: "ws://x".to_string(),
+            isolate_id: "iso/1".to_string(),
+            duration_secs: 5,
+            timeline_event_count: 100,
+            top_event_counts: vec![TimelineCount { name: "Frame".to_string(), count: 60 }],
+            top_duration_events: vec![TimelineDuration { name: "Raster".to_string(), duration_ms: 8.0 }],
+        };
+        let s = format_performance_report(&report);
+        assert!(s.contains("Top event counts"));
+        assert!(s.contains("Frame"));
+        assert!(s.contains("60"));
+        assert!(s.contains("Slowest events"));
+        assert!(s.contains("Raster"));
+        assert!(s.contains("8.00 ms"));
+    }
+
+    #[test]
+    fn format_performance_report_duration_shown() {
+        colored::control::set_override(false);
+        let mut r = make_performance_report();
+        r.duration_secs = 42;
+        let s = format_performance_report(&r);
+        assert!(s.contains("42s"));
+    }
+
+    // ── format_profiler_report ───────────────────────────────────────────────
+
+    fn make_profiler_report() -> ProfilerToolReport {
+        ProfilerToolReport {
+            vm_service_uri: "ws://localhost:8181/ws".to_string(),
+            isolate_id: "isolates/1".to_string(),
+            duration_secs: 5,
+            sample_count: 0,
+            sample_period_micros: None,
+            max_stack_depth: None,
+            hot_functions: vec![],
+        }
+    }
+
+    #[test]
+    fn format_profiler_report_empty_has_header() {
+        colored::control::set_override(false);
+        let report = make_profiler_report();
+        let s = format_profiler_report(&report);
+        assert!(!s.is_empty());
+        assert!(s.contains("Sample count:"));
+    }
+
+    #[test]
+    fn format_profiler_report_shows_hot_functions() {
+        colored::control::set_override(false);
+        let report = ProfilerToolReport {
+            vm_service_uri: "ws://x".to_string(),
+            isolate_id: "iso/1".to_string(),
+            duration_secs: 10,
+            sample_count: 500,
+            sample_period_micros: Some(1000),
+            max_stack_depth: Some(128),
+            hot_functions: vec![
+                HotFunction { name: "buildWidget".to_string(), samples: 200 },
+                HotFunction { name: "renderFrame".to_string(), samples: 100 },
+            ],
+        };
+        let s = format_profiler_report(&report);
+        assert!(s.contains("Hot functions"));
+        assert!(s.contains("buildWidget"));
+        assert!(s.contains("200"));
+        assert!(s.contains("Sample period:"));
+        assert!(s.contains("1000"));
+        assert!(s.contains("Max stack depth:"));
+        assert!(s.contains("128"));
+    }
+
+    #[test]
+    fn format_profiler_report_sample_count_shown() {
+        colored::control::set_override(false);
+        let mut r = make_profiler_report();
+        r.sample_count = 999;
+        let s = format_profiler_report(&r);
+        assert!(s.contains("999"));
+    }
+
+    // ── format_debugger_report ───────────────────────────────────────────────
+
+    fn make_debugger_report() -> DebuggerToolReport {
+        DebuggerToolReport {
+            vm_service_uri: "ws://localhost:8181/ws".to_string(),
+            isolate_id: "isolates/1".to_string(),
+            isolate_name: None,
+            is_system_isolate: false,
+            pause_event_kind: None,
+            exception_pause_mode: None,
+            frame_count: 0,
+            frames: vec![],
+        }
+    }
+
+    #[test]
+    fn format_debugger_report_empty_has_header() {
+        colored::control::set_override(false);
+        let report = make_debugger_report();
+        let s = format_debugger_report(&report);
+        assert!(!s.is_empty());
+        assert!(s.contains("Stack frames:"));
+        assert!(s.contains("System isolate:"));
+    }
+
+    #[test]
+    fn format_debugger_report_shows_frames() {
+        colored::control::set_override(false);
+        let report = DebuggerToolReport {
+            vm_service_uri: "ws://x".to_string(),
+            isolate_id: "iso/1".to_string(),
+            isolate_name: Some("main".to_string()),
+            is_system_isolate: false,
+            pause_event_kind: Some("PauseBreakpoint".to_string()),
+            exception_pause_mode: Some("Unhandled".to_string()),
+            frame_count: 1,
+            frames: vec![DebuggerFrame {
+                function: Some("myFunc".to_string()),
+                code: None,
+                script_uri: Some("package:app/main.dart".to_string()),
+                token_pos: Some(10),
+            }],
+        };
+        let s = format_debugger_report(&report);
+        assert!(s.contains("Top stack frames"));
+        assert!(s.contains("myFunc"));
+        assert!(s.contains("package:app/main.dart"));
+        assert!(s.contains("Isolate name:"));
+        assert!(s.contains("PauseBreakpoint"));
+        assert!(s.contains("Unhandled"));
+    }
+
+    #[test]
+    fn format_debugger_report_system_isolate_true() {
+        colored::control::set_override(false);
+        let mut r = make_debugger_report();
+        r.is_system_isolate = true;
+        let s = format_debugger_report(&r);
+        assert!(s.contains("true"));
+    }
+
+    // ── format_rebuilds_report ───────────────────────────────────────────────
+
+    fn make_rebuilds_report() -> RebuildsToolReport {
+        RebuildsToolReport {
+            vm_service_uri: "ws://localhost:8181/ws".to_string(),
+            isolate_id: "isolates/1".to_string(),
+            total_widgets: 0,
+            total_rebuilds: 0,
+            top_widgets: vec![],
+            stats_enabled: true,
+        }
+    }
+
+    #[test]
+    fn format_rebuilds_report_empty_has_header() {
+        colored::control::set_override(false);
+        let report = make_rebuilds_report();
+        let s = format_rebuilds_report(&report);
+        assert!(!s.is_empty());
+        assert!(s.contains("Tracked widgets:"));
+        assert!(s.contains("Total rebuilds:"));
+    }
+
+    #[test]
+    fn format_rebuilds_report_shows_top_widgets() {
+        colored::control::set_override(false);
+        let report = RebuildsToolReport {
+            vm_service_uri: "ws://x".to_string(),
+            isolate_id: "iso/1".to_string(),
+            total_widgets: 3,
+            total_rebuilds: 15,
+            top_widgets: vec![
+                RebuildEntry { widget: "MyButton".to_string(), count: 10, location: Some("lib/button.dart:20".to_string()) },
+                RebuildEntry { widget: "MyText".to_string(), count: 5, location: None },
+            ],
+            stats_enabled: true,
+        };
+        let s = format_rebuilds_report(&report);
+        assert!(s.contains("Hot rebuilders"));
+        assert!(s.contains("MyButton"));
+        assert!(s.contains("lib/button.dart:20"));
+        assert!(s.contains("MyText"));
+    }
+
+    #[test]
+    fn format_rebuilds_report_stats_disabled_shows_note() {
+        colored::control::set_override(false);
+        let mut r = make_rebuilds_report();
+        r.stats_enabled = false;
+        let s = format_rebuilds_report(&r);
+        assert!(s.contains("rebuild profiling is off"));
+    }
+
+    // ── format_inspector_report ──────────────────────────────────────────────
+
+    fn make_inspector_report() -> InspectorToolReport {
+        InspectorToolReport {
+            vm_service_uri: "ws://localhost:8181/ws".to_string(),
+            isolate_id: "isolates/1".to_string(),
+            total_nodes: 0,
+            max_depth: 0,
+            root: None,
+            top_widgets: vec![],
+            selected: None,
+        }
+    }
+
+    #[test]
+    fn format_inspector_report_empty_has_header() {
+        colored::control::set_override(false);
+        let report = make_inspector_report();
+        let s = format_inspector_report(&report);
+        assert!(!s.is_empty());
+        assert!(s.contains("Widget tree nodes:"));
+        assert!(s.contains("Max depth:"));
+    }
+
+    #[test]
+    fn format_inspector_report_shows_root_and_selected() {
+        colored::control::set_override(false);
+        let report = InspectorToolReport {
+            vm_service_uri: "ws://x".to_string(),
+            isolate_id: "iso/1".to_string(),
+            total_nodes: 5,
+            max_depth: 3,
+            root: Some(InspectorNode {
+                widget: "MaterialApp".to_string(),
+                description: None,
+                creation_location: Some("lib/main.dart:10".to_string()),
+                child_count: 2,
+            }),
+            top_widgets: vec![
+                RebuildEntry { widget: "Scaffold".to_string(), count: 3, location: None },
+            ],
+            selected: Some(InspectorNode {
+                widget: "Text".to_string(),
+                description: Some("Hello".to_string()),
+                creation_location: Some("lib/home.dart:5".to_string()),
+                child_count: 0,
+            }),
+        };
+        let s = format_inspector_report(&report);
+        assert!(s.contains("Root:"));
+        assert!(s.contains("MaterialApp"));
+        assert!(s.contains("2 children"));
+        assert!(s.contains("lib/main.dart:10"));
+        assert!(s.contains("Selected widget"));
+        assert!(s.contains("Text"));
+        assert!(s.contains("Hello"));
+        assert!(s.contains("Top rebuilders"));
+        assert!(s.contains("Scaffold"));
+    }
+
+    #[test]
+    fn format_inspector_report_total_nodes_shown() {
+        colored::control::set_override(false);
+        let mut r = make_inspector_report();
+        r.total_nodes = 42;
+        r.max_depth = 7;
+        let s = format_inspector_report(&r);
+        assert!(s.contains("42"));
+        assert!(s.contains("7"));
+    }
+
+    // ── format_reload_report ─────────────────────────────────────────────────
+
+    fn make_reload_report() -> ReloadToolReport {
+        ReloadToolReport {
+            vm_service_uri: "ws://localhost:8181/ws".to_string(),
+            isolate_id: "isolates/1".to_string(),
+            mode: "reload".to_string(),
+            success: true,
+            reason: None,
+            reloaded_libraries: None,
+            elapsed_ms: 120,
+            reassembled: true,
+        }
+    }
+
+    #[test]
+    fn format_reload_report_success_has_header() {
+        colored::control::set_override(false);
+        let report = make_reload_report();
+        let s = format_reload_report(&report);
+        assert!(!s.is_empty());
+        assert!(s.contains("Mode:"));
+        assert!(s.contains("Result:"));
+        assert!(s.contains("success"));
+        assert!(s.contains("120"));
+    }
+
+    #[test]
+    fn format_reload_report_failure_shows_failed() {
+        colored::control::set_override(false);
+        let report = ReloadToolReport {
+            vm_service_uri: "ws://x".to_string(),
+            isolate_id: "iso/1".to_string(),
+            mode: "reload".to_string(),
+            success: false,
+            reason: Some("syntax error".to_string()),
+            reloaded_libraries: None,
+            elapsed_ms: 50,
+            reassembled: false,
+        };
+        let s = format_reload_report(&report);
+        assert!(s.contains("failed"));
+        assert!(s.contains("Reason:"));
+        assert!(s.contains("syntax error"));
+    }
+
+    #[test]
+    fn format_reload_report_restart_mode_shows_note() {
+        colored::control::set_override(false);
+        let mut r = make_reload_report();
+        r.mode = "restart".to_string();
+        r.reloaded_libraries = Some(42);
+        let s = format_reload_report(&r);
+        assert!(s.contains("Note: full hot restart"));
+        assert!(s.contains("Libraries reloaded:"));
+        assert!(s.contains("42"));
+    }
+
+    // ── format_logging_report ────────────────────────────────────────────────
+
+    fn make_logging_report() -> LoggingToolReport {
+        LoggingToolReport {
+            vm_service_uri: "ws://localhost:8181/ws".to_string(),
+            isolate_id: "isolates/1".to_string(),
+            duration_secs: 5,
+            total_events: 0,
+            stream_counts: vec![],
+            entries: vec![],
+        }
+    }
+
+    #[test]
+    fn format_logging_report_empty_has_header() {
+        colored::control::set_override(false);
+        let report = make_logging_report();
+        let s = format_logging_report(&report);
+        assert!(!s.is_empty());
+        assert!(s.contains("Total events:"));
+        assert!(s.contains("Duration:"));
+    }
+
+    #[test]
+    fn format_logging_report_shows_stream_counts_and_entries() {
+        colored::control::set_override(false);
+        let report = LoggingToolReport {
+            vm_service_uri: "ws://x".to_string(),
+            isolate_id: "iso/1".to_string(),
+            duration_secs: 10,
+            total_events: 3,
+            stream_counts: vec![
+                TimelineCount { name: "Stdout".to_string(), count: 2 },
+                TimelineCount { name: "Stderr".to_string(), count: 1 },
+            ],
+            entries: vec![
+                LogEntry {
+                    stream: "Stdout".to_string(),
+                    kind: "stdout".to_string(),
+                    timestamp_micros: Some(100),
+                    message: Some("hello world".to_string()),
+                    logger_name: None,
+                    level: None,
+                },
+            ],
+        };
+        let s = format_logging_report(&report);
+        assert!(s.contains("Stream counts"));
+        assert!(s.contains("Stdout"));
+        assert!(s.contains("Stderr"));
+        assert!(s.contains("Recent log entries"));
+        assert!(s.contains("hello world"));
+    }
+
+    #[test]
+    fn format_logging_report_total_events_shown() {
+        colored::control::set_override(false);
+        let mut r = make_logging_report();
+        r.total_events = 99;
+        r.duration_secs = 30;
+        let s = format_logging_report(&r);
+        assert!(s.contains("99"));
+        assert!(s.contains("30s"));
     }
 }
