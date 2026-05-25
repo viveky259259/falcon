@@ -36,15 +36,20 @@ Target: ≥90% line coverage (library crate)
 | src/lsp/ai_extensions.rs                     | 60    | 11.67%  |
 | src/runtime/connection.rs                    | 611   | 13.58%  |
 
-Next module to work on (lowest-covered, not excluded, smallest): ~~`src/parser/visitor.rs`~~ ~~`src/resolver/scope.rs`~~ done — next: **`src/incremental/watcher.rs`** (51 lines, 0.00%).
+Next module to work on (lowest-covered, not excluded, smallest): ~~`src/parser/visitor.rs`~~ ~~`src/resolver/scope.rs`~~ ~~`src/incremental/watcher.rs`~~ done — next: **`src/reporters/json.rs`** (87 lines, 0.00%).
 
 ## Completed Modules
 
-| Date       | Module                  | Before  | After    | Commit  |
-|------------|-------------------------|---------|----------|---------|
-| 2026-05-25 | src/parser/visitor.rs   | 0.00%   | 91.18%   | b39470b |
-| 2026-05-25 | src/resolver/scope.rs   | 0.00%   | 100.00%  | 9c73ba0 |
+| Date       | Module                        | Before  | After    | Commit  |
+|-------------------------------|---------|----------|---------|---------|
+| 2026-05-25 | src/parser/visitor.rs         | 0.00%   | 91.18%   | b39470b |
+| 2026-05-25 | src/resolver/scope.rs         | 0.00%   | 100.00%  | 9c73ba0 |
+| 2026-05-25 | src/incremental/watcher.rs    | 0.00%   | 68.11%*  | 313dcd7 |
+
+\* `snapshot_times()` is fully covered. `pub fn watch()` body is wrapped in `LCOV_EXCL_START/STOP` markers (infinite poll loop, untestable as-is). However, `cargo llvm-cov --summary-only` does NOT honor LCOV_EXCL markers; the markers are accurate for downstream LCOV tools only. The 68.11% summary figure underrepresents the module's *testable* coverage.
 
 ## Deferred Modules
 
-_Module → reason → blocking issue._
+| Module | Reason |
+|--------|--------|
+| `pub fn watch` in `src/incremental/watcher.rs` | Infinite poll loop with no exit signal. Genuinely untestable without nightly Rust `#[coverage(off)]` attribute or a refactor that introduces a cancellation token. Both are out of the spec's refactor budget. Revisit if/when a CI gate is added that filters with `lcov`/`genhtml`. |
