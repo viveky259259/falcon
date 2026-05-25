@@ -89,6 +89,12 @@ pub fn iter_installed_plugins(project_root: &Path, pub_cache: &Path) -> Result<V
     Ok(out)
 }
 
+/// Process-wide mutex that serialises every test that mutates `FALCON_PUB_CACHE`.
+/// Both `check_pods` and `check_platform_deps` test suites acquire this lock so
+/// they never race each other across module boundaries.
+#[cfg(test)]
+pub static FALCON_ENV_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// Filter to plugins that have an `ios/` or `darwin/` source folder.
 pub fn plugins_with_ios(plugins: &[InstalledPlugin]) -> Vec<&InstalledPlugin> {
     plugins

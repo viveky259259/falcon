@@ -133,17 +133,16 @@ fn is_suppressed(issue: &PreflightIssue, config: &FalconConfig) -> bool {
 mod tests {
     use super::*;
     use crate::config::{PreflightConfig, PreflightSuppression};
+    use crate::preflight::pub_cache::FALCON_ENV_MUTEX;
     use tempfile::TempDir;
-    use std::sync::{Mutex, MutexGuard};
+    use std::sync::MutexGuard;
 
-    // Mutex to serialize env-var tests so they don't interfere with each other.
-    static ENV_MUTEX: Mutex<()> = Mutex::new(());
-
-    /// Acquire a global env-var lock. Tests that set FALCON_PUB_CACHE must
-    /// hold this guard for their entire body to avoid clobbering each other
-    /// under `cargo test`'s default parallel execution.
+    /// Acquire the process-wide env-var lock shared with check_platform_deps.
+    /// Every test that sets FALCON_PUB_CACHE must hold this guard for its
+    /// entire body to prevent cross-module races under cargo test's default
+    /// parallel execution.
     fn env_lock() -> MutexGuard<'static, ()> {
-        ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner())
+        FALCON_ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     fn write(path: &Path, contents: &str) {
