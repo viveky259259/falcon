@@ -703,6 +703,28 @@ pub fn write_deeplink_html_report(report: &DeeplinkReport, path: &Path) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
+
+    fn make_report() -> DeeplinkReport {
+        DeeplinkReport {
+            android_schemes: Vec::new(),
+            ios_schemes: Vec::new(),
+            flutter_routes: Vec::new(),
+            issues: Vec::new(),
+            score: 100,
+        }
+    }
+
+    fn make_issue(severity: DeeplinkSeverity) -> DeeplinkIssue {
+        DeeplinkIssue {
+            severity,
+            platform: "Android",
+            category: "Test",
+            file: PathBuf::new(),
+            detail: "Test detail".to_string(),
+            suggestion: "Test suggestion".to_string(),
+        }
+    }
 
     #[test]
     fn test_deeplink_issue_creation() {
@@ -726,6 +748,25 @@ mod tests {
         assert_eq!(DeeplinkSeverity::Warning.to_string(), "Warning");
         assert_eq!(DeeplinkSeverity::Info.to_string(), "Info");
     }
+
+    // --- DeeplinkSeverity Display (individual variant tests) ---
+
+    #[test]
+    fn severity_display_error_returns_error_string() {
+        assert_eq!(format!("{}", DeeplinkSeverity::Error), "Error");
+    }
+
+    #[test]
+    fn severity_display_warning_returns_warning_string() {
+        assert_eq!(format!("{}", DeeplinkSeverity::Warning), "Warning");
+    }
+
+    #[test]
+    fn severity_display_info_returns_info_string() {
+        assert_eq!(format!("{}", DeeplinkSeverity::Info), "Info");
+    }
+
+    // --- calculate_score tests ---
 
     #[test]
     fn test_calculate_score_no_issues() {
@@ -772,6 +813,40 @@ mod tests {
     }
 
     #[test]
+    fn calculate_score_only_warnings_deducts_eight_each() {
+        let mut report = make_report();
+        report.issues.push(make_issue(DeeplinkSeverity::Warning));
+        report.issues.push(make_issue(DeeplinkSeverity::Warning));
+        assert_eq!(calculate_score(&report), 84); // 100 - 8 - 8
+    }
+
+    #[test]
+    fn calculate_score_only_info_deducts_two_each() {
+        let mut report = make_report();
+        report.issues.push(make_issue(DeeplinkSeverity::Info));
+        report.issues.push(make_issue(DeeplinkSeverity::Info));
+        assert_eq!(calculate_score(&report), 96); // 100 - 2 - 2
+    }
+
+    #[test]
+    fn calculate_score_many_errors_clamps_to_zero() {
+        let mut report = make_report();
+        // 7 errors => 100 - 105 = -5 => clamped to 0
+        for _ in 0..7 {
+            report.issues.push(make_issue(DeeplinkSeverity::Error));
+        }
+        assert_eq!(calculate_score(&report), 0);
+    }
+
+    #[test]
+    fn calculate_score_empty_report_returns_100() {
+        let report = make_report();
+        assert_eq!(calculate_score(&report), 100);
+    }
+
+    // --- extract_android_schemes tests ---
+
+    #[test]
     fn test_extract_android_schemes() {
         let manifest_content = r#"
             <data android:scheme="myapp" />
@@ -792,6 +867,47 @@ mod tests {
         assert!(report.android_schemes.contains(&"myapp".to_string()));
         assert!(report.android_schemes.contains(&"https".to_string()));
     }
+
+    #[test]
+    fn extract_android_schemes_empty_content_adds_no_schemes_issue() {
+        let mut report = make_report();
+        extract_android_schemes("", &mut report, &PathBuf::from("test.xml"));
+        assert!(report.android_schemes.is_empty());
+        // Should push a "No Schemes Found" error
+        assert!(report.issues.iter().any(|i| i.category == "No Schemes Found"));
+    }
+
+    #[test]
+    fn extract_android_schemes_single_scheme_captured() {
+        let content = r#"<data android:scheme="deeplink" />"#;
+        let mut report = make_report();
+        extract_android_schemes(content, &mut report, &PathBuf::from("test.xml"));
+        assert_eq!(report.android_schemes, vec!["deeplink"]);
+        assert!(report.issues.is_empty());
+    }
+
+    #[test]
+    fn extract_android_schemes_deduplicates_repeated_scheme() {
+        let content = "android:scheme=\"myapp\"\nandroid:scheme=\"myapp\"";
+        let mut report = make_report();
+        extract_android_schemes(content, &mut report, &PathBuf::from("test.xml"));
+        assert_eq!(report.android_schemes.len(), 1);
+        assert_eq!(report.android_schemes[0], "myapp");
+    }
+
+    #[test]
+    fn extract_android_schemes_no_scheme_attribute_adds_issue() {
+        let content = "<intent-filter><action android:name=\"VIEW\"/></intent-filter>";
+        let mut report = make_report();
+        extract_android_schemes(content, &mut report, &PathBuf::from("test.xml"));
+        assert!(report.android_schemes.is_empty());
+        assert_eq!(
+            report.issues.iter().filter(|i| i.category == "No Schemes Found").count(),
+            1
+        );
+    }
+
+    // --- extract_ios_schemes tests ---
 
     #[test]
     fn test_extract_ios_schemes() {
@@ -817,6 +933,43 @@ mod tests {
         assert!(report.ios_schemes.contains(&"myapp".to_string()));
         assert!(report.ios_schemes.contains(&"myapp-special".to_string()));
     }
+
+    #[test]
+    fn extract_ios_schemes_empty_content_no_issues() {
+        let mut report = make_report();
+        extract_ios_schemes("", &mut report, &PathBuf::from("test.plist"));
+        assert!(report.ios_schemes.is_empty());
+        // No warning because content doesn't contain CFBundleURLSchemes
+        assert!(report.issues.is_empty());
+    }
+
+    #[test]
+    fn extract_ios_schemes_single_scheme_captured() {
+        let content = "<key>CFBundleURLSchemes</key>\n<array>\n<string>myscheme</string>\n</array>";
+        let mut report = make_report();
+        extract_ios_schemes(content, &mut report, &PathBuf::from("test.plist"));
+        assert_eq!(report.ios_schemes, vec!["myscheme"]);
+        assert!(report.issues.is_empty());
+    }
+
+    #[test]
+    fn extract_ios_schemes_empty_array_adds_warning() {
+        let content = "<key>CFBundleURLSchemes</key>\n<array>\n</array>";
+        let mut report = make_report();
+        extract_ios_schemes(content, &mut report, &PathBuf::from("test.plist"));
+        assert!(report.ios_schemes.is_empty());
+        assert!(report.issues.iter().any(|i| i.category == "Empty URL Schemes"));
+    }
+
+    #[test]
+    fn extract_ios_schemes_deduplicates_repeated_scheme() {
+        let content = "<key>CFBundleURLSchemes</key>\n<array>\n<string>dup</string>\n<string>dup</string>\n</array>";
+        let mut report = make_report();
+        extract_ios_schemes(content, &mut report, &PathBuf::from("test.plist"));
+        assert_eq!(report.ios_schemes.len(), 1);
+    }
+
+    // --- extract_flutter_routes tests ---
 
     #[test]
     fn test_extract_flutter_routes() {
@@ -859,5 +1012,357 @@ mod tests {
         assert_eq!(report.flutter_routes.len(), 2);
         assert!(report.flutter_routes.contains(&"/home".to_string()));
         assert!(report.flutter_routes.contains(&"/product/:id".to_string()));
+    }
+
+    #[test]
+    fn extract_flutter_routes_goroute_single_quotes_captured() {
+        let tmp = TempDir::new().unwrap();
+        let dart_path = tmp.path().join("routes.dart");
+        std::fs::write(&dart_path, "GoRoute(path: '/about', builder: (ctx, state) => AboutPage()),").unwrap();
+        let mut report = make_report();
+        extract_flutter_routes(&dart_path, &mut report);
+        assert!(report.flutter_routes.contains(&"/about".to_string()));
+    }
+
+    #[test]
+    fn extract_flutter_routes_goroute_double_quotes_captured() {
+        let tmp = TempDir::new().unwrap();
+        let dart_path = tmp.path().join("routes.dart");
+        std::fs::write(&dart_path, "GoRoute(path: \"/settings\", builder: (ctx, state) => SettingsPage()),").unwrap();
+        let mut report = make_report();
+        extract_flutter_routes(&dart_path, &mut report);
+        assert!(report.flutter_routes.contains(&"/settings".to_string()));
+    }
+
+    #[test]
+    fn extract_flutter_routes_push_named_captured() {
+        let tmp = TempDir::new().unwrap();
+        let dart_path = tmp.path().join("routes.dart");
+        std::fs::write(&dart_path, "Navigator.of(context).pushNamed('/dashboard');").unwrap();
+        let mut report = make_report();
+        extract_flutter_routes(&dart_path, &mut report);
+        assert!(report.flutter_routes.contains(&"/dashboard".to_string()));
+    }
+
+    #[test]
+    fn extract_flutter_routes_empty_dart_no_routes() {
+        let tmp = TempDir::new().unwrap();
+        let dart_path = tmp.path().join("empty.dart");
+        std::fs::write(&dart_path, "void main() {}").unwrap();
+        let mut report = make_report();
+        extract_flutter_routes(&dart_path, &mut report);
+        assert!(report.flutter_routes.is_empty());
+    }
+
+    #[test]
+    fn extract_flutter_routes_deduplicates_same_route() {
+        let tmp = TempDir::new().unwrap();
+        let dart_path = tmp.path().join("routes.dart");
+        std::fs::write(
+            &dart_path,
+            "GoRoute(path: '/home', builder: f),\nGoRoute(path: '/home', builder: g),",
+        ).unwrap();
+        let mut report = make_report();
+        extract_flutter_routes(&dart_path, &mut report);
+        assert_eq!(report.flutter_routes.iter().filter(|r| r.as_str() == "/home").count(), 1);
+    }
+
+    // --- validate_cross_platform_consistency tests ---
+
+    #[test]
+    fn validate_cross_platform_consistency_matching_schemes_no_error() {
+        let mut report = make_report();
+        report.android_schemes = vec!["myapp".to_string()];
+        report.ios_schemes = vec!["myapp".to_string()];
+        validate_cross_platform_consistency(&mut report);
+        assert!(!report.issues.iter().any(|i| i.category == "Scheme Mismatch"));
+    }
+
+    #[test]
+    fn validate_cross_platform_consistency_no_intersection_adds_error() {
+        let mut report = make_report();
+        report.android_schemes = vec!["android-only".to_string()];
+        report.ios_schemes = vec!["ios-only".to_string()];
+        validate_cross_platform_consistency(&mut report);
+        assert!(report.issues.iter().any(|i| i.category == "Scheme Mismatch"));
+    }
+
+    #[test]
+    fn validate_cross_platform_consistency_android_only_no_consistency_issue() {
+        // With only Android schemes (iOS empty), the consistency check skips
+        let mut report = make_report();
+        report.android_schemes = vec!["myapp".to_string()];
+        validate_cross_platform_consistency(&mut report);
+        assert!(!report.issues.iter().any(|i| i.category == "Scheme Mismatch"));
+    }
+
+    #[test]
+    fn validate_cross_platform_consistency_partial_overlap_adds_platform_specific_warnings() {
+        let mut report = make_report();
+        report.android_schemes = vec!["shared".to_string(), "android-extra".to_string()];
+        report.ios_schemes = vec!["shared".to_string(), "ios-extra".to_string()];
+        validate_cross_platform_consistency(&mut report);
+        // No mismatch error (intersection is non-zero)
+        assert!(!report.issues.iter().any(|i| i.category == "Scheme Mismatch"));
+        // Platform-specific warnings should exist
+        let platform_specific: Vec<_> = report.issues.iter()
+            .filter(|i| i.category == "Platform-Specific Schemes")
+            .collect();
+        assert_eq!(platform_specific.len(), 2);
+    }
+
+    // --- validate_route_handlers tests ---
+
+    #[test]
+    fn validate_route_handlers_android_schemes_no_routes_adds_warning() {
+        let mut report = make_report();
+        report.android_schemes = vec!["myapp".to_string()];
+        // flutter_routes is empty
+        validate_route_handlers(&mut report);
+        assert!(report.issues.iter().any(|i| i.category == "Unhandled Deep Links"));
+    }
+
+    #[test]
+    fn validate_route_handlers_android_schemes_with_routes_no_warning() {
+        let mut report = make_report();
+        report.android_schemes = vec!["myapp".to_string()];
+        report.flutter_routes = vec!["/home".to_string()];
+        validate_route_handlers(&mut report);
+        assert!(!report.issues.iter().any(|i| i.category == "Unhandled Deep Links"));
+    }
+
+    #[test]
+    fn validate_route_handlers_no_schemes_no_warning() {
+        let mut report = make_report();
+        // Both empty
+        validate_route_handlers(&mut report);
+        assert!(report.issues.is_empty());
+    }
+
+    // --- validate_android_manifest with TempDir ---
+
+    #[test]
+    fn validate_android_manifest_missing_file_adds_warning() {
+        let tmp = TempDir::new().unwrap();
+        let mut report = make_report();
+        validate_android_manifest(tmp.path(), &mut report);
+        assert!(report.issues.iter().any(|i| i.category == "Missing File" && i.platform == "Android"));
+    }
+
+    #[test]
+    fn validate_android_manifest_valid_content_extracts_scheme() {
+        let tmp = TempDir::new().unwrap();
+        let android_dir = tmp.path().join("android/app/src/main");
+        std::fs::create_dir_all(&android_dir).unwrap();
+        let manifest_path = android_dir.join("AndroidManifest.xml");
+        std::fs::write(
+            &manifest_path,
+            r#"<manifest>
+  <activity>
+    <intent-filter android:autoVerify="true">
+      <action android:name="android.intent.action.VIEW"/>
+      <category android:name="android.intent.category.BROWSABLE"/>
+      <data android:scheme="myapp" android:host="example.com"/>
+    </intent-filter>
+  </activity>
+</manifest>"#,
+        ).unwrap();
+        let mut report = make_report();
+        validate_android_manifest(tmp.path(), &mut report);
+        assert!(report.android_schemes.contains(&"myapp".to_string()));
+    }
+
+    #[test]
+    fn validate_android_manifest_no_intent_filter_adds_error() {
+        let tmp = TempDir::new().unwrap();
+        let android_dir = tmp.path().join("android/app/src/main");
+        std::fs::create_dir_all(&android_dir).unwrap();
+        let manifest_path = android_dir.join("AndroidManifest.xml");
+        std::fs::write(&manifest_path, "<manifest><application></application></manifest>").unwrap();
+        let mut report = make_report();
+        validate_android_manifest(tmp.path(), &mut report);
+        assert!(report.issues.iter().any(|i| i.category == "Missing Intent Filter"));
+    }
+
+    #[test]
+    fn validate_android_manifest_http_scheme_adds_insecure_warning() {
+        let tmp = TempDir::new().unwrap();
+        let android_dir = tmp.path().join("android/app/src/main");
+        std::fs::create_dir_all(&android_dir).unwrap();
+        let manifest_path = android_dir.join("AndroidManifest.xml");
+        std::fs::write(
+            &manifest_path,
+            r#"<intent-filter><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="http"/></intent-filter>"#,
+        ).unwrap();
+        let mut report = make_report();
+        validate_android_manifest(tmp.path(), &mut report);
+        assert!(report.issues.iter().any(|i| i.category == "Insecure Scheme"));
+    }
+
+    // --- validate_ios_info_plist with TempDir ---
+
+    #[test]
+    fn validate_ios_info_plist_missing_file_adds_warning() {
+        let tmp = TempDir::new().unwrap();
+        let mut report = make_report();
+        validate_ios_info_plist(tmp.path(), &mut report);
+        assert!(report.issues.iter().any(|i| i.category == "Missing File" && i.platform == "iOS"));
+    }
+
+    #[test]
+    fn validate_ios_info_plist_valid_content_extracts_scheme() {
+        let tmp = TempDir::new().unwrap();
+        let ios_dir = tmp.path().join("ios/Runner");
+        std::fs::create_dir_all(&ios_dir).unwrap();
+        let plist_path = ios_dir.join("Info.plist");
+        std::fs::write(
+            &plist_path,
+            r#"<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>myapp</string>
+      </array>
+    </dict>
+  </array>
+  <key>NSAppTransportSecurity</key>
+  <dict/>
+</dict>
+</plist>"#,
+        ).unwrap();
+        let mut report = make_report();
+        validate_ios_info_plist(tmp.path(), &mut report);
+        assert!(report.ios_schemes.contains(&"myapp".to_string()));
+    }
+
+    #[test]
+    fn validate_ios_info_plist_no_bundle_url_types_adds_error() {
+        let tmp = TempDir::new().unwrap();
+        let ios_dir = tmp.path().join("ios/Runner");
+        std::fs::create_dir_all(&ios_dir).unwrap();
+        let plist_path = ios_dir.join("Info.plist");
+        std::fs::write(&plist_path, "<plist><dict></dict></plist>").unwrap();
+        let mut report = make_report();
+        validate_ios_info_plist(tmp.path(), &mut report);
+        assert!(report.issues.iter().any(|i| i.category == "Missing URL Types"));
+    }
+
+    // --- validate_flutter_routes with TempDir ---
+
+    #[test]
+    fn validate_flutter_routes_missing_lib_dir_adds_warning() {
+        let tmp = TempDir::new().unwrap();
+        let mut report = make_report();
+        validate_flutter_routes(tmp.path(), &mut report);
+        assert!(report.issues.iter().any(|i| i.category == "Missing Directory"));
+    }
+
+    #[test]
+    fn validate_flutter_routes_empty_lib_dir_adds_info_issue() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::create_dir_all(tmp.path().join("lib")).unwrap();
+        let mut report = make_report();
+        validate_flutter_routes(tmp.path(), &mut report);
+        assert!(report.issues.iter().any(|i| i.category == "No Dart Files"));
+    }
+
+    #[test]
+    fn validate_flutter_routes_dart_with_routes_extracted() {
+        let tmp = TempDir::new().unwrap();
+        let lib_dir = tmp.path().join("lib");
+        std::fs::create_dir_all(&lib_dir).unwrap();
+        std::fs::write(
+            lib_dir.join("app.dart"),
+            "GoRoute(path: '/home', builder: (c, s) => HomePage()),",
+        ).unwrap();
+        let mut report = make_report();
+        validate_flutter_routes(tmp.path(), &mut report);
+        assert!(report.flutter_routes.contains(&"/home".to_string()));
+    }
+
+    #[test]
+    fn validate_flutter_routes_dart_no_routes_adds_warning() {
+        let tmp = TempDir::new().unwrap();
+        let lib_dir = tmp.path().join("lib");
+        std::fs::create_dir_all(&lib_dir).unwrap();
+        std::fs::write(lib_dir.join("main.dart"), "void main() { runApp(MyApp()); }").unwrap();
+        let mut report = make_report();
+        validate_flutter_routes(tmp.path(), &mut report);
+        assert!(report.issues.iter().any(|i| i.category == "No Routes Found"));
+    }
+
+    // --- write_deeplink_html_report tests ---
+
+    #[test]
+    fn write_deeplink_html_report_empty_report_writes_valid_html() {
+        let tmp = TempDir::new().unwrap();
+        let out_path = tmp.path().join("report.html");
+        let report = make_report();
+        write_deeplink_html_report(&report, &out_path).unwrap();
+        let contents = std::fs::read_to_string(&out_path).unwrap();
+        assert!(contents.contains("<!DOCTYPE html>"));
+        assert!(contents.contains("Deep Link Validator Report"));
+        assert!(contents.contains("No Issues Found"));
+    }
+
+    #[test]
+    fn write_deeplink_html_report_with_issues_contains_issue_details() {
+        let tmp = TempDir::new().unwrap();
+        let out_path = tmp.path().join("report.html");
+        let mut report = make_report();
+        report.issues.push(DeeplinkIssue {
+            severity: DeeplinkSeverity::Error,
+            platform: "Android",
+            category: "Test Category",
+            file: PathBuf::from("SomeFile.xml"),
+            detail: "A critical error occurred".to_string(),
+            suggestion: "Fix it now".to_string(),
+        });
+        report.score = calculate_score(&report);
+        write_deeplink_html_report(&report, &out_path).unwrap();
+        let contents = std::fs::read_to_string(&out_path).unwrap();
+        assert!(contents.contains("A critical error occurred"));
+        assert!(contents.contains("Fix it now"));
+        assert!(contents.contains("Test Category"));
+        assert!(contents.contains("issue-error"));
+    }
+
+    #[test]
+    fn write_deeplink_html_report_schemes_appear_in_html() {
+        let tmp = TempDir::new().unwrap();
+        let out_path = tmp.path().join("report.html");
+        let mut report = make_report();
+        report.android_schemes = vec!["myapp".to_string()];
+        report.ios_schemes = vec!["myapp-ios".to_string()];
+        write_deeplink_html_report(&report, &out_path).unwrap();
+        let contents = std::fs::read_to_string(&out_path).unwrap();
+        assert!(contents.contains("myapp"));
+        assert!(contents.contains("myapp-ios"));
+    }
+
+    #[test]
+    fn write_deeplink_html_report_score_high_uses_score_high_class() {
+        let tmp = TempDir::new().unwrap();
+        let out_path = tmp.path().join("report.html");
+        let mut report = make_report();
+        report.score = 90;
+        write_deeplink_html_report(&report, &out_path).unwrap();
+        let contents = std::fs::read_to_string(&out_path).unwrap();
+        assert!(contents.contains("score-high"));
+    }
+
+    #[test]
+    fn write_deeplink_html_report_score_low_uses_score_low_class() {
+        let tmp = TempDir::new().unwrap();
+        let out_path = tmp.path().join("report.html");
+        let mut report = make_report();
+        report.score = 30;
+        write_deeplink_html_report(&report, &out_path).unwrap();
+        let contents = std::fs::read_to_string(&out_path).unwrap();
+        assert!(contents.contains("score-low"));
     }
 }
