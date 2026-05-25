@@ -37,7 +37,7 @@ pub fn run(
     let doc = match cached {
         Some(c) => c,
         None => {
-            let fresh = scan_all(&installed, root);
+            let fresh = scan_all(&installed, root, &lock_sha);
             let _ = generated::write_cache(root, &fresh);
             fresh
         }
@@ -119,11 +119,11 @@ pub fn run(
     Ok(exit)
 }
 
-fn scan_all(installed: &[InstalledPlugin], _root: &Path) -> generated::GeneratedRequirements {
+fn scan_all(installed: &[InstalledPlugin], _root: &Path, lock_sha: &str) -> generated::GeneratedRequirements {
     let mut doc = generated::GeneratedRequirements {
         schema_version: 1,
-        generated_at: "generated".into(),
-        pubspec_lock_sha256: String::new(),
+        generated_at: generated::now_iso8601_string(),
+        pubspec_lock_sha256: lock_sha.to_string(),
         plugins: Default::default(),
     };
     for plugin in installed {
@@ -355,5 +355,34 @@ mod tests {
         let _ = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false, None).unwrap();
         let cache_file = project.path().join(".falcon/plugin-requirements.yaml");
         assert!(cache_file.exists(), "expected .falcon/plugin-requirements.yaml");
+    }
+
+    #[test]
+    fn cache_is_reused_when_lock_unchanged() {
+        let (project, cache, _guard) = fixture();
+        // Plugin initially uses an API that requires NSLocationWhenInUseUsageDescription.
+        write_lock(project.path(), &[("location", "8.0.0", "hosted")]);
+        write_plugin(
+            cache.path(),
+            "location",
+            "8.0.0",
+            Some(("Location.m", "[CLLocationManager.shared requestWhenInUseAuthorization];")),
+            None,
+        );
+        // First run: cache is built; exit 2 because the key is missing from Info.plist.
+        let code1 = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false, None).unwrap();
+        assert_eq!(code1, 2, "first run should exit 2 (missing key)");
+
+        // Replace the plugin source with a no-op file that would produce no issues if re-scanned.
+        write_plugin(
+            cache.path(),
+            "location",
+            "8.0.0",
+            Some(("Location.m", "// no api calls here")),
+            None,
+        );
+        // Second run without --refresh: cache must be reused → still exit 2.
+        let code2 = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false, None).unwrap();
+        assert_eq!(code2, 2, "second run should still exit 2 because cache was reused");
     }
 }
