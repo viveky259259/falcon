@@ -4448,6 +4448,15 @@ fn get_reporter(format: &OutputFormat, output: &PathBuf) -> Box<dyn Reporter> {
     }
 }
 
+/// Runs the four pre-flight checks in sequence and returns max(exit_code).
+///
+/// NOTE on output: this helper writes to stdout via the standard reporter.
+/// When `falcon analyze --output <file>` redirects the analyze report to a
+/// file, the preflight output still appears on stdout. Until a unified
+/// multi-section JSON/SARIF schema lands (planned for the analyze-rollup
+/// follow-up), CI consumers should either:
+///   - Use only the `falcon check-*` commands directly with `--format json`, or
+///   - Suppress the rollup via `analyze.preflight.enabled: false` in falcon.yaml.
 fn run_preflight_rollup(
     path: &std::path::PathBuf,
     config: &falcon::config::FalconConfig,
