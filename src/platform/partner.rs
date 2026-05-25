@@ -143,6 +143,216 @@ pub fn list_partners() -> Vec<Partner> {
     ]
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- PartnerCategory::Display ---
+
+    #[test]
+    fn partner_category_display_ai_tool() {
+        assert_eq!(PartnerCategory::AiTool.to_string(), "AI Tool");
+    }
+
+    #[test]
+    fn partner_category_display_ide() {
+        assert_eq!(PartnerCategory::Ide.to_string(), "IDE");
+    }
+
+    #[test]
+    fn partner_category_display_cicd() {
+        assert_eq!(PartnerCategory::CiCd.to_string(), "CI/CD");
+    }
+
+    #[test]
+    fn partner_category_display_cloud_platform() {
+        assert_eq!(PartnerCategory::CloudPlatform.to_string(), "Cloud Platform");
+    }
+
+    #[test]
+    fn partner_category_display_quality_tool() {
+        assert_eq!(PartnerCategory::QualityTool.to_string(), "Quality Tool");
+    }
+
+    // --- IntegrationType::Display ---
+
+    #[test]
+    fn integration_type_display_mcp() {
+        assert_eq!(IntegrationType::Mcp.to_string(), "MCP");
+    }
+
+    #[test]
+    fn integration_type_display_sdk() {
+        assert_eq!(IntegrationType::Sdk.to_string(), "SDK");
+    }
+
+    #[test]
+    fn integration_type_display_api() {
+        assert_eq!(IntegrationType::Api.to_string(), "API");
+    }
+
+    #[test]
+    fn integration_type_display_cli() {
+        assert_eq!(IntegrationType::Cli.to_string(), "CLI");
+    }
+
+    #[test]
+    fn integration_type_display_plugin() {
+        assert_eq!(IntegrationType::Plugin.to_string(), "Plugin");
+    }
+
+    // --- PartnerStatus::Display ---
+
+    #[test]
+    fn partner_status_display_certified() {
+        assert_eq!(PartnerStatus::Certified.to_string(), "Certified");
+    }
+
+    #[test]
+    fn partner_status_display_in_progress() {
+        assert_eq!(PartnerStatus::InProgress.to_string(), "In Progress");
+    }
+
+    #[test]
+    fn partner_status_display_planned() {
+        assert_eq!(PartnerStatus::Planned.to_string(), "Planned");
+    }
+
+    // --- list_partners ---
+
+    #[test]
+    fn list_partners_returns_eight_entries() {
+        let partners = list_partners();
+        assert_eq!(partners.len(), 8);
+    }
+
+    #[test]
+    fn list_partners_first_is_cursor() {
+        let partners = list_partners();
+        assert_eq!(partners[0].name, "Cursor");
+    }
+
+    #[test]
+    fn list_partners_cursor_is_ai_tool_mcp_certified() {
+        let p = &list_partners()[0];
+        assert_eq!(p.category.to_string(), "AI Tool");
+        assert_eq!(p.integration_type.to_string(), "MCP");
+        assert_eq!(p.status, PartnerStatus::Certified);
+    }
+
+    #[test]
+    fn list_partners_has_certified_partners() {
+        let partners = list_partners();
+        let certified: Vec<_> = partners
+            .iter()
+            .filter(|p| p.status == PartnerStatus::Certified)
+            .collect();
+        assert!(!certified.is_empty());
+    }
+
+    #[test]
+    fn list_partners_has_planned_partners() {
+        let partners = list_partners();
+        let planned: Vec<_> = partners
+            .iter()
+            .filter(|p| p.status == PartnerStatus::Planned)
+            .collect();
+        assert!(!planned.is_empty());
+    }
+
+    #[test]
+    fn list_partners_docs_urls_non_empty() {
+        for p in list_partners() {
+            assert!(!p.docs_url.is_empty(), "docs_url empty for {}", p.name);
+            assert!(
+                p.docs_url.starts_with("https://"),
+                "docs_url not https for {}",
+                p.name
+            );
+        }
+    }
+
+    #[test]
+    fn list_partners_descriptions_non_empty() {
+        for p in list_partners() {
+            assert!(
+                !p.description.is_empty(),
+                "description empty for {}",
+                p.name
+            );
+        }
+    }
+
+    // --- Partner clone ---
+
+    #[test]
+    fn partner_clone_is_equal() {
+        let original = list_partners().remove(0);
+        let cloned = original.clone();
+        assert_eq!(original.name, cloned.name);
+        assert_eq!(original.docs_url, cloned.docs_url);
+        assert_eq!(original.status, cloned.status);
+    }
+
+    // --- Partner serde round-trip ---
+
+    #[test]
+    fn partner_serde_round_trip() {
+        let partners = list_partners();
+        let json = serde_json::to_string(&partners).expect("serialize failed");
+        let decoded: Vec<Partner> = serde_json::from_str(&json).expect("deserialize failed");
+        assert_eq!(decoded.len(), partners.len());
+        assert_eq!(decoded[0].name, partners[0].name);
+        assert_eq!(decoded[0].status, partners[0].status);
+    }
+
+    #[test]
+    fn partner_category_serde_round_trip() {
+        let variants = vec![
+            PartnerCategory::AiTool,
+            PartnerCategory::Ide,
+            PartnerCategory::CiCd,
+            PartnerCategory::CloudPlatform,
+            PartnerCategory::QualityTool,
+        ];
+        for v in variants {
+            let json = serde_json::to_string(&v).unwrap();
+            let decoded: PartnerCategory = serde_json::from_str(&json).unwrap();
+            assert_eq!(v.to_string(), decoded.to_string());
+        }
+    }
+
+    #[test]
+    fn partner_status_serde_round_trip() {
+        let variants = vec![
+            PartnerStatus::Certified,
+            PartnerStatus::InProgress,
+            PartnerStatus::Planned,
+        ];
+        for v in variants {
+            let json = serde_json::to_string(&v).unwrap();
+            let decoded: PartnerStatus = serde_json::from_str(&json).unwrap();
+            assert_eq!(v, decoded);
+        }
+    }
+
+    #[test]
+    fn integration_type_serde_round_trip() {
+        let variants = vec![
+            IntegrationType::Mcp,
+            IntegrationType::Sdk,
+            IntegrationType::Api,
+            IntegrationType::Cli,
+            IntegrationType::Plugin,
+        ];
+        for v in variants {
+            let json = serde_json::to_string(&v).unwrap();
+            let decoded: IntegrationType = serde_json::from_str(&json).unwrap();
+            assert_eq!(v.to_string(), decoded.to_string());
+        }
+    }
+}
+
 /// Print partner registry.
 pub fn print_partners(partners: &[Partner]) {
     println!();
