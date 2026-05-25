@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use falcon::config::{FalconConfig, Severity};
@@ -2041,17 +2041,20 @@ fn run(cli: Cli) -> Result<()> {
             }
         }
         Commands::CheckAssets { path, format } => {
-            let config = falcon::config::FalconConfig::load(&path).unwrap_or_default();
+            let config = falcon::config::FalconConfig::load(&path)
+                .with_context(|| format!("Loading falcon.yaml from {}", path.display()))?;
             let code = falcon::check_assets::run(&path, format, &config)?;
             process::exit(code);
         }
         Commands::CheckA11y { path, format } => {
-            let config = falcon::config::FalconConfig::load(&path).unwrap_or_default();
+            let config = falcon::config::FalconConfig::load(&path)
+                .with_context(|| format!("Loading falcon.yaml from {}", path.display()))?;
             let code = falcon::check_a11y::run(&path, format, &config)?;
             process::exit(code);
         }
         Commands::CheckPods { path, refresh, format } => {
-            let config = falcon::config::FalconConfig::load(&path).unwrap_or_default();
+            let config = falcon::config::FalconConfig::load(&path)
+                .with_context(|| format!("Loading falcon.yaml from {}", path.display()))?;
             let code = falcon::check_pods::run(&path, format, &config, refresh)?;
             process::exit(code);
         }
@@ -4023,7 +4026,8 @@ fn run(cli: Cli) -> Result<()> {
             }
         }
         Commands::CheckPlatformDeps { path, refresh, platform, format } => {
-            let config = falcon::config::FalconConfig::load(&path).unwrap_or_default();
+            let config = falcon::config::FalconConfig::load(&path)
+                .with_context(|| format!("Loading falcon.yaml from {}", path.display()))?;
             let code = falcon::check_platform_deps::run(&path, format, &config, refresh, platform)?;
             process::exit(code);
         }
