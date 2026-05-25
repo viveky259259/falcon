@@ -244,6 +244,387 @@ fn check_data_exposure(file: &Path, source: &str, findings: &mut Vec<VulnFinding
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    fn make_dart_file(dir: &TempDir, name: &str, content: &str) -> std::path::PathBuf {
+        let path = dir.path().join(name);
+        let mut f = std::fs::File::create(&path).unwrap();
+        write!(f, "{}", content).unwrap();
+        path
+    }
+
+    fn run_check<F>(source: &str, check_fn: F) -> Vec<VulnFinding>
+    where
+        F: Fn(&Path, &str, &mut Vec<VulnFinding>),
+    {
+        let mut findings = Vec::new();
+        let path = std::path::Path::new("test.dart");
+        check_fn(path, source, &mut findings);
+        findings
+    }
+
+    // ── RiskLevel::Display ────────────────────────────────────────────────────
+
+    #[test]
+    fn risk_level_display_critical() {
+        assert_eq!(RiskLevel::Critical.to_string(), "CRITICAL");
+    }
+
+    #[test]
+    fn risk_level_display_high() {
+        assert_eq!(RiskLevel::High.to_string(), "HIGH");
+    }
+
+    #[test]
+    fn risk_level_display_medium() {
+        assert_eq!(RiskLevel::Medium.to_string(), "MEDIUM");
+    }
+
+    #[test]
+    fn risk_level_display_low() {
+        assert_eq!(RiskLevel::Low.to_string(), "LOW");
+    }
+
+    // ── risk_priority ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn risk_priority_ordering() {
+        assert!(risk_priority(&RiskLevel::Critical) < risk_priority(&RiskLevel::High));
+        assert!(risk_priority(&RiskLevel::High) < risk_priority(&RiskLevel::Medium));
+        assert!(risk_priority(&RiskLevel::Medium) < risk_priority(&RiskLevel::Low));
+    }
+
+    #[test]
+    fn risk_priority_values() {
+        assert_eq!(risk_priority(&RiskLevel::Critical), 0);
+        assert_eq!(risk_priority(&RiskLevel::High), 1);
+        assert_eq!(risk_priority(&RiskLevel::Medium), 2);
+        assert_eq!(risk_priority(&RiskLevel::Low), 3);
+    }
+
+    // ── scan_vulnerabilities (orchestrator) ───────────────────────────────────
+
+    #[test]
+    fn scan_empty_dir_returns_no_findings() {
+        let dir = TempDir::new().unwrap();
+        let results = scan_vulnerabilities(dir.path());
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn scan_non_dart_file_ignored() {
+        let dir = TempDir::new().unwrap();
+        make_dart_file(&dir, "bad.txt", "SharedPreferences password token");
+        let results = scan_vulnerabilities(dir.path());
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn scan_test_dir_files_are_ignored() {
+        let dir = TempDir::new().unwrap();
+        let test_subdir = dir.path().join("test");
+        std::fs::create_dir_all(&test_subdir).unwrap();
+        let path = test_subdir.join("widget_test.dart");
+        std::fs::write(&path, "SharedPreferences password token\n").unwrap();
+        let results = scan_vulnerabilities(dir.path());
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn scan_results_sorted_by_risk_priority() {
+        let dir = TempDir::new().unwrap();
+        // sha1 → Low, http → High, badCertificateCallback => true → Critical
+        let content = "sha1hash\nhttp://example.com/api\nbadCertificateCallback => true\n";
+        make_dart_file(&dir, "mixed.dart", content);
+        let results = scan_vulnerabilities(dir.path());
+        assert!(!results.is_empty());
+        // First finding must have the lowest priority number (Critical = 0)
+        let first_priority = risk_priority(&results[0].risk_level);
+        for f in &results {
+            assert!(risk_priority(&f.risk_level) >= first_priority);
+        }
+    }
+
+    #[test]
+    fn scan_dart_file_picks_up_insecure_http() {
+        let dir = TempDir::new().unwrap();
+        make_dart_file(&dir, "net.dart", "final url = 'http://example.com/api';\n");
+        let results = scan_vulnerabilities(dir.path());
+        assert!(results.iter().any(|f| f.issue.rule == "vuln-insecure-http"));
+    }
+
+    // ── check_insecure_storage ────────────────────────────────────────────────
+
+    #[test]
+    fn insecure_storage_password_triggers() {
+        let src = "prefs.setString('key', SharedPreferences password);\n";
+        let findings = run_check(src, check_insecure_storage);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].issue.rule, "vuln-insecure-storage");
+        assert_eq!(findings[0].risk_level, RiskLevel::High);
+        assert_eq!(findings[0].cwe.as_deref(), Some("CWE-312"));
+    }
+
+    #[test]
+    fn insecure_storage_token_triggers() {
+        let src = "SharedPreferences token store\n";
+        let findings = run_check(src, check_insecure_storage);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].issue.line, 1);
+    }
+
+    #[test]
+    fn insecure_storage_secret_triggers() {
+        let src = "SharedPreferences secret value\n";
+        let findings = run_check(src, check_insecure_storage);
+        assert_eq!(findings.len(), 1);
+    }
+
+    #[test]
+    fn insecure_storage_no_sensitive_key_clean() {
+        let src = "SharedPreferences username;\n";
+        let findings = run_check(src, check_insecure_storage);
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn insecure_storage_comment_skipped() {
+        let src = "// SharedPreferences password\n";
+        let findings = run_check(src, check_insecure_storage);
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn insecure_storage_doc_comment_skipped() {
+        let src = "/// SharedPreferences token secret\n";
+        let findings = run_check(src, check_insecure_storage);
+        assert!(findings.is_empty());
+    }
+
+    // ── check_insecure_network ────────────────────────────────────────────────
+
+    #[test]
+    fn insecure_network_http_triggers() {
+        let src = "final url = 'http://api.example.com/data';\n";
+        let findings = run_check(src, check_insecure_network);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].issue.rule, "vuln-insecure-http");
+        assert_eq!(findings[0].risk_level, RiskLevel::High);
+        assert_eq!(findings[0].cwe.as_deref(), Some("CWE-319"));
+    }
+
+    #[test]
+    fn insecure_network_localhost_is_clean() {
+        let src = "final url = 'http://localhost:8080/debug';\n";
+        let findings = run_check(src, check_insecure_network);
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn insecure_network_loopback_is_clean() {
+        let src = "final url = 'http://127.0.0.1:3000/api';\n";
+        let findings = run_check(src, check_insecure_network);
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn insecure_network_android_emulator_is_clean() {
+        let src = "final url = 'http://10.0.2.2:8080/api';\n";
+        let findings = run_check(src, check_insecure_network);
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn insecure_network_https_is_clean() {
+        let src = "final url = 'https://api.example.com/data';\n";
+        let findings = run_check(src, check_insecure_network);
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn insecure_network_bad_cert_true_triggers() {
+        let src = "..badCertificateCallback: (cert, host, port) => true\n";
+        let findings = run_check(src, check_insecure_network);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].issue.rule, "vuln-cert-pinning-bypass");
+        assert_eq!(findings[0].risk_level, RiskLevel::Critical);
+        assert_eq!(findings[0].cwe.as_deref(), Some("CWE-295"));
+    }
+
+    #[test]
+    fn insecure_network_bad_cert_arrow_true_triggers() {
+        let src = "badCertificateCallback => true\n";
+        let findings = run_check(src, check_insecure_network);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].issue.rule, "vuln-cert-pinning-bypass");
+    }
+
+    #[test]
+    fn insecure_network_comment_line_skipped() {
+        let src = "// http://example.com bad cert badCertificateCallback true\n";
+        let findings = run_check(src, check_insecure_network);
+        assert!(findings.is_empty());
+    }
+
+    // ── check_injection_risks ─────────────────────────────────────────────────
+
+    #[test]
+    fn injection_raw_query_interpolation_triggers_sql() {
+        let src = "db.rawQuery('SELECT * FROM users WHERE id = $userId');\n";
+        let findings = run_check(src, check_injection_risks);
+        assert!(findings.iter().any(|f| f.issue.rule == "vuln-sql-injection"));
+        let sql = findings.iter().find(|f| f.issue.rule == "vuln-sql-injection").unwrap();
+        assert_eq!(sql.risk_level, RiskLevel::Critical);
+        assert_eq!(sql.cwe.as_deref(), Some("CWE-89"));
+    }
+
+    #[test]
+    fn injection_execute_with_concat_triggers_sql() {
+        let src = "db.execute('DELETE FROM ' + tableName);\n";
+        let findings = run_check(src, check_injection_risks);
+        assert!(findings.iter().any(|f| f.issue.rule == "vuln-sql-injection"));
+    }
+
+    #[test]
+    fn injection_raw_query_no_interpolation_clean() {
+        let src = "db.rawQuery('SELECT * FROM users WHERE id = ?', [userId]);\n";
+        let findings = run_check(src, check_injection_risks);
+        assert!(!findings.iter().any(|f| f.issue.rule == "vuln-sql-injection"));
+    }
+
+    #[test]
+    fn injection_uri_parse_interpolation_triggers_redirect() {
+        let src = "Uri.parse('https://example.com/$userInput');\n";
+        let findings = run_check(src, check_injection_risks);
+        assert!(findings.iter().any(|f| f.issue.rule == "vuln-open-redirect"));
+        let redirect = findings.iter().find(|f| f.issue.rule == "vuln-open-redirect").unwrap();
+        assert_eq!(redirect.risk_level, RiskLevel::Medium);
+        assert_eq!(redirect.cwe.as_deref(), Some("CWE-601"));
+    }
+
+    #[test]
+    fn injection_uri_parse_no_interpolation_clean() {
+        let src = "Uri.parse('https://example.com/fixed/path');\n";
+        let findings = run_check(src, check_injection_risks);
+        assert!(!findings.iter().any(|f| f.issue.rule == "vuln-open-redirect"));
+    }
+
+    // ── check_crypto_issues ───────────────────────────────────────────────────
+
+    #[test]
+    fn crypto_md5_lowercase_triggers() {
+        let src = "final hash = md5.convert(bytes);\n";
+        let findings = run_check(src, check_crypto_issues);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].issue.rule, "vuln-weak-hash");
+        assert_eq!(findings[0].risk_level, RiskLevel::Medium);
+        assert_eq!(findings[0].cwe.as_deref(), Some("CWE-328"));
+    }
+
+    #[test]
+    fn crypto_md5_uppercase_triggers() {
+        let src = "import 'package:crypto/MD5.dart';\n";
+        let findings = run_check(src, check_crypto_issues);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].issue.rule, "vuln-weak-hash");
+        assert_eq!(findings[0].risk_level, RiskLevel::Medium);
+    }
+
+    #[test]
+    fn crypto_sha1_lowercase_triggers() {
+        let src = "final h = sha1.convert(bytes);\n";
+        let findings = run_check(src, check_crypto_issues);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].issue.rule, "vuln-weak-hash");
+        assert_eq!(findings[0].risk_level, RiskLevel::Low);
+        assert_eq!(findings[0].cwe.as_deref(), Some("CWE-328"));
+    }
+
+    #[test]
+    fn crypto_sha1_uppercase_triggers() {
+        let src = "var hasher = SHA1();\n";
+        let findings = run_check(src, check_crypto_issues);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].risk_level, RiskLevel::Low);
+    }
+
+    #[test]
+    fn crypto_sha256_is_clean() {
+        let src = "final hash = sha256.convert(bytes);\n";
+        let findings = run_check(src, check_crypto_issues);
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn crypto_both_md5_and_sha1_triggers_two() {
+        let src = "md5.convert(a);\nsha1.convert(b);\n";
+        let findings = run_check(src, check_crypto_issues);
+        assert_eq!(findings.len(), 2);
+    }
+
+    // ── check_data_exposure ───────────────────────────────────────────────────
+
+    #[test]
+    fn data_exposure_print_password_triggers() {
+        let src = "print('user password: $pw');\n";
+        let findings = run_check(src, check_data_exposure);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].issue.rule, "vuln-sensitive-logging");
+        assert_eq!(findings[0].risk_level, RiskLevel::High);
+        assert_eq!(findings[0].cwe.as_deref(), Some("CWE-532"));
+    }
+
+    #[test]
+    fn data_exposure_debug_print_token_triggers() {
+        let src = "debugPrint('token: $tok');\n";
+        let findings = run_check(src, check_data_exposure);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].issue.rule, "vuln-sensitive-logging");
+    }
+
+    #[test]
+    fn data_exposure_print_secret_triggers() {
+        let src = "print(secret);\n";
+        let findings = run_check(src, check_data_exposure);
+        assert_eq!(findings.len(), 1);
+    }
+
+    #[test]
+    fn data_exposure_print_api_key_triggers() {
+        let src = "print('apiKey=$key');\n";
+        let findings = run_check(src, check_data_exposure);
+        assert_eq!(findings.len(), 1);
+    }
+
+    #[test]
+    fn data_exposure_print_safe_value_clean() {
+        let src = "print('user logged in');\n";
+        let findings = run_check(src, check_data_exposure);
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn data_exposure_debug_print_safe_clean() {
+        let src = "debugPrint('loading complete');\n";
+        let findings = run_check(src, check_data_exposure);
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn data_exposure_line_number_reported_correctly() {
+        let src = "// safe\nprint(password);\n";
+        let findings = run_check(src, check_data_exposure);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].issue.line, 2);
+    }
+}
+
 /// Print vulnerability scan report.
 pub fn print_vuln_report(findings: &[VulnFinding]) {
     println!();
