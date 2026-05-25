@@ -51,8 +51,11 @@ pub fn parse_assets(yaml: &str) -> Result<Vec<AssetDecl>> {
             continue;
         }
         if in_assets_block {
-            // Any line that's not indented as a list item under assets ends the block.
-            if !line.starts_with(' ') && !line.starts_with('\t') && !trimmed.is_empty() {
+            // Blank lines and top-level YAML comments do not end the block.
+            if !line.starts_with(' ') && !line.starts_with('\t') {
+                if trimmed.is_empty() || trimmed.starts_with('#') {
+                    continue;
+                }
                 break;
             }
             if let Some(item) = trimmed.strip_prefix("- ") {
@@ -146,5 +149,24 @@ flutter:
         // `assets:`. We mirror that.
         let yaml = "assets:\n  - top/level.png\nname: foo\n";
         assert!(parse_assets(yaml).unwrap().is_empty());
+    }
+
+    #[test]
+    fn parse_assets_handles_top_level_comment_in_assets_block() {
+        let yaml = "flutter:\n  assets:\n    - a.png\n# section divider comment\n    - b.png\n";
+        let result = parse_assets(yaml).unwrap();
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().any(|d| d.path == "a.png"));
+        assert!(result.iter().any(|d| d.path == "b.png"));
+    }
+
+    #[test]
+    fn parse_assets_duplicate_paths_each_get_a_line_number() {
+        let yaml = "flutter:\n  assets:\n    - dup.png\n    - dup.png\n";
+        let result = parse_assets(yaml).unwrap();
+        assert_eq!(result.len(), 2);
+        // Both entries should have a non-zero line (don't assert exact values for the dup case).
+        assert!(result[0].line > 0);
+        assert!(result[1].line > 0);
     }
 }
