@@ -24,6 +24,9 @@ pub struct FalconConfig {
 
     #[serde(default)]
     pub ai: crate::ai::config::AiConfig,
+
+    #[serde(default)]
+    pub preflight: PreflightConfig,
 }
 
 impl Default for FalconConfig {
@@ -34,6 +37,7 @@ impl Default for FalconConfig {
             unused: UnusedConfig::default(),
             exclude: default_excludes(),
             ai: crate::ai::config::AiConfig::default(),
+            preflight: PreflightConfig::default(),
         }
     }
 }
@@ -197,6 +201,29 @@ impl Default for UnusedConfig {
     }
 }
 
+/// Configuration for pre-flight checks (check-assets, check-a11y, check-pods,
+/// check-platform-deps).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PreflightConfig {
+    /// Issues to skip entirely.
+    #[serde(default)]
+    pub suppress: Vec<PreflightSuppression>,
+
+    /// Tuning knobs per check, free-form so each command can read its own keys.
+    #[serde(default)]
+    pub config: HashMap<String, serde_yaml::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PreflightSuppression {
+    pub rule_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plugin: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
+    pub reason: String,
+}
+
 fn bool_true() -> bool {
     true
 }
@@ -216,4 +243,33 @@ pub fn default_excludes() -> Vec<String> {
         "**/*.g.dart".to_string(),
         "**/*.freezed.dart".to_string(),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn preflight_config_default_is_empty() {
+        let cfg = FalconConfig::default();
+        assert!(cfg.preflight.suppress.is_empty());
+        assert!(cfg.preflight.config.is_empty());
+    }
+
+    #[test]
+    fn preflight_config_parses_from_yaml() {
+        let yaml = r#"
+preflight:
+  suppress:
+    - rule_id: assets/missing-file
+      reason: "Bootstrap step documented in README."
+  config:
+    check-assets:
+      warn_on_empty_directory: false
+"#;
+        let cfg: FalconConfig = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(cfg.preflight.suppress.len(), 1);
+        assert_eq!(cfg.preflight.suppress[0].rule_id, "assets/missing-file");
+        assert!(cfg.preflight.config.contains_key("check-assets"));
+    }
 }
