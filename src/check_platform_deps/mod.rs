@@ -3,5 +3,6 @@
 
 pub mod android_scan;
 pub mod apple_api_map;
+pub mod generated;
 pub mod ios_scan;
 pub mod project_manifest;
