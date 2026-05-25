@@ -5,6 +5,12 @@ Append-only record of the coverage-uplift initiative.
 Spec: `docs/superpowers/specs/2026-05-25-coverage-uplift-design.md`
 Target: ≥90% line coverage (library crate)
 
+## Final Status
+
+- **Phase 1 closed at 80.40% overall line coverage** (started at 53.73%, +26.67 pp gain).
+- 45 module dispatches, ~1,900 new colocated tests, 2,209 total tests passing.
+- Pushing toward 95% deferred: requires trait-injection / async-mock refactors outside this spec's refactor budget. See "Deferred Modules" below for the recurring patterns.
+
 ## Baseline
 
 - Date: 2026-05-25

@@ -1,8 +1,9 @@
 # Falcon Coverage Uplift — Design
 
 **Date:** 2026-05-25
-**Status:** Draft, awaiting approval
+**Status:** Phase 1 complete — reached 80.40% line coverage within the refactor budget. Pushing to 90%+ deferred (would require trait-injection / async-mock refactors outside this spec's scope).
 **Target version:** falcon 0.4.0 → next
+**Final result:** 53.73% → **80.40%** line coverage across 45 module dispatches, ~1,900 new tests, 2,209 total tests passing.
 
 ## Goal
 
