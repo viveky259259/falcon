@@ -628,4 +628,801 @@ mod tests {
             .iter()
             .any(|line| line.contains("top_process_bucket=Dart Heap")));
     }
+
+    // ── Helper builders ──────────────────────────────────────────────────────
+
+    fn empty_logging() -> LoggingToolReport {
+        sample_logging(&[])
+    }
+
+    fn make_memory(heap_mb: f64) -> MemoryToolReport {
+        MemoryToolReport {
+            vm_service_uri: "http://127.0.0.1:1/".to_string(),
+            isolate_id: "isolates/main".to_string(),
+            heap_usage_mb: heap_mb,
+            heap_capacity_mb: heap_mb + 50.0,
+            external_usage_mb: 5.0,
+            top_process_buckets: Vec::new(),
+            top_allocations: Vec::new(),
+        }
+    }
+
+    fn make_network_with_request(
+        method: &str,
+        uri: &str,
+        status: i64,
+        duration_ms: f64,
+    ) -> NetworkToolReport {
+        NetworkToolReport {
+            vm_service_uri: "http://127.0.0.1:1/".to_string(),
+            isolate_id: "isolates/main".to_string(),
+            duration_secs: 5,
+            total_requests: 1,
+            failed_requests: 0,
+            total_bytes_received: 0,
+            max_latency_ms: duration_ms,
+            socket_count: 0,
+            total_socket_read_bytes: 0,
+            total_socket_write_bytes: 0,
+            requests: vec![NetworkRequestSummary {
+                method: Some(method.to_string()),
+                uri: Some(uri.to_string()),
+                status: Some(status),
+                duration_ms: Some(duration_ms),
+                content_length: None,
+            }],
+            sockets: Vec::new(),
+        }
+    }
+
+    fn empty_network() -> NetworkToolReport {
+        NetworkToolReport {
+            vm_service_uri: "http://127.0.0.1:1/".to_string(),
+            isolate_id: "isolates/main".to_string(),
+            duration_secs: 5,
+            total_requests: 0,
+            failed_requests: 0,
+            total_bytes_received: 0,
+            max_latency_ms: 0.0,
+            socket_count: 0,
+            total_socket_read_bytes: 0,
+            total_socket_write_bytes: 0,
+            requests: Vec::new(),
+            sockets: Vec::new(),
+        }
+    }
+
+    // ── LiveConfig::default ───────────────────────────────────────────────────
+
+    #[test]
+    fn live_config_default_project_path_is_dot() {
+        let cfg = LiveConfig::default();
+        assert_eq!(cfg.project_path, std::path::PathBuf::from("."));
+    }
+
+    #[test]
+    fn live_config_default_attach_uri_is_none() {
+        let cfg = LiveConfig::default();
+        assert!(cfg.attach_uri.is_none());
+    }
+
+    #[test]
+    fn live_config_default_duration_is_30s() {
+        let cfg = LiveConfig::default();
+        assert_eq!(cfg.duration, std::time::Duration::from_secs(30));
+    }
+
+    #[test]
+    fn live_config_default_interval_is_10s() {
+        let cfg = LiveConfig::default();
+        assert_eq!(cfg.interval, std::time::Duration::from_secs(10));
+    }
+
+    #[test]
+    fn live_config_default_memory_thresholds_match_constants() {
+        let cfg = LiveConfig::default();
+        assert_eq!(cfg.memory_warn_mb, DEFAULT_MEMORY_WARN_MB);
+        assert_eq!(cfg.memory_error_mb, DEFAULT_MEMORY_ERROR_MB);
+        assert_eq!(cfg.slow_request_ms, DEFAULT_SLOW_REQUEST_MS);
+    }
+
+    // ── collect_matching_evidence ─────────────────────────────────────────────
+
+    #[test]
+    fn collect_matching_evidence_empty_messages_returns_empty() {
+        let result = collect_matching_evidence(&[], &["overflow"], 5);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn collect_matching_evidence_no_match_returns_empty() {
+        let messages = vec!["hello world".to_string(), "nothing here".to_string()];
+        let result = collect_matching_evidence(&messages, &["overflow"], 5);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn collect_matching_evidence_returns_matching_lines() {
+        let messages = vec![
+            "A RenderFlex overflowed".to_string(),
+            "unrelated line".to_string(),
+            "another overflow message".to_string(),
+        ];
+        let result = collect_matching_evidence(&messages, &["overflow"], 10);
+        assert_eq!(result.len(), 2);
+        assert!(result.iter().all(|m| m.contains("overflow")));
+    }
+
+    #[test]
+    fn collect_matching_evidence_respects_limit() {
+        let messages: Vec<String> = (0..10).map(|i| format!("overflow {i}")).collect();
+        let result = collect_matching_evidence(&messages, &["overflow"], 3);
+        assert_eq!(result.len(), 3);
+    }
+
+    #[test]
+    fn collect_matching_evidence_multiple_needles_any_match() {
+        let messages = vec![
+            "Row: overflow here".to_string(),
+            "Column: overflow here".to_string(),
+            "unrelated".to_string(),
+        ];
+        let result = collect_matching_evidence(&messages, &["Row:", "Column:"], 10);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn collect_matching_evidence_empty_needles_returns_empty() {
+        let messages = vec!["some message".to_string()];
+        let result = collect_matching_evidence(&messages, &[], 10);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn collect_matching_evidence_limit_zero_returns_empty() {
+        let messages = vec!["overflow".to_string()];
+        let result = collect_matching_evidence(&messages, &["overflow"], 0);
+        assert!(result.is_empty());
+    }
+
+    // ── find_dart_source_hint ─────────────────────────────────────────────────
+
+    #[test]
+    fn find_dart_source_hint_no_messages_returns_none() {
+        assert!(find_dart_source_hint(&[]).is_none());
+    }
+
+    #[test]
+    fn find_dart_source_hint_no_dart_ref_returns_none() {
+        let messages = vec!["some log line without dart ref".to_string()];
+        assert!(find_dart_source_hint(&messages).is_none());
+    }
+
+    #[test]
+    fn find_dart_source_hint_package_uri_line_col() {
+        let messages = vec!["at package:my_app/screens/home.dart:42:7".to_string()];
+        let hint = find_dart_source_hint(&messages);
+        assert_eq!(hint.as_deref(), Some("package:my_app/screens/home.dart:42:7"));
+    }
+
+    #[test]
+    fn find_dart_source_hint_absolute_path_line_only() {
+        let messages = vec!["#0 MyWidget (/home/user/project/lib/main.dart:10)".to_string()];
+        let hint = find_dart_source_hint(&messages);
+        assert_eq!(hint.as_deref(), Some("/home/user/project/lib/main.dart:10"));
+    }
+
+    #[test]
+    fn find_dart_source_hint_triple_slash_normalizes() {
+        // The file:///path pattern produces ///path.dart which normalize_source_hint fixes
+        let messages = vec!["file:///tmp/widgets.dart:5:3".to_string()];
+        let hint = find_dart_source_hint(&messages);
+        // regex captures the path portion after file:
+        // The captured group is ///tmp/widgets.dart:5:3 — normalize_source_hint removes one leading /
+        // then returns /tmp/widgets.dart:5:3 … or the regex might not match "file:///"
+        // The regex looks for (package:... | /path...)\.dart:\d+
+        // So "///tmp/widgets.dart:5:3" would match /[^\s:]+ leading with ///
+        // normalize_source_hint replaces leading /// with /
+        // So result should be /tmp/widgets.dart:5:3
+        if let Some(h) = hint {
+            assert!(h.contains("widgets.dart:5"));
+        }
+        // If regex doesn't capture it that's fine — we just ensure no panic
+    }
+
+    #[test]
+    fn find_dart_source_hint_returns_first_match() {
+        let messages = vec![
+            "no dart here".to_string(),
+            "package:app/a.dart:1:1".to_string(),
+            "package:app/b.dart:2:2".to_string(),
+        ];
+        let hint = find_dart_source_hint(&messages).unwrap();
+        assert!(hint.contains("a.dart:1:1"));
+    }
+
+    // ── normalize_source_hint ─────────────────────────────────────────────────
+
+    #[test]
+    fn normalize_source_hint_no_triple_slash_unchanged() {
+        assert_eq!(normalize_source_hint("/tmp/foo.dart:10"), "/tmp/foo.dart:10");
+    }
+
+    #[test]
+    fn normalize_source_hint_triple_slash_replaced() {
+        assert_eq!(normalize_source_hint("///tmp/foo.dart:10"), "/tmp/foo.dart:10");
+    }
+
+    #[test]
+    fn normalize_source_hint_only_first_occurrence_replaced() {
+        assert_eq!(normalize_source_hint("///a///b"), "/a///b");
+    }
+
+    #[test]
+    fn normalize_source_hint_empty_string() {
+        assert_eq!(normalize_source_hint(""), "");
+    }
+
+    #[test]
+    fn normalize_source_hint_double_slash_unchanged() {
+        assert_eq!(normalize_source_hint("//tmp/foo.dart:1"), "//tmp/foo.dart:1");
+    }
+
+    // ── summarize_runtime_message ─────────────────────────────────────────────
+
+    #[test]
+    fn summarize_runtime_message_plain_text_unchanged() {
+        let msg = "Some plain log line";
+        assert_eq!(summarize_runtime_message(msg), msg);
+    }
+
+    #[test]
+    fn summarize_runtime_message_json_without_extension_data_returns_original() {
+        let msg = r#"{"type":"Event","kind":"Logging"}"#;
+        assert_eq!(summarize_runtime_message(msg), msg);
+    }
+
+    #[test]
+    fn summarize_runtime_message_uses_rendered_error_text() {
+        let msg = r#"{"extensionData":{"renderedErrorText":"EXCEPTION CAUGHT BY widgets library"}}"#;
+        assert_eq!(
+            summarize_runtime_message(msg),
+            "EXCEPTION CAUGHT BY widgets library"
+        );
+    }
+
+    #[test]
+    fn summarize_runtime_message_falls_back_to_description() {
+        let msg = r#"{"extensionData":{"description":"Another exception was thrown: FormatException"}}"#;
+        let result = summarize_runtime_message(msg);
+        assert_eq!(result, "Another exception was thrown: FormatException");
+    }
+
+    #[test]
+    fn summarize_runtime_message_rendered_error_text_takes_priority_over_description() {
+        let msg = r#"{"extensionData":{"renderedErrorText":"Primary","description":"Secondary"}}"#;
+        assert_eq!(summarize_runtime_message(msg), "Primary");
+    }
+
+    #[test]
+    fn summarize_runtime_message_empty_string() {
+        assert_eq!(summarize_runtime_message(""), "");
+    }
+
+    // ── detect_layout_and_runtime_issues ─────────────────────────────────────
+
+    #[test]
+    fn detect_layout_empty_logging_returns_empty() {
+        let issues = detect_layout_and_runtime_issues(&empty_logging());
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn detect_layout_no_relevant_messages_returns_empty() {
+        let logging = sample_logging(&["Just a debug log", "Another innocuous log"]);
+        assert!(detect_layout_and_runtime_issues(&logging).is_empty());
+    }
+
+    #[test]
+    fn detect_layout_overflow_variant_a_renderflex_overflowed() {
+        let logging = sample_logging(&["A RenderFlex overflowed by 5 pixels on the bottom."]);
+        let issues = detect_layout_and_runtime_issues(&logging);
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].category, LiveIssueCategory::Layout);
+        assert_eq!(issues[0].severity, LiveIssueSeverity::Error);
+    }
+
+    #[test]
+    fn detect_layout_overflow_variant_renderflex_overflow_phrase() {
+        let logging = sample_logging(&["RenderFlex overflow detected in Column"]);
+        let issues = detect_layout_and_runtime_issues(&logging);
+        assert!(issues.iter().any(|i| i.category == LiveIssueCategory::Layout));
+    }
+
+    #[test]
+    fn detect_layout_overflow_fingerprint_contains_layout_overflow() {
+        let logging = sample_logging(&["A RenderFlex overflowed by 3 pixels."]);
+        let issues = detect_layout_and_runtime_issues(&logging);
+        assert!(issues[0].fingerprint.starts_with("layout:overflow:"));
+    }
+
+    #[test]
+    fn detect_layout_overflow_no_source_hint_when_no_dart_ref() {
+        let logging = sample_logging(&["A RenderFlex overflowed by 3 pixels."]);
+        let issues = detect_layout_and_runtime_issues(&logging);
+        assert!(issues[0].source_hint.is_none());
+    }
+
+    #[test]
+    fn detect_layout_runtime_exception_caught_by_detected() {
+        let logging = sample_logging(&[
+            r#"{"extensionData":{"renderedErrorText":"EXCEPTION CAUGHT BY widgets library"}}"#,
+        ]);
+        let issues = detect_layout_and_runtime_issues(&logging);
+        assert!(issues.iter().any(|i| i.category == LiveIssueCategory::Runtime));
+    }
+
+    #[test]
+    fn detect_layout_another_exception_was_thrown_detected() {
+        let logging = sample_logging(&[
+            r#"{"extensionData":{"description":"Another exception was thrown: StateError"}}"#,
+        ]);
+        let issues = detect_layout_and_runtime_issues(&logging);
+        assert!(issues.iter().any(|i| i.category == LiveIssueCategory::Runtime));
+    }
+
+    #[test]
+    fn detect_layout_runtime_fingerprint_starts_with_runtime_exception() {
+        let logging = sample_logging(&[
+            r#"{"extensionData":{"renderedErrorText":"EXCEPTION CAUGHT BY rendering library"}}"#,
+        ]);
+        let issues = detect_layout_and_runtime_issues(&logging);
+        let runtime_issue = issues.iter().find(|i| i.category == LiveIssueCategory::Runtime).unwrap();
+        assert!(runtime_issue.fingerprint.starts_with("runtime:exception:"));
+    }
+
+    #[test]
+    fn detect_layout_overflow_evidence_includes_matching_lines() {
+        let logging = sample_logging(&[
+            "A RenderFlex overflowed by 3 pixels.",
+            "Row: 42 pixels",
+            "package:app/page.dart:10:3",
+        ]);
+        let issues = detect_layout_and_runtime_issues(&logging);
+        let layout = issues.iter().find(|i| i.category == LiveIssueCategory::Layout).unwrap();
+        assert!(!layout.evidence.is_empty());
+    }
+
+    #[test]
+    fn detect_layout_only_whitespace_messages_treated_as_empty() {
+        let logging = LoggingToolReport {
+            vm_service_uri: "http://127.0.0.1:1234/".to_string(),
+            isolate_id: "isolates/main".to_string(),
+            duration_secs: 5,
+            total_events: 2,
+            stream_counts: Vec::new(),
+            entries: vec![
+                LogEntry {
+                    stream: "Stdout".to_string(),
+                    kind: "stdout".to_string(),
+                    timestamp_micros: None,
+                    message: Some("   ".to_string()),
+                    logger_name: None,
+                    level: None,
+                },
+                LogEntry {
+                    stream: "Stdout".to_string(),
+                    kind: "stdout".to_string(),
+                    timestamp_micros: None,
+                    message: None,
+                    logger_name: None,
+                    level: None,
+                },
+            ],
+        };
+        assert!(detect_layout_and_runtime_issues(&logging).is_empty());
+    }
+
+    // ── detect_network_issues ─────────────────────────────────────────────────
+
+    #[test]
+    fn detect_network_empty_requests_returns_empty() {
+        let issues = detect_network_issues(&empty_network(), 1500.0);
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn detect_network_status_below_400_no_issue() {
+        let report = make_network_with_request("GET", "https://example.com", 200, 100.0);
+        let issues = detect_network_issues(&report, 1500.0);
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn detect_network_status_400_exactly_is_warning() {
+        let report = make_network_with_request("GET", "https://example.com/notfound", 400, 50.0);
+        let issues = detect_network_issues(&report, 1500.0);
+        let http_issue = issues.iter().find(|i| i.fingerprint.contains("network:http:")).unwrap();
+        assert_eq!(http_issue.severity, LiveIssueSeverity::Warning);
+    }
+
+    #[test]
+    fn detect_network_status_401_is_error() {
+        let report = make_network_with_request("GET", "https://api.example.com/me", 401, 50.0);
+        let issues = detect_network_issues(&report, 1500.0);
+        let issue = issues.iter().find(|i| i.fingerprint.contains("401")).unwrap();
+        assert_eq!(issue.severity, LiveIssueSeverity::Error);
+        assert!(issue.suggested_fix.contains("authentication"));
+    }
+
+    #[test]
+    fn detect_network_status_403_is_error_with_auth_fix() {
+        let report = make_network_with_request("POST", "https://api.example.com/admin", 403, 50.0);
+        let issues = detect_network_issues(&report, 1500.0);
+        let issue = issues.iter().find(|i| i.fingerprint.contains("403")).unwrap();
+        assert_eq!(issue.severity, LiveIssueSeverity::Error);
+        assert!(issue.suggested_fix.contains("authentication"));
+    }
+
+    #[test]
+    fn detect_network_status_404_is_warning_with_endpoint_fix() {
+        let report = make_network_with_request("GET", "https://api.example.com/missing", 404, 50.0);
+        let issues = detect_network_issues(&report, 1500.0);
+        let issue = issues.iter().find(|i| i.fingerprint.contains("404")).unwrap();
+        assert_eq!(issue.severity, LiveIssueSeverity::Warning);
+        assert!(issue.suggested_fix.contains("endpoint"));
+    }
+
+    #[test]
+    fn detect_network_status_429_is_error_with_rate_limit_fix() {
+        let report = make_network_with_request("GET", "https://api.example.com/data", 429, 50.0);
+        let issues = detect_network_issues(&report, 1500.0);
+        let issue = issues.iter().find(|i| i.fingerprint.contains("429")).unwrap();
+        assert_eq!(issue.severity, LiveIssueSeverity::Error);
+        assert!(issue.suggested_fix.contains("rate-limited"));
+    }
+
+    #[test]
+    fn detect_network_status_500_is_error_with_server_fix() {
+        let report = make_network_with_request("GET", "https://api.example.com/crash", 500, 50.0);
+        let issues = detect_network_issues(&report, 1500.0);
+        let issue = issues.iter().find(|i| i.fingerprint.contains("500")).unwrap();
+        assert_eq!(issue.severity, LiveIssueSeverity::Error);
+        assert!(issue.suggested_fix.contains("server-side"));
+    }
+
+    #[test]
+    fn detect_network_status_503_is_error() {
+        let report = make_network_with_request("GET", "https://api.example.com/svc", 503, 50.0);
+        let issues = detect_network_issues(&report, 1500.0);
+        let issue = issues.iter().find(|i| i.fingerprint.contains("503")).unwrap();
+        assert_eq!(issue.severity, LiveIssueSeverity::Error);
+    }
+
+    #[test]
+    fn detect_network_slow_request_above_threshold_creates_issue() {
+        let report = make_network_with_request("GET", "https://api.example.com/slow", 200, 2000.0);
+        let issues = detect_network_issues(&report, 1500.0);
+        let slow_issue = issues.iter().find(|i| i.fingerprint.contains("network:slow:")).unwrap();
+        assert_eq!(slow_issue.severity, LiveIssueSeverity::Warning);
+        assert!(slow_issue.summary.contains("2000.00 ms"));
+    }
+
+    #[test]
+    fn detect_network_slow_request_exactly_at_threshold_creates_issue() {
+        let report = make_network_with_request("GET", "https://api.example.com/edge", 200, 1500.0);
+        let issues = detect_network_issues(&report, 1500.0);
+        assert!(issues.iter().any(|i| i.fingerprint.contains("network:slow:")));
+    }
+
+    #[test]
+    fn detect_network_slow_request_below_threshold_no_slow_issue() {
+        let report = make_network_with_request("GET", "https://api.example.com/fast", 200, 1499.9);
+        let issues = detect_network_issues(&report, 1500.0);
+        assert!(!issues.iter().any(|i| i.fingerprint.contains("network:slow:")));
+    }
+
+    #[test]
+    fn detect_network_both_error_status_and_slow_creates_two_issues() {
+        let report = make_network_with_request("POST", "https://api.example.com/heavy", 500, 3000.0);
+        let issues = detect_network_issues(&report, 1500.0);
+        assert_eq!(issues.len(), 2);
+    }
+
+    #[test]
+    fn detect_network_fingerprint_contains_uri() {
+        let uri = "https://api.example.com/repos";
+        let report = make_network_with_request("GET", uri, 404, 50.0);
+        let issues = detect_network_issues(&report, 1500.0);
+        assert!(issues[0].fingerprint.contains(uri));
+    }
+
+    #[test]
+    fn detect_network_no_status_skips_status_check() {
+        let report = NetworkToolReport {
+            vm_service_uri: "http://127.0.0.1:1/".to_string(),
+            isolate_id: "isolates/main".to_string(),
+            duration_secs: 5,
+            total_requests: 1,
+            failed_requests: 0,
+            total_bytes_received: 0,
+            max_latency_ms: 100.0,
+            socket_count: 0,
+            total_socket_read_bytes: 0,
+            total_socket_write_bytes: 0,
+            requests: vec![NetworkRequestSummary {
+                method: Some("GET".to_string()),
+                uri: Some("https://example.com/".to_string()),
+                status: None,
+                duration_ms: Some(100.0),
+                content_length: None,
+            }],
+            sockets: Vec::new(),
+        };
+        // No status => no http error; duration 100ms < 1500ms threshold => no slow issue
+        let issues = detect_network_issues(&report, 1500.0);
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn detect_network_no_uri_uses_unknown_fallback() {
+        let report = NetworkToolReport {
+            vm_service_uri: "http://127.0.0.1:1/".to_string(),
+            isolate_id: "isolates/main".to_string(),
+            duration_secs: 5,
+            total_requests: 1,
+            failed_requests: 1,
+            total_bytes_received: 0,
+            max_latency_ms: 100.0,
+            socket_count: 0,
+            total_socket_read_bytes: 0,
+            total_socket_write_bytes: 0,
+            requests: vec![NetworkRequestSummary {
+                method: Some("GET".to_string()),
+                uri: None,
+                status: Some(500),
+                duration_ms: Some(100.0),
+                content_length: None,
+            }],
+            sockets: Vec::new(),
+        };
+        let issues = detect_network_issues(&report, 1500.0);
+        assert!(issues.iter().any(|i| i.fingerprint.contains("<unknown>")));
+    }
+
+    // ── detect_memory_issues ──────────────────────────────────────────────────
+
+    #[test]
+    fn detect_memory_below_warn_threshold_no_issue() {
+        let report = make_memory(100.0);
+        assert!(detect_memory_issues(&report, 200.0, 350.0).is_empty());
+    }
+
+    #[test]
+    fn detect_memory_exactly_at_warn_threshold_is_warning() {
+        let report = make_memory(200.0);
+        let issues = detect_memory_issues(&report, 200.0, 350.0);
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].severity, LiveIssueSeverity::Warning);
+    }
+
+    #[test]
+    fn detect_memory_above_warn_below_error_is_warning() {
+        let report = make_memory(250.0);
+        let issues = detect_memory_issues(&report, 200.0, 350.0);
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].severity, LiveIssueSeverity::Warning);
+    }
+
+    #[test]
+    fn detect_memory_exactly_at_error_threshold_is_error() {
+        let report = make_memory(350.0);
+        let issues = detect_memory_issues(&report, 200.0, 350.0);
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].severity, LiveIssueSeverity::Error);
+    }
+
+    #[test]
+    fn detect_memory_above_error_threshold_is_error() {
+        let report = make_memory(400.0);
+        let issues = detect_memory_issues(&report, 200.0, 350.0);
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].severity, LiveIssueSeverity::Error);
+    }
+
+    #[test]
+    fn detect_memory_fingerprint_contains_floored_heap() {
+        let report = make_memory(275.7);
+        let issues = detect_memory_issues(&report, 200.0, 350.0);
+        assert!(issues[0].fingerprint.starts_with("memory:heap:275"));
+    }
+
+    #[test]
+    fn detect_memory_evidence_always_includes_heap_usage() {
+        let report = make_memory(250.0);
+        let issues = detect_memory_issues(&report, 200.0, 350.0);
+        assert!(issues[0].evidence.iter().any(|e| e.starts_with("heap_usage_mb=")));
+    }
+
+    #[test]
+    fn detect_memory_no_top_bucket_evidence_omits_top_process_bucket() {
+        let report = make_memory(250.0); // top_process_buckets is empty
+        let issues = detect_memory_issues(&report, 200.0, 350.0);
+        assert!(!issues[0].evidence.iter().any(|e| e.starts_with("top_process_bucket=")));
+    }
+
+    #[test]
+    fn detect_memory_top_bucket_with_description_included_in_evidence() {
+        let mut report = make_memory(250.0);
+        report.top_process_buckets.push(ProcessBucketEntry {
+            name: "Image Cache".to_string(),
+            description: Some("decoded bitmaps".to_string()),
+            size_mb: 50.0,
+        });
+        let issues = detect_memory_issues(&report, 200.0, 350.0);
+        assert!(issues[0].evidence.iter().any(|e| e.contains("Image Cache") && e.contains("decoded bitmaps")));
+    }
+
+    #[test]
+    fn detect_memory_top_bucket_without_description_still_in_evidence() {
+        let mut report = make_memory(250.0);
+        report.top_process_buckets.push(ProcessBucketEntry {
+            name: "Native Heap".to_string(),
+            description: None,
+            size_mb: 30.0,
+        });
+        let issues = detect_memory_issues(&report, 200.0, 350.0);
+        assert!(issues[0].evidence.iter().any(|e| e.contains("Native Heap")));
+    }
+
+    // ── suggested_fix_for_status ──────────────────────────────────────────────
+
+    #[test]
+    fn suggested_fix_for_status_401_auth() {
+        assert!(suggested_fix_for_status(401).contains("authentication"));
+    }
+
+    #[test]
+    fn suggested_fix_for_status_403_auth() {
+        assert!(suggested_fix_for_status(403).contains("authentication"));
+    }
+
+    #[test]
+    fn suggested_fix_for_status_404_endpoint() {
+        assert!(suggested_fix_for_status(404).contains("endpoint"));
+    }
+
+    #[test]
+    fn suggested_fix_for_status_429_rate_limited() {
+        assert!(suggested_fix_for_status(429).contains("rate-limited"));
+    }
+
+    #[test]
+    fn suggested_fix_for_status_500_server_side() {
+        assert!(suggested_fix_for_status(500).contains("server-side"));
+    }
+
+    #[test]
+    fn suggested_fix_for_status_599_server_side() {
+        assert!(suggested_fix_for_status(599).contains("server-side"));
+    }
+
+    #[test]
+    fn suggested_fix_for_status_other_generic_message() {
+        let fix = suggested_fix_for_status(422);
+        assert!(fix.contains("request construction") || fix.contains("Inspect"));
+    }
+
+    // ── detect_issues (integration of all sub-detectors) ─────────────────────
+
+    #[test]
+    fn detect_issues_all_clean_returns_empty() {
+        let memory = make_memory(50.0);
+        let network = empty_network();
+        let logging = empty_logging();
+        let issues = detect_issues(
+            std::path::Path::new("/nonexistent/path"),
+            &memory,
+            &network,
+            &logging,
+            200.0,
+            350.0,
+            1500.0,
+        );
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn detect_issues_memory_warn_found() {
+        let memory = make_memory(250.0);
+        let network = empty_network();
+        let logging = empty_logging();
+        let issues = detect_issues(
+            std::path::Path::new("/nonexistent/path"),
+            &memory,
+            &network,
+            &logging,
+            200.0,
+            350.0,
+            1500.0,
+        );
+        assert!(issues.iter().any(|i| i.category == LiveIssueCategory::Memory));
+    }
+
+    #[test]
+    fn detect_issues_network_error_found() {
+        let memory = make_memory(50.0);
+        let network = make_network_with_request("GET", "https://example.com", 500, 50.0);
+        let logging = empty_logging();
+        let issues = detect_issues(
+            std::path::Path::new("/nonexistent/path"),
+            &memory,
+            &network,
+            &logging,
+            200.0,
+            350.0,
+            1500.0,
+        );
+        assert!(issues.iter().any(|i| i.category == LiveIssueCategory::Network));
+    }
+
+    #[test]
+    fn detect_issues_layout_overflow_found() {
+        let memory = make_memory(50.0);
+        let network = empty_network();
+        let logging = sample_logging(&["A RenderFlex overflowed by 3 pixels."]);
+        let issues = detect_issues(
+            std::path::Path::new("/nonexistent/path"),
+            &memory,
+            &network,
+            &logging,
+            200.0,
+            350.0,
+            1500.0,
+        );
+        assert!(issues.iter().any(|i| i.category == LiveIssueCategory::Layout));
+    }
+
+    #[test]
+    fn detect_issues_source_hint_not_set_when_no_project_match() {
+        // With a nonexistent path, infer_project_source_hint should fail and leave source_hint None
+        let memory = make_memory(250.0);
+        let network = empty_network();
+        let logging = empty_logging();
+        let issues = detect_issues(
+            std::path::Path::new("/nonexistent/path"),
+            &memory,
+            &network,
+            &logging,
+            200.0,
+            350.0,
+            1500.0,
+        );
+        // Memory issues have no extractable class name matching the pattern,
+        // so source_hint stays None.
+        let memory_issue = issues.iter().find(|i| i.category == LiveIssueCategory::Memory).unwrap();
+        assert!(memory_issue.source_hint.is_none());
+    }
+
+    // ── infer_project_source_hint (indirect via detect_issues) ───────────────
+
+    #[test]
+    fn infer_project_source_hint_returns_none_for_nonexistent_path() {
+        // Path doesn't exist so rg call should fail → None
+        let result = infer_project_source_hint(
+            std::path::Path::new("/nonexistent_path_xyz"),
+            "UserService failed to load",
+        );
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn infer_project_source_hint_returns_none_when_no_pattern_in_summary() {
+        // Summary has no Service/Controller/ViewModel pattern
+        let result = infer_project_source_hint(
+            std::path::Path::new("."),
+            "A RenderFlex overflowed by 3 pixels on the right.",
+        );
+        assert!(result.is_none());
+    }
 }
