@@ -52,6 +52,8 @@ pub fn exit_code_for_issues(issues: &[PreflightIssue]) -> i32 {
     code
 }
 
+pub mod reporter;
+
 #[cfg(test)]
 mod tests {
     use super::*;
