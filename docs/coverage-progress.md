@@ -36,13 +36,14 @@ Target: ≥90% line coverage (library crate)
 | src/lsp/ai_extensions.rs                     | 60    | 11.67%  |
 | src/runtime/connection.rs                    | 611   | 13.58%  |
 
-Next module to work on (lowest-covered, not excluded, smallest): ~~`src/parser/visitor.rs`~~ done — next: **`src/resolver/scope.rs`** (36 lines, 0.00%).
+Next module to work on (lowest-covered, not excluded, smallest): ~~`src/parser/visitor.rs`~~ ~~`src/resolver/scope.rs`~~ done — next: **`src/incremental/watcher.rs`** (51 lines, 0.00%).
 
 ## Completed Modules
 
-| Date       | Module                | Before  | After   | Commit  |
-|------------|-----------------------|---------|---------|---------|
-| 2026-05-25 | src/parser/visitor.rs | 0.00%   | 91.18%  | b39470b |
+| Date       | Module                  | Before  | After    | Commit  |
+|------------|-------------------------|---------|----------|---------|
+| 2026-05-25 | src/parser/visitor.rs   | 0.00%   | 91.18%   | b39470b |
+| 2026-05-25 | src/resolver/scope.rs   | 0.00%   | 100.00%  | 9c73ba0 |
 
 ## Deferred Modules
 
