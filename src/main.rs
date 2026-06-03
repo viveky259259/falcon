@@ -1629,6 +1629,17 @@ enum AiAction {
         #[arg(default_value = ".")]
         path: PathBuf,
     },
+
+    /// Triage findings as real vs. false-positive using the embedded SLM
+    Triage {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output format: text (default) or json
+        #[arg(long, default_value = "text")]
+        format: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -2912,7 +2923,7 @@ fn run(cli: Cli) -> Result<()> {
                     "✓".green().bold()
                 );
                 println!("  Edit falcon.yaml to set your provider and API key.");
-                println!("  Supported providers: openai, anthropic, gemini, local (Ollama)");
+                println!("  Supported providers: openai, anthropic, gemini, local (Ollama), embedded (in-process SLM)");
             }
             AiAction::Status { path } => {
                 let config = FalconConfig::load(&path)?;
@@ -2979,7 +2990,49 @@ fn run(cli: Cli) -> Result<()> {
                         "off"
                     }
                 );
+                if let Some(ref e) = ai.embedded {
+                    println!();
+                    println!("  Embedded model:");
+                    println!("    Model id:   {}", e.model_id);
+                    println!("    Max issues: {}", e.max_issues);
+                    #[cfg(feature = "ai-local")]
+                    println!("    Engine:     compiled in (ai-local)");
+                    #[cfg(not(feature = "ai-local"))]
+                    println!("    Engine:     NOT compiled (rebuild with --features ai-local)");
+                }
                 println!();
+            }
+            AiAction::Triage { path, format } => {
+                #[cfg(not(feature = "ai-local"))]
+                {
+                    let _ = (&path, &format);
+                    println!("{} embedded AI is not compiled in.", "✗".red().bold());
+                    println!("  Rebuild with: cargo build --release --features ai-local");
+                }
+                #[cfg(feature = "ai-local")]
+                {
+                    use falcon::ai::config::EmbeddedModelConfig;
+                    use falcon::ai::local::engine::LocalEngine;
+                    use falcon::ai::local::triage::{print_triage_run, triage_issues, triage_run_to_json};
+
+                    let falcon_config = FalconConfig::load(&path)?;
+                    let embedded_cfg = falcon_config
+                        .ai
+                        .embedded
+                        .clone()
+                        .unwrap_or_default();
+                    let falcon = Falcon::new(falcon_config)?;
+                    let report = falcon.analyze(&path)?;
+
+                    let mut engine = LocalEngine::load(&embedded_cfg)?;
+                    let run = triage_issues(&report.issues, &path, &mut engine, &embedded_cfg);
+
+                    if format == "json" {
+                        println!("{}", triage_run_to_json(&run));
+                    } else {
+                        print_triage_run(&run);
+                    }
+                }
             }
         },
         Commands::Fix {
