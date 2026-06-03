@@ -267,3 +267,92 @@ mod orchestration_tests {
         assert_eq!(run.truncated_from, Some(5));
     }
 }
+
+use colored::Colorize;
+
+/// Render a triage run to stdout (human-readable).
+pub fn print_triage_run(run: &TriageRun) {
+    if let Some(orig) = run.truncated_from {
+        eprintln!(
+            "{} triaged first {} of {} findings (raise embedded.max_issues to cover all)",
+            "note:".yellow().bold(),
+            run.verdicts.len(),
+            orig
+        );
+    }
+    for v in &run.verdicts {
+        let verdict = if v.degraded {
+            "uncertain".bright_black()
+        } else if v.is_real {
+            "real".red()
+        } else {
+            "false-positive".green()
+        };
+        println!(
+            "  {} {}:{}  [{}]  {}% — {}",
+            v.issue.rule.bright_cyan(),
+            v.issue.file.display(),
+            v.issue.line,
+            verdict,
+            v.confidence,
+            v.rationale
+        );
+    }
+}
+
+/// Serialize a triage run to a pretty JSON string (machine output).
+pub fn triage_run_to_json(run: &TriageRun) -> String {
+    let items: Vec<serde_json::Value> = run
+        .verdicts
+        .iter()
+        .map(|v| {
+            serde_json::json!({
+                "rule": v.issue.rule,
+                "file": v.issue.file.display().to_string(),
+                "line": v.issue.line,
+                "is_real": v.is_real,
+                "confidence": v.confidence,
+                "rationale": v.rationale,
+                "degraded": v.degraded,
+            })
+        })
+        .collect();
+    serde_json::to_string_pretty(&serde_json::json!({
+        "truncated_from": run.truncated_from,
+        "verdicts": items,
+    }))
+    .unwrap_or_else(|_| "{}".to_string())
+}
+
+#[cfg(test)]
+mod render_tests {
+    use super::*;
+    use crate::config::Severity;
+    use std::path::PathBuf;
+
+    #[test]
+    fn json_contains_expected_fields() {
+        let run = TriageRun {
+            truncated_from: Some(3),
+            verdicts: vec![TriageVerdict {
+                issue: Issue {
+                    rule: "unused-code".into(),
+                    message: "m".into(),
+                    severity: Severity::Warning,
+                    file: PathBuf::from("a.dart"),
+                    line: 7,
+                    column: 1,
+                },
+                is_real: false,
+                confidence: 65,
+                rationale: "r".into(),
+                degraded: false,
+            }],
+        };
+        let json = triage_run_to_json(&run);
+        assert!(json.contains("\"truncated_from\": 3"));
+        assert!(json.contains("\"rule\": \"unused-code\""));
+        assert!(json.contains("\"confidence\": 65"));
+        assert!(json.contains("\"is_real\": false"));
+    }
+}
