@@ -145,3 +145,125 @@ mod parse_tests {
         assert!(v.degraded);
     }
 }
+
+use crate::ai::config::EmbeddedModelConfig;
+use crate::ai::local::completer::{Completer, GenOpts};
+use crate::ai::local::prompt::build_triage_prompt;
+use crate::reporters::Issue;
+use std::path::Path;
+
+/// Final triage result for one finding.
+#[derive(Debug, Clone)]
+pub struct TriageVerdict {
+    pub issue: Issue,
+    pub is_real: bool,
+    pub confidence: u8,
+    pub rationale: String,
+    pub degraded: bool,
+}
+
+/// Outcome of a triage run: verdicts plus whether the issue list was truncated.
+pub struct TriageRun {
+    pub verdicts: Vec<TriageVerdict>,
+    pub truncated_from: Option<usize>, // Some(original_len) if capped
+}
+
+/// Triage findings sequentially through `engine`. Reads code windows relative to
+/// `project_root`. Applies `cfg.max_issues` cap (recording truncation). A failing
+/// completion degrades that single verdict to "uncertain" and continues.
+pub fn triage_issues(
+    issues: &[Issue],
+    project_root: &Path,
+    engine: &mut dyn Completer,
+    cfg: &EmbeddedModelConfig,
+) -> TriageRun {
+    let original_len = issues.len();
+    let truncated_from = if original_len > cfg.max_issues { Some(original_len) } else { None };
+    let opts = GenOpts { max_tokens: cfg.max_tokens, temperature: 0.0, stop: vec!["\n\n".to_string()] };
+
+    let verdicts = issues
+        .iter()
+        .take(cfg.max_issues)
+        .map(|issue| {
+            let abs = project_root.join(&issue.file);
+            let source = std::fs::read_to_string(&abs)
+                .or_else(|_| std::fs::read_to_string(&issue.file))
+                .unwrap_or_default();
+            let window = extract_code_window(&source, issue.line, cfg.context_lines);
+            let prompt = build_triage_prompt(issue, &window);
+            let parsed = match engine.complete(&prompt, &opts) {
+                Ok(text) => parse_verdict(&text),
+                Err(_) => ParsedVerdict {
+                    is_real: true,
+                    confidence: 0,
+                    rationale: "Inference failed; treated as uncertain.".to_string(),
+                    degraded: true,
+                },
+            };
+            TriageVerdict {
+                issue: issue.clone(),
+                is_real: parsed.is_real,
+                confidence: parsed.confidence,
+                rationale: parsed.rationale,
+                degraded: parsed.degraded,
+            }
+        })
+        .collect();
+
+    TriageRun { verdicts, truncated_from }
+}
+
+#[cfg(test)]
+mod orchestration_tests {
+    use super::*;
+    use crate::ai::local::completer::tests::FakeCompleter;
+    use crate::config::Severity;
+    use std::path::PathBuf;
+
+    fn issue(line: usize) -> Issue {
+        Issue {
+            rule: "unused-code".to_string(),
+            message: "'x' appears to be unused".to_string(),
+            severity: Severity::Warning,
+            file: PathBuf::from("does_not_exist.dart"),
+            line,
+            column: 1,
+        }
+    }
+
+    #[test]
+    fn maps_each_issue_to_a_verdict() {
+        let issues = vec![issue(1), issue(2)];
+        let mut fake = FakeCompleter::new(vec![
+            r#"{"is_real": true, "confidence": 80, "rationale": "real"}"#,
+            r#"{"is_real": false, "confidence": 60, "rationale": "noise"}"#,
+        ]);
+        let run = triage_issues(&issues, Path::new("."), &mut fake, &EmbeddedModelConfig::default());
+        assert_eq!(run.verdicts.len(), 2);
+        assert!(run.verdicts[0].is_real);
+        assert!(!run.verdicts[1].is_real);
+        assert!(run.truncated_from.is_none());
+    }
+
+    #[test]
+    fn inference_error_degrades_single_verdict() {
+        let issues = vec![issue(1)];
+        let mut fake = FakeCompleter { responses: vec![], calls: 0, fail_when_empty: true };
+        let run = triage_issues(&issues, Path::new("."), &mut fake, &EmbeddedModelConfig::default());
+        assert_eq!(run.verdicts.len(), 1);
+        assert!(run.verdicts[0].degraded);
+    }
+
+    #[test]
+    fn applies_max_issues_cap_and_records_truncation() {
+        let issues: Vec<Issue> = (1..=5).map(issue).collect();
+        let cfg = EmbeddedModelConfig { max_issues: 2, ..EmbeddedModelConfig::default() };
+        let mut fake = FakeCompleter::new(vec![
+            r#"{"is_real": true, "confidence": 1, "rationale": "a"}"#,
+            r#"{"is_real": true, "confidence": 1, "rationale": "b"}"#,
+        ]);
+        let run = triage_issues(&issues, Path::new("."), &mut fake, &cfg);
+        assert_eq!(run.verdicts.len(), 2);
+        assert_eq!(run.truncated_from, Some(5));
+    }
+}
