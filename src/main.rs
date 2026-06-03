@@ -3011,16 +3011,13 @@ fn run(cli: Cli) -> Result<()> {
                 }
                 #[cfg(feature = "ai-local")]
                 {
-                    use falcon::ai::config::EmbeddedModelConfig;
                     use falcon::ai::local::engine::LocalEngine;
-                    use falcon::ai::local::triage::{print_triage_run, triage_issues, triage_run_to_json};
+                    use falcon::ai::local::triage::{
+                        print_triage_run, triage_issues, triage_run_to_json,
+                    };
 
                     let falcon_config = FalconConfig::load(&path)?;
-                    let embedded_cfg = falcon_config
-                        .ai
-                        .embedded
-                        .clone()
-                        .unwrap_or_default();
+                    let embedded_cfg = falcon_config.ai.embedded.clone().unwrap_or_default();
                     let falcon = Falcon::new(falcon_config)?;
                     let report = falcon.analyze(&path)?;
 

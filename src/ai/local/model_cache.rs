@@ -8,7 +8,9 @@ pub fn model_cache_dir(model_id: &str, home: Option<&str>, xdg: Option<&str>) ->
         Some(x) if !x.is_empty() => PathBuf::from(x),
         _ => PathBuf::from(home.unwrap_or(".")).join(".cache"),
     };
-    base.join("falcon").join("models").join(model_id.replace('/', "_"))
+    base.join("falcon")
+        .join("models")
+        .join(model_id.replace('/', "_"))
 }
 
 #[cfg(test)]
@@ -17,8 +19,15 @@ mod tests {
 
     #[test]
     fn prefers_xdg_cache_home() {
-        let p = model_cache_dir("Qwen/Qwen2.5-0.5B-Instruct-GGUF", Some("/home/u"), Some("/xdg"));
-        assert_eq!(p, PathBuf::from("/xdg/falcon/models/Qwen_Qwen2.5-0.5B-Instruct-GGUF"));
+        let p = model_cache_dir(
+            "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
+            Some("/home/u"),
+            Some("/xdg"),
+        );
+        assert_eq!(
+            p,
+            PathBuf::from("/xdg/falcon/models/Qwen_Qwen2.5-0.5B-Instruct-GGUF")
+        );
     }
 
     #[test]
@@ -44,12 +53,16 @@ pub fn ensure_model(cfg: &crate::ai::config::EmbeddedModelConfig) -> anyhow::Res
 
     let api = Api::new()?;
     let repo = api.model(cfg.model_id.clone());
-    eprintln!("falcon: ensuring model {} ({})", cfg.model_id, cfg.model_file);
+    eprintln!(
+        "falcon: ensuring model {} ({})",
+        cfg.model_id, cfg.model_file
+    );
     let model_path = repo.get(&cfg.model_file).map_err(|e| {
         anyhow::anyhow!(
             "failed to download model file '{}' from '{}': {e}. \
 You can pre-download it manually into the hf-hub cache.",
-            cfg.model_file, cfg.model_id
+            cfg.model_file,
+            cfg.model_id
         )
     })?;
     Ok(model_path)

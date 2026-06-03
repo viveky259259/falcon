@@ -110,7 +110,9 @@ mod parse_tests {
 
     #[test]
     fn parses_clean_json() {
-        let v = parse_verdict(r#"{"is_real": false, "confidence": 72, "rationale": "barrel re-export"}"#);
+        let v = parse_verdict(
+            r#"{"is_real": false, "confidence": 72, "rationale": "barrel re-export"}"#,
+        );
         assert!(!v.is_real);
         assert_eq!(v.confidence, 72);
         assert_eq!(v.rationale, "barrel re-export");
@@ -178,8 +180,16 @@ pub fn triage_issues(
     cfg: &EmbeddedModelConfig,
 ) -> TriageRun {
     let original_len = issues.len();
-    let truncated_from = if original_len > cfg.max_issues { Some(original_len) } else { None };
-    let opts = GenOpts { max_tokens: cfg.max_tokens, temperature: 0.0, stop: vec!["\n\n".to_string()] };
+    let truncated_from = if original_len > cfg.max_issues {
+        Some(original_len)
+    } else {
+        None
+    };
+    let opts = GenOpts {
+        max_tokens: cfg.max_tokens,
+        temperature: 0.0,
+        stop: vec!["\n\n".to_string()],
+    };
 
     let verdicts = issues
         .iter()
@@ -210,7 +220,10 @@ pub fn triage_issues(
         })
         .collect();
 
-    TriageRun { verdicts, truncated_from }
+    TriageRun {
+        verdicts,
+        truncated_from,
+    }
 }
 
 #[cfg(test)]
@@ -238,7 +251,12 @@ mod orchestration_tests {
             r#"{"is_real": true, "confidence": 80, "rationale": "real"}"#,
             r#"{"is_real": false, "confidence": 60, "rationale": "noise"}"#,
         ]);
-        let run = triage_issues(&issues, Path::new("."), &mut fake, &EmbeddedModelConfig::default());
+        let run = triage_issues(
+            &issues,
+            Path::new("."),
+            &mut fake,
+            &EmbeddedModelConfig::default(),
+        );
         assert_eq!(run.verdicts.len(), 2);
         assert!(run.verdicts[0].is_real);
         assert!(!run.verdicts[1].is_real);
@@ -248,8 +266,17 @@ mod orchestration_tests {
     #[test]
     fn inference_error_degrades_single_verdict() {
         let issues = vec![issue(1)];
-        let mut fake = FakeCompleter { responses: vec![], calls: 0, fail_when_empty: true };
-        let run = triage_issues(&issues, Path::new("."), &mut fake, &EmbeddedModelConfig::default());
+        let mut fake = FakeCompleter {
+            responses: vec![],
+            calls: 0,
+            fail_when_empty: true,
+        };
+        let run = triage_issues(
+            &issues,
+            Path::new("."),
+            &mut fake,
+            &EmbeddedModelConfig::default(),
+        );
         assert_eq!(run.verdicts.len(), 1);
         assert!(run.verdicts[0].degraded);
     }
@@ -257,7 +284,10 @@ mod orchestration_tests {
     #[test]
     fn applies_max_issues_cap_and_records_truncation() {
         let issues: Vec<Issue> = (1..=5).map(issue).collect();
-        let cfg = EmbeddedModelConfig { max_issues: 2, ..EmbeddedModelConfig::default() };
+        let cfg = EmbeddedModelConfig {
+            max_issues: 2,
+            ..EmbeddedModelConfig::default()
+        };
         let mut fake = FakeCompleter::new(vec![
             r#"{"is_real": true, "confidence": 1, "rationale": "a"}"#,
             r#"{"is_real": true, "confidence": 1, "rationale": "b"}"#,

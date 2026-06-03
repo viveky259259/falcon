@@ -40,7 +40,11 @@ impl LocalEngine {
         let tokenizer = Tokenizer::from_file(tok_path)
             .map_err(|e| anyhow::anyhow!("failed to load tokenizer: {e}"))?;
 
-        Ok(Self { model, tokenizer, device })
+        Ok(Self {
+            model,
+            tokenizer,
+            device,
+        })
     }
 }
 
@@ -58,8 +62,11 @@ impl Completer for LocalEngine {
         let eos = self.tokenizer.token_to_id("<|im_end|>");
 
         for index in 0..opts.max_tokens {
-            let context =
-                if index == 0 { &tokens[..] } else { &tokens[tokens.len() - 1..] };
+            let context = if index == 0 {
+                &tokens[..]
+            } else {
+                &tokens[tokens.len() - 1..]
+            };
             let input = Tensor::new(context, &self.device)?.unsqueeze(0)?;
             let logits = self.model.forward(&input, tokens.len() - context.len())?;
             let logits = logits.squeeze(0)?;

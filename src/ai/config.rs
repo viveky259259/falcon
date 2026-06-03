@@ -156,11 +156,21 @@ impl Default for EmbeddedModelConfig {
     }
 }
 
-fn default_embedded_model_id() -> String { "Qwen/Qwen2.5-0.5B-Instruct-GGUF".to_string() }
-fn default_embedded_model_file() -> String { "qwen2.5-0.5b-instruct-q4_k_m.gguf".to_string() }
-fn default_embedded_max_tokens() -> usize { 128 }
-fn default_embedded_context_lines() -> usize { 12 }
-fn default_embedded_max_issues() -> usize { 100 }
+fn default_embedded_model_id() -> String {
+    "Qwen/Qwen2.5-0.5B-Instruct-GGUF".to_string()
+}
+fn default_embedded_model_file() -> String {
+    "qwen2.5-0.5b-instruct-q4_k_m.gguf".to_string()
+}
+fn default_embedded_max_tokens() -> usize {
+    128
+}
+fn default_embedded_context_lines() -> usize {
+    12
+}
+fn default_embedded_max_issues() -> usize {
+    100
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiFeatureToggles {

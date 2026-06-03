@@ -10,7 +10,11 @@ pub struct GenOpts {
 
 impl Default for GenOpts {
     fn default() -> Self {
-        Self { max_tokens: 128, temperature: 0.0, stop: Vec::new() }
+        Self {
+            max_tokens: 128,
+            temperature: 0.0,
+            stop: Vec::new(),
+        }
     }
 }
 
@@ -33,7 +37,11 @@ pub mod tests {
 
     impl FakeCompleter {
         pub fn new(responses: Vec<&str>) -> Self {
-            Self { responses: responses.into_iter().map(String::from).collect(), calls: 0, fail_when_empty: false }
+            Self {
+                responses: responses.into_iter().map(String::from).collect(),
+                calls: 0,
+                fail_when_empty: false,
+            }
         }
     }
 
