@@ -268,36 +268,7 @@ fn run(cli: Cli) -> Result<()> {
             process::exit(status.code().unwrap_or(1));
         }
 
-        Commands::Agents { action } => match action {
-            AgentsAction::Init { path, force } => {
-                let report = falcon::agents::run_init(&path, force)?;
-                println!();
-                println!("  {} Agents", "falcon".bright_cyan().bold());
-                println!();
-                if let Some(root) = &report.root_written {
-                    println!("    {} {}", "✓".green(), root.display());
-                }
-                for f in &report.feature_files {
-                    println!("    {} {}", "✓".green(), f.display());
-                }
-                for s in &report.skipped {
-                    println!(
-                        "    {} {} (already exists — pass --force to overwrite)",
-                        "·".dimmed(),
-                        s.display()
-                    );
-                }
-                println!();
-                println!(
-                    "  {} root: {}, features: {}, skipped: {}",
-                    "■".bright_white(),
-                    if report.root_written.is_some() { 1 } else { 0 },
-                    report.feature_files.len(),
-                    report.skipped.len()
-                );
-                println!();
-            }
-        },
+        Commands::Agents { action } => handle_agents(action)?,
 
         Commands::RuntimeCheck {
             path,
@@ -369,206 +340,7 @@ fn run(cli: Cli) -> Result<()> {
                 process::exit(1);
             }
         }
-        Commands::Devtools { action } => {
-            let rt = tokio::runtime::Runtime::new()?;
-            match action {
-                DevtoolsAction::Memory { path, attach, json } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let report = rt.block_on(falcon::runtime::tools::collect_memory_report(
-                        &client, &vm_uri,
-                    ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_memory_report(&report);
-                    }
-                }
-                DevtoolsAction::Network {
-                    path,
-                    attach,
-                    duration,
-                    json,
-                } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let report = rt.block_on(falcon::runtime::tools::collect_network_report(
-                        &client,
-                        &vm_uri,
-                        std::time::Duration::from_secs(duration),
-                    ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_network_report(&report);
-                    }
-                }
-                DevtoolsAction::Performance {
-                    path,
-                    attach,
-                    duration,
-                    json,
-                } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let report =
-                        rt.block_on(falcon::runtime::tools::collect_performance_report(
-                            &client,
-                            &vm_uri,
-                            std::time::Duration::from_secs(duration),
-                        ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_performance_report(&report);
-                    }
-                }
-                DevtoolsAction::Profiler {
-                    path,
-                    attach,
-                    duration,
-                    json,
-                } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let report = rt.block_on(falcon::runtime::tools::collect_profiler_report(
-                        &client,
-                        &vm_uri,
-                        std::time::Duration::from_secs(duration),
-                    ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_profiler_report(&report);
-                    }
-                }
-                DevtoolsAction::Debugger {
-                    path,
-                    attach,
-                    action,
-                    json,
-                } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let action = action.map(|action| match action {
-                        DebuggerActionArg::Pause => falcon::runtime::tools::DebuggerAction::Pause,
-                        DebuggerActionArg::Resume => falcon::runtime::tools::DebuggerAction::Resume,
-                        DebuggerActionArg::StepOver => {
-                            falcon::runtime::tools::DebuggerAction::StepOver
-                        }
-                        DebuggerActionArg::StepIn => falcon::runtime::tools::DebuggerAction::StepIn,
-                        DebuggerActionArg::StepOut => {
-                            falcon::runtime::tools::DebuggerAction::StepOut
-                        }
-                    });
-                    let report = rt.block_on(falcon::runtime::tools::collect_debugger_report(
-                        &client, &vm_uri, action,
-                    ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_debugger_report(&report);
-                    }
-                }
-                DevtoolsAction::Logging {
-                    path,
-                    attach,
-                    duration,
-                    json,
-                } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let report = rt.block_on(falcon::runtime::tools::collect_logging_report(
-                        &client,
-                        &vm_uri,
-                        std::time::Duration::from_secs(duration),
-                    ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_logging_report(&report);
-                    }
-                }
-                DevtoolsAction::Rebuilds { path, attach, json } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let report = rt.block_on(falcon::runtime::tools::collect_rebuilds_report(
-                        &client, &vm_uri,
-                    ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_rebuilds_report(&report);
-                    }
-                }
-                DevtoolsAction::Inspector { path, attach, json } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let report = rt.block_on(falcon::runtime::tools::collect_inspector_report(
-                        &client, &vm_uri,
-                    ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_inspector_report(&report);
-                    }
-                }
-                DevtoolsAction::Reload { path, attach, json } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let report = rt.block_on(falcon::runtime::tools::collect_reload_report(
-                        &client,
-                        &vm_uri,
-                        falcon::runtime::tools::ReloadMode::HotReload,
-                    ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_reload_report(&report);
-                    }
-                    if !report.success {
-                        process::exit(1);
-                    }
-                }
-                DevtoolsAction::Restart { path, attach, json } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let report = rt.block_on(falcon::runtime::tools::collect_reload_report(
-                        &client,
-                        &vm_uri,
-                        falcon::runtime::tools::ReloadMode::HotRestart,
-                    ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_reload_report(&report);
-                    }
-                    if !report.success {
-                        process::exit(1);
-                    }
-                }
-            }
-        }
+        Commands::Devtools { action } => handle_devtools(action)?,
         Commands::AssetAudit {
             path,
             output,
@@ -728,22 +500,7 @@ fn run(cli: Cli) -> Result<()> {
             }
         }
 
-        Commands::Baseline { action } => match action {
-            BaselineAction::Create { path, config } => {
-                let config_path = config.as_deref().unwrap_or(&path);
-                let falcon_config = FalconConfig::load(config_path)?;
-                let falcon = Falcon::new(falcon_config)?;
-                let report = falcon.analyze(&path)?;
-
-                let baseline_path = Baseline::create(&report.issues, &path)?;
-                println!(
-                    "{} Baseline created with {} issues at {}",
-                    "✓".green().bold(),
-                    report.issues.len(),
-                    baseline_path.display()
-                );
-            }
-        },
+        Commands::Baseline { action } => handle_baseline(action)?,
         Commands::DepGraph { path, file } => {
             let config = FalconConfig::load(&path)?;
             let exclude: Vec<glob::Pattern> = config
@@ -942,123 +699,7 @@ fn run(cli: Cli) -> Result<()> {
                 process::exit(1);
             }
         }
-        Commands::Ai { action } => match action {
-            AiAction::Setup { path } => {
-                falcon::ai::config::generate_ai_setup(&path)?;
-                println!(
-                    "{} AI configuration added to falcon.yaml",
-                    "✓".green().bold()
-                );
-                println!("  Edit falcon.yaml to set your provider and API key.");
-                println!("  Supported providers: openai, anthropic, gemini, local (Ollama), embedded (in-process SLM)");
-            }
-            AiAction::Status { path } => {
-                let config = FalconConfig::load(&path)?;
-                let ai = &config.ai;
-                println!();
-                println!(
-                    "  {} AI Configuration Status",
-                    "falcon".bright_cyan().bold()
-                );
-                println!();
-                println!(
-                    "  Enabled:   {}",
-                    if ai.enabled {
-                        "yes".green()
-                    } else {
-                        "no".red()
-                    }
-                );
-                println!("  Provider:  {:?}", ai.provider);
-                println!("  Model:     {}", ai.effective_model());
-                println!(
-                    "  API Key:   {}",
-                    if ai.resolve_api_key().is_some() {
-                        "configured".green()
-                    } else {
-                        "not set".yellow()
-                    }
-                );
-                println!(
-                    "  Available: {}",
-                    if ai.is_available() {
-                        "yes".green()
-                    } else {
-                        "no".red()
-                    }
-                );
-                println!();
-                println!("  Feature Toggles:");
-                println!(
-                    "    Confidence scoring:      {}",
-                    if ai.features.confidence_scoring {
-                        "on"
-                    } else {
-                        "off"
-                    }
-                );
-                println!(
-                    "    Smart fixes:             {}",
-                    if ai.features.smart_fixes { "on" } else { "off" }
-                );
-                println!(
-                    "    Explanations:            {}",
-                    if ai.features.explanations {
-                        "on"
-                    } else {
-                        "off"
-                    }
-                );
-                println!(
-                    "    False positive reduction: {}",
-                    if ai.features.false_positive_reduction {
-                        "on"
-                    } else {
-                        "off"
-                    }
-                );
-                if let Some(ref e) = ai.embedded {
-                    println!();
-                    println!("  Embedded model:");
-                    println!("    Model id:   {}", e.model_id);
-                    println!("    Max issues: {}", e.max_issues);
-                    #[cfg(feature = "ai-local")]
-                    println!("    Engine:     compiled in (ai-local)");
-                    #[cfg(not(feature = "ai-local"))]
-                    println!("    Engine:     NOT compiled (rebuild with --features ai-local)");
-                }
-                println!();
-            }
-            AiAction::Triage { path, format } => {
-                #[cfg(not(feature = "ai-local"))]
-                {
-                    let _ = (&path, &format);
-                    println!("{} embedded AI is not compiled in.", "✗".red().bold());
-                    println!("  Rebuild with: cargo build --release --features ai-local");
-                }
-                #[cfg(feature = "ai-local")]
-                {
-                    use falcon::ai::local::engine::LocalEngine;
-                    use falcon::ai::local::triage::{
-                        print_triage_run, triage_issues, triage_run_to_json,
-                    };
-
-                    let falcon_config = FalconConfig::load(&path)?;
-                    let embedded_cfg = falcon_config.ai.embedded.clone().unwrap_or_default();
-                    let falcon = Falcon::new(falcon_config)?;
-                    let report = falcon.analyze(&path)?;
-
-                    let mut engine = LocalEngine::load(&embedded_cfg)?;
-                    let run = triage_issues(&report.issues, &path, &mut engine, &embedded_cfg);
-
-                    if format == "json" {
-                        println!("{}", triage_run_to_json(&run));
-                    } else {
-                        print_triage_run(&run);
-                    }
-                }
-            }
-        },
+        Commands::Ai { action } => handle_ai(action)?,
         Commands::Fix {
             path,
             preview,
@@ -1325,140 +966,9 @@ fn run(cli: Cli) -> Result<()> {
             let report = falcon::review::codebase_intel::analyze_codebase(&path, &config)?;
             falcon::review::codebase_intel::print_codebase_report(&report, &path);
         }
-        Commands::Plugin { action } => match action {
-            PluginAction::Create { name, r#type, dir } => {
-                let plugin_type = match r#type.as_str() {
-                    "wasm" => falcon::plugins::manifest::PluginType::Wasm,
-                    "native" => falcon::plugins::manifest::PluginType::Native,
-                    "preset" => falcon::plugins::manifest::PluginType::Preset,
-                    _ => {
-                        eprintln!(
-                            "Invalid plugin type '{}'. Use: wasm, native, preset",
-                            r#type
-                        );
-                        process::exit(1);
-                    }
-                };
-                falcon::plugins::scaffold::create_plugin(&name, &dir, plugin_type)?;
-            }
-            PluginAction::List => {
-                let plugin_dir = get_plugin_dir();
-                let plugins = falcon::plugins::scaffold::list_plugins(&plugin_dir)?;
-                falcon::plugins::scaffold::print_plugins(&plugins.to_vec());
-            }
-            PluginAction::Install { path } => {
-                let plugin_dir = get_plugin_dir();
-                std::fs::create_dir_all(&plugin_dir)?;
-                let name = falcon::plugins::scaffold::install_plugin(&path, &plugin_dir)?;
-                println!(
-                    "  {} Installed plugin '{}'",
-                    "✓".green().bold(),
-                    name.bright_cyan()
-                );
-            }
-            PluginAction::Search { query } => {
-                let results = falcon::plugins::registry::search_registry(&query);
-                falcon::plugins::registry::print_search_results(&results, &query);
-            }
-            PluginAction::Test { path } => {
-                let manifest = falcon::plugins::manifest::PluginManifest::load(&path)?;
-                println!(
-                    "  {} Plugin '{}' v{} — manifest valid, {} rule(s) defined",
-                    "✓".green().bold(),
-                    manifest.name.bright_cyan(),
-                    manifest.version,
-                    manifest.rules.len()
-                );
-
-                let rules_path = path.join("rules/rules.yaml");
-                if rules_path.exists() {
-                    let rules = falcon::plugins::wasm_runtime::load_wasm_rules(&rules_path)?;
-                    println!(
-                        "  {} Loaded {} rule definition(s) from rules.yaml",
-                        "✓".green().bold(),
-                        rules.len()
-                    );
-                }
-
-                let test_path = path.join("test/test_cases.yaml");
-                if test_path.exists() {
-                    println!(
-                        "  {} Test cases file found at test/test_cases.yaml",
-                        "✓".green().bold()
-                    );
-                }
-            }
-        },
-        Commands::Preset { action } => match action {
-            PresetAction::List => {
-                let presets = falcon::plugins::presets::list_presets();
-                falcon::plugins::presets::print_presets(&presets);
-            }
-            PresetAction::Show { name } => match falcon::plugins::presets::get_preset(&name) {
-                Some(preset) => falcon::plugins::presets::print_preset_detail(&preset),
-                None => {
-                    eprintln!("Unknown preset '{}'. Use: falcon preset list", name);
-                    process::exit(1);
-                }
-            },
-            PresetAction::Apply { name, path } => {
-                match falcon::plugins::presets::get_preset(&name) {
-                    Some(preset) => falcon::plugins::presets::apply_preset(&preset, &path)?,
-                    None => {
-                        eprintln!("Unknown preset '{}'. Use: falcon preset list", name);
-                        process::exit(1);
-                    }
-                }
-            }
-        },
-        Commands::Dashboard { action } => match action {
-            DashboardAction::Snapshot { path } => {
-                let config = FalconConfig::load(&path)?;
-                let falcon = Falcon::new(config)?;
-                let report = falcon.analyze(&path)?;
-                let snapshot =
-                    falcon::dashboard::snapshot::AnalysisSnapshot::capture(&report, &path);
-                let saved = falcon::dashboard::snapshot::save_snapshot(&path, &snapshot)?;
-                println!(
-                    "  {} Snapshot saved — health {:.0}/100, {} issues, {} files",
-                    "✓".green().bold(),
-                    snapshot.health_score,
-                    snapshot.issues.total,
-                    snapshot.file_count,
-                );
-                println!("    → {}", saved.display());
-            }
-            DashboardAction::Serve { path, port } => {
-                falcon::dashboard::server::start_dashboard(&path, port)?;
-            }
-            DashboardAction::History { path, last } => {
-                let history = falcon::dashboard::snapshot::load_history(&path)?;
-                if history.is_empty() {
-                    println!("  No snapshots yet. Run: falcon dashboard snapshot");
-                } else {
-                    println!();
-                    println!(
-                        "  {} Analysis History ({} total, showing last {})",
-                        "falcon".bright_cyan().bold(),
-                        history.len(),
-                        last,
-                    );
-                    println!();
-                    for snap in history.iter().rev().take(last) {
-                        let commit = snap.commit_hash.as_deref().unwrap_or("—");
-                        println!(
-                            "  {} │ {} │ health {:.0} │ {} issues │ {} files",
-                            snap.timestamp,
-                            commit.bright_blue(),
-                            snap.health_score,
-                            snap.issues.total,
-                            snap.file_count,
-                        );
-                    }
-                    println!();
-                }
-            }
-        },
+        Commands::Plugin { action } => handle_plugin(action)?,
+        Commands::Preset { action } => handle_preset(action)?,
+        Commands::Dashboard { action } => handle_dashboard(action)?,
         Commands::Trends { path, last } => {
             let history = falcon::dashboard::snapshot::load_history(&path)?;
             match falcon::dashboard::trends::analyze_trends(&history, last) {
@@ -1764,106 +1274,8 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
-        Commands::Suppress { action } => match action {
-            SuppressAction::Add {
-                rule,
-                file,
-                line,
-                reason,
-                category,
-                path,
-            } => {
-                let cat = match category.as_str() {
-                    "false-positive" | "fp" => {
-                        falcon::stability::suppression::SuppressionCategory::FalsePositive
-                    }
-                    "wont-fix" | "wf" => {
-                        falcon::stability::suppression::SuppressionCategory::WontFix
-                    }
-                    "acknowledged" | "ack" => {
-                        falcon::stability::suppression::SuppressionCategory::Acknowledged
-                    }
-                    "deferred" | "defer" => {
-                        falcon::stability::suppression::SuppressionCategory::Deferred
-                    }
-                    _ => {
-                        eprintln!("Unknown category '{}'. Use: false-positive, wont-fix, acknowledged, deferred", category);
-                        process::exit(1);
-                    }
-                };
-                falcon::stability::suppression::add_suppression(
-                    &path,
-                    &falcon::stability::suppression::SuppressionRequest {
-                        rule: &rule,
-                        file: &file,
-                        line,
-                        reason: &reason,
-                        category: cat,
-                    },
-                )?;
-                println!(
-                    "  {} Suppression added for '{}' in {}",
-                    "✓".green().bold(),
-                    rule,
-                    file
-                );
-            }
-            SuppressAction::Stats { path } => {
-                let db = falcon::stability::suppression::load_suppressions(&path)?;
-                let stats = falcon::stability::suppression::suppression_stats(&db);
-                falcon::stability::suppression::print_suppression_stats(&stats);
-            }
-            SuppressAction::List { path } => {
-                let db = falcon::stability::suppression::load_suppressions(&path)?;
-                falcon::stability::suppression::print_suppression_list(&db);
-            }
-        },
-        Commands::Manage { action } => match action {
-            ManageAction::Health { path, json } => {
-                let report = falcon::manage::health::generate_health_report(&path)?;
-                if json {
-                    println!("{}", serde_json::to_string_pretty(&report)?);
-                } else {
-                    falcon::manage::health::print_health_report(&report);
-                }
-            }
-            ManageAction::Deps { path } => {
-                let report = falcon::manage::deps::analyze_dependencies(&path)?;
-                falcon::manage::deps::print_dep_report(&report);
-            }
-            ManageAction::Arch { path, json } => {
-                let report = falcon::manage::architect::analyze_architecture(&path)?;
-                if json {
-                    println!("{}", serde_json::to_string_pretty(&report)?);
-                } else {
-                    falcon::manage::architect::print_arch_report(&report);
-                }
-            }
-            ManageAction::Maint { path } => {
-                let report = falcon::manage::maintenance::analyze_maintenance(&path)?;
-                falcon::manage::maintenance::print_maintenance_report(&report);
-            }
-            ManageAction::Build { path } => {
-                let report = falcon::manage::build_opt::analyze_build(&path)?;
-                falcon::manage::build_opt::print_build_report(&report);
-            }
-            ManageAction::All { path } => {
-                let health = falcon::manage::health::generate_health_report(&path)?;
-                falcon::manage::health::print_health_report(&health);
-
-                let deps = falcon::manage::deps::analyze_dependencies(&path)?;
-                falcon::manage::deps::print_dep_report(&deps);
-
-                let arch = falcon::manage::architect::analyze_architecture(&path)?;
-                falcon::manage::architect::print_arch_report(&arch);
-
-                let maint = falcon::manage::maintenance::analyze_maintenance(&path)?;
-                falcon::manage::maintenance::print_maintenance_report(&maint);
-
-                let build = falcon::manage::build_opt::analyze_build(&path)?;
-                falcon::manage::build_opt::print_build_report(&build);
-            }
-        },
+        Commands::Suppress { action } => handle_suppress(action)?,
+        Commands::Manage { action } => handle_manage(action)?,
         Commands::Mcp => {
             falcon::mcp::server::run_mcp_server()?;
         }
@@ -2099,99 +1511,8 @@ fn run(cli: Cli) -> Result<()> {
                 process::exit(1);
             }
         }
-        Commands::Cloud { action } => match action {
-            CloudAction::Init { team, path } => {
-                falcon::platform::cloud::init_cloud(&path, &team)?;
-                println!(
-                    "  {} Cloud initialized for team '{}'",
-                    "✓".green().bold(),
-                    team
-                );
-            }
-            CloudAction::AddProject {
-                name,
-                project_path,
-                path,
-            } => {
-                falcon::platform::cloud::register_project(&path, &name, &project_path)?;
-                println!("  {} Project '{}' registered", "✓".green().bold(), name);
-            }
-            CloudAction::Dashboard { path } => {
-                let dashboard = falcon::platform::cloud::generate_dashboard(&path)?;
-                falcon::platform::cloud::print_dashboard(&dashboard);
-            }
-        },
-        Commands::Enterprise { action } => match action {
-            EnterpriseAction::Init { path } => {
-                let policies = falcon::platform::enterprise::default_policies();
-                falcon::platform::enterprise::save_policies(&path, &policies)?;
-                println!(
-                    "  {} Enterprise policies initialized ({} policies)",
-                    "✓".green().bold(),
-                    policies.policies.len()
-                );
-                falcon::platform::enterprise::record_audit(
-                    &path,
-                    "system",
-                    "init",
-                    "policies",
-                    "Default enterprise policies created",
-                )?;
-            }
-            EnterpriseAction::Check { path } => {
-                let results = falcon::platform::enterprise::check_policies(&path)?;
-                falcon::platform::enterprise::print_policy_results(&results);
-                falcon::platform::enterprise::record_audit(
-                    &path,
-                    "system",
-                    "policy-check",
-                    "project",
-                    &format!(
-                        "{} passed, {} failed",
-                        results.iter().filter(|r| r.passed).count(),
-                        results.iter().filter(|r| !r.passed).count()
-                    ),
-                )?;
-                if results.iter().any(|r| !r.passed) {
-                    process::exit(1);
-                }
-            }
-            EnterpriseAction::Compliance { path, output } => {
-                let report = falcon::platform::enterprise::generate_compliance_report(&path)?;
-                match output {
-                    Some(out) => {
-                        std::fs::write(&out, &report)?;
-                        println!(
-                            "  {} Compliance report written to {}",
-                            "✓".green().bold(),
-                            out.display()
-                        );
-                    }
-                    None => print!("{}", report),
-                }
-            }
-            EnterpriseAction::Audit { path, last } => {
-                let log = falcon::platform::enterprise::load_audit_log(&path)?;
-                println!();
-                println!(
-                    "  {} Audit Log ({} entries)",
-                    "falcon".bright_cyan().bold(),
-                    log.entries.len()
-                );
-                println!();
-                for entry in log.entries.iter().rev().take(last) {
-                    println!(
-                        "  {} {} {} → {} ({})",
-                        entry.timestamp.dimmed(),
-                        entry.user.bright_white(),
-                        entry.action.bright_yellow(),
-                        entry.target,
-                        entry.details.dimmed()
-                    );
-                }
-                println!();
-            }
-        },
+        Commands::Cloud { action } => handle_cloud(action)?,
+        Commands::Enterprise { action } => handle_enterprise(action)?,
         Commands::Marketplace { query } => {
             let q = if query.is_empty() {
                 None
@@ -2356,39 +1677,7 @@ fn run(cli: Cli) -> Result<()> {
                 falcon::ai_score::convention::print_convention_report(&report);
             }
         }
-        Commands::Community { action } => match action {
-            CommunityAction::Request {
-                name,
-                desc,
-                category,
-                path,
-            } => {
-                let id = falcon::community::submit_rule_request(&path, &name, &desc, &category)?;
-                println!(
-                    "  {} Rule request submitted: {} ({})",
-                    "✓".green().bold(),
-                    name,
-                    id
-                );
-            }
-            CommunityAction::Vote { id, path } => {
-                let votes = falcon::community::vote_rule_request(&path, &id)?;
-                println!(
-                    "  {} Voted on {}. Total votes: {}",
-                    "✓".green().bold(),
-                    id,
-                    votes
-                );
-            }
-            CommunityAction::Requests { path } => {
-                let data = falcon::community::load_community(&path)?;
-                falcon::community::print_rule_requests(&data.rule_requests);
-            }
-            CommunityAction::Contributed => {
-                let rules = falcon::community::sample_contributed_rules();
-                falcon::community::print_contributed_rules(&rules);
-            }
-        },
+        Commands::Community { action } => handle_community(action)?,
         Commands::X { action } => {
             // The `x` namespace is the Sept 1 cutover scaffold: every entry
             // here re-dispatches into the matching legacy top-level command
@@ -2475,6 +1764,765 @@ fn run(cli: Cli) -> Result<()> {
         }
     }
 
+    Ok(())
+}
+
+fn handle_devtools(action: DevtoolsAction) -> Result<()> {
+    let rt = tokio::runtime::Runtime::new()?;
+    match action {
+        DevtoolsAction::Memory { path, attach, json } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_memory_report(
+                &client, &vm_uri,
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_memory_report(&report);
+            }
+        }
+        DevtoolsAction::Network {
+            path,
+            attach,
+            duration,
+            json,
+        } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_network_report(
+                &client,
+                &vm_uri,
+                std::time::Duration::from_secs(duration),
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_network_report(&report);
+            }
+        }
+        DevtoolsAction::Performance {
+            path,
+            attach,
+            duration,
+            json,
+        } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_performance_report(
+                &client,
+                &vm_uri,
+                std::time::Duration::from_secs(duration),
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_performance_report(&report);
+            }
+        }
+        DevtoolsAction::Profiler {
+            path,
+            attach,
+            duration,
+            json,
+        } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_profiler_report(
+                &client,
+                &vm_uri,
+                std::time::Duration::from_secs(duration),
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_profiler_report(&report);
+            }
+        }
+        DevtoolsAction::Debugger {
+            path,
+            attach,
+            action,
+            json,
+        } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let action = action.map(|action| match action {
+                DebuggerActionArg::Pause => falcon::runtime::tools::DebuggerAction::Pause,
+                DebuggerActionArg::Resume => falcon::runtime::tools::DebuggerAction::Resume,
+                DebuggerActionArg::StepOver => falcon::runtime::tools::DebuggerAction::StepOver,
+                DebuggerActionArg::StepIn => falcon::runtime::tools::DebuggerAction::StepIn,
+                DebuggerActionArg::StepOut => falcon::runtime::tools::DebuggerAction::StepOut,
+            });
+            let report = rt.block_on(falcon::runtime::tools::collect_debugger_report(
+                &client, &vm_uri, action,
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_debugger_report(&report);
+            }
+        }
+        DevtoolsAction::Logging {
+            path,
+            attach,
+            duration,
+            json,
+        } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_logging_report(
+                &client,
+                &vm_uri,
+                std::time::Duration::from_secs(duration),
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_logging_report(&report);
+            }
+        }
+        DevtoolsAction::Rebuilds { path, attach, json } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_rebuilds_report(
+                &client, &vm_uri,
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_rebuilds_report(&report);
+            }
+        }
+        DevtoolsAction::Inspector { path, attach, json } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_inspector_report(
+                &client, &vm_uri,
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_inspector_report(&report);
+            }
+        }
+        DevtoolsAction::Reload { path, attach, json } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_reload_report(
+                &client,
+                &vm_uri,
+                falcon::runtime::tools::ReloadMode::HotReload,
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_reload_report(&report);
+            }
+            if !report.success {
+                process::exit(1);
+            }
+        }
+        DevtoolsAction::Restart { path, attach, json } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_reload_report(
+                &client,
+                &vm_uri,
+                falcon::runtime::tools::ReloadMode::HotRestart,
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_reload_report(&report);
+            }
+            if !report.success {
+                process::exit(1);
+            }
+        }
+    }
+    Ok(())
+}
+
+fn handle_agents(action: AgentsAction) -> Result<()> {
+    match action {
+        AgentsAction::Init { path, force } => {
+            let report = falcon::agents::run_init(&path, force)?;
+            println!();
+            println!("  {} Agents", "falcon".bright_cyan().bold());
+            println!();
+            if let Some(root) = &report.root_written {
+                println!("    {} {}", "✓".green(), root.display());
+            }
+            for f in &report.feature_files {
+                println!("    {} {}", "✓".green(), f.display());
+            }
+            for s in &report.skipped {
+                println!(
+                    "    {} {} (already exists — pass --force to overwrite)",
+                    "·".dimmed(),
+                    s.display()
+                );
+            }
+            println!();
+            println!(
+                "  {} root: {}, features: {}, skipped: {}",
+                "■".bright_white(),
+                if report.root_written.is_some() { 1 } else { 0 },
+                report.feature_files.len(),
+                report.skipped.len()
+            );
+            println!();
+        }
+    }
+    Ok(())
+}
+
+fn handle_baseline(action: BaselineAction) -> Result<()> {
+    match action {
+        BaselineAction::Create { path, config } => {
+            let config_path = config.as_deref().unwrap_or(&path);
+            let falcon_config = FalconConfig::load(config_path)?;
+            let falcon = Falcon::new(falcon_config)?;
+            let report = falcon.analyze(&path)?;
+
+            let baseline_path = Baseline::create(&report.issues, &path)?;
+            println!(
+                "{} Baseline created with {} issues at {}",
+                "✓".green().bold(),
+                report.issues.len(),
+                baseline_path.display()
+            );
+        }
+    }
+    Ok(())
+}
+
+fn handle_ai(action: AiAction) -> Result<()> {
+    match action {
+        AiAction::Setup { path } => {
+            falcon::ai::config::generate_ai_setup(&path)?;
+            println!(
+                "{} AI configuration added to falcon.yaml",
+                "✓".green().bold()
+            );
+            println!("  Edit falcon.yaml to set your provider and API key.");
+            println!("  Supported providers: openai, anthropic, gemini, local (Ollama), embedded (in-process SLM)");
+        }
+        AiAction::Status { path } => {
+            let config = FalconConfig::load(&path)?;
+            let ai = &config.ai;
+            println!();
+            println!(
+                "  {} AI Configuration Status",
+                "falcon".bright_cyan().bold()
+            );
+            println!();
+            println!(
+                "  Enabled:   {}",
+                if ai.enabled {
+                    "yes".green()
+                } else {
+                    "no".red()
+                }
+            );
+            println!("  Provider:  {:?}", ai.provider);
+            println!("  Model:     {}", ai.effective_model());
+            println!(
+                "  API Key:   {}",
+                if ai.resolve_api_key().is_some() {
+                    "configured".green()
+                } else {
+                    "not set".yellow()
+                }
+            );
+            println!(
+                "  Available: {}",
+                if ai.is_available() {
+                    "yes".green()
+                } else {
+                    "no".red()
+                }
+            );
+            println!();
+            println!("  Feature Toggles:");
+            println!(
+                "    Confidence scoring:      {}",
+                if ai.features.confidence_scoring {
+                    "on"
+                } else {
+                    "off"
+                }
+            );
+            println!(
+                "    Smart fixes:             {}",
+                if ai.features.smart_fixes { "on" } else { "off" }
+            );
+            println!(
+                "    Explanations:            {}",
+                if ai.features.explanations {
+                    "on"
+                } else {
+                    "off"
+                }
+            );
+            println!(
+                "    False positive reduction: {}",
+                if ai.features.false_positive_reduction {
+                    "on"
+                } else {
+                    "off"
+                }
+            );
+            if let Some(ref e) = ai.embedded {
+                println!();
+                println!("  Embedded model:");
+                println!("    Model id:   {}", e.model_id);
+                println!("    Max issues: {}", e.max_issues);
+                #[cfg(feature = "ai-local")]
+                println!("    Engine:     compiled in (ai-local)");
+                #[cfg(not(feature = "ai-local"))]
+                println!("    Engine:     NOT compiled (rebuild with --features ai-local)");
+            }
+            println!();
+        }
+        AiAction::Triage { path, format } => {
+            #[cfg(not(feature = "ai-local"))]
+            {
+                let _ = (&path, &format);
+                println!("{} embedded AI is not compiled in.", "✗".red().bold());
+                println!("  Rebuild with: cargo build --release --features ai-local");
+            }
+            #[cfg(feature = "ai-local")]
+            {
+                use falcon::ai::local::engine::LocalEngine;
+                use falcon::ai::local::triage::{
+                    print_triage_run, triage_issues, triage_run_to_json,
+                };
+
+                let falcon_config = FalconConfig::load(&path)?;
+                let embedded_cfg = falcon_config.ai.embedded.clone().unwrap_or_default();
+                let falcon = Falcon::new(falcon_config)?;
+                let report = falcon.analyze(&path)?;
+
+                let mut engine = LocalEngine::load(&embedded_cfg)?;
+                let run = triage_issues(&report.issues, &path, &mut engine, &embedded_cfg);
+
+                if format == "json" {
+                    println!("{}", triage_run_to_json(&run));
+                } else {
+                    print_triage_run(&run);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn handle_plugin(action: PluginAction) -> Result<()> {
+    match action {
+        PluginAction::Create { name, r#type, dir } => {
+            let plugin_type = match r#type.as_str() {
+                "wasm" => falcon::plugins::manifest::PluginType::Wasm,
+                "native" => falcon::plugins::manifest::PluginType::Native,
+                "preset" => falcon::plugins::manifest::PluginType::Preset,
+                _ => {
+                    eprintln!(
+                        "Invalid plugin type '{}'. Use: wasm, native, preset",
+                        r#type
+                    );
+                    process::exit(1);
+                }
+            };
+            falcon::plugins::scaffold::create_plugin(&name, &dir, plugin_type)?;
+        }
+        PluginAction::List => {
+            let plugin_dir = get_plugin_dir();
+            let plugins = falcon::plugins::scaffold::list_plugins(&plugin_dir)?;
+            falcon::plugins::scaffold::print_plugins(&plugins.to_vec());
+        }
+        PluginAction::Install { path } => {
+            let plugin_dir = get_plugin_dir();
+            std::fs::create_dir_all(&plugin_dir)?;
+            let name = falcon::plugins::scaffold::install_plugin(&path, &plugin_dir)?;
+            println!(
+                "  {} Installed plugin '{}'",
+                "✓".green().bold(),
+                name.bright_cyan()
+            );
+        }
+        PluginAction::Search { query } => {
+            let results = falcon::plugins::registry::search_registry(&query);
+            falcon::plugins::registry::print_search_results(&results, &query);
+        }
+        PluginAction::Test { path } => {
+            let manifest = falcon::plugins::manifest::PluginManifest::load(&path)?;
+            println!(
+                "  {} Plugin '{}' v{} — manifest valid, {} rule(s) defined",
+                "✓".green().bold(),
+                manifest.name.bright_cyan(),
+                manifest.version,
+                manifest.rules.len()
+            );
+
+            let rules_path = path.join("rules/rules.yaml");
+            if rules_path.exists() {
+                let rules = falcon::plugins::wasm_runtime::load_wasm_rules(&rules_path)?;
+                println!(
+                    "  {} Loaded {} rule definition(s) from rules.yaml",
+                    "✓".green().bold(),
+                    rules.len()
+                );
+            }
+
+            let test_path = path.join("test/test_cases.yaml");
+            if test_path.exists() {
+                println!(
+                    "  {} Test cases file found at test/test_cases.yaml",
+                    "✓".green().bold()
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+fn handle_preset(action: PresetAction) -> Result<()> {
+    match action {
+        PresetAction::List => {
+            let presets = falcon::plugins::presets::list_presets();
+            falcon::plugins::presets::print_presets(&presets);
+        }
+        PresetAction::Show { name } => match falcon::plugins::presets::get_preset(&name) {
+            Some(preset) => falcon::plugins::presets::print_preset_detail(&preset),
+            None => {
+                eprintln!("Unknown preset '{}'. Use: falcon preset list", name);
+                process::exit(1);
+            }
+        },
+        PresetAction::Apply { name, path } => match falcon::plugins::presets::get_preset(&name) {
+            Some(preset) => falcon::plugins::presets::apply_preset(&preset, &path)?,
+            None => {
+                eprintln!("Unknown preset '{}'. Use: falcon preset list", name);
+                process::exit(1);
+            }
+        },
+    }
+    Ok(())
+}
+
+fn handle_dashboard(action: DashboardAction) -> Result<()> {
+    match action {
+        DashboardAction::Snapshot { path } => {
+            let config = FalconConfig::load(&path)?;
+            let falcon = Falcon::new(config)?;
+            let report = falcon.analyze(&path)?;
+            let snapshot = falcon::dashboard::snapshot::AnalysisSnapshot::capture(&report, &path);
+            let saved = falcon::dashboard::snapshot::save_snapshot(&path, &snapshot)?;
+            println!(
+                "  {} Snapshot saved — health {:.0}/100, {} issues, {} files",
+                "✓".green().bold(),
+                snapshot.health_score,
+                snapshot.issues.total,
+                snapshot.file_count,
+            );
+            println!("    → {}", saved.display());
+        }
+        DashboardAction::Serve { path, port } => {
+            falcon::dashboard::server::start_dashboard(&path, port)?;
+        }
+        DashboardAction::History { path, last } => {
+            let history = falcon::dashboard::snapshot::load_history(&path)?;
+            if history.is_empty() {
+                println!("  No snapshots yet. Run: falcon dashboard snapshot");
+            } else {
+                println!();
+                println!(
+                    "  {} Analysis History ({} total, showing last {})",
+                    "falcon".bright_cyan().bold(),
+                    history.len(),
+                    last,
+                );
+                println!();
+                for snap in history.iter().rev().take(last) {
+                    let commit = snap.commit_hash.as_deref().unwrap_or("—");
+                    println!(
+                        "  {} │ {} │ health {:.0} │ {} issues │ {} files",
+                        snap.timestamp,
+                        commit.bright_blue(),
+                        snap.health_score,
+                        snap.issues.total,
+                        snap.file_count,
+                    );
+                }
+                println!();
+            }
+        }
+    }
+    Ok(())
+}
+
+fn handle_suppress(action: SuppressAction) -> Result<()> {
+    match action {
+        SuppressAction::Add {
+            rule,
+            file,
+            line,
+            reason,
+            category,
+            path,
+        } => {
+            let cat = match category.as_str() {
+                "false-positive" | "fp" => {
+                    falcon::stability::suppression::SuppressionCategory::FalsePositive
+                }
+                "wont-fix" | "wf" => falcon::stability::suppression::SuppressionCategory::WontFix,
+                "acknowledged" | "ack" => {
+                    falcon::stability::suppression::SuppressionCategory::Acknowledged
+                }
+                "deferred" | "defer" => {
+                    falcon::stability::suppression::SuppressionCategory::Deferred
+                }
+                _ => {
+                    eprintln!("Unknown category '{}'. Use: false-positive, wont-fix, acknowledged, deferred", category);
+                    process::exit(1);
+                }
+            };
+            falcon::stability::suppression::add_suppression(
+                &path,
+                &falcon::stability::suppression::SuppressionRequest {
+                    rule: &rule,
+                    file: &file,
+                    line,
+                    reason: &reason,
+                    category: cat,
+                },
+            )?;
+            println!(
+                "  {} Suppression added for '{}' in {}",
+                "✓".green().bold(),
+                rule,
+                file
+            );
+        }
+        SuppressAction::Stats { path } => {
+            let db = falcon::stability::suppression::load_suppressions(&path)?;
+            let stats = falcon::stability::suppression::suppression_stats(&db);
+            falcon::stability::suppression::print_suppression_stats(&stats);
+        }
+        SuppressAction::List { path } => {
+            let db = falcon::stability::suppression::load_suppressions(&path)?;
+            falcon::stability::suppression::print_suppression_list(&db);
+        }
+    }
+    Ok(())
+}
+
+fn handle_manage(action: ManageAction) -> Result<()> {
+    match action {
+        ManageAction::Health { path, json } => {
+            let report = falcon::manage::health::generate_health_report(&path)?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::manage::health::print_health_report(&report);
+            }
+        }
+        ManageAction::Deps { path } => {
+            let report = falcon::manage::deps::analyze_dependencies(&path)?;
+            falcon::manage::deps::print_dep_report(&report);
+        }
+        ManageAction::Arch { path, json } => {
+            let report = falcon::manage::architect::analyze_architecture(&path)?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::manage::architect::print_arch_report(&report);
+            }
+        }
+        ManageAction::Maint { path } => {
+            let report = falcon::manage::maintenance::analyze_maintenance(&path)?;
+            falcon::manage::maintenance::print_maintenance_report(&report);
+        }
+        ManageAction::Build { path } => {
+            let report = falcon::manage::build_opt::analyze_build(&path)?;
+            falcon::manage::build_opt::print_build_report(&report);
+        }
+        ManageAction::All { path } => {
+            let health = falcon::manage::health::generate_health_report(&path)?;
+            falcon::manage::health::print_health_report(&health);
+
+            let deps = falcon::manage::deps::analyze_dependencies(&path)?;
+            falcon::manage::deps::print_dep_report(&deps);
+
+            let arch = falcon::manage::architect::analyze_architecture(&path)?;
+            falcon::manage::architect::print_arch_report(&arch);
+
+            let maint = falcon::manage::maintenance::analyze_maintenance(&path)?;
+            falcon::manage::maintenance::print_maintenance_report(&maint);
+
+            let build = falcon::manage::build_opt::analyze_build(&path)?;
+            falcon::manage::build_opt::print_build_report(&build);
+        }
+    }
+    Ok(())
+}
+
+fn handle_cloud(action: CloudAction) -> Result<()> {
+    match action {
+        CloudAction::Init { team, path } => {
+            falcon::platform::cloud::init_cloud(&path, &team)?;
+            println!(
+                "  {} Cloud initialized for team '{}'",
+                "✓".green().bold(),
+                team
+            );
+        }
+        CloudAction::AddProject {
+            name,
+            project_path,
+            path,
+        } => {
+            falcon::platform::cloud::register_project(&path, &name, &project_path)?;
+            println!("  {} Project '{}' registered", "✓".green().bold(), name);
+        }
+        CloudAction::Dashboard { path } => {
+            let dashboard = falcon::platform::cloud::generate_dashboard(&path)?;
+            falcon::platform::cloud::print_dashboard(&dashboard);
+        }
+    }
+    Ok(())
+}
+
+fn handle_enterprise(action: EnterpriseAction) -> Result<()> {
+    match action {
+        EnterpriseAction::Init { path } => {
+            let policies = falcon::platform::enterprise::default_policies();
+            falcon::platform::enterprise::save_policies(&path, &policies)?;
+            println!(
+                "  {} Enterprise policies initialized ({} policies)",
+                "✓".green().bold(),
+                policies.policies.len()
+            );
+            falcon::platform::enterprise::record_audit(
+                &path,
+                "system",
+                "init",
+                "policies",
+                "Default enterprise policies created",
+            )?;
+        }
+        EnterpriseAction::Check { path } => {
+            let results = falcon::platform::enterprise::check_policies(&path)?;
+            falcon::platform::enterprise::print_policy_results(&results);
+            falcon::platform::enterprise::record_audit(
+                &path,
+                "system",
+                "policy-check",
+                "project",
+                &format!(
+                    "{} passed, {} failed",
+                    results.iter().filter(|r| r.passed).count(),
+                    results.iter().filter(|r| !r.passed).count()
+                ),
+            )?;
+            if results.iter().any(|r| !r.passed) {
+                process::exit(1);
+            }
+        }
+        EnterpriseAction::Compliance { path, output } => {
+            let report = falcon::platform::enterprise::generate_compliance_report(&path)?;
+            match output {
+                Some(out) => {
+                    std::fs::write(&out, &report)?;
+                    println!(
+                        "  {} Compliance report written to {}",
+                        "✓".green().bold(),
+                        out.display()
+                    );
+                }
+                None => print!("{}", report),
+            }
+        }
+        EnterpriseAction::Audit { path, last } => {
+            let log = falcon::platform::enterprise::load_audit_log(&path)?;
+            println!();
+            println!(
+                "  {} Audit Log ({} entries)",
+                "falcon".bright_cyan().bold(),
+                log.entries.len()
+            );
+            println!();
+            for entry in log.entries.iter().rev().take(last) {
+                println!(
+                    "  {} {} {} → {} ({})",
+                    entry.timestamp.dimmed(),
+                    entry.user.bright_white(),
+                    entry.action.bright_yellow(),
+                    entry.target,
+                    entry.details.dimmed()
+                );
+            }
+            println!();
+        }
+    }
+    Ok(())
+}
+
+fn handle_community(action: CommunityAction) -> Result<()> {
+    match action {
+        CommunityAction::Request {
+            name,
+            desc,
+            category,
+            path,
+        } => {
+            let id = falcon::community::submit_rule_request(&path, &name, &desc, &category)?;
+            println!(
+                "  {} Rule request submitted: {} ({})",
+                "✓".green().bold(),
+                name,
+                id
+            );
+        }
+        CommunityAction::Vote { id, path } => {
+            let votes = falcon::community::vote_rule_request(&path, &id)?;
+            println!(
+                "  {} Voted on {}. Total votes: {}",
+                "✓".green().bold(),
+                id,
+                votes
+            );
+        }
+        CommunityAction::Requests { path } => {
+            let data = falcon::community::load_community(&path)?;
+            falcon::community::print_rule_requests(&data.rule_requests);
+        }
+        CommunityAction::Contributed => {
+            let rules = falcon::community::sample_contributed_rules();
+            falcon::community::print_contributed_rules(&rules);
+        }
+    }
     Ok(())
 }
 
