@@ -17,17 +17,9 @@ pub struct PerfSnapshot {
     pub git_commit: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PerfHistory {
     pub snapshots: Vec<PerfSnapshot>,
-}
-
-impl Default for PerfHistory {
-    fn default() -> Self {
-        Self {
-            snapshots: Vec::new(),
-        }
-    }
 }
 
 /// Capture a performance snapshot for the project.

@@ -35,7 +35,7 @@ pub fn analyze_local_project(path: &Path, name: &str) -> anyhow::Result<RepoAnal
     }
 
     let mut top_rules: Vec<(String, usize)> = rule_counts.into_iter().collect();
-    top_rules.sort_by(|a, b| b.1.cmp(&a.1));
+    top_rules.sort_by_key(|e| std::cmp::Reverse(e.1));
     top_rules.truncate(5);
 
     let issue_count = report.issues.len();
@@ -43,7 +43,7 @@ pub fn analyze_local_project(path: &Path, name: &str) -> anyhow::Result<RepoAnal
 
     let health_score = if file_count > 0 {
         let issues_per_file = issue_count as f64 / file_count as f64;
-        (100.0 - issues_per_file * 5.0).max(0.0).min(100.0)
+        (100.0 - issues_per_file * 5.0).clamp(0.0, 100.0)
     } else {
         100.0
     };
@@ -75,7 +75,7 @@ pub fn generate_showcase_report(repos: Vec<RepoAnalysis>) -> ShowcaseReport {
         }
     }
     let mut most_common: Vec<(String, usize)> = all_rules.into_iter().collect();
-    most_common.sort_by(|a, b| b.1.cmp(&a.1));
+    most_common.sort_by_key(|e| std::cmp::Reverse(e.1));
     most_common.truncate(10);
 
     ShowcaseReport {

@@ -72,9 +72,9 @@ pub fn compare_snapshots(run1: &AnalysisSnapshot, run2: &AnalysisSnapshot) -> Co
         }
     }
 
-    rules_changed.sort_by(|a, b| b.1.abs().cmp(&a.1.abs()));
-    rules_added.sort_by(|a, b| b.1.cmp(&a.1));
-    rules_removed.sort_by(|a, b| b.1.cmp(&a.1));
+    rules_changed.sort_by_key(|e| std::cmp::Reverse(e.1.abs()));
+    rules_added.sort_by_key(|e| std::cmp::Reverse(e.1));
+    rules_removed.sort_by_key(|e| std::cmp::Reverse(e.1));
 
     ComparisonResult {
         run1: run1.clone(),
@@ -144,17 +144,15 @@ pub fn print_comparison(result: &ComparisonResult) {
     );
     println!();
     println!(
-        "  🏷  {} {} ({} {})",
+        "  🏷  {} {} (🌿 {})",
         "Run 1:".dimmed(),
         r1.timestamp,
-        "🌿",
         r1.branch.as_deref().unwrap_or("—").bright_cyan()
     );
     println!(
-        "  🏷  {} {} ({} {})",
+        "  🏷  {} {} (🌿 {})",
         "Run 2:".dimmed(),
         r2.timestamp,
-        "🌿",
         r2.branch.as_deref().unwrap_or("—").bright_cyan()
     );
     println!();
@@ -786,14 +784,12 @@ pub fn compare_branches(
 
     // Analyze base branch
     println!("  🌿 Checking out base branch: {}", base.bright_cyan());
-    checkout(root, base).map_err(|e| {
+    checkout(root, base).inspect_err(|_e| {
         restore(root, &original_branch, had_stash);
-        e
     })?;
     println!("  🔬 Analyzing {}...", base.bright_cyan());
-    let snap_base = analyze_current(root, config).map_err(|e| {
+    let snap_base = analyze_current(root, config).inspect_err(|_e| {
         restore(root, &original_branch, had_stash);
-        e
     })?;
     println!(
         "    ✅ {} 📁 {} files  ⚡ {} issues  💚 {:.0} health",
@@ -810,14 +806,12 @@ pub fn compare_branches(
 
     // Analyze target branch
     println!("  🌿 Checking out branch: {}", branch.bright_cyan());
-    checkout(root, branch).map_err(|e| {
+    checkout(root, branch).inspect_err(|_e| {
         restore(root, &original_branch, had_stash);
-        e
     })?;
     println!("  🔬 Analyzing {}...", branch.bright_cyan());
-    let snap_branch = analyze_current(root, config).map_err(|e| {
+    let snap_branch = analyze_current(root, config).inspect_err(|_e| {
         restore(root, &original_branch, had_stash);
-        e
     })?;
     println!(
         "    ✅ {} 📁 {} files  ⚡ {} issues  💚 {:.0} health",

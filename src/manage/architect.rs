@@ -53,7 +53,7 @@ pub fn analyze_architecture(root: &Path) -> anyhow::Result<ArchReport> {
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .filter(|e| !e.path().to_string_lossy().contains("/test/"))
         .filter(|e| !e.path().to_string_lossy().contains(".g.dart"))
     {
@@ -98,8 +98,8 @@ pub fn analyze_architecture(root: &Path) -> anyhow::Result<ArchReport> {
             layer,
         });
     }
-    module_map.sort_by(|a, b| b.file_count.cmp(&a.file_count));
-    complexity_hotspots.sort_by(|a, b| b.lines.cmp(&a.lines));
+    module_map.sort_by_key(|e| std::cmp::Reverse(e.file_count));
+    complexity_hotspots.sort_by_key(|e| std::cmp::Reverse(e.lines));
 
     let total_files: usize = dir_stats.values().map(|(f, _)| f).sum();
     let violation_rate = if total_files > 0 {
@@ -175,24 +175,22 @@ fn check_arch_violations(
                 });
             }
         }
-        "Feature-First" => {
-            if file.contains("/features/") {
-                let parts: Vec<&str> = file.split("/features/").collect();
-                if parts.len() > 1 {
-                    let feature = parts[1].split('/').next().unwrap_or("");
-                    for line in source.lines() {
-                        let trimmed = line.trim();
-                        if trimmed.starts_with("import")
-                            && trimmed.contains("/features/")
-                            && !trimmed.contains(feature)
-                        {
-                            violations.push(ArchViolation {
+        "Feature-First" if file.contains("/features/") => {
+            let parts: Vec<&str> = file.split("/features/").collect();
+            if parts.len() > 1 {
+                let feature = parts[1].split('/').next().unwrap_or("");
+                for line in source.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.starts_with("import")
+                        && trimmed.contains("/features/")
+                        && !trimmed.contains(feature)
+                    {
+                        violations.push(ArchViolation {
                                 file: file.to_string(),
                                 violation_type: "cross-feature".to_string(),
                                 message: format!("Feature '{}' imports from another feature — use shared/core instead", feature),
                             });
-                            break;
-                        }
+                        break;
                     }
                 }
             }

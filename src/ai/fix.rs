@@ -35,12 +35,12 @@ fn suggest_fix(issue: &Issue, _project_root: &Path) -> Option<FixSuggestion> {
     match issue.rule.as_str() {
         "prefer-trailing-comma" => {
             let mut fixed = line_content.trim_end().to_string();
-            if !fixed.ends_with(',') {
-                if fixed.ends_with(')') || fixed.ends_with(']') || fixed.ends_with('}') {
-                    let last = fixed.pop()?;
-                    fixed.push(',');
-                    fixed.push(last);
-                }
+            if !fixed.ends_with(',')
+                && (fixed.ends_with(')') || fixed.ends_with(']') || fixed.ends_with('}'))
+            {
+                let last = fixed.pop()?;
+                fixed.push(',');
+                fixed.push(last);
             }
             Some(FixSuggestion {
                 rule: issue.rule.clone(),
@@ -201,7 +201,7 @@ pub fn apply_fixes(fixes: &[FixSuggestion]) -> usize {
     }
 
     for (file, mut file_fixes) in by_file {
-        file_fixes.sort_by(|a, b| b.line.cmp(&a.line));
+        file_fixes.sort_by_key(|e| std::cmp::Reverse(e.line));
 
         let source = match std::fs::read_to_string(file) {
             Ok(s) => s,

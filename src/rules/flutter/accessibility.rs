@@ -151,8 +151,8 @@ impl Rule for EnsureTouchTargetSize {
                     || block.contains("GestureDetector"))
                     && (block.contains("width:") || block.contains("height:"))
                 {
-                    let small = extract_dimension(&block, "width:").map_or(false, |d| d < 48.0)
-                        || extract_dimension(&block, "height:").map_or(false, |d| d < 48.0);
+                    let small = extract_dimension(&block, "width:").is_some_and(|d| d < 48.0)
+                        || extract_dimension(&block, "height:").is_some_and(|d| d < 48.0);
 
                     if small {
                         issues.push(Issue {

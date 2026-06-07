@@ -96,6 +96,7 @@ impl AiConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum AiProvider {
     #[serde(alias = "openai")]
     OpenAi,
@@ -104,13 +105,8 @@ pub enum AiProvider {
     Local,
     #[serde(alias = "embedded")]
     Embedded,
+    #[default]
     None,
-}
-
-impl Default for AiProvider {
-    fn default() -> Self {
-        AiProvider::None
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -172,7 +168,7 @@ fn default_embedded_max_issues() -> usize {
     100
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AiFeatureToggles {
     #[serde(default)]
     pub confidence_scoring: bool,
@@ -185,55 +181,6 @@ pub struct AiFeatureToggles {
 
     #[serde(default)]
     pub false_positive_reduction: bool,
-}
-
-impl Default for AiFeatureToggles {
-    fn default() -> Self {
-        Self {
-            confidence_scoring: false,
-            smart_fixes: false,
-            explanations: false,
-            false_positive_reduction: false,
-        }
-    }
-}
-
-#[cfg(test)]
-mod embedded_tests {
-    use super::*;
-
-    #[test]
-    fn embedded_config_has_sane_defaults() {
-        let c = EmbeddedModelConfig::default();
-        assert_eq!(c.model_id, "Qwen/Qwen2.5-0.5B-Instruct-GGUF");
-        assert!(c.model_file.ends_with(".gguf"));
-        assert_eq!(c.max_tokens, 128);
-        assert_eq!(c.context_lines, 12);
-        assert_eq!(c.max_issues, 100);
-    }
-
-    #[test]
-    fn provider_embedded_parses_from_alias() {
-        let p: AiProvider = serde_yaml::from_str("embedded").unwrap();
-        assert_eq!(p, AiProvider::Embedded);
-    }
-
-    #[test]
-    fn effective_model_for_embedded_uses_embedded_model_id() {
-        let mut cfg = AiConfig::default();
-        cfg.provider = AiProvider::Embedded;
-        cfg.embedded = Some(EmbeddedModelConfig::default());
-        assert_eq!(cfg.effective_model(), "Qwen/Qwen2.5-0.5B-Instruct-GGUF");
-    }
-
-    #[test]
-    fn embedded_is_available_when_enabled_with_config() {
-        let mut cfg = AiConfig::default();
-        cfg.enabled = true;
-        cfg.provider = AiProvider::Embedded;
-        cfg.embedded = Some(EmbeddedModelConfig::default());
-        assert!(cfg.is_available());
-    }
 }
 
 pub fn generate_ai_setup(path: &Path) -> anyhow::Result<()> {
@@ -274,4 +221,46 @@ ai:
     std::fs::write(&config_path, content)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod embedded_tests {
+    use super::*;
+
+    #[test]
+    fn embedded_config_has_sane_defaults() {
+        let c = EmbeddedModelConfig::default();
+        assert_eq!(c.model_id, "Qwen/Qwen2.5-0.5B-Instruct-GGUF");
+        assert!(c.model_file.ends_with(".gguf"));
+        assert_eq!(c.max_tokens, 128);
+        assert_eq!(c.context_lines, 12);
+        assert_eq!(c.max_issues, 100);
+    }
+
+    #[test]
+    fn provider_embedded_parses_from_alias() {
+        let p: AiProvider = serde_yaml::from_str("embedded").unwrap();
+        assert_eq!(p, AiProvider::Embedded);
+    }
+
+    #[test]
+    fn effective_model_for_embedded_uses_embedded_model_id() {
+        let cfg = AiConfig {
+            provider: AiProvider::Embedded,
+            embedded: Some(EmbeddedModelConfig::default()),
+            ..Default::default()
+        };
+        assert_eq!(cfg.effective_model(), "Qwen/Qwen2.5-0.5B-Instruct-GGUF");
+    }
+
+    #[test]
+    fn embedded_is_available_when_enabled_with_config() {
+        let cfg = AiConfig {
+            enabled: true,
+            provider: AiProvider::Embedded,
+            embedded: Some(EmbeddedModelConfig::default()),
+            ..Default::default()
+        };
+        assert!(cfg.is_available());
+    }
 }

@@ -25,7 +25,7 @@ pub fn analyze_codegen(root: &Path) -> CodegenReport {
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
     {
         let path = entry.path();
         let fname = path.file_name().and_then(|f| f.to_str()).unwrap_or("");

@@ -7,12 +7,12 @@
 //! repeated network calls every rebuild + silent failures when the Future
 //! throws.
 //!
-//! Conservative MVP — flag, inside a method named `build`, an
-//! `expression_statement` whose call:
-//!   * starts with `Future.delayed(`, `Future.wait(`, `Future.value(`,
-//!     `Future(`, OR
-//!   * contains a chained `.then(` / `.catchError(` / `.whenComplete(`,
-//! and is NOT prefixed with `await ` or wrapped in `unawaited(`.
+//! Conservative MVP — inside a method named `build`, flag an
+//! `expression_statement` whose call is NOT prefixed with `await ` or
+//! wrapped in `unawaited(`, and which either:
+//!   * starts with `Future.delayed(`, `Future.wait(`, `Future.value(`, or
+//!     `Future(`; or
+//!   * contains a chained `.then(` / `.catchError(` / `.whenComplete(`.
 
 use crate::config::Severity;
 use crate::parser::node_start_line;

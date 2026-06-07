@@ -78,13 +78,20 @@ pub fn discover_features(project_root: &Path) -> Vec<Feature> {
 
     let conventional = [
         (lib.join("features"), FeatureSource::LibFeatures),
-        (lib.join("src").join("features"), FeatureSource::LibSrcFeatures),
+        (
+            lib.join("src").join("features"),
+            FeatureSource::LibSrcFeatures,
+        ),
     ];
     let mut conventional_used = false;
     for (dir, source) in &conventional {
         if dir.is_dir() {
             conventional_used = true;
-            for entry in walkdir::WalkDir::new(dir).max_depth(1).into_iter().flatten() {
+            for entry in walkdir::WalkDir::new(dir)
+                .max_depth(1)
+                .into_iter()
+                .flatten()
+            {
                 if entry.file_type().is_dir() && entry.path() != dir {
                     let name = entry.file_name().to_string_lossy().to_string();
                     let dart_files = top_level_dart_files(entry.path());
@@ -135,7 +142,7 @@ fn top_level_dart_files(dir: &Path) -> Vec<PathBuf> {
     if let Ok(entries) = std::fs::read_dir(dir) {
         for e in entries.flatten() {
             let p = e.path();
-            if p.is_file() && p.extension().map_or(false, |ext| ext == "dart") {
+            if p.is_file() && p.extension().is_some_and(|ext| ext == "dart") {
                 files.push(p);
             }
         }

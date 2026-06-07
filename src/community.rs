@@ -177,7 +177,7 @@ pub fn print_rule_requests(requests: &[RuleRequest]) {
     }
 
     let mut sorted = requests.to_vec();
-    sorted.sort_by(|a, b| b.votes.cmp(&a.votes));
+    sorted.sort_by_key(|e| std::cmp::Reverse(e.votes));
 
     println!(
         "  {:<10} {:<6} {:<35} {:<15} {}",

@@ -24,6 +24,12 @@ pub struct RuleRegistry {
     rules: Vec<(Box<dyn Rule>, Severity)>,
 }
 
+impl Default for RuleRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RuleRegistry {
     pub fn new() -> Self {
         Self { rules: Vec::new() }
@@ -102,17 +108,17 @@ impl RuleRegistry {
             Box::new(flutter::EnsureImageSemantics),
             Box::new(flutter::EnsureTouchTargetSize),
             // Behavioral rule pack (PR-F) — 2 implemented, 4 resolver-pending (EPIC 3.1).
-            Box::new(behavioral::SetStateAfterDispose::default()),
-            Box::new(behavioral::UnawaitedFutureInBuild::default()),
-            Box::new(behavioral::FakeMountedCheck::default()),
-            Box::new(behavioral::SilentCatch::default()),
-            Box::new(behavioral::RiverpodScopeLeak::default()),
-            Box::new(behavioral::DisposeNotCalled::default()),
+            Box::new(behavioral::SetStateAfterDispose),
+            Box::new(behavioral::UnawaitedFutureInBuild),
+            Box::new(behavioral::FakeMountedCheck),
+            Box::new(behavioral::SilentCatch),
+            Box::new(behavioral::RiverpodScopeLeak),
+            Box::new(behavioral::DisposeNotCalled),
         ];
 
         for mut rule in all_rules {
             if let Some((severity, options)) = configured_rules.get(rule.name()) {
-                rule.configure(&options);
+                rule.configure(options);
                 self.rules.push((rule, *severity));
             }
         }

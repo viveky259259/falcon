@@ -79,7 +79,7 @@ pub fn detect_drift(root: &Path, since: Option<&str>) -> anyhow::Result<DriftRep
 
     let drift_score = if files_analyzed > 0 {
         let per_file = findings.len() as f64 / files_analyzed as f64;
-        (100.0 - per_file * 20.0).max(0.0).min(100.0)
+        (100.0 - per_file * 20.0).clamp(0.0, 100.0)
     } else {
         100.0
     };
@@ -302,7 +302,7 @@ fn collect_dart_files(root: &Path) -> Vec<std::path::PathBuf> {
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .map(|e| e.path().to_path_buf())
         .collect()
 }

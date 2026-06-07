@@ -41,7 +41,7 @@ pub fn scan_vulnerabilities(root: &Path) -> Vec<VulnFinding> {
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .filter(|e| !e.path().to_string_lossy().contains("/test/"))
     {
         let source = match std::fs::read_to_string(entry.path()) {
@@ -56,7 +56,7 @@ pub fn scan_vulnerabilities(root: &Path) -> Vec<VulnFinding> {
         check_data_exposure(entry.path(), &source, &mut findings);
     }
 
-    findings.sort_by(|a, b| risk_priority(&a.risk_level).cmp(&risk_priority(&b.risk_level)));
+    findings.sort_by_key(|a| risk_priority(&a.risk_level));
     findings
 }
 
@@ -144,9 +144,10 @@ fn check_injection_risks(file: &Path, source: &str, findings: &mut Vec<VulnFindi
     for (i, line) in source.lines().enumerate() {
         let trimmed = line.trim();
 
-        if trimmed.contains("rawQuery(") || trimmed.contains("execute(") {
-            if trimmed.contains("$") || trimmed.contains("+ ") {
-                findings.push(VulnFinding {
+        if (trimmed.contains("rawQuery(") || trimmed.contains("execute("))
+            && (trimmed.contains("$") || trimmed.contains("+ "))
+        {
+            findings.push(VulnFinding {
                     issue: Issue {
                         rule: "vuln-sql-injection".to_string(),
                         message: "SQL query with string interpolation — use parameterized queries to prevent SQL injection".to_string(),
@@ -156,7 +157,6 @@ fn check_injection_risks(file: &Path, source: &str, findings: &mut Vec<VulnFindi
                     risk_level: RiskLevel::Critical,
                     cwe: Some("CWE-89".to_string()),
                 });
-            }
         }
 
         if trimmed.contains("Uri.parse(") && trimmed.contains("$") {
@@ -220,26 +220,25 @@ fn check_data_exposure(file: &Path, source: &str, findings: &mut Vec<VulnFinding
     for (i, line) in source.lines().enumerate() {
         let trimmed = line.trim();
 
-        if trimmed.contains("debugPrint(") || trimmed.contains("print(") {
-            if trimmed.contains("password")
+        if (trimmed.contains("debugPrint(") || trimmed.contains("print("))
+            && (trimmed.contains("password")
                 || trimmed.contains("token")
                 || trimmed.contains("secret")
-                || trimmed.contains("apiKey")
-            {
-                findings.push(VulnFinding {
-                    issue: Issue {
-                        rule: "vuln-sensitive-logging".to_string(),
-                        message: "Sensitive data may be logged — remove or mask before production"
-                            .to_string(),
-                        severity: Severity::Error,
-                        file: file.to_path_buf(),
-                        line: i + 1,
-                        column: 1,
-                    },
-                    risk_level: RiskLevel::High,
-                    cwe: Some("CWE-532".to_string()),
-                });
-            }
+                || trimmed.contains("apiKey"))
+        {
+            findings.push(VulnFinding {
+                issue: Issue {
+                    rule: "vuln-sensitive-logging".to_string(),
+                    message: "Sensitive data may be logged — remove or mask before production"
+                        .to_string(),
+                    severity: Severity::Error,
+                    file: file.to_path_buf(),
+                    line: i + 1,
+                    column: 1,
+                },
+                risk_level: RiskLevel::High,
+                cwe: Some("CWE-532".to_string()),
+            });
         }
     }
 }

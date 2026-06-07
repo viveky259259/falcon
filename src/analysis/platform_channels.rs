@@ -32,7 +32,7 @@ fn analyze_kotlin_files(dir: &Path, _root: &Path) -> Vec<Issue> {
         .filter(|e| {
             e.path()
                 .extension()
-                .map_or(false, |ext| ext == "kt" || ext == "java")
+                .is_some_and(|ext| ext == "kt" || ext == "java")
         })
     {
         let source = match std::fs::read_to_string(entry.path()) {
@@ -53,7 +53,7 @@ fn analyze_swift_files(dir: &Path, _root: &Path) -> Vec<Issue> {
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "swift"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "swift"))
     {
         let source = match std::fs::read_to_string(entry.path()) {
             Ok(s) => s,
@@ -196,15 +196,11 @@ pub fn print_platform_summary(issues: &[Issue]) {
 
     let kt_count = issues
         .iter()
-        .filter(|i| {
-            i.file
-                .extension()
-                .map_or(false, |e| e == "kt" || e == "java")
-        })
+        .filter(|i| i.file.extension().is_some_and(|e| e == "kt" || e == "java"))
         .count();
     let swift_count = issues
         .iter()
-        .filter(|i| i.file.extension().map_or(false, |e| e == "swift"))
+        .filter(|i| i.file.extension().is_some_and(|e| e == "swift"))
         .count();
 
     println!();

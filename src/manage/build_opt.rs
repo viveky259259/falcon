@@ -85,7 +85,7 @@ pub fn analyze_build(root: &Path) -> anyhow::Result<BuildReport> {
     let dart_files: usize = walkdir::WalkDir::new(root)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .count();
 
     if dart_files > 200 {
@@ -147,7 +147,7 @@ fn analyze_assets(root: &Path) -> AssetAnalysis {
         }
     }
 
-    large.sort_by(|a, b| b.1.cmp(&a.1));
+    large.sort_by_key(|e| std::cmp::Reverse(e.1));
 
     AssetAnalysis {
         total_assets: total,

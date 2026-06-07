@@ -205,7 +205,7 @@ fn collect_imports_in_dir(dir: &Path) -> HashSet<String> {
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
     {
         if let Ok(source) = std::fs::read_to_string(entry.path()) {
             for line in source.lines() {

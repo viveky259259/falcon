@@ -4,10 +4,10 @@
 
 ![Falcon AI Score](https://img.shields.io/badge/Falcon_AI_Score-72/100-yellow)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Rules](https://img.shields.io/badge/rules-55%2B-brightgreen)
-![Tests](https://img.shields.io/badge/tests-565-brightgreen)
+![Rules](https://img.shields.io/badge/rules-61%2B-brightgreen)
+![Tests](https://img.shields.io/badge/tests-719-brightgreen)
 
-Falcon is the only Flutter linter specifically designed to catch the bugs AI tools leave behind — missing dispose() calls, empty catch blocks, unawaited futures, hardcoded credentials, and 54 other rules. It's 10-100x faster than alternatives, scores your code 0-100, and integrates with AI tools via MCP for real-time self-correction.
+Falcon is the only Flutter linter specifically designed to catch the bugs AI tools leave behind — missing dispose() calls, empty catch blocks, unawaited futures, hardcoded credentials, and 57 other rules. It's 10-100x faster than alternatives, scores your code 0-100, and integrates with AI tools via MCP for real-time self-correction.
 
 ## Quick Start
 
@@ -56,7 +56,7 @@ $ falcon ai-score .
 | **Enterprise** | `falcon enterprise` | Policies, audit logs, compliance |
 | **HTTP API** | `falcon api` | REST API for integrations |
 
-[See all 80+ commands →](docs/cli-reference.md)
+[See all 90+ commands →](docs/cli-reference.md)
 
 ## AI Tool Integration (MCP)
 
@@ -97,7 +97,7 @@ falcon analyze --preset flutter         # Flutter best practices
 
 | Tier | Price | What You Get |
 |---|---|---|
-| **Core CLI** | **Free forever** | All 74 commands, MCP server, LSP, API |
+| **Core CLI** | **Free forever** | All 90+ commands, MCP server, LSP, API |
 | **Team** | $9/seat/month | GitHub App, team dashboard, score trends |
 | **Enterprise** | $29/seat/month | SSO, audit logs, policies, compliance |
 
@@ -118,8 +118,8 @@ Compare: `dart analyze` takes 30-70 seconds on the same projects.
 ## Documentation
 
 - [Getting Started](docs/getting-started.md)
-- [CLI Reference](docs/cli-reference.md) (all 74 commands)
-- [Rule Catalog](docs/rule-catalog.md) (58+ rules)
+- [CLI Reference](docs/cli-reference.md) (all 90+ commands)
+- [Rule Catalog](docs/rule-catalog.md) (61+ rules)
 - [State of AI-Generated Flutter Code 2026](content/state-of-ai-flutter-code-2026.md)
 
 ## Contributing
@@ -129,7 +129,7 @@ Contributions welcome! Falcon is MIT-licensed.
 ```bash
 git clone https://github.com/viveky259259/falcon
 cd falcon
-cargo test    # 286 tests
+cargo test    # 719 tests
 cargo build   # Fast build
 ```
 

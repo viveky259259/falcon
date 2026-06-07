@@ -130,7 +130,7 @@ pub fn suppression_stats(db: &SuppressionDatabase) -> SuppressionStats {
         *by_rule.entry(entry.rule.clone()).or_default() += 1;
     }
     let mut top_suppressed_rules: Vec<(String, usize)> = by_rule.into_iter().collect();
-    top_suppressed_rules.sort_by(|a, b| b.1.cmp(&a.1));
+    top_suppressed_rules.sort_by_key(|e| std::cmp::Reverse(e.1));
     top_suppressed_rules.truncate(10);
 
     let false_positive_rate = if total > 0 {

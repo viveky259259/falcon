@@ -130,6 +130,9 @@ pub fn get_function_parameters(node: Node) -> Vec<Node> {
 pub fn get_function_body(node: Node) -> Option<Node> {
     let parent = node.parent()?;
     let mut cursor = parent.walk();
+    // `.find()` cannot be used: the yielded `Node` borrows from `cursor`,
+    // so returning it from a closure outlives the cursor (E0597).
+    #[allow(clippy::manual_find)]
     for child in parent.children(&mut cursor) {
         if child.kind() == "function_body" {
             return Some(child);

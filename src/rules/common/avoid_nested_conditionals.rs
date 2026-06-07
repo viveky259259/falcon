@@ -44,7 +44,7 @@ impl Rule for AvoidNestedConditionals {
         let functions = find_descendants_by_kind(root, "function_signature");
         let methods = find_descendants_by_kind(root, "method_signature");
 
-        for node in functions.into_iter().chain(methods.into_iter()) {
+        for node in functions.into_iter().chain(methods) {
             if let Some(body) = dart_ast::get_function_body(node) {
                 let depth = nesting::calculate(body);
                 if depth > self.max_depth {

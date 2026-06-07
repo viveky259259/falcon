@@ -61,7 +61,7 @@ pub fn calculate(node: Node, source: &str) -> HalsteadMetrics {
         }
         _ => {
             let text = &source[n.byte_range()];
-            if !n.is_named() && OPERATOR_KINDS.iter().any(|op| text == *op) {
+            if !n.is_named() && OPERATOR_KINDS.contains(&text) {
                 operators.push(text.to_string());
             }
         }

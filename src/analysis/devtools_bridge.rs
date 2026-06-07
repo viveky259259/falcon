@@ -35,7 +35,7 @@ pub fn analyze_performance(root: &Path) -> PerfReport {
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .filter(|e| {
             let p = e.path().to_string_lossy();
             !p.contains(".g.dart") && !p.contains(".freezed.dart") && !p.contains("/test/")
@@ -139,9 +139,9 @@ fn check_render_issues(file: &Path, source: &str, issues: &mut Vec<Issue>) {
             if !block.contains(".builder")
                 && !block.contains(".separated")
                 && !block.contains(".custom")
+                && block.contains("children:")
             {
-                if block.contains("children:") {
-                    issues.push(Issue {
+                issues.push(Issue {
                         rule: "perf-unbounded-list".to_string(),
                         message: "ListView/GridView with children: builds all items eagerly. Use .builder() for large/dynamic lists.".to_string(),
                         severity: Severity::Warning,
@@ -149,7 +149,6 @@ fn check_render_issues(file: &Path, source: &str, issues: &mut Vec<Issue>) {
                         line: i + 1,
                         column: 1,
                     });
-                }
             }
         }
 

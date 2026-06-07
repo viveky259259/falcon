@@ -611,7 +611,7 @@ impl VmServiceClient {
         let payload = serde_json::to_string(&request)?;
 
         socket
-            .send(Message::Text(payload.into()))
+            .send(Message::Text(payload))
             .await
             .context("Failed to write to VM Service websocket")?;
 

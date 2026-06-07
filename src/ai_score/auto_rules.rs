@@ -26,7 +26,7 @@ pub fn discover_patterns(root: &Path) -> Vec<ProposedRule> {
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .filter(|e| !e.path().to_string_lossy().contains("/test/"))
     {
         let source = match std::fs::read_to_string(entry.path()) {
@@ -45,12 +45,15 @@ pub fn discover_patterns(root: &Path) -> Vec<ProposedRule> {
         }
     }
 
-    proposed.sort_by(|a, b| b.occurrences.cmp(&a.occurrences));
+    proposed.sort_by_key(|e| std::cmp::Reverse(e.occurrences));
     proposed
 }
 
+/// A named heuristic check: a label plus a predicate over a source line.
+type PatternCheck = (&'static str, Box<dyn Fn(&str) -> bool>);
+
 fn detect_patterns(source: &str, counts: &mut HashMap<String, (usize, usize)>) {
-    let checks: Vec<(&str, Box<dyn Fn(&str) -> bool>)> = vec![
+    let checks: Vec<PatternCheck> = vec![
         (
             "toString-in-interpolation",
             Box::new(|l: &str| l.contains(".toString()") && l.contains("${")),

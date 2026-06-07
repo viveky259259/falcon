@@ -138,7 +138,7 @@ pub async fn run_runtime_check(config: &RuntimeCheckConfig) -> Result<RuntimeRep
 
         // Progress indicator every 5 seconds.
         let elapsed = start.elapsed().as_secs();
-        if elapsed > 0 && elapsed % 5 == 0 && i > 0 {
+        if elapsed > 0 && elapsed.is_multiple_of(5) && i > 0 {
             eprint!(".");
         }
     }

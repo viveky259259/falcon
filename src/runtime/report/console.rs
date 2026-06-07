@@ -121,11 +121,10 @@ pub fn print_report(report: &RuntimeReport) {
                 RuntimeSeverity::Info => ("ℹ", "cyan"),
             };
             println!(
-                "  {} {} [{}] {}",
+                "  {} {} [{}] ",
                 icon.color(color).bold(),
                 issue.title.color(color),
-                issue.category.dimmed(),
-                ""
+                issue.category.dimmed()
             );
             println!("    {}", issue.detail.dimmed());
             println!(

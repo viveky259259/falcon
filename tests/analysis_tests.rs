@@ -340,7 +340,7 @@ class UserService {
 
     let stubs = falcon::analysis::test_gen::generate_test_stubs(tmp.path());
     assert!(!stubs.is_empty());
-    assert!(stubs[0].test_cases.len() >= 1);
+    assert!(!stubs[0].test_cases.is_empty());
 }
 
 #[test]

@@ -96,7 +96,7 @@ pub fn measure_rule_impact(history: &[AnalysisSnapshot]) -> Vec<RuleImpact> {
         })
         .collect();
 
-    impacts.sort_by(|a, b| b.total_triggers.cmp(&a.total_triggers));
+    impacts.sort_by_key(|e| std::cmp::Reverse(e.total_triggers));
     impacts
 }
 

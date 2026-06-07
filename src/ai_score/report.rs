@@ -84,7 +84,7 @@ pub fn generate_ai_report(root: &Path) -> anyhow::Result<AiReport> {
             severity,
         })
         .collect();
-    top_issues.sort_by(|a, b| b.count.cmp(&a.count));
+    top_issues.sort_by_key(|e| std::cmp::Reverse(e.count));
     top_issues.truncate(10);
 
     let recommendations = generate_recommendations(&score, &provenance);

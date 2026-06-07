@@ -50,14 +50,14 @@ impl Rule for EnsureDisposeLifecycle {
                     for (line_num, line) in source.lines().enumerate() {
                         let class_start = class.start_position().row;
                         let class_end = class.end_position().row;
-                        if line_num >= class_start && line_num <= class_end {
-                            if line.contains(dtype)
-                                && (line.contains("late")
-                                    || line.contains("final")
-                                    || line.trim().starts_with(dtype))
-                            {
-                                disposables_found.push((dtype, line_num + 1));
-                            }
+                        if line_num >= class_start
+                            && line_num <= class_end
+                            && line.contains(dtype)
+                            && (line.contains("late")
+                                || line.contains("final")
+                                || line.trim().starts_with(dtype))
+                        {
+                            disposables_found.push((dtype, line_num + 1));
                         }
                     }
                 }

@@ -126,7 +126,7 @@ pub fn compute_effectiveness(history: &FixHistory) -> Vec<FixEffectiveness> {
         })
         .collect();
 
-    results.sort_by(|a, b| b.total_fixes.cmp(&a.total_fixes));
+    results.sort_by_key(|e| std::cmp::Reverse(e.total_fixes));
     results
 }
 

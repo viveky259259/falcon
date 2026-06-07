@@ -18,9 +18,7 @@ fn severity_icon(sev: Severity) -> &'static str {
 }
 
 fn sanitize_md_inline(value: &str) -> String {
-    value
-        .replace(['\r', '\n'], " ")
-        .replace('`', "\\`")
+    value.replace(['\r', '\n'], " ").replace('`', "\\`")
 }
 
 /// Render a single issue as a bullet line with severity icon, location, rule and fix hint.
@@ -59,8 +57,7 @@ fn group_by_file<'a>(
     }
     for v in grouped.values_mut() {
         v.sort_by(|a, b| {
-            (a.line, a.column, &a.rule, &a.message)
-                .cmp(&(b.line, b.column, &b.rule, &b.message))
+            (a.line, a.column, &a.rule, &a.message).cmp(&(b.line, b.column, &b.rule, &b.message))
         });
     }
     grouped.into_iter().collect()
