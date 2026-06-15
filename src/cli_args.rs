@@ -1791,6 +1791,22 @@ pub enum DevtoolsAction {
         json: bool,
     },
 
+    /// Capture a PNG screenshot of the running Flutter app
+    Screenshot {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long)]
+        attach: Option<String>,
+        /// Output file path for the PNG
+        #[arg(short, long, default_value = "falcon-screenshot.png")]
+        out: PathBuf,
+        /// Target device ID for the `flutter screenshot` device-capture fallback
+        #[arg(long)]
+        device: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Trigger a hot reload of the running Flutter app
     Reload {
         #[arg(default_value = ".")]

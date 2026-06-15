@@ -225,6 +225,25 @@ pub struct ReloadToolReport {
     pub reassembled: bool,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct ScreenshotToolReport {
+    pub vm_service_uri: String,
+    pub isolate_id: String,
+    pub output_path: String,
+    pub byte_count: usize,
+    /// Which capture path produced the image: `rasterizer` (VM Service
+    /// `_flutter.screenshot`, works on mobile + desktop) or `device`
+    /// (the `flutter screenshot` CLI capturing the OS framebuffer).
+    pub method: String,
+}
+
+/// Decode a base64-encoded PNG returned by `_flutter.screenshot` into raw bytes.
+fn decode_screenshot(base64_png: &str) -> Result<Vec<u8>> {
+    STANDARD
+        .decode(base64_png.trim())
+        .map_err(|e| anyhow::anyhow!("Failed to decode base64 screenshot payload: {e}"))
+}
+
 pub async fn connect_client(
     project_path: &Path,
     attach_uri: Option<&str>,
@@ -236,6 +255,101 @@ pub async fn connect_client(
     let client = VmServiceClient::connect(&vm_uri).await?;
     client.enable_extensions().await?;
     Ok((vm_uri, client))
+}
+
+/// Capture a screenshot of the running app, writing a PNG to `output_path`.
+///
+/// Cross-platform strategy so every target Flutter supports is covered:
+///  1. **rasterizer** — VM Service `_flutter.screenshot` renders the layer tree
+///     to a PNG. Works on Android, iOS, macOS, Windows, and Linux.
+///  2. **device** — fall back to the `flutter screenshot` CLI, which captures the
+///     OS framebuffer (e.g. `adb screencap` on Android) when the rasterizer path
+///     is unavailable.
+///  3. **web** — neither path applies (Flutter web runs on DWDS, not the Dart VM
+///     rasterizer); the returned error explains this rather than crashing.
+pub async fn collect_screenshot(
+    client: &VmServiceClient,
+    vm_service_uri: &str,
+    output_path: &Path,
+    project_path: &Path,
+    device: Option<&str>,
+) -> Result<ScreenshotToolReport> {
+    ensure_parent_dir(output_path);
+
+    // 1. Rasterizer RPC (mobile + desktop).
+    let method = match client.capture_screenshot().await {
+        Ok(base64_png) => {
+            let bytes = decode_screenshot(&base64_png)?;
+            std::fs::write(output_path, &bytes).map_err(|e| {
+                anyhow::anyhow!(
+                    "Failed to write screenshot to {}: {e}",
+                    output_path.display()
+                )
+            })?;
+            "rasterizer"
+        }
+        Err(rpc_err) => {
+            // 2. Device-native capture via the Flutter CLI.
+            capture_via_flutter_cli(output_path, project_path, device).map_err(|cli_err| {
+                anyhow::anyhow!(
+                    "Screenshot capture failed on all paths.\n  - rasterizer (VM Service): {rpc_err}\n  - device (flutter screenshot): {cli_err}\n\
+                     Note: Flutter web targets cannot be captured this way — run on a mobile or desktop device."
+                )
+            })?;
+            "device"
+        }
+    };
+
+    let byte_count = std::fs::metadata(output_path)
+        .map(|m| m.len() as usize)
+        .unwrap_or(0);
+
+    Ok(ScreenshotToolReport {
+        vm_service_uri: vm_service_uri.to_string(),
+        isolate_id: client.isolate_id.clone(),
+        output_path: output_path.display().to_string(),
+        byte_count,
+        method: method.to_string(),
+    })
+}
+
+fn ensure_parent_dir(output_path: &Path) {
+    if let Some(parent) = output_path.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent).ok();
+        }
+    }
+}
+
+/// Fall back to `flutter screenshot` for OS-level device capture.
+fn capture_via_flutter_cli(
+    output_path: &Path,
+    project_path: &Path,
+    device: Option<&str>,
+) -> Result<()> {
+    let mut command = std::process::Command::new("flutter");
+    command.arg("screenshot").current_dir(project_path);
+    command.arg(format!("--out={}", output_path.display()));
+    if let Some(device) = device {
+        command.arg("-d").arg(device);
+    }
+
+    let output = command.output().map_err(|e| {
+        anyhow::anyhow!("could not run `flutter screenshot` (is Flutter on PATH?): {e}")
+    })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!(
+            "`flutter screenshot` exited with {}: {}",
+            output.status,
+            stderr.trim()
+        );
+    }
+    if !output_path.exists() {
+        anyhow::bail!("`flutter screenshot` reported success but no file was written");
+    }
+    Ok(())
 }
 
 pub async fn collect_memory_report(
@@ -503,6 +617,22 @@ pub async fn collect_logging_report(
         stream_counts: logging_summary.stream_counts,
         entries: logging_summary.entries,
     })
+}
+
+pub fn print_screenshot_report(report: &ScreenshotToolReport) {
+    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
+    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
+    println!(
+        "{} {}",
+        "Saved screenshot:".bright_cyan(),
+        report.output_path.bright_white().bold()
+    );
+    println!(
+        "{} {:.1} KB",
+        "Size:".bright_cyan(),
+        report.byte_count as f64 / 1024.0
+    );
+    println!("{} {}", "Capture method:".bright_cyan(), report.method);
 }
 
 pub fn print_memory_report(report: &MemoryToolReport) {
@@ -1432,6 +1562,20 @@ fn summarize_inspector_node(node: &Value) -> Option<InspectorNode> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn decode_screenshot_roundtrips_png_bytes() {
+        // 8-byte PNG magic header, base64-encoded, with surrounding whitespace.
+        let png_magic = [0x89u8, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+        let encoded = format!("  {}\n", STANDARD.encode(png_magic));
+        let decoded = decode_screenshot(&encoded).unwrap();
+        assert_eq!(decoded, png_magic);
+    }
+
+    #[test]
+    fn decode_screenshot_rejects_invalid_base64() {
+        assert!(decode_screenshot("not valid base64!!!").is_err());
+    }
 
     #[test]
     fn extract_process_buckets_sorts_and_truncates() {
