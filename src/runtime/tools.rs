@@ -274,32 +274,7 @@ pub async fn collect_screenshot(
     project_path: &Path,
     device: Option<&str>,
 ) -> Result<ScreenshotToolReport> {
-    ensure_parent_dir(output_path);
-
-    // 1. Rasterizer RPC (mobile + desktop).
-    let method = match client.capture_screenshot().await {
-        Ok(base64_png) => {
-            let bytes = decode_screenshot(&base64_png)?;
-            std::fs::write(output_path, &bytes).map_err(|e| {
-                anyhow::anyhow!(
-                    "Failed to write screenshot to {}: {e}",
-                    output_path.display()
-                )
-            })?;
-            "rasterizer"
-        }
-        Err(rpc_err) => {
-            // 2. Device-native capture via the Flutter CLI.
-            capture_via_flutter_cli(output_path, project_path, device).map_err(|cli_err| {
-                anyhow::anyhow!(
-                    "Screenshot capture failed on all paths.\n  - rasterizer (VM Service): {rpc_err}\n  - device (flutter screenshot): {cli_err}\n\
-                     Note: Flutter web targets cannot be captured this way — run on a mobile or desktop device."
-                )
-            })?;
-            "device"
-        }
-    };
-
+    let method = capture_screenshot_file(client, output_path, project_path, device).await?;
     let byte_count = std::fs::metadata(output_path)
         .map(|m| m.len() as usize)
         .unwrap_or(0);
@@ -309,8 +284,44 @@ pub async fn collect_screenshot(
         isolate_id: client.isolate_id.clone(),
         output_path: output_path.display().to_string(),
         byte_count,
-        method: method.to_string(),
+        method,
     })
+}
+
+/// Capture a single PNG to `output_path` using the cross-platform strategy and
+/// return which method succeeded (`"rasterizer"` or `"device"`). Shared by the
+/// one-shot `screenshot` command and the `journey` recorder.
+pub async fn capture_screenshot_file(
+    client: &VmServiceClient,
+    output_path: &Path,
+    project_path: &Path,
+    device: Option<&str>,
+) -> Result<String> {
+    ensure_parent_dir(output_path);
+
+    // 1. Rasterizer RPC (mobile + desktop).
+    match client.capture_screenshot().await {
+        Ok(base64_png) => {
+            let bytes = decode_screenshot(&base64_png)?;
+            std::fs::write(output_path, &bytes).map_err(|e| {
+                anyhow::anyhow!(
+                    "Failed to write screenshot to {}: {e}",
+                    output_path.display()
+                )
+            })?;
+            Ok("rasterizer".to_string())
+        }
+        Err(rpc_err) => {
+            // 2. Device-native capture via the Flutter CLI.
+            capture_via_flutter_cli(output_path, project_path, device).map_err(|cli_err| {
+                anyhow::anyhow!(
+                    "Screenshot capture failed on all paths.\n  - rasterizer (VM Service): {rpc_err}\n  - device (flutter screenshot): {cli_err}\n\
+                     Note: Flutter web targets cannot be captured this way — run on a mobile or desktop device."
+                )
+            })?;
+            Ok("device".to_string())
+        }
+    }
 }
 
 fn ensure_parent_dir(output_path: &Path) {

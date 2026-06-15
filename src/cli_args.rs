@@ -326,6 +326,42 @@ pub enum Commands {
         action: DevtoolsAction,
     },
 
+    /// Record a user journey through a running app (screenshots + screens + metrics)
+    #[command(name = "journey", display_order = 8)]
+    Journey {
+        /// Path to the Flutter project (used for `flutter run` when not attaching)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Attach to an already-running app by VM Service URI instead of launching
+        #[arg(long)]
+        attach: Option<String>,
+
+        /// Target device ID for the screenshot device-capture fallback
+        #[arg(long)]
+        device: Option<String>,
+
+        /// Total recording duration in seconds
+        #[arg(short, long, default_value = "30")]
+        duration: u64,
+
+        /// Seconds between captures
+        #[arg(long, default_value = "3")]
+        interval: u64,
+
+        /// Directory for screenshots + journey.html
+        #[arg(short, long, default_value = "falcon-journey")]
+        output_dir: PathBuf,
+
+        /// Skip HTML report generation
+        #[arg(long)]
+        no_html: bool,
+
+        /// Print machine-readable JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Audit Flutter project assets — find unused, oversized, and WebP-convertible files
     #[command(name = "asset-audit", display_order = 9)]
     AssetAudit {

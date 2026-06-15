@@ -115,6 +115,18 @@ fn run(cli: Cli) -> Result<()> {
             json,
         } => handle_live(path, attach, duration, interval, json)?,
         Commands::Devtools { action } => handle_devtools(action)?,
+        Commands::Journey {
+            path,
+            attach,
+            device,
+            duration,
+            interval,
+            output_dir,
+            no_html,
+            json,
+        } => handle_journey(
+            path, attach, device, duration, interval, output_dir, no_html, json,
+        )?,
         Commands::AssetAudit {
             path,
             output,
@@ -422,6 +434,41 @@ fn run(cli: Cli) -> Result<()> {
         }
     }
 
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn handle_journey(
+    path: PathBuf,
+    attach: Option<String>,
+    device: Option<String>,
+    duration: u64,
+    interval: u64,
+    output_dir: PathBuf,
+    no_html: bool,
+    json: bool,
+) -> Result<()> {
+    let rt = tokio::runtime::Runtime::new()?;
+    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+        &path,
+        attach.as_deref(),
+    ))?;
+    let config = falcon::runtime::journey::JourneyConfig {
+        project_path: path,
+        device,
+        duration: std::time::Duration::from_secs(duration),
+        interval: std::time::Duration::from_secs(interval),
+        output_dir,
+        write_html: !no_html,
+    };
+    let report = rt.block_on(falcon::runtime::journey::record_journey(
+        &client, &vm_uri, &config,
+    ))?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    } else {
+        falcon::runtime::journey::print_journey_report(&report);
+    }
     Ok(())
 }
 

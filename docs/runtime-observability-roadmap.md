@@ -37,14 +37,14 @@ existing convention).
 
 ## Feature backlog (implemented one-by-one via `/loop`)
 
-### 1. `falcon devtools screenshot`  — STATUS: in progress
+### 1. `falcon devtools screenshot`  — STATUS: done
 Capture a PNG of the running app via the engine RPC `_flutter.screenshot`
 (returns base64 PNG). Save to `--out` (default `falcon-screenshot.png`).
 `--json` prints metadata (uri, isolate, bytes, path). Graceful message if the
 engine doesn't support the RPC (e.g. headless test mode).
 - Foundation for the journey recorder.
 
-### 2. `falcon journey`  — STATUS: planned
+### 2. `falcon journey`  — STATUS: done
 Record a **user journey**: poll at an interval while the developer drives the app,
 capturing on each tick a screenshot + the current top-of-tree route/screen name
 (from `get_root_widget_tree`) + memory/frame stats. Detect *screen changes* by
