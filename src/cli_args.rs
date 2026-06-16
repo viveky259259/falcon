@@ -326,6 +326,30 @@ pub enum Commands {
         action: DevtoolsAction,
     },
 
+    /// Trace an interaction window — correlate frame jank with hot-rebuilding widgets
+    #[command(name = "trace", display_order = 8)]
+    Trace {
+        /// Path to the Flutter project (used for `flutter run` when not attaching)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Attach to an already-running app by VM Service URI instead of launching
+        #[arg(long)]
+        attach: Option<String>,
+
+        /// Window in seconds to record frames + rebuilds
+        #[arg(short, long, default_value = "10")]
+        duration: u64,
+
+        /// Frame build time (ms) above which a frame counts as jank
+        #[arg(long, default_value = "16")]
+        jank_ms: f64,
+
+        /// Print machine-readable JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Record a user journey through a running app (screenshots + screens + metrics)
     #[command(name = "journey", display_order = 8)]
     Journey {

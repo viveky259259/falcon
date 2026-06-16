@@ -127,6 +127,13 @@ fn run(cli: Cli) -> Result<()> {
         } => handle_journey(
             path, attach, device, duration, interval, output_dir, no_html, json,
         )?,
+        Commands::Trace {
+            path,
+            attach,
+            duration,
+            jank_ms,
+            json,
+        } => handle_trace(path, attach, duration, jank_ms, json)?,
         Commands::AssetAudit {
             path,
             output,
@@ -474,6 +481,32 @@ fn handle_journey(
         println!("{}", serde_json::to_string_pretty(&report)?);
     } else {
         falcon::runtime::journey::print_journey_report(&report);
+    }
+    Ok(())
+}
+
+fn handle_trace(
+    path: PathBuf,
+    attach: Option<String>,
+    duration: u64,
+    jank_ms: f64,
+    json: bool,
+) -> Result<()> {
+    let rt = tokio::runtime::Runtime::new()?;
+    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+        &path,
+        attach.as_deref(),
+    ))?;
+    let report = rt.block_on(falcon::runtime::tools::collect_trace_report(
+        &client,
+        &vm_uri,
+        std::time::Duration::from_secs(duration),
+        jank_ms,
+    ))?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    } else {
+        falcon::runtime::tools::print_trace_report(&report);
     }
     Ok(())
 }

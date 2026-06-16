@@ -64,7 +64,7 @@ Stream `Extension` events filtered to navigation (`ext.flutter.navigation` /
 `Flutter.Navigation`) and print a chronological route push/pop log — the
 text-only sibling of `journey`, useful in CI.
 
-### 5. `falcon trace`  — STATUS: planned
+### 5. `falcon trace`  — STATUS: done
 Correlate a tap/interaction window with the frames it produced: record timeline +
 rebuilds for N seconds and attribute jank to the widgets that rebuilt, producing
 an "interaction → frames → hot widgets" report.

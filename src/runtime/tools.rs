@@ -1077,6 +1077,137 @@ pub fn print_route_log(report: &RouteLogToolReport) {
     }
 }
 
+// ── Interaction trace (frames ↔ rebuilds) ───────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FrameTraceSummary {
+    pub total_frames: usize,
+    pub jank_frames: usize,
+    pub worst_frame_ms: f64,
+    pub avg_frame_ms: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TraceToolReport {
+    pub vm_service_uri: String,
+    pub isolate_id: String,
+    pub duration_secs: u64,
+    pub jank_threshold_ms: f64,
+    pub frames: FrameTraceSummary,
+    pub top_rebuilders: Vec<RebuildEntry>,
+}
+
+/// Summarize frame timing from a VM timeline. A frame is a `traceEvent` named
+/// `Frame` carrying a `dur` (microseconds); it is "jank" when its build time
+/// exceeds `jank_threshold_ms`.
+pub fn summarize_frame_timeline(timeline: &Value, jank_threshold_ms: f64) -> FrameTraceSummary {
+    let trace_events = timeline["traceEvents"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let mut durations_ms: Vec<f64> = Vec::new();
+    for event in &trace_events {
+        if event["name"].as_str() != Some("Frame") {
+            continue;
+        }
+        if let Some(dur) = event["dur"]
+            .as_i64()
+            .or_else(|| event["dur"].as_u64().map(|v| v as i64))
+        {
+            durations_ms.push(dur as f64 / 1000.0);
+        }
+    }
+
+    let total_frames = durations_ms.len();
+    let jank_frames = durations_ms
+        .iter()
+        .filter(|d| **d > jank_threshold_ms)
+        .count();
+    let worst_frame_ms = durations_ms.iter().cloned().fold(0.0f64, f64::max);
+    let avg_frame_ms = if total_frames == 0 {
+        0.0
+    } else {
+        durations_ms.iter().sum::<f64>() / total_frames as f64
+    };
+
+    FrameTraceSummary {
+        total_frames,
+        jank_frames,
+        worst_frame_ms,
+        avg_frame_ms,
+    }
+}
+
+pub async fn collect_trace_report(
+    client: &VmServiceClient,
+    vm_service_uri: &str,
+    duration: Duration,
+    jank_threshold_ms: f64,
+) -> Result<TraceToolReport> {
+    let _ = client
+        .set_vm_timeline_flags(&["Dart", "Embedder", "GC"])
+        .await;
+    let _ = client.clear_vm_timeline().await;
+    let _ = client
+        .set_flag("ext.flutter.profileWidgetBuilds", "true")
+        .await;
+    let start = client.get_vm_timeline_micros().await?;
+    tokio::time::sleep(duration).await;
+    let end = client.get_vm_timeline_micros().await?;
+
+    let timeline = client
+        .get_vm_timeline_range(start, end.saturating_sub(start))
+        .await
+        .unwrap_or(Value::Null);
+    let frames = summarize_frame_timeline(&timeline, jank_threshold_ms);
+
+    let rebuilds = client.get_rebuild_counts().await.unwrap_or(Value::Null);
+    let rebuild_summary = summarize_rebuilds(&rebuilds);
+
+    Ok(TraceToolReport {
+        vm_service_uri: vm_service_uri.to_string(),
+        isolate_id: client.isolate_id.clone(),
+        duration_secs: duration.as_secs(),
+        jank_threshold_ms,
+        frames,
+        top_rebuilders: rebuild_summary.top_widgets,
+    })
+}
+
+pub fn print_trace_report(report: &TraceToolReport) {
+    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
+    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
+    println!("{} {}s", "Window:".bright_cyan(), report.duration_secs);
+    println!(
+        "{} {} ({} janky > {:.0} ms)",
+        "Frames:".bright_cyan(),
+        report.frames.total_frames,
+        report.frames.jank_frames,
+        report.jank_threshold_ms
+    );
+    println!(
+        "{} avg {:.1} ms · worst {:.1} ms",
+        "Frame build:".bright_cyan(),
+        report.frames.avg_frame_ms,
+        report.frames.worst_frame_ms
+    );
+    if !report.top_rebuilders.is_empty() {
+        println!();
+        println!(
+            "{}",
+            "Likely jank contributors (hottest rebuilders)"
+                .bright_white()
+                .bold()
+        );
+        for entry in &report.top_rebuilders {
+            match &entry.location {
+                Some(loc) => println!("  - {} × {}  ({})", entry.widget, entry.count, loc),
+                None => println!("  - {} × {}", entry.widget, entry.count),
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 struct NetworkSummaryData {
     total_requests: usize,
@@ -1672,6 +1803,32 @@ fn summarize_inspector_node(node: &Value) -> Option<InspectorNode> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn summarize_frame_timeline_counts_jank_and_extremes() {
+        let timeline = json!({
+            "traceEvents": [
+                { "name": "Frame", "dur": 8000 },   // 8 ms
+                { "name": "Frame", "dur": 24000 },  // 24 ms (jank)
+                { "name": "Frame", "dur": 40000 },  // 40 ms (jank, worst)
+                { "name": "Other", "dur": 99000 }   // ignored
+            ]
+        });
+        let s = summarize_frame_timeline(&timeline, 16.0);
+        assert_eq!(s.total_frames, 3);
+        assert_eq!(s.jank_frames, 2);
+        assert_eq!(s.worst_frame_ms, 40.0);
+        assert!((s.avg_frame_ms - 24.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn summarize_frame_timeline_handles_no_frames() {
+        let s = summarize_frame_timeline(&json!({ "traceEvents": [] }), 16.0);
+        assert_eq!(s.total_frames, 0);
+        assert_eq!(s.jank_frames, 0);
+        assert_eq!(s.worst_frame_ms, 0.0);
+        assert_eq!(s.avg_frame_ms, 0.0);
+    }
 
     #[test]
     fn is_navigation_kind_matches_flutter_navigation() {
