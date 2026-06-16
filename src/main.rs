@@ -671,6 +671,27 @@ fn handle_devtools(action: DevtoolsAction) -> Result<()> {
                 process::exit(1);
             }
         }
+        DevtoolsAction::RouteLog {
+            path,
+            attach,
+            duration,
+            json,
+        } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_route_log(
+                &client,
+                &vm_uri,
+                std::time::Duration::from_secs(duration),
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_route_log(&report);
+            }
+        }
         DevtoolsAction::Screenshot {
             path,
             attach,

@@ -59,7 +59,7 @@ diagram + HTML page — layers as subgraphs, feature modules as clusters, edges 
 cross-module imports, with hotspot/god-file annotations. Builds on
 `analysis/layer_enforcement.rs`, `dep-graph`, and `codebase-intel`.
 
-### 4. `falcon devtools route-log`  — STATUS: planned
+### 4. `falcon devtools route-log`  — STATUS: done
 Stream `Extension` events filtered to navigation (`ext.flutter.navigation` /
 `Flutter.Navigation`) and print a chronological route push/pop log — the
 text-only sibling of `journey`, useful in CI.

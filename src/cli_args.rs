@@ -1847,6 +1847,19 @@ pub enum DevtoolsAction {
         json: bool,
     },
 
+    /// Log navigation/route changes from a running app over a window
+    RouteLog {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long)]
+        attach: Option<String>,
+        /// Duration in seconds to record navigation events
+        #[arg(short, long, default_value = "15")]
+        duration: u64,
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Capture a PNG screenshot of the running Flutter app
     Screenshot {
         #[arg(default_value = ".")]

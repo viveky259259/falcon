@@ -978,6 +978,105 @@ pub fn print_logging_report(report: &LoggingToolReport) {
     }
 }
 
+// ── Route log ───────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RouteEvent {
+    pub timestamp_micros: Option<i64>,
+    pub kind: String,
+    pub route: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RouteLogToolReport {
+    pub vm_service_uri: String,
+    pub isolate_id: String,
+    pub duration_secs: u64,
+    pub total_events: usize,
+    pub events: Vec<RouteEvent>,
+}
+
+/// True when an `Extension` event kind reports a navigation/route change.
+/// Flutter emits `Flutter.Navigation`; other routers use similar names.
+pub fn is_navigation_kind(kind: &str) -> bool {
+    kind.contains("Navigation") || kind.contains("Route")
+}
+
+/// Parse a single VM Service `streamNotify` payload into a `RouteEvent` if it is
+/// a navigation extension event; otherwise `None`.
+pub fn parse_route_event(params: &Value) -> Option<RouteEvent> {
+    let event = &params["event"];
+    let kind = event["extensionKind"].as_str()?;
+    if !is_navigation_kind(kind) {
+        return None;
+    }
+    let data = &event["extensionData"];
+    let route = data["route"]["settings"]["name"]
+        .as_str()
+        .or_else(|| data["route"]["description"].as_str())
+        .or_else(|| data["routeName"].as_str())
+        .or_else(|| data["new"]["description"].as_str())
+        .map(ToString::to_string);
+    let timestamp_micros = event["timestamp"]
+        .as_i64()
+        .or_else(|| event["timestamp"].as_u64().map(|v| v as i64));
+    Some(RouteEvent {
+        timestamp_micros,
+        kind: kind.to_string(),
+        route,
+    })
+}
+
+pub async fn collect_route_log(
+    client: &VmServiceClient,
+    vm_service_uri: &str,
+    duration: Duration,
+) -> Result<RouteLogToolReport> {
+    let raw = client
+        .collect_stream_events(&["Extension"], duration, DEFAULT_LOG_EVENT_LIMIT)
+        .await?;
+
+    let mut events: Vec<RouteEvent> = raw.iter().filter_map(parse_route_event).collect();
+    events.sort_by_key(|e| e.timestamp_micros.unwrap_or_default());
+
+    Ok(RouteLogToolReport {
+        vm_service_uri: vm_service_uri.to_string(),
+        isolate_id: client.isolate_id.clone(),
+        duration_secs: duration.as_secs(),
+        total_events: events.len(),
+        events,
+    })
+}
+
+pub fn print_route_log(report: &RouteLogToolReport) {
+    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
+    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
+    println!("{} {}s", "Duration:".bright_cyan(), report.duration_secs);
+    println!(
+        "{} {}",
+        "Navigation events:".bright_cyan(),
+        report.total_events
+    );
+    if report.events.is_empty() {
+        println!(
+            "{}",
+            "  No navigation events captured. Drive the app during the window; \
+             route reporting requires the app to emit Flutter.Navigation events."
+                .yellow()
+        );
+        return;
+    }
+    println!();
+    println!("{}", "Route timeline".bright_white().bold());
+    for event in &report.events {
+        println!(
+            "  - [{}] {}",
+            event.kind,
+            event.route.as_deref().unwrap_or("<unnamed route>")
+        );
+    }
+}
+
 #[derive(Debug)]
 struct NetworkSummaryData {
     total_requests: usize,
@@ -1573,6 +1672,47 @@ fn summarize_inspector_node(node: &Value) -> Option<InspectorNode> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn is_navigation_kind_matches_flutter_navigation() {
+        assert!(is_navigation_kind("Flutter.Navigation"));
+        assert!(is_navigation_kind("MyRouteChanged"));
+        assert!(!is_navigation_kind("Flutter.Frame"));
+    }
+
+    #[test]
+    fn parse_route_event_extracts_named_route_and_skips_non_nav() {
+        let nav = json!({
+            "streamId": "Extension",
+            "event": {
+                "extensionKind": "Flutter.Navigation",
+                "timestamp": 1234,
+                "extensionData": { "route": { "settings": { "name": "/detail" } } }
+            }
+        });
+        let parsed = parse_route_event(&nav).unwrap();
+        assert_eq!(parsed.kind, "Flutter.Navigation");
+        assert_eq!(parsed.route.as_deref(), Some("/detail"));
+        assert_eq!(parsed.timestamp_micros, Some(1234));
+
+        let frame = json!({
+            "streamId": "Extension",
+            "event": { "extensionKind": "Flutter.Frame", "extensionData": {} }
+        });
+        assert!(parse_route_event(&frame).is_none());
+    }
+
+    #[test]
+    fn parse_route_event_falls_back_to_description() {
+        let nav = json!({
+            "event": {
+                "extensionKind": "Flutter.Navigation",
+                "extensionData": { "route": { "description": "MaterialPageRoute<dynamic>" } }
+            }
+        });
+        let parsed = parse_route_event(&nav).unwrap();
+        assert_eq!(parsed.route.as_deref(), Some("MaterialPageRoute<dynamic>"));
+    }
 
     #[test]
     fn decode_screenshot_roundtrips_png_bytes() {
