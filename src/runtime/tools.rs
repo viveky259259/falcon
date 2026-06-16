@@ -1208,6 +1208,156 @@ pub fn print_trace_report(report: &TraceToolReport) {
     }
 }
 
+// ── Widget tree diff ─────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TreeDiffEntry {
+    pub signature: String,
+    pub count: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TreeDiffToolReport {
+    pub vm_service_uri: String,
+    pub isolate_id: String,
+    pub settle_secs: u64,
+    pub before_nodes: usize,
+    pub after_nodes: usize,
+    pub added: Vec<TreeDiffEntry>,
+    pub removed: Vec<TreeDiffEntry>,
+}
+
+/// Stable signature for a widget node: its type plus creation location when
+/// available (so identical widget types at different call sites diff
+/// independently).
+fn tree_node_signature(node: &Value) -> String {
+    let ty = node["type"]
+        .as_str()
+        .or_else(|| node["widgetRuntimeType"].as_str())
+        .or_else(|| node["description"].as_str())
+        .unwrap_or("<unknown>");
+    let loc = node["creationLocation"]["file"].as_str().map(|file| {
+        let line = node["creationLocation"]["line"].as_i64().unwrap_or(0);
+        format!("{file}:{line}")
+    });
+    match loc {
+        Some(loc) => format!("{ty} @ {loc}"),
+        None => ty.to_string(),
+    }
+}
+
+/// Walk a widget-tree summary and count each node signature.
+pub fn collect_tree_signatures(tree: &Value) -> std::collections::BTreeMap<String, i64> {
+    let root = if tree.get("type").is_some() || tree.get("children").is_some() {
+        tree
+    } else if let Some(result) = tree.get("result") {
+        result
+    } else {
+        tree
+    };
+    let mut counts = std::collections::BTreeMap::new();
+    walk_signatures(root, &mut counts);
+    counts
+}
+
+fn walk_signatures(node: &Value, counts: &mut std::collections::BTreeMap<String, i64>) {
+    if !node.is_object() {
+        return;
+    }
+    *counts.entry(tree_node_signature(node)).or_insert(0) += 1;
+    if let Some(children) = node["children"].as_array() {
+        for child in children {
+            walk_signatures(child, counts);
+        }
+    }
+}
+
+/// Diff two signature multisets into added / removed entries (sorted, descending
+/// by magnitude). `added` = present-more-after; `removed` = present-more-before.
+pub fn diff_tree_signatures(
+    before: &std::collections::BTreeMap<String, i64>,
+    after: &std::collections::BTreeMap<String, i64>,
+) -> (Vec<TreeDiffEntry>, Vec<TreeDiffEntry>) {
+    let mut added = Vec::new();
+    let mut removed = Vec::new();
+    let mut keys: Vec<&String> = before.keys().chain(after.keys()).collect();
+    keys.sort();
+    keys.dedup();
+    for key in keys {
+        let delta = after.get(key).copied().unwrap_or(0) - before.get(key).copied().unwrap_or(0);
+        if delta > 0 {
+            added.push(TreeDiffEntry {
+                signature: key.clone(),
+                count: delta,
+            });
+        } else if delta < 0 {
+            removed.push(TreeDiffEntry {
+                signature: key.clone(),
+                count: -delta,
+            });
+        }
+    }
+    added.sort_by_key(|e| std::cmp::Reverse(e.count));
+    removed.sort_by_key(|e| std::cmp::Reverse(e.count));
+    (added, removed)
+}
+
+pub async fn collect_tree_diff(
+    client: &VmServiceClient,
+    vm_service_uri: &str,
+    settle: Duration,
+) -> Result<TreeDiffToolReport> {
+    let before = client.get_root_widget_tree().await.unwrap_or(Value::Null);
+    let before_counts = collect_tree_signatures(&before);
+    tokio::time::sleep(settle).await;
+    let after = client.get_root_widget_tree().await.unwrap_or(Value::Null);
+    let after_counts = collect_tree_signatures(&after);
+
+    let before_nodes = before_counts.values().map(|v| *v as usize).sum();
+    let after_nodes = after_counts.values().map(|v| *v as usize).sum();
+    let (added, removed) = diff_tree_signatures(&before_counts, &after_counts);
+
+    Ok(TreeDiffToolReport {
+        vm_service_uri: vm_service_uri.to_string(),
+        isolate_id: client.isolate_id.clone(),
+        settle_secs: settle.as_secs(),
+        before_nodes,
+        after_nodes,
+        added,
+        removed,
+    })
+}
+
+pub fn print_tree_diff(report: &TreeDiffToolReport) {
+    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
+    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
+    println!("{} {}s", "Settle window:".bright_cyan(), report.settle_secs);
+    println!(
+        "{} {} → {}",
+        "Tree nodes:".bright_cyan(),
+        report.before_nodes,
+        report.after_nodes
+    );
+    if report.added.is_empty() && report.removed.is_empty() {
+        println!("{}", "  No structural change between snapshots.".dimmed());
+        return;
+    }
+    if !report.added.is_empty() {
+        println!();
+        println!("{}", "Added".green().bold());
+        for entry in &report.added {
+            println!("  + {} × {}", entry.signature, entry.count);
+        }
+    }
+    if !report.removed.is_empty() {
+        println!();
+        println!("{}", "Removed".red().bold());
+        for entry in &report.removed {
+            println!("  - {} × {}", entry.signature, entry.count);
+        }
+    }
+}
+
 #[derive(Debug)]
 struct NetworkSummaryData {
     total_requests: usize,
@@ -1803,6 +1953,41 @@ fn summarize_inspector_node(node: &Value) -> Option<InspectorNode> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn collect_tree_signatures_counts_nodes_with_locations() {
+        let tree = json!({
+            "type": "Column",
+            "children": [
+                { "type": "Text", "creationLocation": { "file": "a.dart", "line": 10 } },
+                { "type": "Text", "creationLocation": { "file": "a.dart", "line": 10 } },
+                { "type": "Text", "creationLocation": { "file": "b.dart", "line": 3 } }
+            ]
+        });
+        let counts = collect_tree_signatures(&tree);
+        assert_eq!(counts.get("Column").copied(), Some(1));
+        assert_eq!(counts.get("Text @ a.dart:10").copied(), Some(2));
+        assert_eq!(counts.get("Text @ b.dart:3").copied(), Some(1));
+    }
+
+    #[test]
+    fn diff_tree_signatures_reports_added_and_removed() {
+        let before = collect_tree_signatures(&json!({
+            "type": "Scaffold",
+            "children": [ { "type": "Spinner" } ]
+        }));
+        let after = collect_tree_signatures(&json!({
+            "type": "Scaffold",
+            "children": [ { "type": "ListView" }, { "type": "ListView" } ]
+        }));
+        let (added, removed) = diff_tree_signatures(&before, &after);
+        assert!(added
+            .iter()
+            .any(|e| e.signature == "ListView" && e.count == 2));
+        assert!(removed
+            .iter()
+            .any(|e| e.signature == "Spinner" && e.count == 1));
+    }
 
     #[test]
     fn summarize_frame_timeline_counts_jank_and_extremes() {

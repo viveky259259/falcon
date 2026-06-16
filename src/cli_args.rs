@@ -1871,6 +1871,19 @@ pub enum DevtoolsAction {
         json: bool,
     },
 
+    /// Diff the widget tree across a settle window (added/removed subtrees)
+    TreeDiff {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long)]
+        attach: Option<String>,
+        /// Seconds to wait between the before/after tree snapshots
+        #[arg(short, long, default_value = "5")]
+        settle: u64,
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Log navigation/route changes from a running app over a window
     RouteLog {
         #[arg(default_value = ".")]

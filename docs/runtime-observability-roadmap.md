@@ -69,12 +69,16 @@ Correlate a tap/interaction window with the frames it produced: record timeline 
 rebuilds for N seconds and attribute jank to the widgets that rebuilt, producing
 an "interaction → frames → hot widgets" report.
 
-### 6. `falcon devtools tree-diff`  — STATUS: planned
+### 6. `falcon devtools tree-diff`  — STATUS: done
 Snapshot the widget tree twice (before/after a hot reload or an interaction) and
 print the structural diff — added/removed/moved subtrees.
 
 > Items 4–6 are "and many more" — researched and queued; scope/ordering may
 > adjust as the earlier features land and inform the design.
+
+**All six features above are implemented, tested, and committed** on branch
+`feat/devtools-observability`. Each ships with unit tests for its pure helpers,
+`--json` output, and (where applicable) an HTML report.
 
 ## Conventions to honor
 - `anyhow::Result<T>` at boundaries; no panics in library code.

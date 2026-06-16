@@ -704,6 +704,27 @@ fn handle_devtools(action: DevtoolsAction) -> Result<()> {
                 process::exit(1);
             }
         }
+        DevtoolsAction::TreeDiff {
+            path,
+            attach,
+            settle,
+            json,
+        } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_tree_diff(
+                &client,
+                &vm_uri,
+                std::time::Duration::from_secs(settle),
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_tree_diff(&report);
+            }
+        }
         DevtoolsAction::RouteLog {
             path,
             attach,
