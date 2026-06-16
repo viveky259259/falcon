@@ -477,6 +477,26 @@ pub enum Commands {
         action: BaselineAction,
     },
 
+    /// Map the codebase architecture — modules, layers, and dependencies (Mermaid + HTML)
+    #[command(name = "arch-map", display_order = 1)]
+    ArchMap {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output HTML report path
+        #[arg(short, long, default_value = "falcon-arch-map.html")]
+        output: PathBuf,
+
+        /// Skip HTML report (console only)
+        #[arg(long)]
+        no_html: bool,
+
+        /// Print machine-readable JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Show file dependency graph
     #[command(name = "dep-graph", display_order = 12)]
     DepGraph {

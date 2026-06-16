@@ -168,6 +168,12 @@ fn run(cli: Cli) -> Result<()> {
 
         Commands::Baseline { action } => handle_baseline(action)?,
         Commands::DepGraph { path, file } => handle_dep_graph(path, file)?,
+        Commands::ArchMap {
+            path,
+            output,
+            no_html,
+            json,
+        } => handle_arch_map(path, output, no_html, json)?,
         Commands::Workspace { path } => handle_workspace(path)?,
         Commands::Docs { output } => handle_docs(output)?,
         Commands::Validate { path } => handle_validate(path)?,
@@ -1151,6 +1157,35 @@ fn handle_golden_gen(
             "✓".green().bold(),
             html_output.display()
         );
+    }
+    Ok(())
+}
+
+fn handle_arch_map(path: PathBuf, output: PathBuf, no_html: bool, json: bool) -> Result<()> {
+    let config = FalconConfig::load(&path)?;
+    let exclude: Vec<glob::Pattern> = config
+        .exclude
+        .iter()
+        .filter_map(|p| glob::Pattern::new(p).ok())
+        .collect();
+
+    let report = falcon::analysis::arch_map::build_arch_map(&path, &exclude);
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    } else {
+        falcon::analysis::arch_map::print_report(&report);
+    }
+
+    if !no_html {
+        falcon::analysis::arch_map::write_html(&report, &output)?;
+        if !json {
+            println!(
+                "\n{} {}",
+                "HTML report:".bright_cyan(),
+                output.display().to_string().bright_white()
+            );
+        }
     }
     Ok(())
 }

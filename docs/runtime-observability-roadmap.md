@@ -52,7 +52,7 @@ diffing the route widget name (and screenshot byte length as a cheap fallback),
 emit a timeline of distinct screens, and write an HTML report with embedded
 thumbnails + a per-screen metrics strip. Output dir holds the PNGs + `journey.html`.
 
-### 3. `falcon arch-map`  — STATUS: planned
+### 3. `falcon arch-map`  — STATUS: done
 Generate a **visual architecture map** (static): combine the existing dependency
 graph, layer classification, and feature-folder structure into a single Mermaid
 diagram + HTML page — layers as subgraphs, feature modules as clusters, edges as

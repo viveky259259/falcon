@@ -1,3 +1,4 @@
+pub mod arch_map;
 pub mod async_antipatterns;
 pub mod codegen_quality;
 pub mod cognitive_complexity;
