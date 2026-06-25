@@ -1,5 +1,5 @@
 use falcon::ai::confidence::{score_unused_issues, ConfidenceResult};
-use falcon::ai::config::{AiConfig, AiProvider};
+use falcon::ai::config::{AiConfig, AiProvider, EmbeddedModelConfig};
 use falcon::ai::explain::explain_rule;
 use falcon::ai::fix::generate_fixes;
 use falcon::config::FalconConfig;
@@ -35,6 +35,39 @@ fn test_ai_config_effective_model() {
 
     config.model = Some("custom-model".to_string());
     assert_eq!(config.effective_model(), "custom-model");
+}
+
+#[test]
+fn test_embedded_ai_config_defaults() {
+    let config = EmbeddedModelConfig::default();
+    assert_eq!(config.model_id, "Qwen/Qwen2.5-0.5B-Instruct-GGUF");
+    assert!(config.model_file.ends_with(".gguf"));
+    assert_eq!(config.max_tokens, 128);
+    assert_eq!(config.context_lines, 12);
+    assert_eq!(config.max_issues, 100);
+}
+
+#[test]
+fn test_embedded_provider_parses_from_alias() {
+    let provider: AiProvider = serde_yaml::from_str("embedded").unwrap();
+    assert_eq!(provider, AiProvider::Embedded);
+}
+
+#[test]
+fn test_embedded_ai_config_effective_model_and_availability() {
+    let mut config = AiConfig {
+        enabled: true,
+        provider: AiProvider::Embedded,
+        embedded: Some(EmbeddedModelConfig::default()),
+        ..AiConfig::default()
+    };
+
+    assert_eq!(config.effective_model(), "Qwen/Qwen2.5-0.5B-Instruct-GGUF");
+    assert!(config.is_available());
+
+    config.embedded = None;
+    assert!(!config.is_available());
+    assert_eq!(config.effective_model(), "Qwen/Qwen2.5-0.5B-Instruct-GGUF");
 }
 
 #[test]
@@ -81,6 +114,35 @@ ai:
 }
 
 #[test]
+fn test_embedded_ai_config_yaml_parsing() {
+    let dir = TempDir::new().unwrap();
+    let config_content = r#"
+rules: []
+ai:
+  enabled: true
+  provider: embedded
+  embedded:
+    model_id: "local/test-model"
+    model_file: "test-model.gguf"
+    max_tokens: 64
+    context_lines: 8
+    max_issues: 25
+"#;
+    std::fs::write(dir.path().join("falcon.yaml"), config_content).unwrap();
+
+    let config = FalconConfig::load(dir.path()).unwrap();
+    assert!(config.ai.enabled);
+    assert_eq!(config.ai.provider, AiProvider::Embedded);
+    assert!(config.ai.is_available());
+    let embedded = config.ai.embedded.unwrap();
+    assert_eq!(embedded.model_id, "local/test-model");
+    assert_eq!(embedded.model_file, "test-model.gguf");
+    assert_eq!(embedded.max_tokens, 64);
+    assert_eq!(embedded.context_lines, 8);
+    assert_eq!(embedded.max_issues, 25);
+}
+
+#[test]
 fn test_ai_setup_generates_config() {
     let dir = TempDir::new().unwrap();
     std::fs::write(dir.path().join("falcon.yaml"), "rules: []\n").unwrap();
@@ -90,6 +152,8 @@ fn test_ai_setup_generates_config() {
     let content = std::fs::read_to_string(dir.path().join("falcon.yaml")).unwrap();
     assert!(content.contains("ai:"));
     assert!(content.contains("provider: none"));
+    assert!(content.contains("embedded:"));
+    assert!(content.contains("Qwen/Qwen2.5-0.5B-Instruct-GGUF"));
     assert!(content.contains("confidence_scoring: false"));
 }
 
