@@ -3309,7 +3309,9 @@ fn run(cli: Cli) -> Result<()> {
 
             apply_review_strictness(&mut report, strictness, review_observations);
 
-            if analyzer_copilot {
+            let should_run_analyzer_copilot =
+                analyzer_copilot || path.join(".dart_tool/package_config.json").is_file();
+            if should_run_analyzer_copilot {
                 if let Some(analyzer_diagnostics) =
                     falcon::analyzer_bridge::run_dart_analyze(&path)?
                 {

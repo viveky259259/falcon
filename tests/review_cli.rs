@@ -146,6 +146,41 @@ fn review_analyzer_copilot_suppresses_same_line_falcon_issue() {
 }
 
 #[test]
+fn review_auto_runs_analyzer_copilot_for_dart_project() {
+    let repo = temp_git_repo();
+    write_initial_project(repo.path());
+    write_package_config(repo.path());
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "initial"]);
+
+    fs::write(
+        repo.path().join("lib/main.dart"),
+        "void main() {\n  print('debug');\n}\n",
+    )
+    .unwrap();
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "change Dart file"]);
+
+    let fake_dart_dir = fake_dart_on_path();
+    let output = falcon_cmd()
+        .env("PATH", path_with(fake_dart_dir.path()))
+        .args([
+            "review",
+            repo.path().to_str().unwrap(),
+            "--base-ref",
+            "HEAD~1",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("run falcon review");
+
+    assert_success_or_findings_failure(&output);
+    let json = review_json(&output);
+    assert_no_rule(&json, "avoid-print-in-production");
+}
+
+#[test]
 fn review_no_defer_to_analyzer_keeps_same_line_falcon_issue() {
     let repo = temp_git_repo();
     write_initial_project(repo.path());

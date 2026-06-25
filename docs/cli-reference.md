@@ -185,10 +185,11 @@ Use `--strictness quick` to report only error-level findings, `standard` for
 the default lint findings plus standard review observations, and `thorough` for
 the extra review observations such as missing-test checks.
 
-Use `--analyzer-copilot` to run `dart analyze --format=json` first and suppress
-Falcon findings on the same file/line as analyzer diagnostics. Add
-`--no-defer-to-analyzer` to keep Falcon findings even when the analyzer reports
-the same line.
+For Dart projects with `.dart_tool/package_config.json`, review runs
+`dart analyze --format=json` as an analyzer co-pilot and suppresses Falcon
+findings on the same file/line as analyzer diagnostics. `--analyzer-copilot`
+keeps this behavior explicit, and `--no-defer-to-analyzer` keeps Falcon findings
+even when the analyzer reports the same line.
 
 ## Dashboard
 
