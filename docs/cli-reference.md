@@ -170,6 +170,7 @@ The update mechanism downloads pre-built binaries from GitHub releases. If no bi
 |---|---|
 | `falcon review [path] --format gh` | Print PR-ready markdown for changed Dart files |
 | `falcon review [path] --format json` | Print JSON findings for changed Dart files |
+| `falcon review [path] --format sarif` | Print SARIF findings for changed Dart files |
 | `falcon pr-comment [path]` | Post full-project analysis results as GitHub PR comment |
 | `falcon webhook --url <url>` | Send webhook notification |
 | `falcon fix [path]` | Auto-fix lint issues |

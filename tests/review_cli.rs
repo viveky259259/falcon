@@ -76,6 +76,54 @@ fn review_format_json_uses_diff_alias_and_reports_changed_file_count() {
 }
 
 #[test]
+fn review_format_sarif_reports_changed_file_findings() {
+    let repo = temp_git_repo();
+    write_initial_project(repo.path());
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "initial"]);
+
+    std::fs::write(
+        repo.path().join("lib/main.dart"),
+        "void main() {\n  print('debug');\n}\n",
+    )
+    .unwrap();
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "change Dart file"]);
+
+    let output = falcon_cmd()
+        .args([
+            "review",
+            repo.path().to_str().unwrap(),
+            "--base-ref",
+            "HEAD~1",
+            "--format",
+            "sarif",
+        ])
+        .output()
+        .expect("run falcon review");
+
+    assert_success_or_findings_failure(&output);
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|e| {
+        panic!(
+            "invalid review sarif: {}\nstdout:\n{}",
+            e,
+            String::from_utf8_lossy(&output.stdout)
+        )
+    });
+    assert_eq!(json["version"], "2.1.0");
+    assert!(json["$schema"].as_str().unwrap_or("").contains("sarif"));
+    assert_eq!(
+        json["runs"][0]["results"][0]["ruleId"],
+        "avoid-print-in-production"
+    );
+    assert_eq!(
+        json["runs"][0]["results"][0]["locations"][0]["physicalLocation"]["artifactLocation"]
+            ["uri"],
+        repo.path().join("lib/main.dart").to_string_lossy().as_ref()
+    );
+}
+
+#[test]
 fn review_quick_strictness_reports_only_errors() {
     let repo = temp_git_repo();
     write_initial_project(repo.path());

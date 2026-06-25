@@ -1856,6 +1856,7 @@ enum ReviewOutputFormat {
     Text,
     Json,
     Gh,
+    Sarif,
 }
 
 #[derive(Clone, Debug, clap::ValueEnum)]
@@ -3327,6 +3328,9 @@ fn run(cli: Cli) -> Result<()> {
             match format {
                 ReviewOutputFormat::Text => ConsoleReporter.report_analysis(&report),
                 ReviewOutputFormat::Json => JsonReporter.report_analysis(&report),
+                ReviewOutputFormat::Sarif => {
+                    SarifReporter { output_path: None }.report_analysis(&report)
+                }
                 ReviewOutputFormat::Gh => {
                     println!(
                         "{}",
