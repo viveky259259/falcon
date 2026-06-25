@@ -132,7 +132,7 @@ fn generate_recommendations(
     }
     if provenance.ai_pct > 30.0 {
         recs.push(format!(
-            "AI Provenance: {:.0}% of files show AI-generation patterns — run 'falcon ai-score' after each AI session to catch common pitfalls.",
+            "AI Provenance: {:.0}% of files show AI-generation patterns — run 'falcon score' after each AI session to catch common pitfalls.",
             provenance.ai_pct
         ));
     }

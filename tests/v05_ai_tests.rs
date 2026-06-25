@@ -128,10 +128,39 @@ fn test_explain_multiple_rules() {
         "avoid-global-state",
         "avoid-returning-widgets",
         "dead-code-path",
+        "fake-mounted-check",
+        "silent-catch",
+        "unawaited-future-in-build",
+        "set-state-after-dispose",
+        "riverpod-scope-leak",
+        "dispose-not-called",
     ];
     for rule in &rules {
         let exp = explain_rule(rule);
         assert!(exp.is_some(), "Missing explanation for {}", rule);
+    }
+}
+
+#[test]
+fn test_behavioral_explanations_are_classified_and_actionable() {
+    let rules = [
+        "fake-mounted-check",
+        "silent-catch",
+        "unawaited-future-in-build",
+        "set-state-after-dispose",
+        "riverpod-scope-leak",
+        "dispose-not-called",
+    ];
+
+    for rule in rules {
+        let exp = explain_rule(rule).unwrap_or_else(|| panic!("missing {}", rule));
+        assert_eq!(exp.category, "Behavioral");
+        assert_eq!(exp.severity, "error");
+        assert!(
+            !exp.bad_example.is_empty() && !exp.good_example.is_empty(),
+            "{} should include before/after examples",
+            rule
+        );
     }
 }
 

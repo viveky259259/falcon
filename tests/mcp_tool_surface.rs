@@ -4,6 +4,8 @@
 //! as aliases. Council mapping: EPIC 2.1.
 
 use serde_json::json;
+use std::path::Path;
+use std::process::Command;
 
 const CANONICAL: &[&str] = &["lint_file", "lint_diff", "review", "explain", "fix_safe"];
 
@@ -82,17 +84,52 @@ fn unknown_tool_yields_clear_error() {
 }
 
 #[test]
-fn lint_diff_stub_response_carries_marker() {
+fn lint_diff_analyzes_changed_dart_files() {
+    let repo = temp_git_repo();
+    let lib = repo.path().join("lib");
+    std::fs::create_dir_all(&lib).unwrap();
+    std::fs::write(lib.join("main.dart"), "class Good {}\n").unwrap();
+    std::fs::write(repo.path().join("README.md"), "initial\n").unwrap();
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "initial"]);
+
+    std::fs::write(
+        lib.join("main.dart"),
+        "class badName {\n  void run() {\n    print('debug');\n  }\n}\n",
+    )
+    .unwrap();
+    std::fs::write(repo.path().join("README.md"), "changed\n").unwrap();
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "change Dart file"]);
+
     let result = falcon::mcp::tools::execute_tool(
         "lint_diff",
-        &json!({ "path": "/tmp/dummy", "base_ref": "origin/main" }),
+        &json!({ "path": repo.path().to_string_lossy(), "base_ref": "HEAD~1" }),
     )
-    .expect("stub should succeed");
+    .expect("lint_diff should analyze changed Dart files");
 
     assert_eq!(
-        result.get("not_yet_implemented_changed_file_scoping"),
-        Some(&json!(true)),
-        "stub marker missing from response: {:?}",
+        result.get("changed_file_count"),
+        Some(&json!(1)),
+        "lint_diff should ignore non-Dart changed files: {:?}",
+        result
+    );
+    assert_eq!(result.get("file_count"), Some(&json!(1)));
+    assert!(
+        result
+            .get("changed_files")
+            .and_then(|v| v.as_array())
+            .is_some_and(|files| files.contains(&json!("lib/main.dart"))),
+        "changed_files should include lib/main.dart: {:?}",
+        result
+    );
+    assert!(
+        result
+            .get("issue_count")
+            .and_then(|v| v.as_u64())
+            .unwrap_or_default()
+            > 0,
+        "changed Dart file should be analyzed and report issues: {:?}",
         result
     );
 }
@@ -133,4 +170,30 @@ fn schemas_have_draft_07_marker_and_required_fields() {
             );
         }
     }
+}
+
+fn temp_git_repo() -> tempfile::TempDir {
+    let repo = tempfile::tempdir().unwrap();
+    git(repo.path(), &["init"]);
+    git(
+        repo.path(),
+        &["config", "user.email", "falcon@example.test"],
+    );
+    git(repo.path(), &["config", "user.name", "Falcon Test"]);
+    repo
+}
+
+fn git(root: &Path, args: &[&str]) {
+    let output = Command::new("git")
+        .args(args)
+        .current_dir(root)
+        .output()
+        .unwrap_or_else(|e| panic!("failed to run git {:?}: {}", args, e));
+    assert!(
+        output.status.success(),
+        "git {:?} failed\nstdout:\n{}\nstderr:\n{}",
+        args,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
 }

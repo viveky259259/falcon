@@ -50,7 +50,7 @@ pub fn list_tools() -> Vec<ToolDefinition> {
         },
         ToolDefinition {
             name: "lint_diff".to_string(),
-            description: "Analyze only the files changed relative to a base git ref (default: origin/main). Stubbed in this release — returns a marker indicating changed-file scoping is not yet implemented.".to_string(),
+            description: "Analyze only Dart files changed relative to a base git ref (default: origin/main).".to_string(),
             input_schema: serde_json::json!({
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "type": "object",
@@ -377,23 +377,68 @@ fn execute_provenance(args: &Value) -> Result<Value, String> {
     }))
 }
 
-/// Stub handler for `lint_diff`. Changed-file scoping (`git diff base_ref...HEAD`)
-/// is intentionally not implemented yet — the tool is reserved in the surface
-/// so client schemas don't churn when we land it.
 fn execute_lint_diff(args: &Value) -> Result<Value, String> {
     let path = get_string_arg(args, "path")?;
+    let root = PathBuf::from(&path);
     let base_ref = args
         .get("base_ref")
         .and_then(|v| v.as_str())
         .unwrap_or("origin/main")
         .to_string();
 
+    let changed_files = crate::review::pr_review::changed_dart_files(&root, &base_ref)
+        .map_err(|e| e.to_string())?;
+
+    if changed_files.is_empty() {
+        return Ok(serde_json::json!({
+            "path": path,
+            "base_ref": base_ref,
+            "changed_file_count": 0,
+            "file_count": 0,
+            "issue_count": 0,
+            "changed_files": [],
+            "issues": []
+        }));
+    }
+
+    let config = crate::config::FalconConfig::load(&root)
+        .map_err(|e| format!("Failed to load config: {}", e))?;
+    let falcon =
+        crate::Falcon::new(config).map_err(|e| format!("Failed to initialize Falcon: {}", e))?;
+    let report = falcon
+        .analyze_files(&changed_files)
+        .map_err(|e| format!("Diff analysis failed: {}", e))?;
+
+    let issues: Vec<Value> = report
+        .issues
+        .iter()
+        .map(|i| {
+            serde_json::json!({
+                "rule": i.rule,
+                "message": i.message,
+                "severity": format!("{:?}", i.severity),
+                "file": i.file.to_string_lossy(),
+                "line": i.line,
+                "column": i.column
+            })
+        })
+        .collect();
+    let changed_file_values: Vec<Value> = changed_files
+        .iter()
+        .map(|f| {
+            let display_path = f.strip_prefix(&root).unwrap_or(f);
+            serde_json::json!(display_path.to_string_lossy())
+        })
+        .collect();
+
     Ok(serde_json::json!({
         "path": path,
         "base_ref": base_ref,
-        "not_yet_implemented_changed_file_scoping": true,
-        "message": "lint_diff is reserved in the MCP surface; changed-file scoping ships in a follow-up. Use 'review' for now.",
-        "issues": []
+        "changed_file_count": changed_file_values.len(),
+        "file_count": report.file_count,
+        "issue_count": issues.len(),
+        "changed_files": changed_file_values,
+        "issues": issues
     }))
 }
 
@@ -401,6 +446,8 @@ fn execute_lint_diff(args: &Value) -> Result<Value, String> {
 mod tests {
     use super::*;
     use serde_json::json;
+    use std::path::Path;
+    use std::process::Command;
 
     /// The 5 canonical tool names — locked surface.
     const CANONICAL_TOOLS: &[&str] = &["lint_file", "lint_diff", "review", "explain", "fix_safe"];
@@ -496,26 +543,104 @@ mod tests {
     }
 
     #[test]
-    fn lint_diff_stub_contains_marker() {
+    fn lint_diff_analyzes_changed_dart_files() {
+        let repo = temp_git_repo();
+        let lib = repo.path().join("lib");
+        std::fs::create_dir_all(&lib).unwrap();
+        std::fs::write(lib.join("main.dart"), "class Good {}\n").unwrap();
+        std::fs::write(repo.path().join("README.md"), "initial\n").unwrap();
+        git(repo.path(), &["add", "."]);
+        git(repo.path(), &["commit", "-m", "initial"]);
+
+        std::fs::write(
+            lib.join("main.dart"),
+            "class badName {\n  void run() {\n    print('debug');\n  }\n}\n",
+        )
+        .unwrap();
+        std::fs::write(repo.path().join("README.md"), "changed\n").unwrap();
+        git(repo.path(), &["add", "."]);
+        git(repo.path(), &["commit", "-m", "change Dart file"]);
+
         let result = execute_tool(
             "lint_diff",
-            &json!({ "path": "/tmp/anywhere", "base_ref": "origin/main" }),
+            &json!({ "path": repo.path().to_string_lossy(), "base_ref": "HEAD~1" }),
         )
-        .expect("lint_diff stub should not error on valid args");
+        .expect("lint_diff should analyze changed Dart files");
 
         assert_eq!(
-            result.get("not_yet_implemented_changed_file_scoping"),
-            Some(&json!(true)),
-            "lint_diff stub must include the documented marker field"
+            result.get("changed_file_count"),
+            Some(&json!(1)),
+            "lint_diff should ignore non-Dart changed files: {:?}",
+            result
         );
-        assert_eq!(result.get("base_ref"), Some(&json!("origin/main")));
-        assert_eq!(result.get("path"), Some(&json!("/tmp/anywhere")));
+        assert_eq!(result.get("file_count"), Some(&json!(1)));
+        assert!(
+            result
+                .get("changed_files")
+                .and_then(|v| v.as_array())
+                .is_some_and(|files| files.contains(&json!("lib/main.dart"))),
+            "changed_files should include lib/main.dart: {:?}",
+            result
+        );
+        assert!(
+            result
+                .get("issue_count")
+                .and_then(|v| v.as_u64())
+                .unwrap_or_default()
+                > 0,
+            "changed Dart file should be analyzed and report issues: {:?}",
+            result
+        );
     }
 
     #[test]
     fn lint_diff_defaults_base_ref() {
-        let result = execute_tool("lint_diff", &json!({ "path": "/tmp/anywhere" })).expect("ok");
-        assert_eq!(result.get("base_ref"), Some(&json!("origin/main")));
+        let repo = temp_git_repo();
+        git(repo.path(), &["commit", "--allow-empty", "-m", "initial"]);
+
+        let result = execute_tool(
+            "lint_diff",
+            &json!({ "path": repo.path().to_string_lossy() }),
+        )
+        .expect_err("missing default origin/main should surface git diff error");
+        assert!(
+            result.contains("origin/main...HEAD"),
+            "default base ref should be origin/main in git error: {}",
+            result
+        );
+
+        let result = execute_tool(
+            "lint_diff",
+            &json!({ "path": repo.path().to_string_lossy(), "base_ref": "HEAD" }),
+        )
+        .expect("explicit HEAD base should work");
+        assert_eq!(result.get("base_ref"), Some(&json!("HEAD")));
+    }
+
+    fn temp_git_repo() -> tempfile::TempDir {
+        let repo = tempfile::tempdir().unwrap();
+        git(repo.path(), &["init"]);
+        git(
+            repo.path(),
+            &["config", "user.email", "falcon@example.test"],
+        );
+        git(repo.path(), &["config", "user.name", "Falcon Test"]);
+        repo
+    }
+
+    fn git(root: &Path, args: &[&str]) {
+        let output = Command::new("git")
+            .args(args)
+            .current_dir(root)
+            .output()
+            .unwrap_or_else(|e| panic!("failed to run git {:?}: {}", args, e));
+        assert!(
+            output.status.success(),
+            "git {:?} failed\nstdout:\n{}\nstderr:\n{}",
+            args,
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 
     #[test]

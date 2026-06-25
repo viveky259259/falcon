@@ -134,6 +134,33 @@ fn get_changed_files(root: &Path, git_ref: &str) -> anyhow::Result<Vec<PathBuf>>
         .collect())
 }
 
+/// Return existing Dart files changed relative to `base_ref...HEAD`.
+pub fn changed_dart_files(root: &Path, base_ref: &str) -> anyhow::Result<Vec<PathBuf>> {
+    let output = std::process::Command::new("git")
+        .args([
+            "diff",
+            "--name-only",
+            "--diff-filter=ACMR",
+            &format!("{}...HEAD", base_ref),
+        ])
+        .current_dir(root)
+        .output()?;
+
+    if !output.status.success() {
+        anyhow::bail!(
+            "git diff failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter(|line| line.ends_with(".dart"))
+        .map(|line| root.join(line))
+        .filter(|path| path.is_file())
+        .collect())
+}
+
 #[derive(Default)]
 struct ProjectPatterns {
     error_handling: ErrorHandlingPattern,

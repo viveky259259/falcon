@@ -33,13 +33,13 @@ struct Cli {
 const GROUPED_HELP: &str = r#"
 SEMANTIC COMMAND GROUPS:
 
-  Analysis          analyze, metrics, ai-score, cognitive-complexity, codebase-intel
+  Analysis          analyze, metrics, score, cognitive-complexity, codebase-intel
   Code Checks       check-unused-code, check-unused-files, check-cycles, check-async,
                     check-widgets, check-dead-code, check-layers, check-imports,
                     check-platform, check-codegen, check-perf, check-unused-params,
                     check-unused-l10n, check-dependencies, check-promoted-deps
   Comparison        compare-branches, compare-reports, compare, history
-  AI Intelligence   ai-score, ai-report, provenance, conventions, drift, predict,
+  AI Intelligence   score, ai-report, provenance, conventions, drift, predict,
                     discover-rules, refactor-sim, test-gen, vuln-scan
   CI/CD             pr-comment, webhook, export, fix
   Tracking          trends, history, benchmark, score-track, perf-track, fix-track
@@ -673,12 +673,16 @@ enum Commands {
         path: PathBuf,
 
         /// Git ref to diff against (e.g., HEAD~1, main, origin/main)
-        #[arg(long, default_value = "HEAD~1")]
-        diff: String,
+        #[arg(long = "base-ref", alias = "diff", default_value = "origin/main")]
+        base_ref: String,
+
+        /// Output format
+        #[arg(long, default_value = "text")]
+        format: ReviewOutputFormat,
 
         /// Review strictness level
         #[arg(long, default_value = "standard")]
-        strictness: falcon::review::pr_review::ReviewStrictness,
+        _strictness: falcon::review::pr_review::ReviewStrictness,
     },
 
     /// Analyze codebase health, god files, tech debt, and hotspots
@@ -912,7 +916,7 @@ enum Commands {
     },
 
     /// Calculate AI Code Quality Score (0-100) with 6-dimension breakdown
-    #[command(name = "ai-score", display_order = 1)]
+    #[command(name = "score", alias = "ai-score", display_order = 1)]
     AiScore {
         /// Path to project
         #[arg(default_value = ".")]
@@ -1840,6 +1844,13 @@ enum OutputFormat {
 }
 
 #[derive(Clone, Debug, clap::ValueEnum)]
+enum ReviewOutputFormat {
+    Text,
+    Json,
+    Gh,
+}
+
+#[derive(Clone, Debug, clap::ValueEnum)]
 enum FailLevel {
     Error,
     Warning,
@@ -1999,7 +2010,11 @@ enum DocFormat {
 
 fn main() {
     env_logger::init();
-    let cli = Cli::parse();
+    let args: Vec<String> = std::env::args().collect();
+    if args.get(1).is_some_and(|arg| arg == "ai-score") {
+        falcon::cli::deprecation::warn_aliased("ai-score", "score");
+    }
+    let cli = Cli::parse_from(args);
 
     if let Err(e) = run(cli) {
         eprintln!("{}: {}", "error".red(), e);
@@ -3255,12 +3270,38 @@ fn run(cli: Cli) -> Result<()> {
         }
         Commands::Review {
             path,
-            diff,
-            strictness,
+            base_ref,
+            format,
+            _strictness,
         } => {
             let config = FalconConfig::load(&path)?;
-            let report = falcon::review::pr_review::review_diff(&path, &diff, &config, strictness)?;
-            falcon::review::pr_review::print_review(&report);
+            let changed_files = falcon::review::pr_review::changed_dart_files(&path, &base_ref)?;
+            let falcon = Falcon::new(config)?;
+            let report = if changed_files.is_empty() {
+                falcon::reporters::AnalysisReport {
+                    issues: Vec::new(),
+                    metrics: Vec::new(),
+                    file_count: 0,
+                    project_path: Some(path.clone()),
+                }
+            } else {
+                falcon.analyze_files(&changed_files)?
+            };
+
+            match format {
+                ReviewOutputFormat::Text => ConsoleReporter.report_analysis(&report),
+                ReviewOutputFormat::Json => JsonReporter.report_analysis(&report),
+                ReviewOutputFormat::Gh => {
+                    println!(
+                        "{}",
+                        falcon::ci::pr_comment::format_pr_comment(&report, &path)
+                    );
+                }
+            }
+
+            if report.has_errors() {
+                process::exit(1);
+            }
         }
         Commands::CodebaseIntel { path } => {
             let config = FalconConfig::load(&path)?;

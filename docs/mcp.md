@@ -14,7 +14,7 @@ when invoked.
 | Name        | What it does                                                                                                   | Required args     |
 |-------------|----------------------------------------------------------------------------------------------------------------|-------------------|
 | `lint_file` | Analyze a single Dart file. Fast — meant for "after you generated/edited a file" loops.                        | `file_path`       |
-| `lint_diff` | Analyze only files changed vs. `base_ref` (default `origin/main`). **Stub today** — see below.                 | `path`            |
+| `lint_diff` | Analyze only Dart files changed vs. `base_ref` (default `origin/main`).                                        | `path`            |
 | `review`    | Full-project Falcon analysis. Returns issues with rule, severity, file, line, message.                         | `path`            |
 | `explain`   | Explain a Falcon lint rule — rationale, good/bad examples, exceptions.                                         | `rule`            |
 | `fix_safe`  | Generate auto-fix suggestions. Preview-only by default; pass `preview:false` to write changes.                 | `path`            |
@@ -22,22 +22,26 @@ when invoked.
 All schemas are JSON-Schema draft-07 and surfaced via the standard MCP
 `inputSchema` field on `tools/list`.
 
-### `lint_diff` today (stub)
+### `lint_diff`
 
-`lint_diff` is **reserved in the surface** so client schemas don't churn when
-the implementation lands. Today it returns:
+`lint_diff` shells out to `git diff --name-only --diff-filter=ACMR
+<base_ref>...HEAD`, keeps existing `.dart` files, and analyzes only that
+scoped file list. It returns:
 
 ```json
 {
   "path": "...",
   "base_ref": "origin/main",
-  "not_yet_implemented_changed_file_scoping": true,
-  "message": "lint_diff is reserved in the MCP surface; changed-file scoping ships in a follow-up. Use 'review' for now.",
+  "changed_file_count": 1,
+  "file_count": 1,
+  "issue_count": 0,
+  "changed_files": ["lib/main.dart"],
   "issues": []
 }
 ```
 
-If you need full-project results today, call `review` instead.
+If no Dart files changed, the tool returns zero counts and an empty issue
+list. If the base ref is missing, the git error is returned to the caller.
 
 ## Deprecation table
 

@@ -58,7 +58,7 @@ Opens an enterprise-grade dashboard with:
 ### 3. Score your project
 
 ```bash
-falcon ai-score .
+falcon score .
 ```
 
 Get a 0-100 AI Code Quality Score with a 6-dimension breakdown.

@@ -16,7 +16,7 @@ Falcon is the only Flutter linter specifically designed to catch the bugs AI too
 cargo install --git https://github.com/viveky259259/falcon
 
 # Score your project (2 seconds)
-falcon ai-score .
+falcon score .
 
 # Full analysis
 falcon analyze .
@@ -25,7 +25,7 @@ falcon analyze .
 ## AI Code Quality Score
 
 ```
-$ falcon ai-score .
+$ falcon score .
 
   AI Code Quality Score: 72/100 (Grade: C)
 
@@ -45,7 +45,7 @@ $ falcon ai-score .
 | **Dep Manager** | `falcon manage deps` | Unused deps, version issues, path/git deps |
 | **Architect** | `falcon manage arch` | Architecture governance, layer violations, hotspots |
 | **Maintenance** | `falcon manage maint` | Tech debt score, cleanup tasks, auto-fix pipeline |
-| **AI Score** | `falcon ai-score` | 0-100 AI Code Quality Score with 6-dimension breakdown |
+| **AI Score** | `falcon score` | 0-100 AI Code Quality Score with 6-dimension breakdown |
 | **61+ Rules** | `falcon analyze` | Flutter, BLoC, Riverpod, accessibility rules |
 | **MCP Server** | `falcon-mcp` | AI tools call Falcon during code generation |
 | **PR Comments** | `falcon pr-comment` | Auto-post analysis on GitHub PRs |

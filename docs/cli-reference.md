@@ -6,7 +6,7 @@
 |---|---|
 | `falcon analyze [path]` | Full analysis (metrics + rules + unused detection) |
 | `falcon metrics [path]` | Calculate code metrics only |
-| `falcon ai-score [path]` | AI Code Quality Score (0-100) with 6-dimension breakdown |
+| `falcon score [path]` | AI Code Quality Score (0-100) with 6-dimension breakdown |
 | `falcon ai-report [path]` | Full "State of AI-Generated Flutter Code" report |
 
 ### falcon analyze
@@ -43,11 +43,13 @@ Generates an enterprise-grade HTML dashboard with:
 - Function and class metrics tables
 - Dark/light theme toggle
 
-### falcon ai-score
+### falcon score
 
 ```bash
-falcon ai-score . --badge --json
+falcon score . --badge --json
 ```
+
+`falcon ai-score` remains available as a deprecated alias until v1.0.
 
 | Flag | Description |
 |---|---|
@@ -166,11 +168,18 @@ The update mechanism downloads pre-built binaries from GitHub releases. If no bi
 
 | Command | Description |
 |---|---|
-| `falcon pr-comment [path]` | Post analysis results as GitHub PR comment |
+| `falcon review [path] --format gh` | Print PR-ready markdown for changed Dart files |
+| `falcon review [path] --format json` | Print JSON findings for changed Dart files |
+| `falcon pr-comment [path]` | Post full-project analysis results as GitHub PR comment |
 | `falcon webhook --url <url>` | Send webhook notification |
 | `falcon fix [path]` | Auto-fix lint issues |
 | `falcon benchmark` | Run performance benchmark |
 | `falcon compare` | Compare Falcon vs dart analyze |
+
+`falcon review` defaults its base ref to `origin/main` and uses
+`git diff --name-only --diff-filter=ACMR <base-ref>...HEAD` to analyze only
+changed `.dart` files. Use `--base-ref <ref>` or the legacy `--diff <ref>`
+alias to compare against a different ref.
 
 ## Dashboard
 
