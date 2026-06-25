@@ -4623,7 +4623,7 @@ fn run_incremental(
     );
 
     let mut cache = AnalysisCache::load(path);
-    let report = falcon.analyze_files(&affected_vec)?;
+    let report = falcon.analyze_files_with_project_context(path, &affected_vec)?;
 
     for (file, _) in &report.metrics {
         let file_issues = report.issues.iter().filter(|i| i.file == *file).count();
