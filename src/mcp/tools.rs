@@ -43,6 +43,10 @@ pub fn list_tools() -> Vec<ToolDefinition> {
                     "source": {
                         "type": "string",
                         "description": "Optional: Dart source code to analyze (if provided, file_path is used only for context)"
+                    },
+                    "project_root": {
+                        "type": "string",
+                        "description": "Optional: project root for resolver-backed cross-file rules"
                     }
                 },
                 "required": ["file_path"]
@@ -246,6 +250,36 @@ fn execute_check_file(args: &Value) -> Result<Value, String> {
     } else {
         std::fs::read_to_string(&file_path).map_err(|e| format!("Failed to read file: {}", e))?
     };
+
+    if let Some(project_root) = args.get("project_root").and_then(|v| v.as_str()) {
+        let sdk = crate::sdk::FalconSdk::new();
+        let sdk_issues = sdk
+            .analyze_source_with_project_context(
+                &source,
+                &file_path.to_string_lossy(),
+                project_root,
+            )
+            .map_err(|e| format!("Analysis failed: {}", e))?;
+
+        let issue_list: Vec<Value> = sdk_issues
+            .iter()
+            .map(|i| {
+                serde_json::json!({
+                    "rule": i.rule,
+                    "message": i.message,
+                    "severity": i.severity,
+                    "line": i.line,
+                    "column": i.column
+                })
+            })
+            .collect();
+
+        return Ok(serde_json::json!({
+            "file": file_path.to_string_lossy(),
+            "issue_count": issue_list.len(),
+            "issues": issue_list
+        }));
+    }
 
     let mut parser =
         crate::parser::DartParser::new().map_err(|e| format!("Parser init failed: {}", e))?;

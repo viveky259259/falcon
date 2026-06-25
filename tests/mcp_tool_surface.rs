@@ -181,6 +181,40 @@ class _ScreenState extends BaseState {
 }
 
 #[test]
+fn lint_file_can_opt_into_project_resolver_context() {
+    let repo = temp_git_repo();
+    let lib = repo.path().join("lib");
+    std::fs::create_dir_all(&lib).unwrap();
+    std::fs::write(
+        repo.path().join("falcon.yaml"),
+        "rules:\n  - dispose-not-called:\n      severity: error\nunused:\n  enabled: false\n",
+    )
+    .unwrap();
+    std::fs::write(
+        lib.join("base.dart"),
+        "class BaseState extends State<W> {}\n",
+    )
+    .unwrap();
+
+    let result = falcon::mcp::tools::execute_tool(
+        "lint_file",
+        &json!({
+            "file_path": "lib/screen.dart",
+            "project_root": repo.path().to_string_lossy(),
+            "source": r#"
+class _ScreenState extends BaseState {
+  final TextEditingController controller = TextEditingController();
+}
+"#
+        }),
+    )
+    .expect("lint_file should analyze source with project context");
+
+    assert_eq!(result.get("file"), Some(&json!("lib/screen.dart")));
+    assert_has_rule(&result, "dispose-not-called");
+}
+
+#[test]
 fn schemas_have_draft_07_marker_and_required_fields() {
     for tool in falcon::mcp::tools::list_tools() {
         let schema = &tool.input_schema;

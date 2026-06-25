@@ -12,7 +12,7 @@
 //! ```
 
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// The main entry point for embedding Falcon analysis.
 pub struct FalconSdk;
@@ -145,18 +145,60 @@ impl FalconSdk {
 
     /// Analyze a single Dart file (source string).
     pub fn analyze_source(&self, source: &str, file_name: &str) -> anyhow::Result<Vec<SdkIssue>> {
-        let file_path = PathBuf::from(file_name);
+        self.analyze_source_inner(source, file_name, None)
+    }
+
+    /// Analyze a single Dart source string with project-level resolver context.
+    ///
+    /// This keeps `analyze_source` fast and file-only by default while allowing
+    /// embedders to opt into cross-file rules for edited/generated source.
+    pub fn analyze_source_with_project_context(
+        &self,
+        source: &str,
+        file_name: &str,
+        project_root: &str,
+    ) -> anyhow::Result<Vec<SdkIssue>> {
+        let project_root = PathBuf::from(project_root);
+        self.analyze_source_inner(source, file_name, Some(&project_root))
+    }
+
+    fn analyze_source_inner(
+        &self,
+        source: &str,
+        file_name: &str,
+        project_root: Option<&Path>,
+    ) -> anyhow::Result<Vec<SdkIssue>> {
+        let file_path = source_file_path(file_name, project_root);
 
         let mut parser = crate::parser::DartParser::new()?;
         let tree = parser
             .parse(source)
             .ok_or_else(|| anyhow::anyhow!("Failed to parse Dart source"))?;
 
-        let config = crate::config::FalconConfig::default();
+        let config = match project_root {
+            Some(root) => crate::config::FalconConfig::load(root)?,
+            None => crate::config::FalconConfig::default(),
+        };
         let mut registry = crate::rules::RuleRegistry::new();
         registry.register_defaults(&config);
 
-        let mut all_issues = registry.check(tree.root_node(), source, &file_path);
+        let mut all_issues = if let Some(root) = project_root {
+            let resolver = crate::resolver::ProjectResolver::new(root, &config)?;
+            let base_index = resolver.build_index()?;
+            let mut classes = base_index.classes().to_vec();
+            classes.extend(crate::resolver::classes::collect_classes(
+                tree.root_node(),
+                source,
+                &file_path,
+            ));
+            let source_index = crate::resolver::ResolverIndex::new(classes);
+            let context = crate::rules::RuleContext {
+                resolver_index: Some(&source_index),
+            };
+            registry.check_with_context(tree.root_node(), source, &file_path, &context)
+        } else {
+            registry.check(tree.root_node(), source, &file_path)
+        };
 
         let metrics =
             crate::metrics::calculate_file_metrics(tree.root_node(), source, &config.metrics);
@@ -168,7 +210,7 @@ impl FalconSdk {
                 rule: i.rule.clone(),
                 message: i.message.clone(),
                 severity: format!("{:?}", i.severity),
-                file: file_name.to_string(),
+                file: i.file.to_string_lossy().to_string(),
                 line: i.line,
                 column: i.column,
             })
@@ -209,5 +251,13 @@ impl FalconSdk {
     ) -> anyhow::Result<String> {
         let result = self.analyze_project(path, options)?;
         Ok(serde_json::to_string_pretty(&result)?)
+    }
+}
+
+fn source_file_path(file_name: &str, project_root: Option<&Path>) -> PathBuf {
+    let file_path = PathBuf::from(file_name);
+    match project_root {
+        Some(root) if file_path.is_relative() => root.join(file_path),
+        _ => file_path,
     }
 }

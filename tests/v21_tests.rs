@@ -207,6 +207,43 @@ class BadService {
 }
 
 #[test]
+fn test_sdk_analyze_source_with_project_context() {
+    let tmp = tempfile::tempdir().unwrap();
+    let lib = tmp.path().join("lib");
+    std::fs::create_dir_all(&lib).unwrap();
+    std::fs::write(
+        tmp.path().join("falcon.yaml"),
+        "rules:\n  - dispose-not-called:\n      severity: error\nunused:\n  enabled: false\n",
+    )
+    .unwrap();
+    std::fs::write(
+        lib.join("base.dart"),
+        "class BaseState extends State<W> {}\n",
+    )
+    .unwrap();
+
+    let sdk = falcon::sdk::FalconSdk::new();
+    let issues = sdk
+        .analyze_source_with_project_context(
+            r#"
+class _ScreenState extends BaseState {
+  final TextEditingController controller = TextEditingController();
+}
+"#,
+            "lib/screen.dart",
+            &tmp.path().to_string_lossy(),
+        )
+        .unwrap();
+
+    assert!(
+        issues
+            .iter()
+            .any(|issue| issue.rule == "dispose-not-called"),
+        "expected dispose-not-called with project context, got {issues:#?}"
+    );
+}
+
+#[test]
 fn test_sdk_analyze_to_json() {
     let tmp = tempfile::tempdir().unwrap();
     let lib = tmp.path().join("lib");

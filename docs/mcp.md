@@ -22,6 +22,14 @@ when invoked.
 All schemas are JSON-Schema draft-07 and surfaced via the standard MCP
 `inputSchema` field on `tools/list`.
 
+### `lint_file`
+
+`lint_file` accepts `file_path` and an optional `source` string for generated or
+edited code that has not been written to disk yet. Pass `project_root` when the
+caller wants resolver-backed cross-file rules, such as lifecycle checks that
+need inheritance facts from the rest of the project. Without `project_root`,
+`lint_file` keeps the original fast single-file behavior.
+
 ### `lint_diff`
 
 `lint_diff` shells out to `git diff --name-only --diff-filter=ACMR
