@@ -119,7 +119,13 @@ fn review_format_sarif_reports_changed_file_findings() {
     assert_eq!(
         json["runs"][0]["results"][0]["locations"][0]["physicalLocation"]["artifactLocation"]
             ["uri"],
-        repo.path().join("lib/main.dart").to_string_lossy().as_ref()
+        "lib/main.dart"
+    );
+    assert!(
+        json["runs"][0]["results"][0]["locations"][0]["physicalLocation"]["artifactLocation"]
+            .get("uriBaseId")
+            .is_none(),
+        "review SARIF should use repo-relative artifact URIs without uriBaseId"
     );
 }
 
