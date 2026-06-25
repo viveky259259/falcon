@@ -76,6 +76,40 @@ fn review_format_json_uses_diff_alias_and_reports_changed_file_count() {
 }
 
 #[test]
+fn review_quick_strictness_reports_only_errors() {
+    let repo = temp_git_repo();
+    write_initial_project(repo.path());
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "initial"]);
+
+    std::fs::write(
+        repo.path().join("lib/main.dart"),
+        "void main() {\n  print('debug');\n}\n",
+    )
+    .unwrap();
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "change Dart file"]);
+
+    let output = falcon_cmd()
+        .args([
+            "review",
+            repo.path().to_str().unwrap(),
+            "--base-ref",
+            "HEAD~1",
+            "--format",
+            "json",
+            "--strictness",
+            "quick",
+        ])
+        .output()
+        .expect("run falcon review");
+
+    assert_success_or_findings_failure(&output);
+    let json = review_json(&output);
+    assert_no_rule(&json, "avoid-print-in-production");
+}
+
+#[test]
 fn review_analyzer_copilot_suppresses_same_line_falcon_issue() {
     let repo = temp_git_repo();
     write_initial_project(repo.path());

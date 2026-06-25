@@ -682,7 +682,7 @@ enum Commands {
 
         /// Review strictness level
         #[arg(long, default_value = "standard")]
-        _strictness: falcon::review::pr_review::ReviewStrictness,
+        strictness: falcon::review::pr_review::ReviewStrictness,
 
         /// Run dart analyze as a co-pilot and defer same-line Falcon findings
         #[arg(long = "analyzer-copilot")]
@@ -3280,12 +3280,21 @@ fn run(cli: Cli) -> Result<()> {
             path,
             base_ref,
             format,
-            _strictness,
+            strictness,
             analyzer_copilot,
             no_defer_to_analyzer,
         } => {
             let config = FalconConfig::load(&path)?;
             let changed_files = falcon::review::pr_review::changed_dart_files(&path, &base_ref)?;
+            let review_observations = (!matches!(
+                strictness,
+                falcon::review::pr_review::ReviewStrictness::Quick
+            ))
+            .then(|| {
+                falcon::review::pr_review::review_diff(&path, &base_ref, &config, strictness)
+                    .map(|report| report.observations)
+            })
+            .transpose()?;
             let falcon = Falcon::new(config)?;
             let mut report = if changed_files.is_empty() {
                 falcon::reporters::AnalysisReport {
@@ -3297,6 +3306,8 @@ fn run(cli: Cli) -> Result<()> {
             } else {
                 falcon.analyze_files_with_project_context(&path, &changed_files)?
             };
+
+            apply_review_strictness(&mut report, strictness, review_observations);
 
             if analyzer_copilot {
                 if let Some(analyzer_diagnostics) =
@@ -4494,6 +4505,61 @@ fn get_plugin_dir() -> PathBuf {
             log::warn!("HOME/USERPROFILE not set, using current directory for plugins");
             PathBuf::from(".falcon").join("plugins")
         }
+    }
+}
+
+fn apply_review_strictness(
+    report: &mut falcon::reporters::AnalysisReport,
+    strictness: falcon::review::pr_review::ReviewStrictness,
+    observations: Option<Vec<falcon::review::pr_review::ReviewObservation>>,
+) {
+    match strictness {
+        falcon::review::pr_review::ReviewStrictness::Quick => {
+            report
+                .issues
+                .retain(|issue| issue.severity == falcon::config::Severity::Error);
+        }
+        falcon::review::pr_review::ReviewStrictness::Standard
+        | falcon::review::pr_review::ReviewStrictness::Thorough => {
+            if let Some(observations) = observations {
+                report
+                    .issues
+                    .extend(observations.into_iter().map(review_observation_to_issue));
+            }
+        }
+    }
+}
+
+fn review_observation_to_issue(
+    observation: falcon::review::pr_review::ReviewObservation,
+) -> falcon::reporters::Issue {
+    let severity = match observation.severity {
+        falcon::review::pr_review::ObservationSeverity::Critical => falcon::config::Severity::Error,
+        falcon::review::pr_review::ObservationSeverity::Suggestion => {
+            falcon::config::Severity::Warning
+        }
+        falcon::review::pr_review::ObservationSeverity::Nitpick => falcon::config::Severity::Info,
+    };
+    let category = match observation.category {
+        falcon::review::pr_review::ObservationCategory::PatternConsistency => "pattern-consistency",
+        falcon::review::pr_review::ObservationCategory::NamingConvention => "naming-convention",
+        falcon::review::pr_review::ObservationCategory::ErrorHandling => "error-handling",
+        falcon::review::pr_review::ObservationCategory::MissingTest => "missing-test",
+        falcon::review::pr_review::ObservationCategory::CodeStyle => "code-style",
+        falcon::review::pr_review::ObservationCategory::Performance => "performance",
+    };
+    let message = match observation.suggestion {
+        Some(suggestion) => format!("{} Suggestion: {}", observation.message, suggestion),
+        None => observation.message,
+    };
+
+    falcon::reporters::Issue {
+        rule: format!("review-{}", category),
+        message,
+        severity,
+        file: observation.file,
+        line: observation.line,
+        column: 1,
     }
 }
 
