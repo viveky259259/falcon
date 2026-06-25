@@ -406,7 +406,7 @@ fn execute_lint_diff(args: &Value) -> Result<Value, String> {
     let falcon =
         crate::Falcon::new(config).map_err(|e| format!("Failed to initialize Falcon: {}", e))?;
     let report = falcon
-        .analyze_files(&changed_files)
+        .analyze_files_with_project_context(&root, &changed_files)
         .map_err(|e| format!("Diff analysis failed: {}", e))?;
 
     let issues: Vec<Value> = report

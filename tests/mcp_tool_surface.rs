@@ -135,6 +135,52 @@ fn lint_diff_analyzes_changed_dart_files() {
 }
 
 #[test]
+fn lint_diff_uses_project_resolver_context_for_changed_files() {
+    let repo = temp_git_repo();
+    let lib = repo.path().join("lib");
+    std::fs::create_dir_all(&lib).unwrap();
+    std::fs::write(
+        repo.path().join("falcon.yaml"),
+        "rules:\n  - dispose-not-called:\n      severity: error\nunused:\n  enabled: false\n",
+    )
+    .unwrap();
+    std::fs::write(
+        lib.join("base.dart"),
+        "class BaseState extends State<W> {}\n",
+    )
+    .unwrap();
+    std::fs::write(
+        lib.join("screen.dart"),
+        "class _ScreenState extends BaseState {}\n",
+    )
+    .unwrap();
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "initial"]);
+
+    std::fs::write(
+        lib.join("screen.dart"),
+        r#"
+class _ScreenState extends BaseState {
+  final TextEditingController controller = TextEditingController();
+}
+"#,
+    )
+    .unwrap();
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "add disposable field"]);
+
+    let result = falcon::mcp::tools::execute_tool(
+        "lint_diff",
+        &json!({ "path": repo.path().to_string_lossy(), "base_ref": "HEAD~1" }),
+    )
+    .expect("lint_diff should analyze changed Dart files with project context");
+
+    assert_eq!(result.get("changed_file_count"), Some(&json!(1)));
+    assert_eq!(result.get("file_count"), Some(&json!(1)));
+    assert_has_rule(&result, "dispose-not-called");
+}
+
+#[test]
 fn schemas_have_draft_07_marker_and_required_fields() {
     for tool in falcon::mcp::tools::list_tools() {
         let schema = &tool.input_schema;
@@ -195,5 +241,17 @@ fn git(root: &Path, args: &[&str]) {
         args,
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+fn assert_has_rule(result: &serde_json::Value, rule: &str) {
+    assert!(
+        result["issues"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|issue| issue["rule"] == rule),
+        "expected rule {rule} in result:\n{}",
+        serde_json::to_string_pretty(result).unwrap()
     );
 }
