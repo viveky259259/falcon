@@ -299,10 +299,10 @@ fn build_explanation_db() -> HashMap<String, RuleExplanation> {
         category: "Behavioral".to_string(),
         severity: "error".to_string(),
         summary: "setState must not be reachable after a State has been disposed.".to_string(),
-        why: "Calling setState on an unmounted State throws and usually indicates async work outliving the widget. Precise static detection is resolver-gated so this rule currently documents the contract while `fake-mounted-check` catches the common CST-only case.".to_string(),
+        why: "Calling setState on an unmounted State throws and usually indicates async work outliving the widget. Falcon uses resolver-backed State subclass detection and flags setState calls after an async gap when there is no mounted re-check.".to_string(),
         bad_example: "Future<void> load() async {\n  await api.fetch();\n  setState(() {});\n}".to_string(),
         good_example: "Future<void> load() async {\n  await api.fetch();\n  if (!mounted) return;\n  setState(() {});\n}".to_string(),
-        exceptions: vec!["Currently emits only after the resolver-backed implementation lands.".to_string()],
+        exceptions: vec!["Complex aliasing and full Dart control-flow are intentionally conservative; explicit mounted guards keep the rule quiet.".to_string()],
         references: vec!["Flutter State.setState API".to_string()],
     });
 
@@ -311,10 +311,10 @@ fn build_explanation_db() -> HashMap<String, RuleExplanation> {
         category: "Behavioral".to_string(),
         severity: "error".to_string(),
         summary: "Riverpod providers must not leak outside their intended ProviderScope or lifecycle.".to_string(),
-        why: "A provider or subscription that escapes its scope can retain stale state, keep listeners alive, or rebuild widgets from the wrong container. This requires cross-file provider resolution and is currently a resolver-gated rule.".to_string(),
+        why: "A provider or subscription that escapes its scope can retain stale state, keep listeners alive, or rebuild widgets from the wrong container. Falcon conservatively flags provider factories that create subscriptions/controllers/timers without autoDispose or ref.onDispose cleanup.".to_string(),
         bad_example: "final subscriptionProvider = Provider((ref) {\n  return stream.listen((event) {});\n});".to_string(),
         good_example: "final subscriptionProvider = AutoDisposeProvider((ref) {\n  final sub = stream.listen((event) {});\n  ref.onDispose(sub.cancel);\n  return sub;\n});".to_string(),
-        exceptions: vec!["Currently emits only after provider symbol resolution lands.".to_string()],
+        exceptions: vec!["Full generated-provider and ProviderScope symbol analysis is still future resolver work; autoDispose and ref.onDispose are accepted cleanup signals.".to_string()],
         references: vec!["Riverpod provider lifecycles".to_string()],
     });
 

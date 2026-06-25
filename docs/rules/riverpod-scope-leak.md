@@ -2,7 +2,7 @@
 
 **Category:** Behavioral
 **Default severity:** error
-**Status:** resolver-gated stub
+**Status:** conservative lifecycle check
 
 This rule targets Riverpod providers, subscriptions, or containers that escape
 their intended `ProviderScope` or lifecycle. These leaks can retain stale state,
@@ -28,5 +28,10 @@ final subscriptionProvider = AutoDisposeProvider((ref) {
 
 ## Notes
 
-The current implementation is registered but intentionally returns no findings
-until provider symbol resolution lands.
+The current implementation conservatively flags provider factory bodies that
+create leak-prone resources such as stream subscriptions, stream controllers,
+timers, or controllers without either using an auto-dispose provider or
+registering `ref.onDispose` cleanup.
+
+Full provider-scope checking across generated providers and imports still
+requires richer provider symbol resolution.

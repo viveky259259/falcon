@@ -4,8 +4,8 @@
 //!
 //! Some rules in this pack require cross-file resolver context to be precise.
 //! `dispose-not-called` and `set-state-after-dispose` use the first
-//! resolver-backed class index slice; `riverpod-scope-leak` remains a
-//! registered no-op stub until provider resolution lands.
+//! resolver-backed class index slice; `riverpod-scope-leak` uses a
+//! conservative provider-lifecycle heuristic until provider resolution lands.
 
 pub mod dispose_not_called;
 pub mod fake_mounted_check;
