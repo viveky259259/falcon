@@ -183,6 +183,58 @@ fn review_analyzer_copilot_skips_without_package_config() {
     assert_has_rule(&json, "avoid-print-in-production");
 }
 
+#[test]
+fn review_uses_project_resolver_context_for_changed_files() {
+    let repo = temp_git_repo();
+    write_initial_project(repo.path());
+    fs::write(
+        repo.path().join("falcon.yaml"),
+        "rules:\n  - dispose-not-called:\n      severity: error\nunused:\n  enabled: false\n",
+    )
+    .unwrap();
+    fs::write(
+        repo.path().join("lib/base.dart"),
+        "class BaseState extends State<W> {}\n",
+    )
+    .unwrap();
+    fs::write(
+        repo.path().join("lib/screen.dart"),
+        "class _ScreenState extends BaseState {}\n",
+    )
+    .unwrap();
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "initial"]);
+
+    fs::write(
+        repo.path().join("lib/screen.dart"),
+        r#"
+class _ScreenState extends BaseState {
+  final TextEditingController controller = TextEditingController();
+}
+"#,
+    )
+    .unwrap();
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "add disposable field"]);
+
+    let output = falcon_cmd()
+        .args([
+            "review",
+            repo.path().to_str().unwrap(),
+            "--base-ref",
+            "HEAD~1",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("run falcon review");
+
+    assert_success_or_findings_failure(&output);
+    let json = review_json(&output);
+    assert_eq!(json["summary"]["files_analyzed"], 1);
+    assert_has_rule(&json, "dispose-not-called");
+}
+
 fn falcon_cmd() -> Command {
     Command::new(env!("CARGO_BIN_EXE_falcon"))
 }

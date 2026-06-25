@@ -193,6 +193,29 @@ impl Falcon {
 
     /// Analyze only a specific subset of files (for incremental mode).
     pub fn analyze_files(&self, files: &[PathBuf]) -> Result<AnalysisReport> {
+        self.analyze_files_with_rule_context(files, RuleContext::default(), None)
+    }
+
+    /// Analyze a subset of files with project-level resolver context.
+    pub fn analyze_files_with_project_context(
+        &self,
+        project_root: &Path,
+        files: &[PathBuf],
+    ) -> Result<AnalysisReport> {
+        let resolver = ProjectResolver::new(project_root, &self.config)?;
+        let resolver_index = resolver.build_index()?;
+        let context = RuleContext {
+            resolver_index: Some(&resolver_index),
+        };
+        self.analyze_files_with_rule_context(files, context, Some(project_root.to_path_buf()))
+    }
+
+    fn analyze_files_with_rule_context(
+        &self,
+        files: &[PathBuf],
+        context: RuleContext<'_>,
+        project_path: Option<PathBuf>,
+    ) -> Result<AnalysisReport> {
         let file_count = files.len();
 
         let file_results: Vec<_> = files
@@ -228,7 +251,9 @@ impl Falcon {
                     issues.push(violation);
                 }
 
-                let rule_issues = self.rule_registry.check(root, &source, file);
+                let rule_issues = self
+                    .rule_registry
+                    .check_with_context(root, &source, file, &context);
                 issues.extend(rule_issues);
 
                 Some((file.clone(), issues, metrics))
@@ -246,7 +271,7 @@ impl Falcon {
             issues: all_issues,
             metrics: all_metrics,
             file_count,
-            project_path: None,
+            project_path,
         })
     }
 

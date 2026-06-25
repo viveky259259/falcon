@@ -116,7 +116,7 @@ impl RuleRegistry {
             Box::new(flutter::EnsureSemanticsLabel),
             Box::new(flutter::EnsureImageSemantics),
             Box::new(flutter::EnsureTouchTargetSize),
-            // Behavioral rule pack (PR-F) — 4 implemented, 2 resolver-pending (EPIC 3.1).
+            // Behavioral rule pack (PR-F) — 5 implemented, 1 resolver-pending (EPIC 3.1).
             Box::new(behavioral::SetStateAfterDispose::default()),
             Box::new(behavioral::UnawaitedFutureInBuild::default()),
             Box::new(behavioral::FakeMountedCheck::default()),

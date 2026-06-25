@@ -3295,7 +3295,7 @@ fn run(cli: Cli) -> Result<()> {
                     project_path: Some(path.clone()),
                 }
             } else {
-                falcon.analyze_files(&changed_files)?
+                falcon.analyze_files_with_project_context(&path, &changed_files)?
             };
 
             if analyzer_copilot {

@@ -2,7 +2,7 @@
 
 **Category:** Behavioral
 **Default severity:** error
-**Status:** resolver-gated stub
+**Status:** resolver-backed
 
 This rule documents the contract that `setState` must not be reachable after a
 State object has been disposed. Calling `setState` on an unmounted State throws
@@ -29,6 +29,10 @@ Future<void> load() async {
 
 ## Notes
 
-The current implementation is registered but intentionally returns no findings
-until the resolver can identify State subclasses and track async control flow.
-The active `fake-mounted-check` rule covers the most common CST-only case.
+The project-aware implementation uses Falcon's resolver class index to limit
+findings to known `State` subclasses. It conservatively flags `setState(...)`
+after an `await` when there is no intervening `mounted`/`!mounted return` guard.
+
+The plain per-file hook still returns no findings because it lacks resolver
+context. This first slice does not attempt full Dart control-flow analysis or
+symbol aliasing.
