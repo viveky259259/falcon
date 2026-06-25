@@ -2,10 +2,10 @@
 //! AI-generated Flutter/Dart code (async lifecycle gaps, swallowed errors,
 //! state-after-dispose, leaked providers, etc.).
 //!
-//! Some rules in this pack require the upcoming cross-file resolver
-//! (EPIC 3.1) to be precise. Those rules are present, registered, and named
-//! so they are plumbed end-to-end, but ship as no-op stubs that return
-//! `vec![]` until the resolver lands.
+//! Some rules in this pack require cross-file resolver context to be precise.
+//! `dispose-not-called` uses the first resolver-backed class index slice;
+//! `set-state-after-dispose` and `riverpod-scope-leak` remain registered
+//! no-op stubs until richer flow and provider resolution lands.
 
 pub mod dispose_not_called;
 pub mod fake_mounted_check;

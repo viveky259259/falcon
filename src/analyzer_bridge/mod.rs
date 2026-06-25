@@ -6,9 +6,6 @@
 //! co-pilot mode is to add AI-specific checks on top, not to duplicate
 //! analyzer diagnostics.
 //!
-//! This module is intentionally library-only. Wiring it into commands like
-//! `falcon review` is a separate PR.
-
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
@@ -31,6 +28,20 @@ pub trait FalconFindingLike {
     fn file(&self) -> &Path;
     fn line(&self) -> usize;
     fn rule_id(&self) -> &str;
+}
+
+impl FalconFindingLike for crate::reporters::Issue {
+    fn file(&self) -> &Path {
+        &self.file
+    }
+
+    fn line(&self) -> usize {
+        self.line
+    }
+
+    fn rule_id(&self) -> &str {
+        &self.rule
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -233,6 +244,14 @@ fn canonical(path: &Path) -> PathBuf {
     std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
 }
 
+fn normalize_diagnostic_paths(project_root: &Path, diagnostics: &mut [AnalyzerDiagnostic]) {
+    for diagnostic in diagnostics {
+        if diagnostic.file.is_relative() {
+            diagnostic.file = project_root.join(&diagnostic.file);
+        }
+    }
+}
+
 /// Run `dart analyze --format=json` in `project_root` and parse results.
 ///
 /// Returns `Ok(None)` if `dart` is not on PATH or there is no
@@ -274,7 +293,8 @@ pub fn run_dart_analyze(project_root: &Path) -> Result<Option<Vec<AnalyzerDiagno
         .context("failed to invoke `dart analyze`")?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let diags = parse_dart_analyze_json(&stdout)?;
+    let mut diags = parse_dart_analyze_json(&stdout)?;
+    normalize_diagnostic_paths(project_root, &mut diags);
 
     // `dart analyze` exits non-zero when it finds diagnostics — that is
     // normal.  However, if the command failed *and* produced no parseable
@@ -511,5 +531,53 @@ not-json-at-all
         let (surviving, suppressed) = defer_to_analyzer(&falcon, &analyzer, true);
         assert_eq!(surviving.len(), 1);
         assert!(suppressed.is_empty());
+    }
+
+    #[test]
+    fn normalize_relative_diagnostic_paths_against_project_root() {
+        let project_root = PathBuf::from("/tmp/project");
+        let mut diagnostics = vec![
+            diag("lib/main.dart", 2, "unused_import"),
+            diag("/outside/file.dart", 3, "invalid_assignment"),
+        ];
+
+        normalize_diagnostic_paths(&project_root, &mut diagnostics);
+
+        assert_eq!(
+            diagnostics[0].file,
+            PathBuf::from("/tmp/project/lib/main.dart")
+        );
+        assert_eq!(diagnostics[1].file, PathBuf::from("/outside/file.dart"));
+    }
+
+    #[test]
+    fn issue_implements_finding_like_for_deferral() {
+        let root = tempfile::tempdir().unwrap();
+        let file = root.path().join("lib").join("main.dart");
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(&file, "void main() {}\n").unwrap();
+
+        let falcon = vec![crate::reporters::Issue {
+            rule: "avoid-print-in-production".to_string(),
+            message: "print found".to_string(),
+            severity: crate::config::Severity::Warning,
+            file: file.clone(),
+            line: 1,
+            column: 1,
+        }];
+        let analyzer = vec![AnalyzerDiagnostic {
+            file,
+            line: 1,
+            column: 1,
+            code: "avoid_print".to_string(),
+            severity: "INFO".to_string(),
+            message: "avoid print".to_string(),
+        }];
+
+        let (surviving, suppressed) = defer_to_analyzer(&falcon, &analyzer, false);
+
+        assert!(surviving.is_empty());
+        assert_eq!(suppressed.len(), 1);
+        assert_eq!(suppressed[0].rule, "avoid-print-in-production");
     }
 }

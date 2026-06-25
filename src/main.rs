@@ -683,6 +683,14 @@ enum Commands {
         /// Review strictness level
         #[arg(long, default_value = "standard")]
         _strictness: falcon::review::pr_review::ReviewStrictness,
+
+        /// Run dart analyze as a co-pilot and defer same-line Falcon findings
+        #[arg(long = "analyzer-copilot")]
+        analyzer_copilot: bool,
+
+        /// Keep Falcon findings even when dart analyze reports the same line
+        #[arg(long = "no-defer-to-analyzer")]
+        no_defer_to_analyzer: bool,
     },
 
     /// Analyze codebase health, god files, tech debt, and hotspots
@@ -3273,11 +3281,13 @@ fn run(cli: Cli) -> Result<()> {
             base_ref,
             format,
             _strictness,
+            analyzer_copilot,
+            no_defer_to_analyzer,
         } => {
             let config = FalconConfig::load(&path)?;
             let changed_files = falcon::review::pr_review::changed_dart_files(&path, &base_ref)?;
             let falcon = Falcon::new(config)?;
-            let report = if changed_files.is_empty() {
+            let mut report = if changed_files.is_empty() {
                 falcon::reporters::AnalysisReport {
                     issues: Vec::new(),
                     metrics: Vec::new(),
@@ -3287,6 +3297,19 @@ fn run(cli: Cli) -> Result<()> {
             } else {
                 falcon.analyze_files(&changed_files)?
             };
+
+            if analyzer_copilot {
+                if let Some(analyzer_diagnostics) =
+                    falcon::analyzer_bridge::run_dart_analyze(&path)?
+                {
+                    let (issues, _) = falcon::analyzer_bridge::defer_to_analyzer(
+                        &report.issues,
+                        &analyzer_diagnostics,
+                        no_defer_to_analyzer,
+                    );
+                    report.issues = issues;
+                }
+            }
 
             match format {
                 ReviewOutputFormat::Text => ConsoleReporter.report_analysis(&report),

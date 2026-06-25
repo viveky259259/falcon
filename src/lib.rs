@@ -48,7 +48,7 @@ use parser::DartParser;
 use rayon::prelude::*;
 use reporters::{AnalysisReport, Issue};
 use resolver::ProjectResolver;
-use rules::RuleRegistry;
+use rules::{RuleContext, RuleRegistry};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
@@ -70,6 +70,8 @@ impl Falcon {
     pub fn analyze(&self, path: &Path) -> Result<AnalysisReport> {
         let files = self.collect_dart_files(path)?;
         let file_count = files.len();
+        let resolver = ProjectResolver::new(path, &self.config)?;
+        let resolver_index = resolver.build_index()?;
 
         let file_results: Vec<_> = files
             .par_iter()
@@ -104,7 +106,12 @@ impl Falcon {
                     issues.push(violation);
                 }
 
-                let rule_issues = self.rule_registry.check(root, &source, file);
+                let context = RuleContext {
+                    resolver_index: Some(&resolver_index),
+                };
+                let rule_issues = self
+                    .rule_registry
+                    .check_with_context(root, &source, file, &context);
                 issues.extend(rule_issues);
 
                 Some((file.clone(), issues, metrics))
@@ -119,7 +126,6 @@ impl Falcon {
         }
 
         let unused_issues = if self.config.unused.enabled {
-            let resolver = ProjectResolver::new(path, &self.config)?;
             resolver.find_unused()?
         } else {
             Vec::new()

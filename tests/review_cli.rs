@@ -1,4 +1,6 @@
 use serde_json::Value;
+use std::env;
+use std::fs;
 use std::path::Path;
 use std::process::{Command, Output};
 
@@ -73,6 +75,114 @@ fn review_format_json_uses_diff_alias_and_reports_changed_file_count() {
     assert_eq!(json["summary"]["files_analyzed"], 1);
 }
 
+#[test]
+fn review_analyzer_copilot_suppresses_same_line_falcon_issue() {
+    let repo = temp_git_repo();
+    write_initial_project(repo.path());
+    write_package_config(repo.path());
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "initial"]);
+
+    fs::write(
+        repo.path().join("lib/main.dart"),
+        "void main() {\n  print('debug');\n}\n",
+    )
+    .unwrap();
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "change Dart file"]);
+
+    let fake_dart_dir = fake_dart_on_path();
+    let output = falcon_cmd()
+        .env("PATH", path_with(fake_dart_dir.path()))
+        .args([
+            "review",
+            repo.path().to_str().unwrap(),
+            "--base-ref",
+            "HEAD~1",
+            "--format",
+            "json",
+            "--analyzer-copilot",
+        ])
+        .output()
+        .expect("run falcon review");
+
+    assert_success_or_findings_failure(&output);
+    let json = review_json(&output);
+    assert_no_rule(&json, "avoid-print-in-production");
+}
+
+#[test]
+fn review_no_defer_to_analyzer_keeps_same_line_falcon_issue() {
+    let repo = temp_git_repo();
+    write_initial_project(repo.path());
+    write_package_config(repo.path());
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "initial"]);
+
+    fs::write(
+        repo.path().join("lib/main.dart"),
+        "void main() {\n  print('debug');\n}\n",
+    )
+    .unwrap();
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "change Dart file"]);
+
+    let fake_dart_dir = fake_dart_on_path();
+    let output = falcon_cmd()
+        .env("PATH", path_with(fake_dart_dir.path()))
+        .args([
+            "review",
+            repo.path().to_str().unwrap(),
+            "--base-ref",
+            "HEAD~1",
+            "--format",
+            "json",
+            "--analyzer-copilot",
+            "--no-defer-to-analyzer",
+        ])
+        .output()
+        .expect("run falcon review");
+
+    assert_success_or_findings_failure(&output);
+    let json = review_json(&output);
+    assert_has_rule(&json, "avoid-print-in-production");
+}
+
+#[test]
+fn review_analyzer_copilot_skips_without_package_config() {
+    let repo = temp_git_repo();
+    write_initial_project(repo.path());
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "initial"]);
+
+    fs::write(
+        repo.path().join("lib/main.dart"),
+        "void main() {\n  print('debug');\n}\n",
+    )
+    .unwrap();
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "change Dart file"]);
+
+    let fake_dart_dir = fake_dart_on_path();
+    let output = falcon_cmd()
+        .env("PATH", path_with(fake_dart_dir.path()))
+        .args([
+            "review",
+            repo.path().to_str().unwrap(),
+            "--base-ref",
+            "HEAD~1",
+            "--format",
+            "json",
+            "--analyzer-copilot",
+        ])
+        .output()
+        .expect("run falcon review");
+
+    assert_success_or_findings_failure(&output);
+    let json = review_json(&output);
+    assert_has_rule(&json, "avoid-print-in-production");
+}
+
 fn falcon_cmd() -> Command {
     Command::new(env!("CARGO_BIN_EXE_falcon"))
 }
@@ -90,9 +200,92 @@ fn temp_git_repo() -> tempfile::TempDir {
 
 fn write_initial_project(root: &Path) {
     let lib = root.join("lib");
-    std::fs::create_dir_all(&lib).unwrap();
-    std::fs::write(lib.join("main.dart"), "void main() {}\n").unwrap();
-    std::fs::write(root.join("README.md"), "initial\n").unwrap();
+    fs::create_dir_all(&lib).unwrap();
+    fs::write(lib.join("main.dart"), "void main() {}\n").unwrap();
+    fs::write(root.join("README.md"), "initial\n").unwrap();
+}
+
+fn write_package_config(root: &Path) {
+    let dart_tool = root.join(".dart_tool");
+    fs::create_dir_all(&dart_tool).unwrap();
+    fs::write(
+        dart_tool.join("package_config.json"),
+        r#"{"configVersion":2,"packages":[]}"#,
+    )
+    .unwrap();
+}
+
+fn fake_dart_on_path() -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    let dart = dir.path().join("dart");
+    fs::write(
+        &dart,
+        r#"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo "Dart SDK version: 3.0.0"
+  exit 0
+fi
+cat <<'JSON'
+{"diagnostics":[{"code":"avoid_print","severity":"INFO","problemMessage":"Avoid print.","location":{"file":"lib/main.dart","range":{"start":{"line":2,"column":3}}}}]}
+JSON
+exit 1
+"#,
+    )
+    .unwrap();
+    make_executable(&dart);
+    dir
+}
+
+#[cfg(unix)]
+fn make_executable(path: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+
+    let mut permissions = fs::metadata(path).unwrap().permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(path, permissions).unwrap();
+}
+
+#[cfg(not(unix))]
+fn make_executable(_path: &Path) {}
+
+fn path_with(prefix: &Path) -> std::ffi::OsString {
+    let mut paths = vec![prefix.to_path_buf()];
+    paths.extend(env::split_paths(&env::var_os("PATH").unwrap_or_default()));
+    env::join_paths(paths).unwrap()
+}
+
+fn review_json(output: &Output) -> Value {
+    serde_json::from_slice(&output.stdout).unwrap_or_else(|e| {
+        panic!(
+            "invalid review json: {}\nstdout:\n{}",
+            e,
+            String::from_utf8_lossy(&output.stdout)
+        )
+    })
+}
+
+fn assert_has_rule(json: &Value, rule: &str) {
+    assert!(
+        json["issues"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|issue| issue["rule"] == rule),
+        "expected rule {rule} in json:\n{}",
+        serde_json::to_string_pretty(json).unwrap()
+    );
+}
+
+fn assert_no_rule(json: &Value, rule: &str) {
+    assert!(
+        json["issues"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|issue| issue["rule"] != rule),
+        "did not expect rule {rule} in json:\n{}",
+        serde_json::to_string_pretty(json).unwrap()
+    );
 }
 
 fn git(root: &Path, args: &[&str]) {

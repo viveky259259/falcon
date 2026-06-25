@@ -2,7 +2,7 @@
 
 **Category:** Behavioral
 **Default severity:** error
-**Status:** resolver-gated stub
+**Status:** resolver-backed
 
 This rule targets State classes and other disposable owners that create
 controllers, subscriptions, focus nodes, or similar resources but do not dispose
@@ -32,6 +32,7 @@ class _ScreenState extends State<Screen> {
 
 ## Notes
 
-The current implementation is registered but intentionally returns no findings
-until class-hierarchy resolution lands. The existing `ensure-dispose-lifecycle`
-rule covers the narrower Flutter controller case today.
+The rule uses Falcon's resolver index during full-project analysis, so it can
+identify direct and transitive `State` subclasses. The resolver currently uses
+simple class names; import-aware duplicate-name handling is a future resolver
+slice.

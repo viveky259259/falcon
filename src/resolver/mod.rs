@@ -1,9 +1,12 @@
+pub mod classes;
 pub mod cyclic;
 pub mod dead_code;
 pub mod references;
 pub mod scope;
 pub mod unused_l10n;
 pub mod unused_params;
+
+pub use classes::{ResolvedClass, ResolverIndex};
 
 use crate::config::{FalconConfig, Severity};
 use crate::parser::DartParser;
@@ -58,6 +61,26 @@ impl ProjectResolver {
         issues.extend(self.find_unused_code()?);
         issues.extend(self.find_unused_dependencies()?);
         Ok(issues)
+    }
+
+    pub fn build_index(&self) -> Result<ResolverIndex> {
+        let mut classes = Vec::new();
+
+        for file in &self.dart_files {
+            let source = match std::fs::read_to_string(file) {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+
+            let mut parser = DartParser::new()?;
+            let tree = match parser.parse(&source) {
+                Some(t) => t,
+                None => continue,
+            };
+            classes.extend(classes::collect_classes(tree.root_node(), &source, file));
+        }
+
+        Ok(ResolverIndex::new(classes))
     }
 
     pub fn find_unused_files(&self) -> Result<Vec<Issue>> {

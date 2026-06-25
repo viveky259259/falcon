@@ -181,6 +181,11 @@ The update mechanism downloads pre-built binaries from GitHub releases. If no bi
 changed `.dart` files. Use `--base-ref <ref>` or the legacy `--diff <ref>`
 alias to compare against a different ref.
 
+Use `--analyzer-copilot` to run `dart analyze --format=json` first and suppress
+Falcon findings on the same file/line as analyzer diagnostics. Add
+`--no-defer-to-analyzer` to keep Falcon findings even when the analyzer reports
+the same line.
+
 ## Dashboard
 
 | Command | Description |
