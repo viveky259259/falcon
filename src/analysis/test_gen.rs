@@ -113,6 +113,9 @@ fn generate_stub_for_file(file_path: &str, source: &str) -> Option<TestStub> {
                 {
                     continue;
                 }
+                let Some(args) = sample_call_arguments(trimmed) else {
+                    continue;
+                };
 
                 if is_widget {
                     test_cases.push(TestCase {
@@ -127,19 +130,28 @@ fn generate_stub_for_file(file_path: &str, source: &str) -> Option<TestStub> {
                 }
 
                 if trimmed.contains("Future<") {
+                    let body = if trimmed.starts_with("Future<void>") {
+                        format!(
+                            "    final sut = {}();\n    await sut.{}({});\n    expect(true, isTrue);",
+                            class_name, name, args
+                        )
+                    } else {
+                        format!(
+                            "    final sut = {}();\n    final result = await sut.{}({});\n    expect(result, isNotNull);",
+                            class_name, name, args
+                        )
+                    };
                     test_cases.push(TestCase {
                         name: format!("{} completes successfully", name),
-                        body: format!(
-                            "    final sut = {}();\n    final result = await sut.{}();\n    expect(result, isNotNull);",
-                            class_name, name
-                        ),
+                        body,
                         category: TestCategory::Unit,
                     });
+                } else if trimmed.starts_with("void ") {
                     test_cases.push(TestCase {
-                        name: format!("{} handles errors", name),
+                        name: format!("{} runs without throwing", name),
                         body: format!(
-                            "    final sut = {}();\n    // TODO: inject error condition\n    expect(() => sut.{}(), throwsA(isA<Exception>()));",
-                            class_name, name
+                            "    final sut = {}();\n    sut.{}({});\n    expect(true, isTrue);",
+                            class_name, name, args
                         ),
                         category: TestCategory::Unit,
                     });
@@ -147,8 +159,8 @@ fn generate_stub_for_file(file_path: &str, source: &str) -> Option<TestStub> {
                     test_cases.push(TestCase {
                         name: format!("{} returns expected result", name),
                         body: format!(
-                            "    final sut = {}();\n    final result = sut.{}();\n    expect(result, isNotNull);",
-                            class_name, name
+                            "    final sut = {}();\n    final result = sut.{}({});\n    expect(result, isNotNull);",
+                            class_name, name, args
                         ),
                         category: TestCategory::Unit,
                     });
@@ -177,6 +189,48 @@ fn extract_method_name(line: &str) -> Option<String> {
     Some(name.to_string())
 }
 
+fn sample_call_arguments(line: &str) -> Option<String> {
+    let params = line.split_once('(')?.1.split_once(')')?.0.trim();
+    if params.is_empty() {
+        return Some(String::new());
+    }
+    if params.contains('{') || params.contains('[') {
+        return None;
+    }
+
+    let mut args = Vec::new();
+    for param in params.split(',') {
+        let param = param.trim().trim_start_matches("required ").trim();
+        if param.is_empty() {
+            continue;
+        }
+        args.push(sample_value_for_param(param)?);
+    }
+
+    Some(args.join(", "))
+}
+
+fn sample_value_for_param(param: &str) -> Option<String> {
+    let tokens: Vec<&str> = param.split_whitespace().collect();
+    let type_name = tokens.first()?.trim_end_matches('?');
+    let name = tokens.last().copied().unwrap_or_default();
+
+    match type_name {
+        "String" => {
+            if name.eq_ignore_ascii_case("id") || name.ends_with("Id") {
+                Some("'test-id'".to_string())
+            } else {
+                Some("'test'".to_string())
+            }
+        }
+        "int" => Some("1".to_string()),
+        "double" => Some("1.0".to_string()),
+        "num" => Some("1".to_string()),
+        "bool" => Some("true".to_string()),
+        _ => None,
+    }
+}
+
 /// Generate test file content from a stub.
 pub fn render_test_file(stub: &TestStub) -> String {
     let mut out = String::new();
@@ -190,7 +244,10 @@ pub fn render_test_file(stub: &TestStub) -> String {
         out.push_str("import 'package:flutter/material.dart';\n");
     }
 
-    out.push_str(&format!("// import for {}\n\n", stub.target_file));
+    out.push_str(&format!(
+        "import '{}';\n\n",
+        relative_import_path(&stub.test_file, &stub.target_file)
+    ));
 
     out.push_str("void main() {\n");
     out.push_str(&format!("  group('{}', () {{\n", stub.class_name));
@@ -216,6 +273,16 @@ pub fn render_test_file(stub: &TestStub) -> String {
     out.push_str("  });\n");
     out.push_str("}\n");
     out
+}
+
+fn relative_import_path(test_file: &str, target_file: &str) -> String {
+    let depth = Path::new(test_file)
+        .parent()
+        .map(|parent| parent.components().count())
+        .unwrap_or_default();
+    let mut import = "../".repeat(depth);
+    import.push_str(&target_file.replace('\\', "/"));
+    import
 }
 
 /// Print test generation summary.
