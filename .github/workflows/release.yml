@@ -62,14 +62,133 @@ jobs:
 
       - name: Build release binaries
         shell: bash
-        run: cargo build --release --locked --target ${{ matrix.target }} --bins
+        run: cargo build --release --target ${{ matrix.target }} --bins
 
-      # TODO(notarization): macOS codesign + notarytool submit + staple goes here.
-      # For aarch64-apple-darwin and x86_64-apple-darwin targets, after `cargo build`
-      # and before packaging, sign each binary with Developer ID Application cert,
-      # zip, submit to Apple notary service via `xcrun notarytool submit --wait`,
-      # then `xcrun stapler staple` the resulting artifacts. Requires secrets:
-      # APPLE_CERT_P12, APPLE_CERT_PASSWORD, APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD.
+      - name: Verify binary versions match tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ steps.version.outputs.version }}"
+          bin_dir="target/${{ matrix.target }}/release"
+          for bin in falcon falcon-lsp falcon-mcp; do
+            actual="$("${bin_dir}/${bin}" --version | awk '{print $NF}')"
+            if [ "${actual}" != "${expected}" ]; then
+              echo "::error::${bin} reports version ${actual}, expected ${expected}"
+              exit 1
+            fi
+          done
+
+      - name: Detect macOS notarization secrets
+        id: notarization
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_CERT_P12: ${{ secrets.APPLE_CERT_P12 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -n "${APPLE_CERT_P12}" ] &&
+             [ -n "${APPLE_CERT_PASSWORD}" ] &&
+             [ -n "${APPLE_ID}" ] &&
+             [ -n "${APPLE_TEAM_ID}" ] &&
+             [ -n "${APPLE_APP_PASSWORD}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Skipping macOS notarization; Apple signing secrets are not fully configured."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Import Apple signing certificate
+        if: runner.os == 'macOS' && steps.notarization.outputs.enabled == 'true'
+        shell: bash
+        env:
+          APPLE_CERT_P12: ${{ secrets.APPLE_CERT_P12 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          keychain_path="${RUNNER_TEMP}/falcon-signing.keychain-db"
+          keychain_password="$(openssl rand -hex 24)"
+          cert_path="${RUNNER_TEMP}/falcon-signing.p12"
+
+          echo "${APPLE_CERT_P12}" | base64 --decode > "${cert_path}"
+          security create-keychain -p "${keychain_password}" "${keychain_path}"
+          security set-keychain-settings -lut 21600 "${keychain_path}"
+          security unlock-keychain -p "${keychain_password}" "${keychain_path}"
+          security import "${cert_path}" \
+            -k "${keychain_path}" \
+            -P "${APPLE_CERT_PASSWORD}" \
+            -T /usr/bin/codesign
+          security list-keychains -d user -s "${keychain_path}"
+          security default-keychain -s "${keychain_path}"
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "${keychain_password}" \
+            "${keychain_path}"
+
+          echo "FALCON_KEYCHAIN_PATH=${keychain_path}" >> "$GITHUB_ENV"
+
+      - name: Sign macOS binaries
+        if: runner.os == 'macOS' && steps.notarization.outputs.enabled == 'true'
+        shell: bash
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+          identity="${APPLE_SIGNING_IDENTITY:-}"
+          if [ -z "${identity}" ]; then
+            identity="$(security find-identity -v -p codesigning "${FALCON_KEYCHAIN_PATH}" | awk -F '"' '/Developer ID Application/ { print $2; exit }')"
+          fi
+          if [ -z "${identity}" ]; then
+            echo "::error::No Developer ID Application signing identity found."
+            exit 1
+          fi
+
+          bin_dir="target/${{ matrix.target }}/release"
+          for bin in falcon falcon-lsp falcon-mcp; do
+            codesign --force \
+              --options runtime \
+              --timestamp \
+              --sign "${identity}" \
+              "${bin_dir}/${bin}"
+            codesign --verify --strict --verbose=2 "${bin_dir}/${bin}"
+          done
+
+      - name: Notarize macOS binaries
+        if: runner.os == 'macOS' && steps.notarization.outputs.enabled == 'true'
+        shell: bash
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          target="${{ matrix.target }}"
+          bin_dir="target/${target}/release"
+          notary_dir="${RUNNER_TEMP}/falcon-notary-${target}"
+          notary_zip="${RUNNER_TEMP}/falcon-notary-${target}.zip"
+          mkdir -p "${notary_dir}"
+          cp "${bin_dir}/falcon" "${notary_dir}/"
+          cp "${bin_dir}/falcon-lsp" "${notary_dir}/"
+          cp "${bin_dir}/falcon-mcp" "${notary_dir}/"
+          ditto -c -k --keepParent "${notary_dir}" "${notary_zip}"
+
+          xcrun notarytool submit "${notary_zip}" \
+            --apple-id "${APPLE_ID}" \
+            --team-id "${APPLE_TEAM_ID}" \
+            --password "${APPLE_APP_PASSWORD}" \
+            --wait
+
+      - name: Delete signing keychain
+        if: always() && runner.os == 'macOS' && steps.notarization.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          if [ -n "${FALCON_KEYCHAIN_PATH:-}" ]; then
+            security delete-keychain "${FALCON_KEYCHAIN_PATH}" || true
+          fi
 
       - name: Package archive
         id: package
