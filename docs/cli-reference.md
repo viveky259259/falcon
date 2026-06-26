@@ -159,10 +159,30 @@ The update mechanism downloads pre-built binaries from GitHub releases. If no bi
 | `falcon drift [path]` | Detect convention drift in new code |
 | `falcon predict [path]` | Predict production risks from code patterns |
 | `falcon discover-rules [path]` | Propose new rules from observed patterns |
+| `falcon ai triage [path] --format text\|json` | Embedded AI false-positive triage entry point |
 | `falcon refactor-sim --scenario <s>` | Simulate refactoring impact |
 | `falcon test-gen [path]` | Generate test stubs from code analysis |
 | `falcon vuln-scan [path]` | Security vulnerability radar |
 | `falcon upgrade-check [path]` | Flutter upgrade compatibility |
+
+### falcon ai triage
+
+```bash
+falcon ai triage . --format text
+falcon ai triage . --format json
+cargo run --features ai-local -- ai triage .
+```
+
+`falcon ai triage` is the embedded AI false-positive review entry point. In
+the default build it exits successfully and reports that embedded triage
+requires rebuilding with `--features ai-local`. With `ai-local` enabled, the
+command is compiled in but still reports unavailable until `LocalEngine`
+inference is wired.
+
+| Flag | Description | Default |
+|---|---|---|
+| `[path]` | Path to analyze | `.` |
+| `--format` | Output format: `text` or `json` | `text` |
 
 ## CI/CD
 
