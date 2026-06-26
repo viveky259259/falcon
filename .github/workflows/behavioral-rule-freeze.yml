@@ -1,0 +1,28 @@
+name: Behavioral Rule Freeze
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "src/rules/behavioral/**"
+
+permissions:
+  contents: read
+
+jobs:
+  june-freeze:
+    name: Block new behavioral rules in June
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check behavioral rule freeze
+        env:
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          bash scripts/check_behavioral_rule_freeze.sh \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}"
