@@ -20,6 +20,10 @@ path = "src/lsp_main.rs"
 name = "falcon-mcp"
 path = "src/mcp_main.rs"
 
+[[bench]]
+name = "mcp_warm_cache"
+harness = false
+
 [lib]
 name = "falcon"
 path = "src/lib.rs"
