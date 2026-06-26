@@ -4798,22 +4798,22 @@ fn issue_to_json(issue: &falcon::reporters::Issue) -> serde_json::Value {
 fn run_ai_triage(path: &Path, format: TriageOutputFormat) -> Result<()> {
     #[cfg(feature = "ai-local")]
     {
+        use falcon::ai::local::engine::LocalEngine;
+        use falcon::ai::local::triage::{print_triage_run, triage_issues, triage_run_to_json};
+
+        let config = FalconConfig::load(path)?;
+        let embedded_cfg = config.ai.embedded.clone().unwrap_or_default();
+        let falcon = Falcon::new(config)?;
+        let report = falcon.analyze(path)?;
+        let mut engine = LocalEngine::load(&embedded_cfg)?;
+        let run = triage_issues(&report.issues, path, &mut engine, &embedded_cfg);
+
         match format {
             TriageOutputFormat::Text => {
-                println!(
-                    "falcon ai triage is compiled with ai-local, but LocalEngine inference is not wired yet."
-                );
-                println!("Path: {}", path.display());
+                print_triage_run(&run);
             }
             TriageOutputFormat::Json => {
-                println!(
-                    "{}",
-                    serde_json::json!({
-                        "available": false,
-                        "path": path,
-                        "reason": "ai-local feature is enabled, but LocalEngine inference is not wired yet"
-                    })
-                );
+                println!("{}", triage_run_to_json(&run));
             }
         }
         Ok(())

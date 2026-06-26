@@ -3,6 +3,7 @@ use crate::ai::local::completer::{Completer, GenOpts};
 use crate::ai::local::prompt::build_triage_prompt;
 use crate::reporters::Issue;
 use serde::Deserialize;
+use serde_json::json;
 use std::path::Path;
 
 pub fn extract_code_window(source: &str, line: usize, radius: usize) -> String {
@@ -152,6 +153,72 @@ pub fn triage_issues(
         verdicts,
         truncated_from,
     }
+}
+
+pub fn print_triage_run(run: &TriageRun) {
+    if let Some(total) = run.truncated_from {
+        println!(
+            "falcon ai triage: triaged first {} of {} findings",
+            run.verdicts.len(),
+            total
+        );
+    } else {
+        println!("falcon ai triage: triaged {} findings", run.verdicts.len());
+    }
+
+    if run.verdicts.is_empty() {
+        println!("  no findings to triage");
+        return;
+    }
+
+    for verdict in &run.verdicts {
+        let disposition = if verdict.is_real {
+            "real"
+        } else {
+            "false-positive"
+        };
+        let degraded = if verdict.degraded { " degraded" } else { "" };
+        println!(
+            "  {}:{} [{}] {} confidence={}{} - {}",
+            verdict.issue.file.display(),
+            verdict.issue.line,
+            verdict.issue.rule,
+            disposition,
+            verdict.confidence,
+            degraded,
+            verdict.rationale
+        );
+    }
+}
+
+pub fn triage_run_to_json(run: &TriageRun) -> String {
+    let verdicts: Vec<_> = run
+        .verdicts
+        .iter()
+        .map(|verdict| {
+            json!({
+                "issue": {
+                    "rule": verdict.issue.rule,
+                    "message": verdict.issue.message,
+                    "severity": format!("{:?}", verdict.issue.severity),
+                    "file": verdict.issue.file.to_string_lossy(),
+                    "line": verdict.issue.line,
+                    "column": verdict.issue.column,
+                },
+                "is_real": verdict.is_real,
+                "confidence": verdict.confidence,
+                "rationale": verdict.rationale,
+                "degraded": verdict.degraded,
+            })
+        })
+        .collect();
+
+    serde_json::to_string_pretty(&json!({
+        "triaged": run.verdicts.len(),
+        "truncated_from": run.truncated_from,
+        "verdicts": verdicts,
+    }))
+    .expect("triage JSON serialization should not fail")
 }
 
 fn read_issue_source(project_root: &Path, issue: &Issue) -> String {
@@ -337,5 +404,34 @@ mod tests {
 
         assert_eq!(run.verdicts.len(), 1);
         assert_eq!(run.verdicts[0].confidence, 99);
+    }
+
+    #[test]
+    fn triage_run_json_contains_issue_and_verdict() {
+        let run = TriageRun {
+            verdicts: vec![TriageVerdict {
+                issue: issue("lib/main.dart", 3),
+                is_real: false,
+                confidence: 77,
+                rationale: "Generated file pattern.".to_string(),
+                degraded: false,
+            }],
+            truncated_from: Some(5),
+        };
+
+        let json: serde_json::Value = serde_json::from_str(&triage_run_to_json(&run)).unwrap();
+        assert_eq!(json["triaged"], 1);
+        assert_eq!(json["truncated_from"], 5);
+        assert_eq!(json["verdicts"][0]["issue"]["rule"], "unused-code");
+        assert_eq!(json["verdicts"][0]["is_real"], false);
+        assert_eq!(json["verdicts"][0]["confidence"], 77);
+    }
+
+    #[test]
+    fn print_triage_run_handles_empty_run() {
+        print_triage_run(&TriageRun {
+            verdicts: Vec::new(),
+            truncated_from: None,
+        });
     }
 }
