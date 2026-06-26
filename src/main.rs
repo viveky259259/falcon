@@ -2037,8 +2037,10 @@ enum DocFormat {
 fn main() {
     env_logger::init();
     let args: Vec<String> = std::env::args().collect();
-    if args.get(1).is_some_and(|arg| arg == "ai-score") {
-        falcon::cli::deprecation::warn_aliased("ai-score", "score");
+    if let Some(command) = args.get(1) {
+        if let Some(new) = falcon::cli::deprecation::aliased_target(command) {
+            falcon::cli::deprecation::warn_aliased(command, new);
+        }
     }
     let cli = Cli::parse_from(args);
 
@@ -4437,11 +4439,10 @@ fn run(cli: Cli) -> Result<()> {
             }
         },
         Commands::X { action } => {
-            // The `x` namespace is the Sept 1 cutover scaffold: every entry
-            // here re-dispatches into the matching legacy top-level command
-            // without changing behavior or argument shapes. When the cutover
-            // flips, the legacy variants will start calling
-            // `falcon::cli::deprecation::warn_aliased` and eventually go away.
+            // The `x` namespace is the new home for extended commands. Every
+            // entry here re-dispatches into the matching top-level command
+            // without changing behavior or argument shapes. Legacy warnings
+            // are emitted before clap parsing so `falcon x ...` stays quiet.
             let legacy = match action {
                 XAction::AssetAudit {
                     path,

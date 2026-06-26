@@ -47,7 +47,9 @@ fn ai_score_alias_warns_and_still_outputs_json() {
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("falcon ai-score") && stderr.contains("falcon score"),
+        stderr.contains("`falcon ai-score`")
+            && stderr.contains("`falcon score`")
+            && stderr.contains("removed in v1.0"),
         "stderr:\n{}",
         stderr
     );
