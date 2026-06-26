@@ -77,6 +77,60 @@ fn review_format_json_uses_diff_alias_and_reports_changed_file_count() {
 }
 
 #[test]
+fn review_standard_ignores_base_branch_only_dart_changes() {
+    let repo = temp_git_repo();
+    write_initial_project(repo.path());
+    fs::write(
+        repo.path().join("lib/base_only.dart"),
+        "class baseOnly {}\n",
+    )
+    .unwrap();
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "initial"]);
+
+    git(repo.path(), &["checkout", "-b", "base"]);
+    git(repo.path(), &["checkout", "-b", "feature"]);
+    git(repo.path(), &["checkout", "base"]);
+    fs::write(
+        repo.path().join("lib/base_only.dart"),
+        "class baseOnly {\n  final int value = 1;\n}\n",
+    )
+    .unwrap();
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "base branch change"]);
+
+    git(repo.path(), &["checkout", "feature"]);
+    fs::write(
+        repo.path().join("lib/main.dart"),
+        "void main() {\n  print('feature');\n}\n",
+    )
+    .unwrap();
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "feature change"]);
+
+    let output = falcon_cmd()
+        .args([
+            "review",
+            repo.path().to_str().unwrap(),
+            "--base-ref",
+            "base",
+            "--format",
+            "json",
+            "--strictness",
+            "standard",
+        ])
+        .output()
+        .expect("run falcon review");
+
+    assert_success_or_findings_failure(&output);
+    let json = review_json(&output);
+    assert_eq!(json["summary"]["files_analyzed"], 1);
+    assert_has_rule(&json, "avoid-print-in-production");
+    assert_no_rule(&json, "naming-convention");
+    assert_no_file_contains(&json, "base_only.dart");
+}
+
+#[test]
 fn review_format_sarif_reports_changed_file_findings() {
     let repo = temp_git_repo();
     write_initial_project(repo.path());
@@ -521,6 +575,18 @@ fn assert_no_rule(json: &Value, rule: &str) {
             .iter()
             .all(|issue| issue["rule"] != rule),
         "did not expect rule {rule} in json:\n{}",
+        serde_json::to_string_pretty(json).unwrap()
+    );
+}
+
+fn assert_no_file_contains(json: &Value, needle: &str) {
+    assert!(
+        json["issues"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|issue| !issue["file"].as_str().unwrap_or("").contains(needle)),
+        "did not expect file containing {needle} in json:\n{}",
         serde_json::to_string_pretty(json).unwrap()
     );
 }
