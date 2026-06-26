@@ -18,9 +18,21 @@ cargo install --git https://github.com/viveky259259/falcon
 # Score your project (2 seconds)
 falcon score .
 
+# Review changed Dart files for a PR
+falcon review . --base-ref origin/main --format gh
+
 # Full analysis
 falcon analyze .
 ```
+
+## Analyzer Co-Pilot
+
+`falcon review` runs `dart analyze --format=json` automatically when a Dart
+project has `.dart_tool/package_config.json`. Analyzer diagnostics win on the
+same file, line, and rule class, so Falcon suppresses duplicate style, unused,
+or type findings while still reporting behavioral and security findings that the
+analyzer does not own. Use `--no-defer-to-analyzer` when you need to audit the
+raw Falcon output.
 
 ## AI Code Quality Score
 
@@ -48,7 +60,7 @@ $ falcon score .
 | **AI Score** | `falcon score` | 0-100 AI Code Quality Score with 6-dimension breakdown |
 | **61+ Rules** | `falcon analyze` | Flutter, BLoC, Riverpod, accessibility rules |
 | **MCP Server** | `falcon-mcp` | AI tools call Falcon during code generation |
-| **PR Comments** | `falcon pr-comment` | Auto-post analysis on GitHub PRs |
+| **PR Comments** | `falcon review --format gh` | Generate GitHub-ready PR review markdown |
 | **Vulnerability** | `falcon vuln-scan` | Security radar with CWE classification |
 | **Risk Prediction** | `falcon predict` | Predict production issues from patterns |
 | **Test Generation** | `falcon test-gen` | Generate test stubs from code analysis |
@@ -82,7 +94,7 @@ Falcon analyzes Flutter code in real-time during generation — the AI self-corr
 - name: Analyze
   run: falcon analyze . --fail-on error
 - name: PR Comment
-  run: falcon pr-comment . --dry-run
+  run: falcon review . --base-ref origin/main --format gh | gh pr comment --body-file -
 ```
 
 ### Presets

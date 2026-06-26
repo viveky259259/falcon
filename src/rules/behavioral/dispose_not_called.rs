@@ -215,7 +215,7 @@ mod tests {
     }
 
     #[test]
-    fn stub_check_returns_empty_without_panic() {
+    fn plain_check_returns_empty_without_resolver_context() {
         let rule = DisposeNotCalled;
         let source = r#"
 class _MyWidgetState extends State<MyWidget> {
@@ -225,7 +225,10 @@ class _MyWidgetState extends State<MyWidget> {
         let mut parser = DartParser::new().unwrap();
         let tree = parser.parse(source).unwrap();
         let issues = rule.check(tree.root_node(), source, &PathBuf::from("lib/foo.dart"));
-        assert!(issues.is_empty(), "stub must not emit issues yet");
+        assert!(
+            issues.is_empty(),
+            "plain per-file hook must wait for resolver context"
+        );
     }
 
     fn check_with_index(source: &str, file: PathBuf, index: &ResolverIndex) -> Vec<Issue> {
