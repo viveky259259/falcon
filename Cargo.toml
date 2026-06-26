@@ -48,6 +48,10 @@ tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 url = "2"
 percent-encoding = "2"
 
+[features]
+default = []
+ai-local = []
+
 [dev-dependencies]
 tempfile = "3"
 pretty_assertions = "1"
