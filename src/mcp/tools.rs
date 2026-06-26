@@ -2,6 +2,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::PathBuf;
 
+use super::schema::{
+    explain_input_schema, fix_safe_input_schema, lint_diff_input_schema, lint_file_input_schema,
+    review_input_schema, ExplainArgs, FixSafeArgs, LintDiffArgs, LintFileArgs, ReviewArgs,
+};
+
 /// MCP tool definitions for Falcon.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolDefinition {
@@ -32,100 +37,27 @@ pub fn list_tools() -> Vec<ToolDefinition> {
         ToolDefinition {
             name: "lint_file".to_string(),
             description: "Analyze a single Dart file for lint issues. Faster than full project analysis. Use after generating or modifying code.".to_string(),
-            input_schema: serde_json::json!({
-                "$schema": "http://json-schema.org/draft-07/schema#",
-                "type": "object",
-                "properties": {
-                    "file_path": {
-                        "type": "string",
-                        "description": "Path to the Dart file to check"
-                    },
-                    "source": {
-                        "type": "string",
-                        "description": "Optional: Dart source code to analyze (if provided, file_path is used only for context)"
-                    },
-                    "project_root": {
-                        "type": "string",
-                        "description": "Optional: project root for resolver-backed cross-file rules"
-                    }
-                },
-                "required": ["file_path"]
-            }),
+            input_schema: lint_file_input_schema(),
         },
         ToolDefinition {
             name: "lint_diff".to_string(),
             description: "Analyze only Dart files changed relative to a base git ref (default: origin/main).".to_string(),
-            input_schema: serde_json::json!({
-                "$schema": "http://json-schema.org/draft-07/schema#",
-                "type": "object",
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": "Path to the Flutter/Dart project directory (repository root)"
-                    },
-                    "base_ref": {
-                        "type": "string",
-                        "description": "Git ref to diff against (default: origin/main)",
-                        "default": "origin/main"
-                    }
-                },
-                "required": ["path"]
-            }),
+            input_schema: lint_diff_input_schema(),
         },
         ToolDefinition {
             name: "review".to_string(),
             description: "Run Falcon static analysis on a Flutter/Dart project. Returns issues with rule name, severity, file, line, and message.".to_string(),
-            input_schema: serde_json::json!({
-                "$schema": "http://json-schema.org/draft-07/schema#",
-                "type": "object",
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": "Path to the Flutter/Dart project directory or file to analyze"
-                    },
-                    "preset": {
-                        "type": "string",
-                        "description": "Optional rule preset (recommended, strict, flutter, ai-generated)",
-                        "enum": ["recommended", "strict", "flutter", "riverpod", "bloc", "performance", "ai-generated"]
-                    }
-                },
-                "required": ["path"]
-            }),
+            input_schema: review_input_schema(),
         },
         ToolDefinition {
             name: "explain".to_string(),
             description: "Explain a Falcon lint rule with examples, rationale, and fix suggestions.".to_string(),
-            input_schema: serde_json::json!({
-                "$schema": "http://json-schema.org/draft-07/schema#",
-                "type": "object",
-                "properties": {
-                    "rule": {
-                        "type": "string",
-                        "description": "Rule name to explain (e.g. 'avoid-empty-catch', 'ensure-dispose-lifecycle')"
-                    }
-                },
-                "required": ["rule"]
-            }),
+            input_schema: explain_input_schema(),
         },
         ToolDefinition {
             name: "fix_safe".to_string(),
             description: "Generate auto-fix suggestions for lint issues in a project. Returns original and replacement code. Safe by default (preview-only).".to_string(),
-            input_schema: serde_json::json!({
-                "$schema": "http://json-schema.org/draft-07/schema#",
-                "type": "object",
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": "Path to the Flutter/Dart project directory"
-                    },
-                    "preview": {
-                        "type": "boolean",
-                        "description": "If true, only preview fixes without applying them (default: true)",
-                        "default": true
-                    }
-                },
-                "required": ["path"]
-            }),
+            input_schema: fix_safe_input_schema(),
         },
     ]
 }
@@ -171,21 +103,22 @@ pub fn execute_tool(name: &str, args: &Value) -> Result<Value, String> {
     }
 }
 
-fn get_string_arg(args: &Value, key: &str) -> Result<String, String> {
-    args.get(key)
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .ok_or_else(|| format!("Missing required argument: {}", key))
+fn parse_args<T>(tool: &str, args: &Value) -> Result<T, String>
+where
+    T: for<'de> Deserialize<'de>,
+{
+    serde_json::from_value(args.clone()).map_err(|e| format!("Invalid {} arguments: {}", tool, e))
 }
 
 fn execute_analyze(args: &Value) -> Result<Value, String> {
-    let path = get_string_arg(args, "path")?;
+    let args: ReviewArgs = parse_args("review", args)?;
+    let path = args.path;
     let path = PathBuf::from(&path);
 
     let mut config = crate::config::FalconConfig::load(&path)
         .map_err(|e| format!("Failed to load config: {}", e))?;
 
-    if let Some(preset_name) = args.get("preset").and_then(|v| v.as_str()) {
+    if let Some(preset_name) = args.preset.as_deref() {
         if let Some(p) = crate::plugins::presets::get_preset(preset_name) {
             config.rules = p.rules;
         }
@@ -220,7 +153,8 @@ fn execute_analyze(args: &Value) -> Result<Value, String> {
 }
 
 fn execute_ai_score(args: &Value) -> Result<Value, String> {
-    let path = get_string_arg(args, "path")?;
+    let args: ReviewArgs = parse_args("falcon_ai_score", args)?;
+    let path = args.path;
     let path = PathBuf::from(&path);
 
     let score = crate::ai_score::score::calculate_ai_score(&path)
@@ -242,22 +176,23 @@ fn execute_ai_score(args: &Value) -> Result<Value, String> {
 }
 
 fn execute_check_file(args: &Value) -> Result<Value, String> {
-    let file_path = get_string_arg(args, "file_path")?;
+    let args: LintFileArgs = parse_args("lint_file", args)?;
+    let file_path = args.file_path;
     let file_path = PathBuf::from(&file_path);
 
-    let source = if let Some(src) = args.get("source").and_then(|v| v.as_str()) {
-        src.to_string()
+    let source = if let Some(src) = args.source {
+        src
     } else {
         std::fs::read_to_string(&file_path).map_err(|e| format!("Failed to read file: {}", e))?
     };
 
-    if let Some(project_root) = args.get("project_root").and_then(|v| v.as_str()) {
+    if let Some(project_root) = args.project_root {
         let sdk = crate::sdk::FalconSdk::new();
         let sdk_issues = sdk
             .analyze_source_with_project_context(
                 &source,
                 &file_path.to_string_lossy(),
-                project_root,
+                &project_root,
             )
             .map_err(|e| format!("Analysis failed: {}", e))?;
 
@@ -319,7 +254,8 @@ fn execute_check_file(args: &Value) -> Result<Value, String> {
 }
 
 fn execute_explain_rule(args: &Value) -> Result<Value, String> {
-    let rule = get_string_arg(args, "rule")?;
+    let args: ExplainArgs = parse_args("explain", args)?;
+    let rule = args.rule;
 
     match crate::ai::explain::explain_rule(&rule) {
         Some(explanation) => Ok(serde_json::json!({
@@ -337,7 +273,8 @@ fn execute_explain_rule(args: &Value) -> Result<Value, String> {
 }
 
 fn execute_fix(args: &Value) -> Result<Value, String> {
-    let path = get_string_arg(args, "path")?;
+    let args: FixSafeArgs = parse_args("fix_safe", args)?;
+    let path = args.path;
     let path = PathBuf::from(&path);
 
     let config = crate::config::FalconConfig::load(&path)
@@ -364,10 +301,7 @@ fn execute_fix(args: &Value) -> Result<Value, String> {
         })
         .collect();
 
-    let preview = args
-        .get("preview")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(true);
+    let preview = args.preview;
     if !preview {
         let applied = crate::ai::fix::apply_fixes(&fixes);
         Ok(serde_json::json!({
@@ -384,7 +318,8 @@ fn execute_fix(args: &Value) -> Result<Value, String> {
 }
 
 fn execute_conventions(args: &Value) -> Result<Value, String> {
-    let path = get_string_arg(args, "path")?;
+    let args: ReviewArgs = parse_args("falcon_conventions", args)?;
+    let path = args.path;
     let path = PathBuf::from(&path);
 
     let report = crate::ai_score::convention::detect_conventions(&path)
@@ -394,7 +329,8 @@ fn execute_conventions(args: &Value) -> Result<Value, String> {
 }
 
 fn execute_provenance(args: &Value) -> Result<Value, String> {
-    let path = get_string_arg(args, "path")?;
+    let args: ReviewArgs = parse_args("falcon_provenance", args)?;
+    let path = args.path;
     let path = PathBuf::from(&path);
 
     let results = crate::ai_score::provenance::analyze_project_provenance(&path)
@@ -412,13 +348,10 @@ fn execute_provenance(args: &Value) -> Result<Value, String> {
 }
 
 fn execute_lint_diff(args: &Value) -> Result<Value, String> {
-    let path = get_string_arg(args, "path")?;
+    let args: LintDiffArgs = parse_args("lint_diff", args)?;
+    let path = args.path;
     let root = PathBuf::from(&path);
-    let base_ref = args
-        .get("base_ref")
-        .and_then(|v| v.as_str())
-        .unwrap_or("origin/main")
-        .to_string();
+    let base_ref = args.base_ref;
 
     let changed_files = crate::review::pr_review::changed_dart_files(&root, &base_ref)
         .map_err(|e| e.to_string())?;

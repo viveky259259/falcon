@@ -20,7 +20,9 @@ when invoked.
 | `fix_safe`  | Generate auto-fix suggestions. Preview-only by default; pass `preview:false` to write changes.                 | `path`            |
 
 All schemas are JSON-Schema draft-07 and surfaced via the standard MCP
-`inputSchema` field on `tools/list`.
+`inputSchema` field on `tools/list`. The canonical argument structs and schema
+builders live in `src/mcp/schema.rs`; `src/mcp/tools.rs` only advertises and
+dispatches them.
 
 ### `lint_file`
 
@@ -30,15 +32,54 @@ caller wants resolver-backed cross-file rules, such as lifecycle checks that
 need inheritance facts from the rest of the project. Without `project_root`,
 `lint_file` keeps the original fast single-file behavior.
 
+Request:
+
+```json
+{
+  "file_path": "lib/main.dart",
+  "source": "class badName { void run() { print('debug'); } }",
+  "project_root": "."
+}
+```
+
+Response:
+
+```json
+{
+  "file": "lib/main.dart",
+  "issue_count": 1,
+  "issues": [
+    {
+      "rule": "avoid-print",
+      "message": "Avoid print statements in production code",
+      "severity": "Warning",
+      "line": 1,
+      "column": 30
+    }
+  ]
+}
+```
+
 ### `lint_diff`
 
 `lint_diff` shells out to `git diff --name-only --diff-filter=ACMR
 <base_ref>...HEAD`, keeps existing `.dart` files, and analyzes only that
-scoped file list. It returns:
+scoped file list.
+
+Request:
 
 ```json
 {
-  "path": "...",
+  "path": ".",
+  "base_ref": "origin/main"
+}
+```
+
+Response:
+
+```json
+{
+  "path": ".",
   "base_ref": "origin/main",
   "changed_file_count": 1,
   "file_count": 1,
@@ -50,6 +91,101 @@ scoped file list. It returns:
 
 If no Dart files changed, the tool returns zero counts and an empty issue
 list. If the base ref is missing, the git error is returned to the caller.
+
+### `review`
+
+`review` runs full-project Falcon analysis. `preset` is optional and may be one
+of `recommended`, `strict`, `flutter`, `riverpod`, `bloc`, `performance`, or
+`ai-generated`.
+
+Request:
+
+```json
+{
+  "path": ".",
+  "preset": "ai-generated"
+}
+```
+
+Response:
+
+```json
+{
+  "file_count": 12,
+  "issue_count": 1,
+  "issues": [
+    {
+      "rule": "avoid-print",
+      "message": "Avoid print statements in production code",
+      "severity": "Warning",
+      "file": "lib/main.dart",
+      "line": 8,
+      "column": 5
+    }
+  ]
+}
+```
+
+### `explain`
+
+`explain` returns Falcon's built-in rule explanation, including examples and
+exceptions.
+
+Request:
+
+```json
+{
+  "rule": "avoid-empty-catch"
+}
+```
+
+Response:
+
+```json
+{
+  "rule": "avoid-empty-catch",
+  "category": "error-handling",
+  "severity": "warning",
+  "summary": "Empty catch blocks hide failures.",
+  "why": "Silent failures make generated code harder to debug.",
+  "bad_example": "try { risky(); } catch (e) {}",
+  "good_example": "try { risky(); } catch (e, st) { log(e, st); }",
+  "exceptions": "Only suppress intentionally with a comment."
+}
+```
+
+### `fix_safe`
+
+`fix_safe` generates safe fixes. It previews by default; pass `preview:false`
+only when the caller explicitly wants Falcon to apply auto-fixable changes.
+
+Request:
+
+```json
+{
+  "path": ".",
+  "preview": true
+}
+```
+
+Response:
+
+```json
+{
+  "preview": true,
+  "fix_count": 1,
+  "fixes": [
+    {
+      "rule": "avoid-print",
+      "file": "lib/main.dart",
+      "line": 8,
+      "original": "print('debug');",
+      "replacement": "debugPrint('debug');",
+      "description": "Use debugPrint for debug logging."
+    }
+  ]
+}
+```
 
 ## Deprecation table
 
