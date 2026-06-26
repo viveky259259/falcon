@@ -20,6 +20,60 @@ fn ai_help_lists_triage_subcommand() {
 }
 
 #[test]
+fn ai_status_shows_embedded_model_details_when_configured() {
+    let dir = tempfile::tempdir().expect("temp project");
+    std::fs::write(
+        dir.path().join("falcon.yaml"),
+        r#"
+rules: []
+ai:
+  enabled: true
+  provider: embedded
+  embedded:
+    model_id: "local/status-model"
+    model_file: "status-model.gguf"
+    max_issues: 7
+"#,
+    )
+    .expect("write falcon config");
+
+    let output = falcon_cmd()
+        .args(["ai", "status", dir.path().to_str().unwrap()])
+        .output()
+        .expect("run falcon ai status");
+
+    assert!(
+        output.status.success(),
+        "unexpected status {:?}\nstdout:\n{}\nstderr:\n{}",
+        output.status.code(),
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Embedded model:"), "stdout:\n{stdout}");
+    assert!(
+        stdout.contains("Model id:   local/status-model"),
+        "stdout:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("Model file: status-model.gguf"),
+        "stdout:\n{stdout}"
+    );
+    assert!(stdout.contains("Max issues: 7"), "stdout:\n{stdout}");
+    #[cfg(feature = "ai-local")]
+    assert!(
+        stdout.contains("Engine:     compiled in (ai-local)"),
+        "stdout:\n{stdout}"
+    );
+    #[cfg(not(feature = "ai-local"))]
+    assert!(
+        stdout.contains("Engine:     NOT compiled (rebuild with --features ai-local)"),
+        "stdout:\n{stdout}"
+    );
+}
+
+#[test]
 #[cfg(not(feature = "ai-local"))]
 fn ai_triage_default_build_json_reports_unavailable() {
     let output = falcon_cmd()

@@ -176,8 +176,9 @@ cargo run --features ai-local -- ai triage .
 `falcon ai triage` is the embedded AI false-positive review entry point. In
 the default build it exits successfully and reports that embedded triage
 requires rebuilding with `--features ai-local`. With `ai-local` enabled, the
-command is compiled in but still reports unavailable until `LocalEngine`
-inference is wired.
+command analyzes findings and returns triage-shaped text or JSON. Until the
+candle-backed `LocalEngine` lands, those verdicts degrade safely to
+`is_real: true`, `confidence: 0`, and a rationale that inference failed.
 
 | Flag | Description | Default |
 |---|---|---|

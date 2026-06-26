@@ -2976,6 +2976,7 @@ fn run(cli: Cli) -> Result<()> {
                     );
                     println!("  Edit falcon.yaml to set your provider and API key.");
                     println!("  Supported providers: openai, anthropic, gemini, local (Ollama), embedded");
+                    println!("  Embedded builds run in-process triage with --features ai-local.");
                 }
                 AiAction::Status { path } => {
                     let config = FalconConfig::load(&path)?;
@@ -3042,6 +3043,17 @@ fn run(cli: Cli) -> Result<()> {
                             "off"
                         }
                     );
+                    if let Some(ref embedded) = ai.embedded {
+                        println!();
+                        println!("  Embedded model:");
+                        println!("    Model id:   {}", embedded.model_id);
+                        println!("    Model file: {}", embedded.model_file);
+                        println!("    Max issues: {}", embedded.max_issues);
+                        #[cfg(feature = "ai-local")]
+                        println!("    Engine:     compiled in (ai-local)");
+                        #[cfg(not(feature = "ai-local"))]
+                        println!("    Engine:     NOT compiled (rebuild with --features ai-local)");
+                    }
                     println!();
                 }
                 AiAction::Triage { path, format } => {
