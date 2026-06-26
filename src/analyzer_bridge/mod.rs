@@ -8,8 +8,14 @@
 //!
 use anyhow::{Context, Result};
 use serde::Deserialize;
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Output, Stdio};
+use std::thread;
+use std::time::{Duration, Instant};
+
+const DEFAULT_DART_ANALYZE_TIMEOUT: Duration = Duration::from_secs(10);
+const ANALYZER_TIMEOUT_ENV: &str = "FALCON_ANALYZER_TIMEOUT_MS";
 
 /// One diagnostic reported by `dart analyze --format=json`.
 #[derive(Debug, Clone)]
@@ -258,10 +264,20 @@ fn normalize_diagnostic_paths(project_root: &Path, diagnostics: &mut [AnalyzerDi
 /// `.dart_tool/package_config.json` — the bridge is best-effort, never
 /// required.
 pub fn run_dart_analyze(project_root: &Path) -> Result<Option<Vec<AnalyzerDiagnostic>>> {
+    let timeout = configured_analyzer_timeout();
+
     // 1. Is dart on PATH?
-    let probe = Command::new("dart").arg("--version").output();
-    match probe {
-        Ok(out) if out.status.success() => {}
+    let mut probe = Command::new("dart");
+    probe.arg("--version");
+    match command_output_with_timeout(&mut probe, timeout) {
+        Ok(Some(out)) if out.status.success() => {}
+        Ok(None) => {
+            log::warn!(
+                "analyzer_bridge: `dart --version` timed out after {:?}, skipping",
+                timeout
+            );
+            return Ok(None);
+        }
         _ => {
             log::debug!("analyzer_bridge: `dart` not available, skipping");
             return Ok(None);
@@ -280,17 +296,20 @@ pub fn run_dart_analyze(project_root: &Path) -> Result<Option<Vec<AnalyzerDiagno
 
     // 3. Run analyzer. `dart analyze` exits non-zero on findings; that's
     // fine — we care about stdout, not the exit code.
-    // NOTE: `Command::output()` blocks until the subprocess exits with no
-    // built-in timeout. If the Dart analyzer hangs (malformed project,
-    // analyzer bug, etc.) this call will block indefinitely. Callers that
-    // need bounded execution time should wrap this function in a thread with
-    // a channel-based timeout and kill the child process on expiry.
-    let output = Command::new("dart")
+    let mut analyze = Command::new("dart");
+    analyze
         .arg("analyze")
         .arg("--format=json")
-        .current_dir(project_root)
-        .output()
-        .context("failed to invoke `dart analyze`")?;
+        .current_dir(project_root);
+    let Some(output) = command_output_with_timeout(&mut analyze, timeout)
+        .context("failed to invoke `dart analyze`")?
+    else {
+        log::warn!(
+            "analyzer_bridge: `dart analyze --format=json` timed out after {:?}, skipping",
+            timeout
+        );
+        return Ok(None);
+    };
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut diags = parse_dart_analyze_json(&stdout)?;
@@ -314,6 +333,67 @@ pub fn run_dart_analyze(project_root: &Path) -> Result<Option<Vec<AnalyzerDiagno
     }
 
     Ok(Some(diags))
+}
+
+fn configured_analyzer_timeout() -> Duration {
+    std::env::var(ANALYZER_TIMEOUT_ENV)
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|millis| *millis > 0)
+        .map(Duration::from_millis)
+        .unwrap_or(DEFAULT_DART_ANALYZE_TIMEOUT)
+}
+
+fn command_output_with_timeout(command: &mut Command, timeout: Duration) -> Result<Option<Output>> {
+    let mut child = command
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+
+    let stdout = child.stdout.take().expect("stdout was configured as piped");
+    let stderr = child.stderr.take().expect("stderr was configured as piped");
+    let stdout_reader = read_pipe(stdout);
+    let stderr_reader = read_pipe(stderr);
+
+    let start = Instant::now();
+    loop {
+        if let Some(status) = child.try_wait()? {
+            let stdout = join_reader(stdout_reader)?;
+            let stderr = join_reader(stderr_reader)?;
+            return Ok(Some(Output {
+                status,
+                stdout,
+                stderr,
+            }));
+        }
+
+        if start.elapsed() >= timeout {
+            let _ = child.kill();
+            let _ = child.wait();
+            drop(stdout_reader);
+            drop(stderr_reader);
+            return Ok(None);
+        }
+
+        thread::sleep(Duration::from_millis(10));
+    }
+}
+
+fn read_pipe<R: Read + Send + 'static>(
+    mut pipe: R,
+) -> thread::JoinHandle<std::io::Result<Vec<u8>>> {
+    thread::spawn(move || {
+        let mut bytes = Vec::new();
+        pipe.read_to_end(&mut bytes)?;
+        Ok(bytes)
+    })
+}
+
+fn join_reader(handle: thread::JoinHandle<std::io::Result<Vec<u8>>>) -> Result<Vec<u8>> {
+    handle
+        .join()
+        .map_err(|_| anyhow::anyhow!("analyzer subprocess reader panicked"))?
+        .context("failed to read analyzer subprocess output")
 }
 
 /// Filter Falcon findings, dropping any whose (file, line) collides with an

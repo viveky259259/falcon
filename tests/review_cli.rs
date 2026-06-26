@@ -3,6 +3,7 @@ use std::env;
 use std::fs;
 use std::path::Path;
 use std::process::{Command, Output};
+use std::time::{Duration, Instant};
 
 #[test]
 fn review_format_gh_renders_pr_comment_for_changed_files() {
@@ -307,6 +308,48 @@ fn review_analyzer_copilot_skips_without_package_config() {
 }
 
 #[test]
+fn review_analyzer_copilot_times_out_slow_analyzer() {
+    let repo = temp_git_repo();
+    write_initial_project(repo.path());
+    write_package_config(repo.path());
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "initial"]);
+
+    fs::write(
+        repo.path().join("lib/main.dart"),
+        "void main() {\n  print('debug');\n}\n",
+    )
+    .unwrap();
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "change Dart file"]);
+
+    let fake_dart_dir = fake_slow_dart_on_path();
+    let start = Instant::now();
+    let output = falcon_cmd()
+        .env("PATH", path_with(fake_dart_dir.path()))
+        .env("FALCON_ANALYZER_TIMEOUT_MS", "100")
+        .args([
+            "review",
+            repo.path().to_str().unwrap(),
+            "--base-ref",
+            "HEAD~1",
+            "--format",
+            "json",
+            "--analyzer-copilot",
+        ])
+        .output()
+        .expect("run falcon review");
+
+    assert!(
+        start.elapsed() < Duration::from_secs(2),
+        "review did not respect analyzer timeout"
+    );
+    assert_success_or_findings_failure(&output);
+    let json = review_json(&output);
+    assert_has_rule(&json, "avoid-print-in-production");
+}
+
+#[test]
 fn review_uses_project_resolver_context_for_changed_files() {
     let repo = temp_git_repo();
     write_initial_project(repo.path());
@@ -404,6 +447,25 @@ cat <<'JSON'
 {"diagnostics":[{"code":"avoid_print","severity":"INFO","problemMessage":"Avoid print.","location":{"file":"lib/main.dart","range":{"start":{"line":2,"column":3}}}}]}
 JSON
 exit 1
+"#,
+    )
+    .unwrap();
+    make_executable(&dart);
+    dir
+}
+
+fn fake_slow_dart_on_path() -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    let dart = dir.path().join("dart");
+    fs::write(
+        &dart,
+        r#"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo "Dart SDK version: 3.0.0"
+  exit 0
+fi
+sleep 5
+exit 0
 "#,
     )
     .unwrap();
