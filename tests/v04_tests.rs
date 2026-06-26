@@ -170,6 +170,35 @@ fn test_sarif_includes_code_scanning_structure() {
     );
 }
 
+#[test]
+fn test_sarif_output_validates_against_schema() {
+    let report = sample_report();
+    let dir = TempDir::new().unwrap();
+    let out = dir.path().join("result.sarif");
+
+    let reporter = SarifReporter {
+        output_path: Some(out.clone()),
+    };
+    reporter.report_analysis(&report);
+
+    let contents = std::fs::read_to_string(&out).unwrap();
+    let sarif: serde_json::Value = serde_json::from_str(&contents).unwrap();
+    let schema: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/schemas/sarif-schema-2.1.0.json")).unwrap();
+    let compiled = jsonschema::JSONSchema::options()
+        .with_draft(jsonschema::Draft::Draft4)
+        .compile(&schema)
+        .unwrap();
+
+    if let Err(errors) = compiled.validate(&sarif) {
+        let messages = errors.map(|error| error.to_string()).collect::<Vec<_>>();
+        panic!(
+            "generated SARIF did not validate against SARIF 2.1.0 schema:\n{}",
+            messages.join("\n")
+        );
+    };
+}
+
 // --- CodeClimate Reporter Tests ---
 
 #[test]

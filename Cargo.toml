@@ -51,6 +51,7 @@ percent-encoding = "2"
 [dev-dependencies]
 tempfile = "3"
 pretty_assertions = "1"
+jsonschema = "0.18"
 
 [profile.release]
 opt-level = 3
