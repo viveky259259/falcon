@@ -192,6 +192,53 @@ findings on the same file/line as analyzer diagnostics. `--analyzer-copilot`
 keeps this behavior explicit, and `--no-defer-to-analyzer` keeps Falcon findings
 even when the analyzer reports the same line.
 
+### GitHub Code Scanning
+
+Use SARIF output with GitHub's Code Scanning upload action to surface Falcon
+findings in the repository Security tab. The workflow needs
+`security-events: write` permission.
+
+```yaml
+name: Falcon Code Scanning
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  falcon:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - run: cargo install --git https://github.com/viveky259259/falcon
+
+      - run: falcon review . --base-ref origin/main --format sarif > falcon-results.sarif
+
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: falcon-results.sarif
+          category: falcon
+```
+
+The bundled GitHub Action can do the same upload for full-project analysis:
+
+```yaml
+- uses: viveky259259/falcon/action@main
+  with:
+    path: .
+    sarif-upload: "true"
+```
+
 ## Dashboard
 
 | Command | Description |
