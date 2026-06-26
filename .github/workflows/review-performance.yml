@@ -1,0 +1,62 @@
+name: Performance Guardrails
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "src/**"
+      - "benches/mcp_warm_cache.rs"
+      - "benches/review_p95.rs"
+      - ".github/workflows/review-performance.yml"
+      - ".github/perf-corpus.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  FALCON_REVIEW_COLD_P95_MS: "10000"
+  FALCON_REVIEW_WARM_P95_MS: "3000"
+
+jobs:
+  guardrails:
+    name: MCP cache and review p95
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-review-performance-cargo-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-review-performance-cargo-
+
+      - name: Build release binaries
+        run: cargo build --release --bins
+
+      - name: Run MCP warm-cache benchmark
+        env:
+          FALCON_MCP_BIN: target/release/falcon-mcp
+        run: cargo bench --bench mcp_warm_cache
+
+      - name: Run review p95 benchmark
+        env:
+          FALCON_BIN: target/release/falcon
+        run: cargo bench --bench review_p95

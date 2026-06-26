@@ -24,6 +24,10 @@ path = "src/mcp_main.rs"
 name = "mcp_warm_cache"
 harness = false
 
+[[bench]]
+name = "review_p95"
+harness = false
+
 [lib]
 name = "falcon"
 path = "src/lib.rs"
