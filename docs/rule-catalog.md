@@ -16,7 +16,7 @@ Falcon includes 61+ lint rules across 7 categories.
 | `avoid-nested-conditionals` | Warning | Max nesting depth for readability |
 | `avoid-non-ascii-symbols` | Warning | Use ASCII identifiers |
 | `avoid-print-in-production` | Warning | Use logging framework instead of print() |
-| `avoid-throw-in-catch` | Error | Don't throw in catch blocks |
+| `avoid-throw-in-catch-block` | Error | Don't throw in catch blocks |
 | `avoid-unawaited-futures` | Warning | Always await or wrap in unawaited() |
 | `avoid-unnecessary-type-assertions` | Warning | Remove redundant `is` checks |
 | `avoid-unnecessary-type-casts` | Warning | Remove redundant `as` casts |
@@ -32,7 +32,7 @@ Falcon includes 61+ lint rules across 7 categories.
 | `prefer-specific-catch-type` | Warning | Use `on SpecificException` not `catch (e)` |
 | `prefer-trailing-comma` | Warning | Trailing commas in multi-line constructs |
 | `avoid-cascade-after-if-null` | Warning | Cascade after ?? is confusing |
-| `avoid-collection-methods-unrelated-types` | Warning | Type-safe collection methods |
+| `avoid-collection-methods-with-unrelated-types` | Warning | Type-safe collection methods |
 | `avoid-double-negation` | Warning | Simplify `!!` |
 | `avoid-duplicate-exports` | Warning | No duplicate exports |
 | `avoid-missing-enum-constant-in-map` | Warning | All enum values in map |
@@ -89,7 +89,7 @@ Falcon includes 61+ lint rules across 7 categories.
 
 | Rule | Severity | Description |
 |---|---|---|
-| `always-override-equals-hashcode` | Warning | Override both or neither |
+| `always-override-equals-and-hashcode` | Warning | Override both or neither |
 | `avoid-mutable-equatable` | Warning | Equatable props should be final |
 | `prefer-equatable` | Info | Use Equatable for value objects |
 

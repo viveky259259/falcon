@@ -50,6 +50,137 @@ impl FalconFindingLike for crate::reporters::Issue {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RuleClass {
+    Style,
+    Type,
+    Unused,
+    Behavioral,
+    Security,
+    Other,
+}
+
+pub fn falcon_rule_class(rule_id: &str) -> RuleClass {
+    let rule = rule_id.to_ascii_lowercase();
+
+    if rule.starts_with("unused-")
+        || rule.contains("unused-")
+        || rule.contains("dead-code")
+        || rule.contains("dead-folder")
+    {
+        RuleClass::Unused
+    } else if rule.contains("hardcoded-credential")
+        || rule.contains("credential")
+        || rule.contains("secret")
+        || rule.contains("token")
+        || rule.contains("password")
+        || rule.contains("security")
+        || rule.contains("vuln")
+        || rule.contains("cert")
+        || rule.contains("insecure")
+        || rule.contains("sql-injection")
+    {
+        RuleClass::Security
+    } else if matches!(
+        rule.as_str(),
+        "set-state-after-dispose"
+            | "dispose-not-called"
+            | "unawaited-future-in-build"
+            | "fake-mounted-check"
+            | "silent-catch"
+            | "riverpod-scope-leak"
+            | "ensure-dispose-lifecycle"
+            | "ensure-stream-subscription-cancel"
+            | "avoid-unawaited-futures"
+            | "avoid-unnecessary-setstate"
+            | "avoid-empty-catch"
+            | "avoid-global-state"
+            | "prefer-specific-catch-type"
+            | "avoid-throw-in-catch"
+            | "avoid-throw-in-catch-block"
+    ) {
+        RuleClass::Behavioral
+    } else if rule.contains("dynamic")
+        || rule.contains("type")
+        || rule.contains("cast")
+        || rule.contains("assertion")
+        || rule.contains("collection-methods-unrelated-types")
+        || rule.contains("collection-methods-with-unrelated-types")
+        || rule == "avoid-missing-enum-constant-in-map"
+    {
+        RuleClass::Type
+    } else if rule.starts_with("avoid-")
+        || rule.starts_with("prefer-")
+        || rule.starts_with("ensure-")
+        || rule.contains("naming")
+        || rule.contains("identifier")
+        || rule.contains("format")
+        || rule.contains("style")
+        || rule.contains("print")
+        || rule.contains("magic-number")
+        || rule.contains("long-")
+        || rule.contains("nested")
+        || rule.contains("duplicate-export")
+    {
+        RuleClass::Style
+    } else {
+        RuleClass::Other
+    }
+}
+
+pub fn analyzer_rule_class(code: &str) -> RuleClass {
+    let code = code.to_ascii_lowercase();
+
+    if code.starts_with("unused_") || code == "dead_code" {
+        RuleClass::Unused
+    } else if matches!(
+        code.as_str(),
+        "invalid_assignment"
+            | "argument_type_not_assignable"
+            | "return_of_invalid_type"
+            | "undefined_identifier"
+            | "undefined_method"
+            | "undefined_class"
+            | "uri_does_not_exist"
+            | "missing_required_argument"
+            | "not_enough_positional_arguments"
+            | "extra_positional_arguments"
+            | "undefined_named_parameter"
+            | "wrong_number_of_type_arguments"
+            | "unchecked_use_of_nullable_value"
+    ) {
+        RuleClass::Type
+    } else if code.contains("insecure")
+        || code.contains("security")
+        || code.contains("secret")
+        || code.contains("credential")
+        || code.contains("password")
+        || code.contains("token")
+    {
+        RuleClass::Security
+    } else if matches!(
+        code.as_str(),
+        "use_build_context_synchronously"
+            | "unawaited_futures"
+            | "discarded_futures"
+            | "cancel_subscriptions"
+            | "close_sinks"
+    ) {
+        RuleClass::Behavioral
+    } else if code.starts_with("avoid_")
+        || code.starts_with("prefer_")
+        || code.starts_with("unnecessary_")
+        || code.starts_with("camel_case")
+        || code.starts_with("non_constant")
+        || code == "file_names"
+        || code == "sort_child_properties_last"
+    {
+        RuleClass::Style
+    } else {
+        RuleClass::Other
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Internal serde shapes. `dart analyze --format=json` has shifted shape across
 // SDK versions; we tolerate both the per-file/per-line NDJSON form and the
@@ -396,8 +527,8 @@ fn join_reader(handle: thread::JoinHandle<std::io::Result<Vec<u8>>>) -> Result<V
         .context("failed to read analyzer subprocess output")
 }
 
-/// Filter Falcon findings, dropping any whose (file, line) collides with an
-/// analyzer diagnostic — UNLESS `no_defer` is true.
+/// Filter Falcon findings, dropping any whose (file, line, rule class) collides
+/// with an analyzer diagnostic — UNLESS `no_defer` is true.
 ///
 /// Returns `(surviving, suppressed)`. `suppressed` is empty when
 /// `no_defer` is true.
@@ -415,16 +546,24 @@ pub fn defer_to_analyzer<F: FalconFindingLike + Clone>(
     }
 
     // Pre-compute analyzer collision keys.
-    let mut keys: std::collections::HashSet<(PathBuf, usize)> =
+    let mut keys: std::collections::HashSet<(PathBuf, usize, RuleClass)> =
         std::collections::HashSet::with_capacity(analyzer.len());
     for diag in analyzer {
-        keys.insert((canonical(&diag.file), diag.line));
+        keys.insert((
+            canonical(&diag.file),
+            diag.line,
+            analyzer_rule_class(&diag.code),
+        ));
     }
 
     let mut surviving = Vec::with_capacity(falcon.len());
     let mut suppressed = Vec::new();
     for finding in falcon {
-        let key = (canonical(finding.file()), finding.line());
+        let key = (
+            canonical(finding.file()),
+            finding.line(),
+            falcon_rule_class(finding.rule_id()),
+        );
         if keys.contains(&key) {
             suppressed.push(finding.clone());
         } else {
@@ -574,7 +713,7 @@ not-json-at-all
 
     #[test]
     fn defer_no_overlap_keeps_all() {
-        let falcon = vec![finding("/proj/lib/a.dart", 10, "ai_lint")];
+        let falcon = vec![finding("/proj/lib/a.dart", 10, "avoid-unused-parameters")];
         let analyzer = vec![diag("/proj/lib/b.dart", 10, "unused_import")];
         let (surviving, suppressed) = defer_to_analyzer(&falcon, &analyzer, false);
         assert_eq!(surviving.len(), 1);
@@ -582,12 +721,12 @@ not-json-at-all
     }
 
     #[test]
-    fn defer_exact_line_overlap_suppresses() {
+    fn defer_exact_line_and_class_overlap_suppresses() {
         let falcon = vec![
-            finding("/proj/lib/a.dart", 10, "ai_lint"),
-            finding("/proj/lib/a.dart", 12, "ai_lint"),
+            finding("/proj/lib/a.dart", 10, "avoid-print-in-production"),
+            finding("/proj/lib/a.dart", 12, "avoid-print-in-production"),
         ];
-        let analyzer = vec![diag("/proj/lib/a.dart", 10, "unused_import")];
+        let analyzer = vec![diag("/proj/lib/a.dart", 10, "avoid_print")];
         let (surviving, suppressed) = defer_to_analyzer(&falcon, &analyzer, false);
         assert_eq!(surviving.len(), 1);
         assert_eq!(surviving[0].line, 12);
@@ -596,8 +735,26 @@ not-json-at-all
     }
 
     #[test]
+    fn defer_same_line_different_class_keeps_behavioral_finding() {
+        let falcon = vec![finding("/proj/lib/a.dart", 10, "set-state-after-dispose")];
+        let analyzer = vec![diag("/proj/lib/a.dart", 10, "avoid_print")];
+        let (surviving, suppressed) = defer_to_analyzer(&falcon, &analyzer, false);
+        assert_eq!(surviving.len(), 1);
+        assert!(suppressed.is_empty());
+    }
+
+    #[test]
+    fn defer_unused_falcon_finding_to_unused_analyzer_diagnostic() {
+        let falcon = vec![finding("/proj/lib/a.dart", 10, "unused-code")];
+        let analyzer = vec![diag("/proj/lib/a.dart", 10, "unused_import")];
+        let (surviving, suppressed) = defer_to_analyzer(&falcon, &analyzer, false);
+        assert!(surviving.is_empty());
+        assert_eq!(suppressed.len(), 1);
+    }
+
+    #[test]
     fn defer_same_file_different_line_keeps_both() {
-        let falcon = vec![finding("/proj/lib/a.dart", 9, "ai_lint")];
+        let falcon = vec![finding("/proj/lib/a.dart", 9, "avoid-unused-parameters")];
         let analyzer = vec![diag("/proj/lib/a.dart", 10, "unused_import")];
         let (surviving, suppressed) = defer_to_analyzer(&falcon, &analyzer, false);
         assert_eq!(surviving.len(), 1);
@@ -606,11 +763,47 @@ not-json-at-all
 
     #[test]
     fn defer_no_defer_flag_bypasses_suppression() {
-        let falcon = vec![finding("/proj/lib/a.dart", 10, "ai_lint")];
+        let falcon = vec![finding("/proj/lib/a.dart", 10, "avoid-unused-parameters")];
         let analyzer = vec![diag("/proj/lib/a.dart", 10, "unused_import")];
         let (surviving, suppressed) = defer_to_analyzer(&falcon, &analyzer, true);
         assert_eq!(surviving.len(), 1);
         assert!(suppressed.is_empty());
+    }
+
+    #[test]
+    fn rule_class_mappings_cover_core_cases() {
+        assert_eq!(
+            falcon_rule_class("avoid-print-in-production"),
+            RuleClass::Style
+        );
+        assert_eq!(falcon_rule_class("unused-code"), RuleClass::Unused);
+        assert_eq!(
+            falcon_rule_class("set-state-after-dispose"),
+            RuleClass::Behavioral
+        );
+        assert_eq!(
+            falcon_rule_class("avoid-throw-in-catch-block"),
+            RuleClass::Behavioral
+        );
+        assert_eq!(
+            falcon_rule_class("avoid-collection-methods-with-unrelated-types"),
+            RuleClass::Type
+        );
+        assert_eq!(
+            falcon_rule_class("avoid-missing-enum-constant-in-map"),
+            RuleClass::Type
+        );
+        assert_eq!(
+            falcon_rule_class("avoid-hardcoded-credentials"),
+            RuleClass::Security
+        );
+        assert_eq!(analyzer_rule_class("avoid_print"), RuleClass::Style);
+        assert_eq!(analyzer_rule_class("unused_import"), RuleClass::Unused);
+        assert_eq!(analyzer_rule_class("invalid_assignment"), RuleClass::Type);
+        assert_eq!(
+            analyzer_rule_class("use_build_context_synchronously"),
+            RuleClass::Behavioral
+        );
     }
 
     #[test]

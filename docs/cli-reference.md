@@ -208,9 +208,11 @@ the extra review observations such as missing-test checks.
 
 For Dart projects with `.dart_tool/package_config.json`, review runs
 `dart analyze --format=json` as an analyzer co-pilot and suppresses Falcon
-findings on the same file/line as analyzer diagnostics. `--analyzer-copilot`
+findings on the same file, line, and rule class as analyzer diagnostics.
+Style analyzer diagnostics can suppress style findings, for example, but not
+Falcon behavioral or security findings on the same line. `--analyzer-copilot`
 keeps this behavior explicit, and `--no-defer-to-analyzer` keeps Falcon findings
-even when the analyzer reports the same line.
+even when the analyzer reports the same file, line, and class.
 
 ### GitHub Code Scanning
 
