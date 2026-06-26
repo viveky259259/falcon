@@ -1656,6 +1656,17 @@ enum AiAction {
         #[arg(default_value = ".")]
         path: PathBuf,
     },
+
+    /// Triage findings with embedded AI false-positive review
+    Triage {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output format
+        #[arg(long, default_value = "text")]
+        format: TriageOutputFormat,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1857,6 +1868,12 @@ enum ReviewOutputFormat {
     Json,
     Gh,
     Sarif,
+}
+
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+enum TriageOutputFormat {
+    Text,
+    Json,
 }
 
 #[derive(Clone, Debug, clap::ValueEnum)]
@@ -2947,84 +2964,89 @@ fn run(cli: Cli) -> Result<()> {
                 process::exit(1);
             }
         }
-        Commands::Ai { action } => match action {
-            AiAction::Setup { path } => {
-                falcon::ai::config::generate_ai_setup(&path)?;
-                println!(
-                    "{} AI configuration added to falcon.yaml",
-                    "✓".green().bold()
-                );
-                println!("  Edit falcon.yaml to set your provider and API key.");
-                println!("  Supported providers: openai, anthropic, gemini, local (Ollama)");
+        Commands::Ai { action } => {
+            match action {
+                AiAction::Setup { path } => {
+                    falcon::ai::config::generate_ai_setup(&path)?;
+                    println!(
+                        "{} AI configuration added to falcon.yaml",
+                        "✓".green().bold()
+                    );
+                    println!("  Edit falcon.yaml to set your provider and API key.");
+                    println!("  Supported providers: openai, anthropic, gemini, local (Ollama), embedded");
+                }
+                AiAction::Status { path } => {
+                    let config = FalconConfig::load(&path)?;
+                    let ai = &config.ai;
+                    println!();
+                    println!(
+                        "  {} AI Configuration Status",
+                        "falcon".bright_cyan().bold()
+                    );
+                    println!();
+                    println!(
+                        "  Enabled:   {}",
+                        if ai.enabled {
+                            "yes".green()
+                        } else {
+                            "no".red()
+                        }
+                    );
+                    println!("  Provider:  {:?}", ai.provider);
+                    println!("  Model:     {}", ai.effective_model());
+                    println!(
+                        "  API Key:   {}",
+                        if ai.resolve_api_key().is_some() {
+                            "configured".green()
+                        } else {
+                            "not set".yellow()
+                        }
+                    );
+                    println!(
+                        "  Available: {}",
+                        if ai.is_available() {
+                            "yes".green()
+                        } else {
+                            "no".red()
+                        }
+                    );
+                    println!();
+                    println!("  Feature Toggles:");
+                    println!(
+                        "    Confidence scoring:      {}",
+                        if ai.features.confidence_scoring {
+                            "on"
+                        } else {
+                            "off"
+                        }
+                    );
+                    println!(
+                        "    Smart fixes:             {}",
+                        if ai.features.smart_fixes { "on" } else { "off" }
+                    );
+                    println!(
+                        "    Explanations:            {}",
+                        if ai.features.explanations {
+                            "on"
+                        } else {
+                            "off"
+                        }
+                    );
+                    println!(
+                        "    False positive reduction: {}",
+                        if ai.features.false_positive_reduction {
+                            "on"
+                        } else {
+                            "off"
+                        }
+                    );
+                    println!();
+                }
+                AiAction::Triage { path, format } => {
+                    run_ai_triage(&path, format)?;
+                }
             }
-            AiAction::Status { path } => {
-                let config = FalconConfig::load(&path)?;
-                let ai = &config.ai;
-                println!();
-                println!(
-                    "  {} AI Configuration Status",
-                    "falcon".bright_cyan().bold()
-                );
-                println!();
-                println!(
-                    "  Enabled:   {}",
-                    if ai.enabled {
-                        "yes".green()
-                    } else {
-                        "no".red()
-                    }
-                );
-                println!("  Provider:  {:?}", ai.provider);
-                println!("  Model:     {}", ai.effective_model());
-                println!(
-                    "  API Key:   {}",
-                    if ai.resolve_api_key().is_some() {
-                        "configured".green()
-                    } else {
-                        "not set".yellow()
-                    }
-                );
-                println!(
-                    "  Available: {}",
-                    if ai.is_available() {
-                        "yes".green()
-                    } else {
-                        "no".red()
-                    }
-                );
-                println!();
-                println!("  Feature Toggles:");
-                println!(
-                    "    Confidence scoring:      {}",
-                    if ai.features.confidence_scoring {
-                        "on"
-                    } else {
-                        "off"
-                    }
-                );
-                println!(
-                    "    Smart fixes:             {}",
-                    if ai.features.smart_fixes { "on" } else { "off" }
-                );
-                println!(
-                    "    Explanations:            {}",
-                    if ai.features.explanations {
-                        "on"
-                    } else {
-                        "off"
-                    }
-                );
-                println!(
-                    "    False positive reduction: {}",
-                    if ai.features.false_positive_reduction {
-                        "on"
-                    } else {
-                        "off"
-                    }
-                );
-                println!();
-            }
-        },
+        }
         Commands::Fix {
             path,
             preview,
@@ -4770,6 +4792,52 @@ fn issue_to_json(issue: &falcon::reporters::Issue) -> serde_json::Value {
         "line": issue.line,
         "column": issue.column,
     })
+}
+
+fn run_ai_triage(path: &Path, format: TriageOutputFormat) -> Result<()> {
+    #[cfg(feature = "ai-local")]
+    {
+        match format {
+            TriageOutputFormat::Text => {
+                println!(
+                    "falcon ai triage is compiled with ai-local, but LocalEngine inference is not wired yet."
+                );
+                println!("Path: {}", path.display());
+            }
+            TriageOutputFormat::Json => {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "available": false,
+                        "path": path,
+                        "reason": "ai-local feature is enabled, but LocalEngine inference is not wired yet"
+                    })
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(not(feature = "ai-local"))]
+    {
+        match format {
+            TriageOutputFormat::Text => {
+                println!("falcon ai triage requires a build compiled with --features ai-local.");
+                println!("Path: {}", path.display());
+            }
+            TriageOutputFormat::Json => {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "available": false,
+                        "path": path,
+                        "reason": "rebuild falcon with --features ai-local to enable embedded AI triage"
+                    })
+                );
+            }
+        }
+        Ok(())
+    }
 }
 
 fn get_reporter(format: &OutputFormat, output: &PathBuf) -> Box<dyn Reporter> {
