@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::PathBuf;
 
+use super::cache::McpCache;
 use super::schema::{
     explain_input_schema, fix_safe_input_schema, lint_diff_input_schema, lint_file_input_schema,
     review_input_schema, ExplainArgs, FixSafeArgs, LintDiffArgs, LintFileArgs, ReviewArgs,
@@ -177,16 +178,21 @@ fn execute_ai_score(args: &Value) -> Result<Value, String> {
 
 fn execute_check_file(args: &Value) -> Result<Value, String> {
     let args: LintFileArgs = parse_args("lint_file", args)?;
-    let file_path = args.file_path;
+    let LintFileArgs {
+        file_path,
+        source,
+        project_root,
+    } = args;
     let file_path = PathBuf::from(&file_path);
+    let use_cache = source.is_none() && project_root.is_none();
 
-    let source = if let Some(src) = args.source {
+    let source = if let Some(src) = source {
         src
     } else {
         std::fs::read_to_string(&file_path).map_err(|e| format!("Failed to read file: {}", e))?
     };
 
-    if let Some(project_root) = args.project_root {
+    if let Some(project_root) = project_root {
         let sdk = crate::sdk::FalconSdk::new();
         let sdk_issues = sdk
             .analyze_source_with_project_context(
@@ -216,6 +222,27 @@ fn execute_check_file(args: &Value) -> Result<Value, String> {
         }));
     }
 
+    let cache = use_cache.then(McpCache::new);
+    if let Some(cache) = &cache {
+        if let Some(value) = cache.load_lint_file(&file_path, &source) {
+            return Ok(value);
+        }
+    }
+
+    let result = analyze_lint_file_source(&file_path, &source)?;
+    if let Some(cache) = &cache {
+        if let Err(err) = cache.store_lint_file(&file_path, &source, &result) {
+            log::warn!(
+                "failed to store MCP lint_file cache for {}: {}",
+                file_path.display(),
+                err
+            );
+        }
+    }
+    Ok(result)
+}
+
+fn analyze_lint_file_source(file_path: &PathBuf, source: &str) -> Result<Value, String> {
     let mut parser =
         crate::parser::DartParser::new().map_err(|e| format!("Parser init failed: {}", e))?;
     let tree = parser

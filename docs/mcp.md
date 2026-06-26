@@ -32,6 +32,11 @@ caller wants resolver-backed cross-file rules, such as lifecycle checks that
 need inheritance facts from the rest of the project. Without `project_root`,
 `lint_file` keeps the original fast single-file behavior.
 
+Disk-backed calls are cached under `${TMPDIR}/falcon-mcp/` and version-scoped by
+the Falcon crate version. Cache entries validate the file mtime and SHA-256 of
+the current source before reuse, so rewritten files with the same path are
+recomputed.
+
 Request:
 
 ```json
