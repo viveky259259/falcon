@@ -10,9 +10,8 @@
 use crate::config::Severity;
 use crate::parser::{dart_ast, find_descendants_by_kind};
 use crate::reporters::Issue;
-use crate::resolver::{ResolvedClass, ResolverIndex};
 use crate::rules::{Rule, RuleContext};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tree_sitter::Node;
 
 #[derive(Default)]
@@ -42,7 +41,7 @@ impl Rule for SetStateAfterDispose {
         file: &Path,
         context: &RuleContext<'_>,
     ) -> Vec<Issue> {
-        let Some(index) = context.resolver_index else {
+        let Some(resolver) = context.resolver else {
             return self.check(root, source, file);
         };
 
@@ -52,11 +51,11 @@ impl Rule for SetStateAfterDispose {
                 continue;
             };
 
-            let Some(class) = resolved_class(index, class_name, file) else {
+            let Some(class) = resolver.resolve_class_name(class_name) else {
                 continue;
             };
 
-            if !index.is_subtype_of(&class.name, "State") {
+            if !resolver.is_subtype_of(class, "State") {
                 continue;
             }
 
@@ -67,29 +66,6 @@ impl Rule for SetStateAfterDispose {
 
         issues
     }
-}
-
-fn resolved_class<'a>(
-    index: &'a ResolverIndex,
-    class_name: &str,
-    file: &Path,
-) -> Option<&'a ResolvedClass> {
-    index
-        .classes()
-        .iter()
-        .find(|class| class.name == class_name && same_path(&class.file, file))
-        .or_else(|| index.class(class_name))
-}
-
-fn same_path(left: &Path, right: &Path) -> bool {
-    if left == right {
-        return true;
-    }
-    normalize_for_compare(left) == normalize_for_compare(right)
-}
-
-fn normalize_for_compare(path: &Path) -> PathBuf {
-    path.components().collect()
 }
 
 fn method_bodies(class_node: Node) -> Vec<Node> {
@@ -225,8 +201,10 @@ class _MyWidgetState extends State<MyWidget> {
         let rule = SetStateAfterDispose;
         let mut parser = DartParser::new().unwrap();
         let tree = parser.parse(source).unwrap();
+        let resolver = index.resolver_for_file(&file, source);
         let context = RuleContext {
             resolver_index: Some(index),
+            resolver: Some(&resolver),
         };
         rule.check_with_context(tree.root_node(), source, &file, &context)
     }

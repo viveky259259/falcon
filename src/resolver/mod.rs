@@ -6,7 +6,7 @@ pub mod scope;
 pub mod unused_l10n;
 pub mod unused_params;
 
-pub use classes::{ResolvedClass, ResolverIndex};
+pub use classes::{ResolvedClass, ResolvedSymbol, ResolvedSymbolKind, Resolver, ResolverIndex};
 
 use crate::config::{FalconConfig, Severity};
 use crate::parser::DartParser;

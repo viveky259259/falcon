@@ -8,7 +8,7 @@ pub mod severity;
 
 use crate::config::{FalconConfig, Severity};
 use crate::reporters::Issue;
-use crate::resolver::ResolverIndex;
+use crate::resolver::{Resolver, ResolverIndex};
 use std::collections::HashMap;
 use std::path::Path;
 use tree_sitter::Node;
@@ -16,6 +16,7 @@ use tree_sitter::Node;
 #[derive(Default)]
 pub struct RuleContext<'a> {
     pub resolver_index: Option<&'a ResolverIndex>,
+    pub resolver: Option<&'a Resolver<'a>>,
 }
 
 pub trait Rule: Send + Sync {

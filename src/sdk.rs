@@ -192,8 +192,10 @@ impl FalconSdk {
                 &file_path,
             ));
             let source_index = crate::resolver::ResolverIndex::new(classes);
+            let resolver = source_index.resolver_for_file(&file_path, source);
             let context = crate::rules::RuleContext {
                 resolver_index: Some(&source_index),
+                resolver: Some(&resolver),
             };
             registry.check_with_context(tree.root_node(), source, &file_path, &context)
         } else {

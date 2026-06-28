@@ -53,3 +53,48 @@ class _ScreenState extends BaseState {
         .message
         .contains("must re-check `mounted`"));
 }
+
+#[test]
+fn full_project_analyze_bails_on_ambiguous_state_parent_for_async_gap() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path();
+
+    write(
+        &root.join("lib/base_a.dart"),
+        r#"
+class BaseState extends State<A> {}
+"#,
+    );
+    write(
+        &root.join("lib/base_b.dart"),
+        r#"
+class BaseState extends State<B> {}
+"#,
+    );
+    write(
+        &root.join("lib/screen.dart"),
+        r#"
+class _ScreenState extends BaseState {
+  Future<void> load() async {
+    await api.fetch();
+    setState(() {});
+  }
+}
+"#,
+    );
+
+    let mut config = FalconConfig::default();
+    config.rules = vec![RuleConfig::Simple("set-state-after-dispose".to_string())];
+    config.unused.enabled = false;
+    let falcon = Falcon::new(config).unwrap();
+    let report = falcon.analyze(root).unwrap();
+
+    assert!(
+        report
+            .issues
+            .iter()
+            .all(|issue| issue.rule != "set-state-after-dispose"),
+        "ambiguous BaseState should make set-state rule bail: {:#?}",
+        report.issues
+    );
+}

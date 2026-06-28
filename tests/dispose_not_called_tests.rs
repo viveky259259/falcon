@@ -50,3 +50,45 @@ class _ScreenState extends BaseState {
         .message
         .contains("requires a dispose() override"));
 }
+
+#[test]
+fn full_project_analyze_bails_on_ambiguous_state_parent_for_dispose() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path();
+
+    write(
+        &root.join("lib/base_a.dart"),
+        r#"
+class BaseState extends State<A> {}
+"#,
+    );
+    write(
+        &root.join("lib/base_b.dart"),
+        r#"
+class BaseState extends State<B> {}
+"#,
+    );
+    write(
+        &root.join("lib/screen.dart"),
+        r#"
+class _ScreenState extends BaseState {
+  final TextEditingController controller = TextEditingController();
+}
+"#,
+    );
+
+    let mut config = FalconConfig::default();
+    config.rules = vec![RuleConfig::Simple("dispose-not-called".to_string())];
+    config.unused.enabled = false;
+    let falcon = Falcon::new(config).unwrap();
+    let report = falcon.analyze(root).unwrap();
+
+    assert!(
+        report
+            .issues
+            .iter()
+            .all(|issue| issue.rule != "dispose-not-called"),
+        "ambiguous BaseState should make dispose rule bail: {:#?}",
+        report.issues
+    );
+}

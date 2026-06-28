@@ -106,8 +106,10 @@ impl Falcon {
                     issues.push(violation);
                 }
 
+                let resolver = resolver_index.resolver_for_file(file, &source);
                 let context = RuleContext {
                     resolver_index: Some(&resolver_index),
+                    resolver: Some(&resolver),
                 };
                 let rule_issues = self
                     .rule_registry
@@ -206,6 +208,7 @@ impl Falcon {
         let resolver_index = resolver.build_index()?;
         let context = RuleContext {
             resolver_index: Some(&resolver_index),
+            resolver: None,
         };
         self.analyze_files_with_rule_context(files, context, Some(project_root.to_path_buf()))
     }
@@ -251,9 +254,16 @@ impl Falcon {
                     issues.push(violation);
                 }
 
-                let rule_issues = self
-                    .rule_registry
-                    .check_with_context(root, &source, file, &context);
+                let file_resolver = context
+                    .resolver_index
+                    .map(|index| index.resolver_for_file(file, &source));
+                let file_context = RuleContext {
+                    resolver_index: context.resolver_index,
+                    resolver: file_resolver.as_ref().or(context.resolver),
+                };
+                let rule_issues =
+                    self.rule_registry
+                        .check_with_context(root, &source, file, &file_context);
                 issues.extend(rule_issues);
 
                 Some((file.clone(), issues, metrics))

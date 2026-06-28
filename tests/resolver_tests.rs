@@ -6,7 +6,8 @@
 //! `ProjectResolver` API end-to-end against synthesised mini-projects.
 
 use falcon::config::FalconConfig;
-use falcon::resolver::ProjectResolver;
+use falcon::parser::{find_descendants_by_kind, DartParser};
+use falcon::resolver::{ProjectResolver, ResolvedSymbolKind};
 use std::fs;
 use std::path::Path;
 
@@ -139,4 +140,73 @@ fn resolver_index_reports_method_presence() {
     assert!(class.has_method("dispose"));
     assert!(class.has_method("build"));
     assert!(!class.has_method("initState"));
+}
+
+#[test]
+fn resolver_resolves_same_file_class_declaration() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path();
+    let file = root.join("lib/screen.dart");
+    let source = "class _ScreenState extends State<W> {}\n";
+    write(&file, source);
+
+    let resolver = ProjectResolver::new(root, &FalconConfig::default()).unwrap();
+    let index = resolver.build_index().unwrap();
+    let file_resolver = index.resolver_for_file(&file, source);
+
+    let mut parser = DartParser::new().unwrap();
+    let tree = parser.parse(source).unwrap();
+    let class_node = find_descendants_by_kind(tree.root_node(), "class_declaration")
+        .into_iter()
+        .next()
+        .expect("class declaration");
+
+    let symbol = file_resolver
+        .resolve(class_node)
+        .expect("class declaration should resolve");
+    assert_eq!(symbol.name, "_ScreenState");
+    assert_eq!(symbol.kind, ResolvedSymbolKind::Class);
+    assert_eq!(symbol.declaring_library, file);
+    assert_eq!(symbol.type_hint, None);
+}
+
+#[test]
+fn resolver_marks_cross_file_duplicate_simple_names_ambiguous() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path();
+    write(
+        &root.join("lib/a.dart"),
+        "class BaseState extends State<A> {}\n",
+    );
+    write(
+        &root.join("lib/b.dart"),
+        "class BaseState extends State<B> {}\n",
+    );
+    let screen = root.join("lib/screen.dart");
+    let source = "class _ScreenState extends BaseState {}\n";
+    write(&screen, source);
+
+    let resolver = ProjectResolver::new(root, &FalconConfig::default()).unwrap();
+    let index = resolver.build_index().unwrap();
+    let file_resolver = index.resolver_for_file(&screen, source);
+
+    assert_eq!(index.classes_named("BaseState").len(), 2);
+    assert!(file_resolver.is_ambiguous_class_name("BaseState"));
+    assert!(file_resolver.resolve_class_name("BaseState").is_none());
+}
+
+#[test]
+fn resolver_does_not_claim_unindexed_import_resolution() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path();
+    let screen = root.join("lib/screen.dart");
+    let source = "class _ScreenState extends ImportedState {}\n";
+    write(&screen, source);
+
+    let resolver = ProjectResolver::new(root, &FalconConfig::default()).unwrap();
+    let index = resolver.build_index().unwrap();
+    let file_resolver = index.resolver_for_file(&screen, source);
+
+    assert!(file_resolver.resolve_class_name("ImportedState").is_none());
+    assert!(!file_resolver.is_ambiguous_class_name("ImportedState"));
 }
