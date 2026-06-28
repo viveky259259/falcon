@@ -146,7 +146,7 @@ pub fn analyze_project_provenance(root: &Path) -> anyhow::Result<Vec<ProvenanceR
             }
         })
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .map(|e| e.path().to_path_buf())
         .collect();
 

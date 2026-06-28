@@ -2,6 +2,7 @@
 
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -126,7 +127,7 @@ pub fn compute_effectiveness(history: &FixHistory) -> Vec<FixEffectiveness> {
         })
         .collect();
 
-    results.sort_by(|a, b| b.total_fixes.cmp(&a.total_fixes));
+    results.sort_by_key(|result| Reverse(result.total_fixes));
     results
 }
 

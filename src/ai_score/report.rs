@@ -1,5 +1,6 @@
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -84,7 +85,7 @@ pub fn generate_ai_report(root: &Path) -> anyhow::Result<AiReport> {
             severity,
         })
         .collect();
-    top_issues.sort_by(|a, b| b.count.cmp(&a.count));
+    top_issues.sort_by_key(|issue| Reverse(issue.count));
     top_issues.truncate(10);
 
     let recommendations = generate_recommendations(&score, &provenance);

@@ -3,6 +3,7 @@
 
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -111,7 +112,7 @@ pub fn record_project(db_root: &Path, project_root: &Path) -> anyhow::Result<Pro
         .iter()
         .map(|(k, v)| (k.clone(), *v))
         .collect();
-    top_violations.sort_by(|a, b| b.1.cmp(&a.1));
+    top_violations.sort_by_key(|(_, count)| Reverse(*count));
 
     let profile = ProjectProfile {
         project_id,
@@ -185,7 +186,7 @@ pub fn derive_insights(db: &LearningDatabase) -> CrossProjectInsights {
         .iter()
         .map(|(k, v)| (k.clone(), *v))
         .collect();
-    top_rules.sort_by(|a, b| b.1.cmp(&a.1));
+    top_rules.sort_by_key(|(_, count)| Reverse(*count));
     top_rules.truncate(10);
 
     let scores: Vec<f64> = db

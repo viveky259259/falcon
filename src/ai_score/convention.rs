@@ -72,7 +72,7 @@ pub fn detect_conventions(root: &Path) -> anyhow::Result<ConventionReport> {
             continue;
         }
 
-        if entry.path().extension().map_or(true, |ext| ext != "dart") {
+        if entry.path().extension().is_none_or(|ext| ext != "dart") {
             continue;
         }
 
@@ -136,7 +136,7 @@ pub fn detect_conventions(root: &Path) -> anyhow::Result<ConventionReport> {
 
     let pascal = class_names
         .iter()
-        .filter(|c| c.chars().next().map_or(false, |ch| ch.is_uppercase()))
+        .filter(|c| c.chars().next().is_some_and(|ch| ch.is_uppercase()))
         .count();
     let class_naming = if pascal == class_names.len() {
         "PascalCase".to_string()
