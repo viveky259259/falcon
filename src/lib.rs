@@ -19,6 +19,7 @@ pub mod flutter_run;
 pub mod golden_gen;
 pub mod incremental;
 pub mod l10n_coverage;
+pub mod leaderboard;
 pub mod lsp;
 pub mod manage;
 pub mod mcp;

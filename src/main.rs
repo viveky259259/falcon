@@ -1492,6 +1492,18 @@ enum XAction {
         output: PathBuf,
     },
 
+    /// Generate the static pub.dev leaderboard site
+    #[command(name = "leaderboard")]
+    Leaderboard {
+        /// JSON manifest with package metadata and Falcon score payloads
+        #[arg(long)]
+        input: PathBuf,
+
+        /// Output directory for the generated static site
+        #[arg(long, default_value = "site/leaderboard")]
+        output: PathBuf,
+    },
+
     /// Scan for security vulnerabilities and anti-patterns
     #[command(name = "vuln-scan")]
     VulnScan {
@@ -4600,6 +4612,11 @@ fn run(cli: Cli) -> Result<()> {
                 XAction::DepGraph { path, file } => Commands::DepGraph { path, file },
                 XAction::Workspace { path } => Commands::Workspace { path },
                 XAction::Docs { output } => Commands::Docs { output },
+                XAction::Leaderboard { input, output } => {
+                    falcon::leaderboard::build_from_file(&input, &output)?;
+                    eprintln!("Leaderboard written to {}", output.display());
+                    return Ok(());
+                }
                 XAction::VulnScan { path } => Commands::VulnScan { path },
                 XAction::RefactorSim {
                     path,
