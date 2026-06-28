@@ -456,7 +456,11 @@ fn summarize_runtime_message(message: &str) -> String {
     value["extensionData"]["renderedErrorText"]
         .as_str()
         .map(ToString::to_string)
-        .or_else(|| value["extensionData"]["description"].as_str().map(ToString::to_string))
+        .or_else(|| {
+            value["extensionData"]["description"]
+                .as_str()
+                .map(ToString::to_string)
+        })
         .unwrap_or_else(|| message.to_string())
 }
 
