@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use super::cache::McpCache;
 use super::schema::{
@@ -242,21 +242,20 @@ fn execute_check_file(args: &Value) -> Result<Value, String> {
     Ok(result)
 }
 
-fn analyze_lint_file_source(file_path: &PathBuf, source: &str) -> Result<Value, String> {
+fn analyze_lint_file_source(file_path: &Path, source: &str) -> Result<Value, String> {
     let mut parser =
         crate::parser::DartParser::new().map_err(|e| format!("Parser init failed: {}", e))?;
     let tree = parser
-        .parse(&source)
+        .parse(source)
         .ok_or_else(|| "Failed to parse Dart source".to_string())?;
 
     let config = crate::config::FalconConfig::default();
     let mut registry = crate::rules::RuleRegistry::new();
     registry.register_defaults(&config);
 
-    let issues = registry.check(tree.root_node(), &source, &file_path);
+    let issues = registry.check(tree.root_node(), source, file_path);
 
-    let metrics =
-        crate::metrics::calculate_file_metrics(tree.root_node(), &source, &config.metrics);
+    let metrics = crate::metrics::calculate_file_metrics(tree.root_node(), source, &config.metrics);
     let mut all_issues = issues;
     all_issues.extend(metrics.violations());
 

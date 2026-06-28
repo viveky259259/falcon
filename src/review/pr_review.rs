@@ -175,7 +175,7 @@ fn collect_project_patterns(root: &Path, _changed_files: &[PathBuf]) -> ProjectP
     for entry in walkdir::WalkDir::new(&lib_path)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .take(50)
     {
         if let Ok(source) = std::fs::read_to_string(entry.path()) {
@@ -259,7 +259,7 @@ fn check_naming_node(
                 .chars()
                 .take_while(|c| c.is_alphanumeric() || *c == '_')
                 .collect();
-            if !name.is_empty() && name.chars().next().map_or(false, |c| c.is_lowercase()) {
+            if !name.is_empty() && name.chars().next().is_some_and(|c| c.is_lowercase()) {
                 observations.push(ReviewObservation {
                     category: ObservationCategory::NamingConvention,
                     message: format!("Class '{}' should use UpperCamelCase.", name),

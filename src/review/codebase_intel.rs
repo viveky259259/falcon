@@ -2,6 +2,7 @@ use crate::config::FalconConfig;
 use crate::metrics;
 use crate::parser::DartParser;
 use colored::Colorize;
+use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -55,7 +56,7 @@ pub fn analyze_codebase(root: &Path, config: &FalconConfig) -> anyhow::Result<Co
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .filter(|e| {
             let rel = e.path().strip_prefix(root).unwrap_or(e.path());
             !exclude_patterns.iter().any(|p| p.matches_path(rel))
@@ -223,7 +224,7 @@ fn find_god_files(stats: &[FileStats], _root: &Path) -> Vec<GodFile> {
         })
         .collect();
 
-    gods.sort_by(|a, b| b.lines.cmp(&a.lines));
+    gods.sort_by_key(|god| Reverse(god.lines));
     gods.truncate(10);
     gods
 }

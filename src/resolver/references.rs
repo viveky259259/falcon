@@ -130,10 +130,8 @@ fn collect_declaration_name_positions(root: Node, _source: &str) -> HashSet<usiz
 
 fn first_identifier_child(node: Node) -> Option<Node> {
     let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        if child.kind() == "identifier" || child.kind() == "type_identifier" {
-            return Some(child);
-        }
-    }
-    None
+    let first = node
+        .children(&mut cursor)
+        .find(|&child| child.kind() == "identifier" || child.kind() == "type_identifier");
+    first
 }
