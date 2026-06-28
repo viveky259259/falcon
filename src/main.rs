@@ -4817,6 +4817,22 @@ fn run_ai_triage(path: &Path, format: TriageOutputFormat) -> Result<()> {
         let embedded_cfg = config.ai.embedded.clone().unwrap_or_default();
         let falcon = Falcon::new(config)?;
         let report = falcon.analyze(path)?;
+        if report.issues.is_empty() {
+            let run = falcon::ai::local::triage::TriageRun {
+                verdicts: Vec::new(),
+                truncated_from: None,
+            };
+            match format {
+                TriageOutputFormat::Text => {
+                    print_triage_run(&run);
+                }
+                TriageOutputFormat::Json => {
+                    println!("{}", triage_run_to_json(&run));
+                }
+            }
+            return Ok(());
+        }
+
         let mut engine = LocalEngine::load(&embedded_cfg)?;
         let run = triage_issues(&report.issues, path, &mut engine, &embedded_cfg);
 
