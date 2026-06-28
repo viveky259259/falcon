@@ -165,10 +165,8 @@ fn extract_func_name(sig_node: Node, source: &str) -> String {
 
 fn find_function_body(node: Node) -> Option<Node> {
     let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        if child.kind() == "function_body" || child.kind() == "block" {
-            return Some(child);
-        }
-    }
-    None
+    let body = node
+        .children(&mut cursor)
+        .find(|&child| child.kind() == "function_body" || child.kind() == "block");
+    body
 }

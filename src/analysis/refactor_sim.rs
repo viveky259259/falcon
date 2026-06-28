@@ -104,7 +104,7 @@ fn simulate_state_migration(root: &Path, from: &str, to: &str) -> anyhow::Result
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .filter(|e| !e.path().to_string_lossy().contains("/test/"))
     {
         let source = match std::fs::read_to_string(entry.path()) {
@@ -227,7 +227,7 @@ fn simulate_architecture_migration(root: &Path, target: &str) -> anyhow::Result<
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .filter(|e| !e.path().to_string_lossy().contains("/test/"))
     {
         file_count += 1;

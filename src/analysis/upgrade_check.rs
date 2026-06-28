@@ -168,7 +168,7 @@ pub fn check_upgrade_compatibility(root: &Path) -> Vec<CompatFinding> {
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .filter(|e| {
             let p = e.path().to_string_lossy();
             !p.contains(".g.dart") && !p.contains(".freezed.dart") && !p.contains("/test/")

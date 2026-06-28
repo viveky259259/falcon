@@ -150,7 +150,7 @@ fn check_independent_awaits(children: &[Node], source: &str, _count: usize) -> b
 
         if trimmed.contains("= await ") {
             if let Some(var_part) = trimmed.split("= await").next() {
-                let var = var_part.trim().split_whitespace().last().unwrap_or("");
+                let var = var_part.split_whitespace().last().unwrap_or("");
                 for prev_var in &assigned_vars {
                     if trimmed.contains(prev_var) {
                         return false;
