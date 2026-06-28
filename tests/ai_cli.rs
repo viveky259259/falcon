@@ -105,7 +105,8 @@ fn ai_triage_default_build_json_reports_unavailable() {
 
 #[test]
 #[cfg(feature = "ai-local")]
-fn ai_triage_ai_local_json_runs_with_degraded_verdicts() {
+#[ignore = "downloads the embedded model/tokenizer and runs local inference"]
+fn ai_triage_ai_local_json_runs_with_embedded_engine() {
     let dir = tempfile::tempdir().expect("temp project");
     std::fs::create_dir_all(dir.path().join("lib")).expect("create lib");
     std::fs::write(
@@ -140,12 +141,12 @@ fn ai_triage_ai_local_json_runs_with_degraded_verdicts() {
     });
 
     assert!(json["triaged"].as_u64().unwrap_or(0) >= 1, "json: {json}");
-    assert_eq!(json["verdicts"][0]["degraded"], true);
-    assert_eq!(json["verdicts"][0]["is_real"], true);
+    assert!(json["verdicts"][0]["degraded"].is_boolean(), "json: {json}");
+    assert!(json["verdicts"][0]["is_real"].is_boolean(), "json: {json}");
     assert!(
         json["verdicts"][0]["rationale"]
             .as_str()
-            .is_some_and(|rationale| rationale.contains("Inference failed")),
+            .is_some_and(|rationale| !rationale.is_empty()),
         "json: {json}"
     );
 }

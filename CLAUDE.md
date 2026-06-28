@@ -11,7 +11,7 @@ cargo test             # 286 tests
 cargo test <name>      # single test
 cargo run -- <args>    # run falcon CLI
 cargo build --features ai-local                      # build embedded SLM triage support
-cargo run --features ai-local -- ai triage <path>    # triage findings; current engine degrades until inference lands
+cargo run --features ai-local -- ai triage <path>    # triage findings with embedded Qwen2.5 GGUF inference
 cargo fmt              # format
 cargo clippy           # lint
 ```
