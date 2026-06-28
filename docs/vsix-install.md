@@ -35,6 +35,7 @@ Open a Flutter or Dart workspace and confirm:
 - The Falcon output channel says the LSP server is running.
 - Falcon diagnostics show `source: falcon`.
 - Quick fixes appear for supported Falcon diagnostics.
+- `Falcon: Quick Fix` applies a preferred safe Falcon fix at the cursor.
 - The file-header score lens appears unless `falcon.quietMode` is enabled.
 - VS Code Chat accepts `@falcon why did my score drop?`.
 

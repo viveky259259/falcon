@@ -44,6 +44,7 @@ On the very first publish for a file, Dart diagnostics may not be visible yet, s
 ## Commands
 
 - **Falcon: Analyze Workspace** — re-analyze all open files
+- **Falcon: Quick Fix** — apply preferred safe Falcon fixes at the cursor
 - **Falcon: Fix All** — apply all auto-fixable fixes
 - **Falcon: Restart Language Server** — restart the LSP server
 - **Falcon: Show Output** — open the Falcon output channel

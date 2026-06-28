@@ -106,6 +106,10 @@
         "title": "Falcon: Fix All Auto-fixable Issues"
       },
       {
+        "command": "falcon.quickFix",
+        "title": "Falcon: Quick Fix"
+      },
+      {
         "command": "falcon.restart",
         "title": "Falcon: Restart Language Server"
       },

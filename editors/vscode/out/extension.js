@@ -74,6 +74,17 @@ function activate(context) {
             });
         }
     }));
+    context.subscriptions.push(vscode.commands.registerCommand("falcon.quickFix", async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor || editor.document.languageId !== "dart") {
+            vscode.window.showInformationMessage("Falcon: Open a Dart file to apply a quick fix.");
+            return;
+        }
+        const applied = await applyPreferredFalconFixes(editor.document, editor.selection);
+        if (applied === 0) {
+            vscode.window.showInformationMessage("Falcon: No safe quick fixes available here.");
+        }
+    }));
     context.subscriptions.push(vscode.commands.registerCommand("falcon.restart", async () => {
         if (client) {
             await client.stop();
@@ -264,21 +275,37 @@ async function applyAutoFixes(document) {
     const falconDiags = diagnostics.filter((d) => d.source === "falcon");
     if (falconDiags.length === 0)
         return [];
-    const codeActions = await vscode.commands.executeCommand("vscode.executeCodeActionProvider", document.uri, new vscode.Range(0, 0, document.lineCount, 0), vscode.CodeActionKind.QuickFix.value);
+    const actions = await preferredFalconFixes(document, new vscode.Range(0, 0, document.lineCount, 0));
+    return actions.flatMap((action) => action.edit?.get(document.uri) ?? []);
+}
+async function applyPreferredFalconFixes(document, range) {
+    const actions = await preferredFalconFixes(document, range);
+    const action = actions.length === 1
+        ? actions[0]
+        : (await vscode.window.showQuickPick(actions.map((candidate) => ({
+            label: candidate.title,
+            description: "Falcon safe fix",
+            action: candidate,
+        })), {
+            placeHolder: "Select a Falcon safe quick fix",
+            matchOnDescription: true,
+        }))?.action;
+    if (!action?.edit) {
+        return 0;
+    }
+    const applied = await vscode.workspace.applyEdit(action.edit);
+    if (applied) {
+        await document.save();
+    }
+    return applied ? 1 : 0;
+}
+async function preferredFalconFixes(document, range) {
+    const codeActions = await vscode.commands.executeCommand("vscode.executeCodeActionProvider", document.uri, range, vscode.CodeActionKind.QuickFix.value);
     if (!codeActions)
         return [];
-    const edits = [];
-    for (const action of codeActions) {
-        if (action.isPreferred &&
-            action.edit) {
-            const workspaceEdit = action.edit;
-            const fileEdits = workspaceEdit.get(document.uri);
-            if (fileEdits) {
-                edits.push(...fileEdits);
-            }
-        }
-    }
-    return edits;
+    return codeActions.filter((action) => action.isPreferred &&
+        action.edit &&
+        (action.diagnostics ?? []).some((diagnostic) => diagnostic.source === "falcon"));
 }
 function deactivate() {
     if (!client) {
