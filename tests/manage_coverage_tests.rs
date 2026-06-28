@@ -194,6 +194,30 @@ dev_dependencies:
     );
 }
 
+// ── build_opt::analyze_build ────────────────────────────────────────────────
+
+#[test]
+fn build_large_assets_are_sorted_by_size_desc() {
+    let tmp = tempfile::tempdir().unwrap();
+    let assets = tmp.path().join("assets/images");
+    fs::create_dir_all(&assets).unwrap();
+    fs::write(assets.join("small.png"), vec![0u8; 250 * 1024]).unwrap();
+    fs::write(assets.join("medium.png"), vec![0u8; 300 * 1024]).unwrap();
+    fs::write(assets.join("large.png"), vec![0u8; 450 * 1024]).unwrap();
+
+    let report = falcon::manage::build_opt::analyze_build(tmp.path()).unwrap();
+    let sizes: Vec<u64> = report
+        .asset_analysis
+        .large_assets
+        .iter()
+        .map(|(_, size)| *size)
+        .collect();
+    let mut sorted = sizes.clone();
+    sorted.sort_by(|a, b| b.cmp(a));
+
+    assert_eq!(sizes, sorted, "large assets must be sorted by size desc");
+}
+
 // ── architect::analyze_architecture ────────────────────────────────────────
 
 #[test]
@@ -293,6 +317,63 @@ fn arch_module_map_is_sorted_by_file_count_desc() {
     assert_eq!(
         counts, sorted,
         "module_map must be sorted by file_count desc"
+    );
+}
+
+#[test]
+fn arch_complexity_hotspots_are_sorted_by_lines_desc() {
+    let tmp = tempfile::tempdir().unwrap();
+    let lib = tmp.path().join("lib");
+    fs::create_dir_all(&lib).unwrap();
+    fs::write(
+        lib.join("medium.dart"),
+        (0..600)
+            .map(|i| format!("// medium {}\n", i))
+            .collect::<String>(),
+    )
+    .unwrap();
+    fs::write(
+        lib.join("large.dart"),
+        (0..750)
+            .map(|i| format!("// large {}\n", i))
+            .collect::<String>(),
+    )
+    .unwrap();
+
+    let report = falcon::manage::architect::analyze_architecture(tmp.path()).unwrap();
+    let lines: Vec<usize> = report.complexity_hotspots.iter().map(|h| h.lines).collect();
+    let mut sorted = lines.clone();
+    sorted.sort_by(|a, b| b.cmp(a));
+
+    assert_eq!(
+        lines, sorted,
+        "complexity hotspots must be sorted by lines desc"
+    );
+}
+
+#[test]
+fn arch_feature_first_cross_feature_violation_is_detected() {
+    let tmp = tempfile::tempdir().unwrap();
+    let feed = tmp.path().join("lib/features/feed");
+    let profile = tmp.path().join("lib/features/profile");
+    fs::create_dir_all(&feed).unwrap();
+    fs::create_dir_all(&profile).unwrap();
+    fs::write(
+        feed.join("feed.dart"),
+        "import 'package:test_app/features/profile/profile.dart';\nclass Feed {}\n",
+    )
+    .unwrap();
+    fs::write(profile.join("profile.dart"), "class Profile {}\n").unwrap();
+
+    let report = falcon::manage::architect::analyze_architecture(tmp.path()).unwrap();
+    assert_eq!(report.detected_pattern, "Feature-First");
+    assert!(
+        report
+            .violations
+            .iter()
+            .any(|v| v.violation_type == "cross-feature"),
+        "expected cross-feature violation, got: {:?}",
+        report.violations
     );
 }
 
