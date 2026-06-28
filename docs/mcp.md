@@ -252,5 +252,9 @@ If `falcon-mcp` is not on PATH, point `command` at the absolute binary path
 - Transport is **stdio only**. There is no HTTP/WebSocket variant.
 - The server name reported during `initialize` is `falcon`; the version
   matches the crate version.
-- `cargo test mcp` exercises the surface contract; see
-  `tests/mcp_tool_surface.rs` and the in-file tests in `src/mcp/tools.rs`.
+- `cargo test --test mcp_tool_surface` exercises the locked five-tool surface
+  and deprecated aliases.
+- `cargo test --test mcp_cache` exercises disk-backed `lint_file` cache reuse
+  and invalidation.
+- `cargo build --release --bin falcon-mcp && cargo bench --bench mcp_warm_cache`
+  verifies the warm-cache MCP roundtrip budget on a 200-file fixture.
