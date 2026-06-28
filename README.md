@@ -35,7 +35,8 @@ falcon analyze .
 `dart analyze --format=json`, then lets analyzer diagnostics win on the same
 file, line, and rule class. Falcon still reports behavioral and security
 findings that the analyzer does not own. Use `--semantic` to opt in explicitly
-or `--no-defer-to-analyzer` when you need to audit the raw Falcon output.
+or `--no-defer-to-analyzer` (`--no-defer`) when you need to audit the raw
+Falcon output.
 
 `falcon check` stays syntactic by default, including in editor-save and
 pre-commit flows. Use `falcon check --semantic` in CI when the Dart analyzer

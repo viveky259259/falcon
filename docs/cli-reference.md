@@ -222,8 +222,8 @@ semantic mode. It runs `dart analyze --format=json` and suppresses Falcon
 findings on the same file, line, and rule class as analyzer diagnostics.
 Style analyzer diagnostics can suppress style findings, for example, but not
 Falcon behavioral or security findings on the same line. `--semantic` keeps this
-behavior explicit, and `--no-defer-to-analyzer` keeps Falcon findings even when
-the analyzer reports the same file, line, and class.
+behavior explicit, and `--no-defer-to-analyzer` (`--no-defer`) keeps Falcon
+findings even when the analyzer reports the same file, line, and class.
 
 `falcon check` stays syntactic unless `--semantic` is passed. Keep editor-save
 and pre-commit hooks syntactic by default; use semantic mode in review or CI

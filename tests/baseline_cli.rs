@@ -95,6 +95,30 @@ fn check_semantic_suppresses_same_line_falcon_issue() {
     assert_no_rule(&json, "avoid-print-in-production");
 }
 
+#[test]
+fn check_semantic_no_defer_keeps_same_line_falcon_issue() {
+    let project = temp_dart_project();
+    write_package_config(project.path());
+    let fake_dart_dir = fake_dart_on_path();
+
+    let output = falcon_cmd()
+        .env("PATH", path_with(fake_dart_dir.path()))
+        .args([
+            "check",
+            project.path().to_str().unwrap(),
+            "--format",
+            "json",
+            "--semantic",
+            "--no-defer-to-analyzer",
+        ])
+        .output()
+        .expect("run falcon check --semantic --no-defer-to-analyzer");
+
+    assert_success_or_findings_failure(&output);
+    let json = check_json(&output);
+    assert_has_rule(&json, "avoid-print-in-production");
+}
+
 fn falcon_cmd() -> Command {
     Command::new(env!("CARGO_BIN_EXE_falcon"))
 }

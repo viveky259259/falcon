@@ -53,6 +53,7 @@ fn check_help_is_available_as_stable_top_level_verb() {
     assert!(stdout.contains("Run project checks and static analysis"));
     assert!(stdout.contains("--fail-on"));
     assert!(stdout.contains("--semantic"));
+    assert!(stdout.contains("--no-defer-to-analyzer"));
 }
 
 #[test]
@@ -66,6 +67,7 @@ fn review_help_lists_semantic_mode() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Review code changes"));
     assert!(stdout.contains("--semantic"));
+    assert!(stdout.contains("--no-defer-to-analyzer"));
 }
 
 fn falcon_cmd() -> Command {

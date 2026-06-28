@@ -155,6 +155,10 @@ enum Commands {
         /// Run dart analyze as a semantic co-pilot and defer same-line Falcon findings
         #[arg(long)]
         semantic: bool,
+
+        /// Keep Falcon findings even when dart analyze reports the same line
+        #[arg(long = "no-defer-to-analyzer", alias = "no-defer")]
+        no_defer_to_analyzer: bool,
     },
 
     /// Categorized smells report: Dead Code, Code Smells, Security Smells.
@@ -749,7 +753,7 @@ enum Commands {
         semantic: bool,
 
         /// Keep Falcon findings even when dart analyze reports the same line
-        #[arg(long = "no-defer-to-analyzer")]
+        #[arg(long = "no-defer-to-analyzer", alias = "no-defer")]
         no_defer_to_analyzer: bool,
 
         /// Only report findings not present in this baseline file
@@ -2182,6 +2186,7 @@ fn run(cli: Cli) -> Result<()> {
                 fail_on,
                 preset,
                 semantic: false,
+                no_defer_to_analyzer: false,
             })?;
         }
         Commands::Check {
@@ -2194,6 +2199,7 @@ fn run(cli: Cli) -> Result<()> {
             baseline,
             update_baseline,
             semantic,
+            no_defer_to_analyzer,
         } => {
             run_analysis_command(AnalysisCommandOptions {
                 path,
@@ -2207,6 +2213,7 @@ fn run(cli: Cli) -> Result<()> {
                 fail_on,
                 preset,
                 semantic,
+                no_defer_to_analyzer,
             })?;
         }
         Commands::Smells {
@@ -4754,6 +4761,7 @@ struct AnalysisCommandOptions {
     fail_on: FailLevel,
     preset: Option<String>,
     semantic: bool,
+    no_defer_to_analyzer: bool,
 }
 
 fn run_analysis_command(options: AnalysisCommandOptions) -> Result<()> {
@@ -4769,6 +4777,7 @@ fn run_analysis_command(options: AnalysisCommandOptions) -> Result<()> {
         fail_on,
         preset,
         semantic,
+        no_defer_to_analyzer,
     } = options;
 
     let config_path = config.as_deref().unwrap_or(&path);
@@ -4807,8 +4816,11 @@ fn run_analysis_command(options: AnalysisCommandOptions) -> Result<()> {
 
     if semantic {
         if let Some(analyzer_diagnostics) = falcon::analyzer_bridge::run_dart_analyze(&path)? {
-            let (filtered, _) =
-                falcon::analyzer_bridge::defer_to_analyzer(&issues, &analyzer_diagnostics, false);
+            let (filtered, _) = falcon::analyzer_bridge::defer_to_analyzer(
+                &issues,
+                &analyzer_diagnostics,
+                no_defer_to_analyzer,
+            );
             issues = filtered;
         }
     }
