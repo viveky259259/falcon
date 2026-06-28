@@ -551,14 +551,6 @@ enum Commands {
         path: PathBuf,
     },
 
-    /// Generate rule documentation
-    #[command(display_order = 12)]
-    Docs {
-        /// Output directory for generated docs
-        #[arg(default_value = "docs")]
-        output: PathBuf,
-    },
-
     /// Validate falcon.yaml configuration
     #[command(display_order = 7)]
     Validate {
@@ -2944,9 +2936,6 @@ fn run(cli: Cli) -> Result<()> {
                 process::exit(1);
             }
         }
-        Commands::Docs { output } => {
-            falcon::docs::generate_rule_docs(&output)?;
-        }
         Commands::Validate { path } => {
             let errors = falcon::config::validator::validate_config(&path);
             falcon::config::validator::print_validation_results(&errors);
@@ -4645,7 +4634,10 @@ fn run(cli: Cli) -> Result<()> {
                 },
                 XAction::DepGraph { path, file } => Commands::DepGraph { path, file },
                 XAction::Workspace { path } => Commands::Workspace { path },
-                XAction::Docs { output } => Commands::Docs { output },
+                XAction::Docs { output } => {
+                    falcon::docs::generate_rule_docs(&output)?;
+                    return Ok(());
+                }
                 XAction::Leaderboard { input, output } => {
                     falcon::leaderboard::build_from_file(&input, &output)?;
                     eprintln!("Leaderboard written to {}", output.display());
