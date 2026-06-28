@@ -380,6 +380,7 @@ fn test_baseline_create_and_filter() {
     assert!(path.exists());
 
     let baseline = Baseline::load(dir.path()).unwrap();
+    assert_eq!(baseline.schema_version, 1);
     assert_eq!(baseline.entries.len(), 3);
 
     let new_issues = vec![

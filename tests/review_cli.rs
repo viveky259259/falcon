@@ -455,6 +455,114 @@ class _ScreenState extends BaseState {
     assert_has_rule(&json, "dispose-not-called");
 }
 
+#[test]
+fn review_baseline_filters_existing_findings_and_can_update_file() {
+    let repo = temp_git_repo();
+    write_initial_project(repo.path());
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "initial"]);
+
+    fs::write(
+        repo.path().join("lib/main.dart"),
+        "void main() {\n  print('debug');\n}\n",
+    )
+    .unwrap();
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "change Dart file"]);
+
+    let baseline = repo.path().join(".falcon-baseline.json");
+    let update_output = falcon_cmd()
+        .args([
+            "review",
+            repo.path().to_str().unwrap(),
+            "--base-ref",
+            "HEAD~1",
+            "--format",
+            "json",
+            "--update-baseline",
+            baseline.to_str().unwrap(),
+        ])
+        .output()
+        .expect("run falcon review --update-baseline");
+
+    assert_success_or_findings_failure(&update_output);
+    assert!(baseline.is_file());
+    let baseline_json: Value =
+        serde_json::from_str(&fs::read_to_string(&baseline).unwrap()).unwrap();
+    assert_eq!(baseline_json["schema_version"], 1);
+
+    let filtered_output = falcon_cmd()
+        .args([
+            "review",
+            repo.path().to_str().unwrap(),
+            "--base-ref",
+            "HEAD~1",
+            "--format",
+            "json",
+            "--baseline",
+            baseline.to_str().unwrap(),
+        ])
+        .output()
+        .expect("run falcon review --baseline");
+
+    assert_success_or_findings_failure(&filtered_output);
+    let json = review_json(&filtered_output);
+    assert_eq!(json["issues"].as_array().unwrap().len(), 0);
+}
+
+#[test]
+fn review_baseline_handles_git_renames() {
+    let repo = temp_git_repo();
+    write_initial_project(repo.path());
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "initial"]);
+
+    fs::write(
+        repo.path().join("lib/main.dart"),
+        "void main() {\n  print('debug');\n}\n",
+    )
+    .unwrap();
+    git(repo.path(), &["add", "."]);
+    git(repo.path(), &["commit", "-m", "add finding"]);
+
+    let baseline = repo.path().join(".falcon-baseline.json");
+    let update_output = falcon_cmd()
+        .args([
+            "review",
+            repo.path().to_str().unwrap(),
+            "--base-ref",
+            "HEAD~1",
+            "--format",
+            "json",
+            "--update-baseline",
+            baseline.to_str().unwrap(),
+        ])
+        .output()
+        .expect("run falcon review --update-baseline");
+    assert_success_or_findings_failure(&update_output);
+
+    git(repo.path(), &["mv", "lib/main.dart", "lib/renamed.dart"]);
+    git(repo.path(), &["commit", "-m", "rename file"]);
+
+    let filtered_output = falcon_cmd()
+        .args([
+            "review",
+            repo.path().to_str().unwrap(),
+            "--base-ref",
+            "HEAD~1",
+            "--format",
+            "json",
+            "--baseline",
+            baseline.to_str().unwrap(),
+        ])
+        .output()
+        .expect("run falcon review --baseline after rename");
+
+    assert_success_or_findings_failure(&filtered_output);
+    let json = review_json(&filtered_output);
+    assert_eq!(json["issues"].as_array().unwrap().len(), 0);
+}
+
 fn falcon_cmd() -> Command {
     Command::new(env!("CARGO_BIN_EXE_falcon"))
 }

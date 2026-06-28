@@ -143,6 +143,14 @@ enum Commands {
         /// Apply a named rule preset (recommended, strict, flutter, riverpod, bloc, performance, ai-generated)
         #[arg(long)]
         preset: Option<String>,
+
+        /// Only report findings not present in this baseline file
+        #[arg(long, value_name = "FILE")]
+        baseline: Option<PathBuf>,
+
+        /// Rewrite the baseline file with the current findings
+        #[arg(long, value_name = "FILE")]
+        update_baseline: Option<PathBuf>,
     },
 
     /// Categorized smells report: Dead Code, Code Smells, Security Smells.
@@ -739,6 +747,14 @@ enum Commands {
         /// Keep Falcon findings even when dart analyze reports the same line
         #[arg(long = "no-defer-to-analyzer")]
         no_defer_to_analyzer: bool,
+
+        /// Only report findings not present in this baseline file
+        #[arg(long, value_name = "FILE")]
+        baseline: Option<PathBuf>,
+
+        /// Rewrite the baseline file with the current findings
+        #[arg(long, value_name = "FILE")]
+        update_baseline: Option<PathBuf>,
     },
 
     /// Analyze codebase health, god files, tech debt, and hotspots
@@ -2141,6 +2157,8 @@ fn run(cli: Cli) -> Result<()> {
                 config,
                 since,
                 baseline,
+                baseline_path: None,
+                update_baseline_path: None,
                 fail_on,
                 preset,
             })?;
@@ -2152,6 +2170,8 @@ fn run(cli: Cli) -> Result<()> {
             config,
             fail_on,
             preset,
+            baseline,
+            update_baseline,
         } => {
             run_analysis_command(AnalysisCommandOptions {
                 path,
@@ -2160,6 +2180,8 @@ fn run(cli: Cli) -> Result<()> {
                 config,
                 since: None,
                 baseline: false,
+                baseline_path: baseline,
+                update_baseline_path: update_baseline,
                 fail_on,
                 preset,
             })?;
@@ -3357,6 +3379,8 @@ fn run(cli: Cli) -> Result<()> {
             strictness,
             analyzer_copilot,
             no_defer_to_analyzer,
+            baseline,
+            update_baseline,
         } => {
             let config = FalconConfig::load(&path)?;
             let changed_files = falcon::review::pr_review::changed_dart_files(&path, &base_ref)?;
@@ -3396,6 +3420,28 @@ fn run(cli: Cli) -> Result<()> {
                     );
                     report.issues = issues;
                 }
+            }
+
+            let unfiltered_issues = report.issues.clone();
+            if let Some(ref baseline_path) = baseline {
+                let baseline = Baseline::load_path(baseline_path)?;
+                let file_aliases = review_baseline_file_aliases(&path, &base_ref)?;
+                report.issues = baseline.filter_new_issues_with_file_aliases(
+                    report.issues,
+                    &path,
+                    &file_aliases,
+                );
+            }
+            if let Some(ref baseline_path) = update_baseline {
+                let update_report = falcon::reporters::AnalysisReport {
+                    issues: unfiltered_issues,
+                    metrics: report.metrics.clone(),
+                    file_count: report.file_count,
+                    project_path: report.project_path.clone(),
+                };
+                let path_written =
+                    Baseline::create_at_path(&update_report.issues, &path, baseline_path)?;
+                eprintln!("Baseline updated: {}", path_written.display());
             }
 
             match format {
@@ -4639,6 +4685,31 @@ fn review_observation_to_issue(
     }
 }
 
+fn review_baseline_file_aliases(
+    root: &Path,
+    base_ref: &str,
+) -> Result<std::collections::HashMap<String, Vec<String>>> {
+    let renames = falcon::review::pr_review::renamed_dart_files(root, base_ref)?;
+    let mut aliases: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+
+    for (new_path, old_path) in renames {
+        let new_rel = new_path
+            .strip_prefix(root)
+            .unwrap_or(&new_path)
+            .to_string_lossy()
+            .to_string();
+        let old_rel = old_path
+            .strip_prefix(root)
+            .unwrap_or(&old_path)
+            .to_string_lossy()
+            .to_string();
+        aliases.entry(new_rel).or_default().push(old_rel);
+    }
+
+    Ok(aliases)
+}
+
 struct AnalysisCommandOptions {
     path: PathBuf,
     format: OutputFormat,
@@ -4646,6 +4717,8 @@ struct AnalysisCommandOptions {
     config: Option<PathBuf>,
     since: Option<String>,
     baseline: bool,
+    baseline_path: Option<PathBuf>,
+    update_baseline_path: Option<PathBuf>,
     fail_on: FailLevel,
     preset: Option<String>,
 }
@@ -4658,6 +4731,8 @@ fn run_analysis_command(options: AnalysisCommandOptions) -> Result<()> {
         config,
         since,
         baseline,
+        baseline_path,
+        update_baseline_path,
         fail_on,
         preset,
     } = options;
@@ -4699,6 +4774,16 @@ fn run_analysis_command(options: AnalysisCommandOptions) -> Result<()> {
     if baseline {
         let bl = Baseline::load(&path)?;
         issues = bl.filter_new_issues(issues, &path);
+    }
+
+    let unfiltered_issues = issues.clone();
+    if let Some(ref baseline_path) = baseline_path {
+        let bl = Baseline::load_path(baseline_path)?;
+        issues = bl.filter_new_issues(issues, &path);
+    }
+    if let Some(ref baseline_path) = update_baseline_path {
+        let path_written = Baseline::create_at_path(&unfiltered_issues, &path, baseline_path)?;
+        eprintln!("Baseline updated: {}", path_written.display());
     }
 
     let final_report = falcon::reporters::AnalysisReport {

@@ -225,6 +225,23 @@ Falcon behavioral or security findings on the same line. `--analyzer-copilot`
 keeps this behavior explicit, and `--no-defer-to-analyzer` keeps Falcon findings
 even when the analyzer reports the same file, line, and class.
 
+### Baselines
+
+Use baselines to suppress findings that are already known while keeping new
+findings visible:
+
+```bash
+falcon review . --base-ref origin/main --format json --update-baseline .falcon-baseline.json
+falcon review . --base-ref origin/main --format json --baseline .falcon-baseline.json
+falcon check . --format json --baseline .falcon-baseline.json
+```
+
+Baseline files are JSON with `schema_version: 1`, Falcon's package `version`,
+`created_at`, and `entries`. Each entry records the rule, project-relative file,
+line, and a message hash. `--update-baseline` rewrites the file with the current
+unfiltered findings; `--baseline` reports only findings not present in that
+file.
+
 ### GitHub Code Scanning
 
 Use SARIF output with GitHub's Code Scanning upload action to surface Falcon

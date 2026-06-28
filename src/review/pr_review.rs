@@ -1,6 +1,7 @@
 use crate::config::FalconConfig;
 use crate::parser::DartParser;
 use colored::Colorize;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
@@ -137,6 +138,43 @@ pub fn changed_dart_files(root: &Path, base_ref: &str) -> anyhow::Result<Vec<Pat
         .map(|line| root.join(line))
         .filter(|path| path.is_file())
         .collect())
+}
+
+/// Return Dart file renames relative to `base_ref...HEAD` as current path -> old path.
+pub fn renamed_dart_files(
+    root: &Path,
+    base_ref: &str,
+) -> anyhow::Result<HashMap<PathBuf, PathBuf>> {
+    let output = std::process::Command::new("git")
+        .args([
+            "diff",
+            "--name-status",
+            "--diff-filter=R",
+            "-M",
+            &format!("{}...HEAD", base_ref),
+        ])
+        .current_dir(root)
+        .output()?;
+
+    if !output.status.success() {
+        anyhow::bail!(
+            "git diff failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+
+    let mut renames = HashMap::new();
+    for line in String::from_utf8_lossy(&output.stdout).lines() {
+        let mut parts = line.split('\t');
+        let status = parts.next().unwrap_or_default();
+        let old = parts.next().unwrap_or_default();
+        let new = parts.next().unwrap_or_default();
+        if status.starts_with('R') && old.ends_with(".dart") && new.ends_with(".dart") {
+            renames.insert(root.join(new), root.join(old));
+        }
+    }
+
+    Ok(renames)
 }
 
 fn relative_to_root(root: &Path, file: &Path) -> PathBuf {
