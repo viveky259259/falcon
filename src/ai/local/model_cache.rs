@@ -10,6 +10,26 @@ pub fn model_cache_dir(model_id: &str, home: Option<&str>, xdg: Option<&str>) ->
         .join(model_id.replace('/', "_"))
 }
 
+#[cfg(feature = "ai-local")]
+pub fn ensure_model(cfg: &crate::ai::config::EmbeddedModelConfig) -> anyhow::Result<PathBuf> {
+    use hf_hub::api::sync::Api;
+
+    let api = Api::new()?;
+    let repo = api.model(cfg.model_id.clone());
+    eprintln!(
+        "falcon: ensuring embedded model {} ({})",
+        cfg.model_id, cfg.model_file
+    );
+    repo.get(&cfg.model_file).map_err(|err| {
+        anyhow::anyhow!(
+            "failed to resolve model file '{}' from '{}': {err}. \
+Pre-download the file into the Hugging Face cache or update ai.embedded.model_id/model_file.",
+            cfg.model_file,
+            cfg.model_id
+        )
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
