@@ -11,7 +11,7 @@
 //!
 //! # Example
 //!
-//! ```ignore
+//! ```text
 //! let report = analyze_l10n_coverage(Path::new("."))?;
 //! print_l10n_report(&report);
 //! write_l10n_html_report(&report, Path::new("l10n_coverage.html"))?;

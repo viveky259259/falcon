@@ -9,7 +9,7 @@
 //!
 //! # Example
 //!
-//! ```ignore
+//! ```text
 //! let report = audit_assets(Path::new("."))?;
 //! print_asset_report(&report);
 //! write_asset_html_report(&report, Path::new("asset_audit.html"))?;

@@ -11,7 +11,7 @@
 //!
 //! # Example
 //!
-//! ```ignore
+//! ```text
 //! let report = audit_theme(Path::new("."))?;
 //! print_theme_report(&report);
 //! write_theme_html_report(&report, Path::new("theme_audit.html"))?;
