@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 use super::cache::McpCache;
 use super::schema::{
@@ -68,6 +69,36 @@ pub fn list_tools() -> Vec<ToolDefinition> {
 /// Accepts both the new canonical names and the deprecated old names. When an
 /// old name is used we log a deprecation warning and route to the same handler.
 pub fn execute_tool(name: &str, args: &Value) -> Result<Value, String> {
+    let started = Instant::now();
+    let canonical_name = canonical_tool_name(name);
+    let result = execute_tool_inner(name, args);
+    super::telemetry::record_mcp_tool_invocation(
+        name,
+        canonical_name,
+        result.is_ok(),
+        started.elapsed(),
+    );
+    result
+}
+
+fn canonical_tool_name(name: &str) -> Option<&'static str> {
+    match name {
+        "lint_file" | "lint_diff" | "review" | "explain" | "fix_safe" => Some(match name {
+            "lint_file" => "lint_file",
+            "lint_diff" => "lint_diff",
+            "review" => "review",
+            "explain" => "explain",
+            "fix_safe" => "fix_safe",
+            _ => unreachable!(),
+        }),
+        old => DEPRECATED_TOOLS
+            .iter()
+            .find_map(|(deprecated, canonical)| (*deprecated == old).then_some(*canonical))
+            .flatten(),
+    }
+}
+
+fn execute_tool_inner(name: &str, args: &Value) -> Result<Value, String> {
     // Deprecation routing: log + map old name to handler.
     if let Some((_, new_opt)) = DEPRECATED_TOOLS.iter().find(|(old, _)| *old == name) {
         match new_opt {

@@ -264,3 +264,4 @@ If `falcon-mcp` is not on PATH, point `command` at the absolute binary path
   and invalidation.
 - `cargo build --release --bin falcon-mcp && cargo bench --bench mcp_warm_cache`
   verifies the warm-cache MCP roundtrip budget on a 200-file fixture.
+- Local MCP telemetry is opt-in and documented in [Telemetry](telemetry.md).
