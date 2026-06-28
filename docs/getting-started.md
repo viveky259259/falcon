@@ -10,6 +10,15 @@ Falcon is a Rust-powered static analysis tool for Flutter and Dart. It catches i
 cargo install --git https://github.com/viveky259259/falcon
 ```
 
+### Without a global install
+
+```bash
+npx falcon@latest review
+```
+
+The npm package downloads the native binary from GitHub Releases once, verifies
+it with `SHA256SUMS`, and reuses it on later runs.
+
 This installs three binaries:
 - `falcon` — the main CLI
 - `falcon-lsp` — Language Server Protocol for VS Code

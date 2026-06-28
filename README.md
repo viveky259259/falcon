@@ -15,6 +15,9 @@ Falcon is the only Flutter linter specifically designed to catch the bugs AI too
 # Install
 cargo install --git https://github.com/viveky259259/falcon
 
+# Or run without a global install
+npx falcon@latest review
+
 # Score your project (2 seconds)
 falcon score .
 

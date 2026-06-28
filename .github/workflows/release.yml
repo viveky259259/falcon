@@ -320,3 +320,46 @@ jobs:
           files: |
             dist/falcon-*.tar.gz
             dist/SHA256SUMS
+
+  npm:
+    name: Publish npm Package
+    needs: release
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: npm/falcon
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Verify npm package version matches tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref="${GITHUB_REF#refs/tags/}"
+          expected="${ref#v}"
+          actual="$(node -p "require('./package.json').version")"
+          if [ "${actual}" != "${expected}" ]; then
+            echo "::error::npm package version ${actual} does not match tag ${expected}"
+            exit 1
+          fi
+
+      - name: Test npm package
+        run: npm test
+
+      - name: Check npm package contents
+        run: npm pack --dry-run
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
