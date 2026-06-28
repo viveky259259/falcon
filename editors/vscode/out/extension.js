@@ -37,6 +37,8 @@ exports.activate = activate;
 exports.deactivate = deactivate;
 const vscode = __importStar(require("vscode"));
 const node_1 = require("vscode-languageclient/node");
+const diagnosticsMiddleware_1 = require("./diagnosticsMiddleware");
+const scoreLens_1 = require("./scoreLens");
 let client;
 let statusBarItem;
 let outputChannel;
@@ -51,6 +53,8 @@ function activate(context) {
     statusBarItem.command = "falcon.showOutput";
     context.subscriptions.push(statusBarItem);
     startServer(context);
+    const scoreLensProvider = new scoreLens_1.ScoreLensProvider(context, outputChannel);
+    context.subscriptions.push(vscode.languages.registerCodeLensProvider({ scheme: "file", language: "dart" }, scoreLensProvider));
     context.subscriptions.push(vscode.commands.registerCommand("falcon.analyzeWorkspace", () => {
         if (client) {
             client.sendRequest("workspace/executeCommand", {
@@ -85,11 +89,17 @@ function activate(context) {
     }
     context.subscriptions.push(vscode.workspace.onDidChangeConfiguration((e) => {
         if (e.affectsConfiguration("falcon")) {
+            scoreLensProvider.refresh();
             if (client) {
                 client.sendNotification("workspace/didChangeConfiguration", {
                     settings: { falcon: vscode.workspace.getConfiguration("falcon") },
                 });
             }
+        }
+    }));
+    context.subscriptions.push(vscode.workspace.onDidSaveTextDocument((document) => {
+        if (document.languageId === "dart") {
+            scoreLensProvider.refresh();
         }
     }));
 }
@@ -112,6 +122,14 @@ function startServer(context) {
         traceOutputChannel: outputChannel,
         initializationOptions: {
             settings: vscode.workspace.getConfiguration("falcon"),
+        },
+        middleware: {
+            // Stamp every Falcon diagnostic with `source: "falcon"` and a
+            // namespaced `code: "falcon/<rule-id>"`, then drop diagnostics on
+            // lines already claimed by the Dart analyzer (Dart-Code) so the two
+            // extensions coexist without duplicate squiggles. See
+            // `diagnosticsMiddleware.ts` for the full contract.
+            handleDiagnostics: (0, diagnosticsMiddleware_1.buildHandleDiagnosticsMiddleware)(),
         },
     };
     client = new node_1.LanguageClient("falcon", "Falcon Language Server", serverOptions, clientOptions);

@@ -87,6 +87,11 @@
           "type": "boolean",
           "default": false,
           "description": "Reduce informational noise — suppress info- and hint-level diagnostics from Falcon."
+        },
+        "falcon.scoreLens.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a file-header CodeLens with the Falcon score and delta from the previous save."
         }
       }
     },

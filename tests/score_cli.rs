@@ -30,6 +30,28 @@ fn score_json_outputs_ai_score() {
 }
 
 #[test]
+fn score_format_json_alias_outputs_ai_score() {
+    let project = temp_dart_project();
+    let output = Command::new(env!("CARGO_BIN_EXE_falcon"))
+        .args([
+            "score",
+            project.path().to_str().unwrap(),
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("run falcon score");
+
+    assert!(
+        output.status.success(),
+        "score --format json should succeed: stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["overall"].as_u64(), Some(100));
+}
+
+#[test]
 fn ai_score_alias_warns_and_still_outputs_json() {
     let project = temp_dart_project();
 

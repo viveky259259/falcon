@@ -7,6 +7,7 @@ import {
   TransportKind,
 } from "vscode-languageclient/node";
 import { buildHandleDiagnosticsMiddleware } from "./diagnosticsMiddleware";
+import { ScoreLensProvider } from "./scoreLens";
 
 let client: LanguageClient | undefined;
 let statusBarItem: vscode.StatusBarItem;
@@ -29,6 +30,13 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(statusBarItem);
 
   startServer(context);
+  const scoreLensProvider = new ScoreLensProvider(context, outputChannel);
+  context.subscriptions.push(
+    vscode.languages.registerCodeLensProvider(
+      { scheme: "file", language: "dart" },
+      scoreLensProvider
+    )
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("falcon.analyzeWorkspace", () => {
@@ -79,11 +87,20 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("falcon")) {
+        scoreLensProvider.refresh();
         if (client) {
           client.sendNotification("workspace/didChangeConfiguration", {
             settings: { falcon: vscode.workspace.getConfiguration("falcon") },
           });
         }
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument((document) => {
+      if (document.languageId === "dart") {
+        scoreLensProvider.refresh();
       }
     })
   );

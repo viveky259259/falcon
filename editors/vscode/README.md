@@ -12,6 +12,7 @@ Real-time diagnostics, quick fixes, and AI-powered code quality.
 - **43 lint rules** — Dart, Flutter, Provider/Riverpod, BLoC, Equatable
 - **19 metrics** — complexity, coupling, cohesion, and more
 - **Status bar** — issue counts at a glance
+- **Score lens** — file-header Falcon score with delta from previous save
 
 ## Requirements
 
@@ -31,6 +32,7 @@ cargo install falcon
 | `falcon.showStatusBar` | `true` | Show issue counts |
 | `falcon.deferToAnalyzer` | `true` | Suppress Falcon diagnostics on lines the Dart analyzer already flagged |
 | `falcon.quietMode` | `false` | Suppress Falcon info- and hint-level diagnostics |
+| `falcon.scoreLens.enabled` | `true` | Show file-header score and save-to-save delta |
 
 ## Coexistence with Dart-Code
 

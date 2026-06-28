@@ -1001,6 +1001,10 @@ enum Commands {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// Output format alias. Currently supports `json`.
+        #[arg(long, value_name = "FORMAT", value_parser = ["json"])]
+        format: Option<String>,
     },
 
     /// Generate a State of AI-Generated Flutter Code report
@@ -4433,9 +4437,14 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
-        Commands::AiScore { path, badge, json } => {
+        Commands::AiScore {
+            path,
+            badge,
+            json,
+            format,
+        } => {
             let score = falcon::ai_score::score::calculate_ai_score(&path)?;
-            if json {
+            if json || format.as_deref() == Some("json") {
                 let j = serde_json::to_string_pretty(&score)?;
                 println!("{}", j);
             } else {
