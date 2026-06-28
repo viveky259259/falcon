@@ -4,6 +4,8 @@ Falcon's VS Code extension wraps `falcon-lsp` for diagnostics and uses the local
 `falcon` CLI for score and rule explanations. The extension does not call an LLM
 for its built-in chat responses.
 
+For package and install smoke-test steps, see [VS Code Extension Install](vsix-install.md).
+
 ## Chat Participant
 
 In VS Code Chat, type `@falcon` and ask one of:

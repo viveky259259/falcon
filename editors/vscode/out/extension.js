@@ -35,6 +35,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.activate = activate;
 exports.deactivate = deactivate;
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
 const vscode = __importStar(require("vscode"));
 const node_1 = require("vscode-languageclient/node");
 const chatParticipant_1 = require("./chatParticipant");
@@ -107,10 +109,7 @@ function activate(context) {
 }
 function startServer(context) {
     const config = vscode.workspace.getConfiguration("falcon");
-    let serverPath = config.get("executablePath", "");
-    if (!serverPath) {
-        serverPath = "falcon-lsp";
-    }
+    const serverPath = resolveFalconLspPath(context, config);
     const serverOptions = {
         run: { command: serverPath, transport: node_1.TransportKind.stdio },
         debug: { command: serverPath, transport: node_1.TransportKind.stdio },
@@ -158,6 +157,47 @@ function startServer(context) {
             }
         },
     });
+}
+function resolveFalconLspPath(context, config) {
+    const configured = config.get("executablePath", "");
+    if (configured) {
+        return configured;
+    }
+    return (findExecutableOnPath("falcon-lsp") ??
+        bundledFalconLspPath(context) ??
+        "falcon-lsp");
+}
+function bundledFalconLspPath(context) {
+    const executable = process.platform === "win32" ? "falcon-lsp.exe" : "falcon-lsp";
+    const platformArch = `${process.platform}-${process.arch}`;
+    const candidate = context.asAbsolutePath(path.join("bin", platformArch, executable));
+    return isExecutableFile(candidate) ? candidate : undefined;
+}
+function findExecutableOnPath(command) {
+    const pathValue = process.env.PATH ?? "";
+    const extensions = process.platform === "win32"
+        ? (process.env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";")
+        : [""];
+    for (const directory of pathValue.split(path.delimiter)) {
+        if (!directory)
+            continue;
+        for (const extension of extensions) {
+            const candidate = path.join(directory, command + extension.toLowerCase());
+            if (isExecutableFile(candidate)) {
+                return candidate;
+            }
+        }
+    }
+    return undefined;
+}
+function isExecutableFile(candidate) {
+    try {
+        const stat = fs.statSync(candidate);
+        return stat.isFile();
+    }
+    catch {
+        return false;
+    }
 }
 function setupDiagnosticsListener() {
     vscode.languages.onDidChangeDiagnostics(() => {

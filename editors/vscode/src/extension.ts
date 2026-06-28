@@ -1,3 +1,4 @@
+import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import {
@@ -111,11 +112,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 function startServer(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration("falcon");
-  let serverPath = config.get<string>("executablePath", "");
-
-  if (!serverPath) {
-    serverPath = "falcon-lsp";
-  }
+  const serverPath = resolveFalconLspPath(context, config);
 
   const serverOptions: ServerOptions = {
     run: { command: serverPath, transport: TransportKind.stdio },
@@ -172,6 +169,64 @@ function startServer(context: vscode.ExtensionContext) {
       }
     },
   });
+}
+
+function resolveFalconLspPath(
+  context: vscode.ExtensionContext,
+  config: vscode.WorkspaceConfiguration
+): string {
+  const configured = config.get<string>("executablePath", "");
+  if (configured) {
+    return configured;
+  }
+
+  return (
+    findExecutableOnPath("falcon-lsp") ??
+    bundledFalconLspPath(context) ??
+    "falcon-lsp"
+  );
+}
+
+function bundledFalconLspPath(
+  context: vscode.ExtensionContext
+): string | undefined {
+  const executable =
+    process.platform === "win32" ? "falcon-lsp.exe" : "falcon-lsp";
+  const platformArch = `${process.platform}-${process.arch}`;
+  const candidate = context.asAbsolutePath(
+    path.join("bin", platformArch, executable)
+  );
+
+  return isExecutableFile(candidate) ? candidate : undefined;
+}
+
+function findExecutableOnPath(command: string): string | undefined {
+  const pathValue = process.env.PATH ?? "";
+  const extensions =
+    process.platform === "win32"
+      ? (process.env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";")
+      : [""];
+
+  for (const directory of pathValue.split(path.delimiter)) {
+    if (!directory) continue;
+    for (const extension of extensions) {
+      const candidate = path.join(directory, command + extension.toLowerCase());
+      if (isExecutableFile(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function isExecutableFile(candidate: string): boolean {
+  try {
+    const stat = fs.statSync(candidate);
+    return stat.isFile();
+  } catch {
+    return false;
+  }
 }
 
 function setupDiagnosticsListener() {
