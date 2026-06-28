@@ -1,5 +1,5 @@
 {
-  "name": "falcon-lint",
+  "name": "falcon-vscode",
   "displayName": "Falcon — Flutter/Dart Static Analysis",
   "description": "Rust-powered static analysis for Flutter/Dart. Real-time diagnostics, quick fixes, and AI-powered code quality.",
   "version": "0.1.0",
