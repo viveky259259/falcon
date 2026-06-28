@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 const GITHUB_REPO: &str = "viveky259259/falcon";
 const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -22,20 +22,18 @@ pub struct AssetInfo {
     pub size: u64,
 }
 
-fn platform_asset_name() -> String {
-    let os = env::consts::OS;
-    let arch = env::consts::ARCH;
+fn platform_archive_label(os: &str, arch: &str) -> Option<&'static str> {
+    match (os, arch) {
+        ("macos", "aarch64") => Some("macos-arm64"),
+        ("macos", "x86_64") => Some("macos-x64"),
+        ("linux", "x86_64") => Some("linux-x64"),
+        _ => None,
+    }
+}
 
-    let platform = match (os, arch) {
-        ("macos", "aarch64") => "aarch64-apple-darwin",
-        ("macos", "x86_64") => "x86_64-apple-darwin",
-        ("linux", "x86_64") => "x86_64-unknown-linux-gnu",
-        ("linux", "aarch64") => "aarch64-unknown-linux-gnu",
-        ("windows", "x86_64") => "x86_64-pc-windows-msvc",
-        _ => "unknown",
-    };
-
-    format!("falcon-{}", platform)
+fn platform_asset_name(version: &str) -> Option<String> {
+    platform_archive_label(env::consts::OS, env::consts::ARCH)
+        .map(|label| format!("falcon-{}-{}.tar.gz", version, label))
 }
 
 fn fetch_json(url: &str) -> Result<String> {
@@ -188,7 +186,7 @@ fn current_exe_path() -> Result<PathBuf> {
     env::current_exe().context("Cannot determine current executable path")
 }
 
-fn download_binary(url: &str, dest: &PathBuf) -> Result<()> {
+fn download_file(url: &str, dest: &Path) -> Result<()> {
     let dest_str = dest.display().to_string();
 
     let gh_success = if let Some(api_path) = url.strip_prefix("https://api.github.com/") {
@@ -230,6 +228,56 @@ fn download_binary(url: &str, dest: &PathBuf) -> Result<()> {
         if !status.success() {
             bail!("Download failed from {}", url);
         }
+    }
+
+    Ok(())
+}
+
+fn current_binary_name(exe_path: &Path) -> Result<String> {
+    let name = exe_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .context("Cannot determine current executable name")?;
+    Ok(name.to_string())
+}
+
+fn extract_binary_from_archive(archive: &Path, binary_name: &str, dest: &Path) -> Result<()> {
+    let list = std::process::Command::new("tar")
+        .arg("-tzf")
+        .arg(archive)
+        .output()
+        .context("Failed to list release archive")?;
+
+    if !list.status.success() {
+        bail!(
+            "Failed to inspect release archive: {}",
+            String::from_utf8_lossy(&list.stderr)
+        );
+    }
+
+    let suffix = format!("/{}", binary_name);
+    let member = String::from_utf8_lossy(&list.stdout)
+        .lines()
+        .find(|line| line.ends_with(&suffix) || *line == binary_name)
+        .map(str::to_string)
+        .with_context(|| {
+            format!(
+                "Release archive did not contain {} in the expected package directory",
+                binary_name
+            )
+        })?;
+
+    let status = std::process::Command::new("tar")
+        .arg("-xzf")
+        .arg(archive)
+        .arg("-O")
+        .arg(member)
+        .stdout(std::fs::File::create(dest).context("Cannot create extracted binary")?)
+        .status()
+        .context("Failed to extract release archive")?;
+
+    if !status.success() {
+        bail!("Failed to extract {} from release archive", binary_name);
     }
 
     #[cfg(unix)]
@@ -327,14 +375,27 @@ pub fn run_update(target_version: Option<&str>) -> Result<()> {
         }
     }
 
-    let asset_name = platform_asset_name();
-    let matching_asset = release.assets.iter().find(|a| a.name.contains(&asset_name));
+    let Some(asset_name) = platform_asset_name(target_ver) else {
+        println!(
+            "  📭 No pre-built binary for {}-{} in release v{}",
+            env::consts::OS.yellow(),
+            env::consts::ARCH.yellow(),
+            target_ver
+        );
+        println!();
+        print_build_from_source_options();
+        println!();
+        return Ok(());
+    };
+    let matching_asset = release.assets.iter().find(|a| a.name == asset_name);
 
     match matching_asset {
         Some(asset) => {
             let exe_path = current_exe_path()?;
+            let binary_name = current_binary_name(&exe_path)?;
             let tmp_path = exe_path.with_extension("update-tmp");
             let backup_path = exe_path.with_extension("backup");
+            let archive_path = exe_path.with_extension("update.tar.gz");
 
             println!(
                 "  ⬇️  Downloading {} ({})...",
@@ -342,7 +403,9 @@ pub fn run_update(target_version: Option<&str>) -> Result<()> {
                 format_bytes(asset.size).dimmed()
             );
 
-            download_binary(&asset.download_url, &tmp_path)?;
+            download_file(&asset.download_url, &archive_path)?;
+            extract_binary_from_archive(&archive_path, &binary_name, &tmp_path)?;
+            let _ = fs::remove_file(&archive_path);
 
             if exe_path.exists() {
                 fs::rename(&exe_path, &backup_path).context("Failed to backup current binary")?;
@@ -360,6 +423,7 @@ pub fn run_update(target_version: Option<&str>) -> Result<()> {
                     if backup_path.exists() {
                         let _ = fs::rename(&backup_path, &exe_path);
                     }
+                    let _ = fs::remove_file(&archive_path);
                     bail!("Failed to replace binary: {}. Restored backup.", e);
                 }
             }
@@ -486,5 +550,71 @@ fn format_bytes(bytes: u64) -> String {
         format!("{:.0} KB", bytes as f64 / 1024.0)
     } else {
         format!("{} B", bytes)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        extract_binary_from_archive, platform_archive_label, platform_asset_name, version_cmp,
+    };
+    use std::fs;
+    use std::process::Command;
+
+    #[test]
+    fn platform_labels_match_release_archive_names() {
+        assert_eq!(
+            platform_archive_label("macos", "aarch64"),
+            Some("macos-arm64")
+        );
+        assert_eq!(platform_archive_label("macos", "x86_64"), Some("macos-x64"));
+        assert_eq!(platform_archive_label("linux", "x86_64"), Some("linux-x64"));
+        assert_eq!(platform_archive_label("linux", "aarch64"), None);
+        assert_eq!(platform_archive_label("windows", "x86_64"), None);
+    }
+
+    #[test]
+    fn platform_asset_name_uses_release_tarball_shape() {
+        let asset = platform_asset_name("1.2.3");
+
+        if let Some(asset) = asset {
+            assert!(asset.starts_with("falcon-1.2.3-"));
+            assert!(asset.ends_with(".tar.gz"));
+            assert!(!asset.contains("apple-darwin"));
+            assert!(!asset.contains("unknown-linux-gnu"));
+        }
+    }
+
+    #[test]
+    fn extracts_current_binary_from_release_archive() {
+        let temp = tempfile::tempdir().unwrap();
+        let package = temp.path().join("falcon-1.2.3-linux-x64");
+        fs::create_dir_all(&package).unwrap();
+        fs::write(package.join("falcon"), "binary").unwrap();
+        fs::write(package.join("falcon-lsp"), "lsp").unwrap();
+        fs::write(package.join("falcon-mcp"), "mcp").unwrap();
+
+        let archive = temp.path().join("falcon-1.2.3-linux-x64.tar.gz");
+        let status = Command::new("tar")
+            .arg("-czf")
+            .arg(&archive)
+            .arg("-C")
+            .arg(temp.path())
+            .arg("falcon-1.2.3-linux-x64")
+            .status()
+            .unwrap();
+        assert!(status.success());
+
+        let extracted = temp.path().join("falcon-extracted");
+        extract_binary_from_archive(&archive, "falcon", &extracted).unwrap();
+
+        assert_eq!(fs::read_to_string(extracted).unwrap(), "binary");
+    }
+
+    #[test]
+    fn version_compare_handles_v_prefix() {
+        assert_eq!(version_cmp("v1.2.3", "1.2.2"), std::cmp::Ordering::Greater);
+        assert_eq!(version_cmp("1.2.3", "v1.2.3"), std::cmp::Ordering::Equal);
+        assert_eq!(version_cmp("1.2.3", "1.3.0"), std::cmp::Ordering::Less);
     }
 }
