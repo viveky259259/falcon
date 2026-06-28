@@ -10,6 +10,7 @@ use tokenizers::Tokenizer;
 const TOKENIZER_MODEL_ID: &str = "Qwen/Qwen2.5-0.5B-Instruct";
 const TOKENIZER_FILE: &str = "tokenizer.json";
 const DEFAULT_EOS_TOKEN: &str = "<|im_end|>";
+const SYSTEM_PROMPT: &str = "You are a strict JSON generator for Flutter/Dart static-analysis triage. Respond with exactly one JSON object and no prose.";
 
 pub struct LocalEngine {
     model: ModelWeights,
@@ -44,12 +45,13 @@ impl LocalEngine {
             )
         })?;
 
-        let tokenizer = Tokenizer::from_file(&tokenizer_path).map_err(|err| {
+        let mut tokenizer = Tokenizer::from_file(&tokenizer_path).map_err(|err| {
             anyhow::anyhow!(
                 "failed to load tokenizer '{}': {err}",
                 tokenizer_path.display()
             )
         })?;
+        tokenizer.set_encode_special_tokens(true);
         let eos_token_id = tokenizer.token_to_id(DEFAULT_EOS_TOKEN);
 
         Ok(Self {
@@ -63,9 +65,10 @@ impl LocalEngine {
 
 impl Completer for LocalEngine {
     fn complete(&mut self, prompt: &str, opts: &GenOpts) -> Result<String> {
+        let prompt = format_chat_prompt(prompt);
         let encoding = self
             .tokenizer
-            .encode(prompt, true)
+            .encode(prompt.as_str(), false)
             .map_err(|err| anyhow::anyhow!("tokenize failed: {err}"))?;
         let mut tokens = encoding.get_ids().to_vec();
         let mut output_tokens = Vec::new();
@@ -145,10 +148,17 @@ fn truncate_at_stop(mut text: String, stops: &[String]) -> String {
     text
 }
 
+fn format_chat_prompt(user_prompt: &str) -> String {
+    format!(
+        "<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n<|im_start|>user\n{user_prompt}<|im_end|>\n<|im_start|>assistant\n"
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::ai::local::completer::GenOpts;
+    use crate::ai::local::triage::parse_verdict;
 
     #[test]
     fn stop_detection_ignores_empty_stops() {
@@ -169,17 +179,35 @@ mod tests {
     }
 
     #[test]
+    fn formats_qwen_chat_prompt() {
+        let prompt = format_chat_prompt("Return JSON.");
+
+        assert!(prompt.starts_with("<|im_start|>system\n"));
+        assert!(prompt.contains("<|im_start|>user\nReturn JSON.<|im_end|>"));
+        assert!(prompt.ends_with("<|im_start|>assistant\n"));
+    }
+
+    #[test]
     #[ignore = "downloads the embedded model/tokenizer and runs local inference"]
-    fn loads_and_emits_text() {
+    fn loads_and_emits_parseable_verdict() {
         let cfg = EmbeddedModelConfig::default();
         let mut engine = LocalEngine::load(&cfg).expect("load model");
         let output = engine
             .complete(
-                "Reply with only this JSON: {\"is_real\": true, \"confidence\": 50, \"rationale\": \"ok\"}",
-                &GenOpts::default(),
+                "Return exactly one JSON object and no prose: {\"is_real\": true, \"confidence\": 80, \"rationale\": \"simple check\"}",
+                &GenOpts {
+                    max_tokens: 96,
+                    temperature: 0.0,
+                    stop: vec!["\n\n".to_string()],
+                },
             )
             .expect("complete");
+        let verdict = parse_verdict(&output);
 
-        assert!(!output.trim().is_empty());
+        assert!(
+            !verdict.degraded,
+            "model output was not parseable: {output}"
+        );
+        assert!(!verdict.rationale.trim().is_empty());
     }
 }

@@ -186,8 +186,12 @@ fn ai_triage_ai_local_json_runs_with_embedded_engine() {
     });
 
     assert!(json["triaged"].as_u64().unwrap_or(0) >= 1, "json: {json}");
-    assert!(json["verdicts"][0]["degraded"].is_boolean(), "json: {json}");
+    assert_eq!(json["verdicts"][0]["degraded"], false, "json: {json}");
     assert!(json["verdicts"][0]["is_real"].is_boolean(), "json: {json}");
+    assert!(
+        json["verdicts"][0]["confidence"].as_u64().is_some(),
+        "json: {json}"
+    );
     assert!(
         json["verdicts"][0]["rationale"]
             .as_str()
