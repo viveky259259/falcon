@@ -217,13 +217,17 @@ Use `--strictness quick` to report only error-level findings, `standard` for
 the default lint findings plus standard review observations, and `thorough` for
 the extra review observations such as missing-test checks.
 
-For Dart projects with `.dart_tool/package_config.json`, review runs
-`dart analyze --format=json` as an analyzer co-pilot and suppresses Falcon
+For Dart projects with `.dart_tool/package_config.json`, review auto-enables
+semantic mode. It runs `dart analyze --format=json` and suppresses Falcon
 findings on the same file, line, and rule class as analyzer diagnostics.
 Style analyzer diagnostics can suppress style findings, for example, but not
-Falcon behavioral or security findings on the same line. `--analyzer-copilot`
-keeps this behavior explicit, and `--no-defer-to-analyzer` keeps Falcon findings
-even when the analyzer reports the same file, line, and class.
+Falcon behavioral or security findings on the same line. `--semantic` keeps this
+behavior explicit, and `--no-defer-to-analyzer` keeps Falcon findings even when
+the analyzer reports the same file, line, and class.
+
+`falcon check` stays syntactic unless `--semantic` is passed. Keep editor-save
+and pre-commit hooks syntactic by default; use semantic mode in review or CI
+where the analyzer shellout is expected.
 
 ### Baselines
 

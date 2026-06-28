@@ -219,7 +219,7 @@ fn review_quick_strictness_reports_only_errors() {
 }
 
 #[test]
-fn review_analyzer_copilot_suppresses_same_line_falcon_issue() {
+fn review_semantic_suppresses_same_line_falcon_issue() {
     let repo = temp_git_repo();
     write_initial_project(repo.path());
     write_package_config(repo.path());
@@ -244,7 +244,7 @@ fn review_analyzer_copilot_suppresses_same_line_falcon_issue() {
             "HEAD~1",
             "--format",
             "json",
-            "--analyzer-copilot",
+            "--semantic",
         ])
         .output()
         .expect("run falcon review");
@@ -255,7 +255,7 @@ fn review_analyzer_copilot_suppresses_same_line_falcon_issue() {
 }
 
 #[test]
-fn review_auto_runs_analyzer_copilot_for_dart_project() {
+fn review_auto_runs_semantic_for_dart_project() {
     let repo = temp_git_repo();
     write_initial_project(repo.path());
     write_package_config(repo.path());
@@ -315,7 +315,7 @@ fn review_no_defer_to_analyzer_keeps_same_line_falcon_issue() {
             "HEAD~1",
             "--format",
             "json",
-            "--analyzer-copilot",
+            "--semantic",
             "--no-defer-to-analyzer",
         ])
         .output()
@@ -327,7 +327,7 @@ fn review_no_defer_to_analyzer_keeps_same_line_falcon_issue() {
 }
 
 #[test]
-fn review_analyzer_copilot_skips_without_package_config() {
+fn review_semantic_skips_without_package_config() {
     let repo = temp_git_repo();
     write_initial_project(repo.path());
     git(repo.path(), &["add", "."]);
@@ -351,7 +351,7 @@ fn review_analyzer_copilot_skips_without_package_config() {
             "HEAD~1",
             "--format",
             "json",
-            "--analyzer-copilot",
+            "--semantic",
         ])
         .output()
         .expect("run falcon review");
@@ -362,7 +362,7 @@ fn review_analyzer_copilot_skips_without_package_config() {
 }
 
 #[test]
-fn review_analyzer_copilot_times_out_slow_analyzer() {
+fn review_semantic_times_out_slow_analyzer() {
     let repo = temp_git_repo();
     write_initial_project(repo.path());
     write_package_config(repo.path());
@@ -389,7 +389,7 @@ fn review_analyzer_copilot_times_out_slow_analyzer() {
             "HEAD~1",
             "--format",
             "json",
-            "--analyzer-copilot",
+            "--semantic",
         ])
         .output()
         .expect("run falcon review");

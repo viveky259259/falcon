@@ -1,6 +1,6 @@
 - id: falcon-analyze
   name: Falcon Static Analysis
-  description: Run Falcon static analysis on staged Dart files
+  description: Run syntactic Falcon static analysis on staged Dart files
   entry: falcon analyze . --since HEAD --fail-on error
   language: system
   types: [dart]

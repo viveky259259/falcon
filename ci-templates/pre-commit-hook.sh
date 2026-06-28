@@ -2,6 +2,7 @@
 # Falcon pre-commit hook
 # Install: cp ci-templates/pre-commit-hook.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
 # Or use with pre-commit framework (see .pre-commit-hooks.yaml)
+# Pre-commit stays syntactic-only by default; use falcon review/check --semantic in CI.
 
 set -e
 

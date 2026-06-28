@@ -151,6 +151,10 @@ enum Commands {
         /// Rewrite the baseline file with the current findings
         #[arg(long, value_name = "FILE")]
         update_baseline: Option<PathBuf>,
+
+        /// Run dart analyze as a semantic co-pilot and defer same-line Falcon findings
+        #[arg(long)]
+        semantic: bool,
     },
 
     /// Categorized smells report: Dead Code, Code Smells, Security Smells.
@@ -740,9 +744,9 @@ enum Commands {
         #[arg(long, default_value = "standard")]
         strictness: falcon::review::pr_review::ReviewStrictness,
 
-        /// Run dart analyze as a co-pilot and defer same-line Falcon findings
-        #[arg(long = "analyzer-copilot")]
-        analyzer_copilot: bool,
+        /// Run dart analyze as a semantic co-pilot and defer same-line Falcon findings
+        #[arg(long)]
+        semantic: bool,
 
         /// Keep Falcon findings even when dart analyze reports the same line
         #[arg(long = "no-defer-to-analyzer")]
@@ -2177,6 +2181,7 @@ fn run(cli: Cli) -> Result<()> {
                 update_baseline_path: None,
                 fail_on,
                 preset,
+                semantic: false,
             })?;
         }
         Commands::Check {
@@ -2188,6 +2193,7 @@ fn run(cli: Cli) -> Result<()> {
             preset,
             baseline,
             update_baseline,
+            semantic,
         } => {
             run_analysis_command(AnalysisCommandOptions {
                 path,
@@ -2200,6 +2206,7 @@ fn run(cli: Cli) -> Result<()> {
                 update_baseline_path: update_baseline,
                 fail_on,
                 preset,
+                semantic,
             })?;
         }
         Commands::Smells {
@@ -3393,7 +3400,7 @@ fn run(cli: Cli) -> Result<()> {
             base_ref,
             format,
             strictness,
-            analyzer_copilot,
+            semantic,
             no_defer_to_analyzer,
             baseline,
             update_baseline,
@@ -3423,9 +3430,8 @@ fn run(cli: Cli) -> Result<()> {
 
             apply_review_strictness(&mut report, strictness, review_observations);
 
-            let should_run_analyzer_copilot =
-                analyzer_copilot || path.join(".dart_tool/package_config.json").is_file();
-            if should_run_analyzer_copilot {
+            let should_run_semantic = semantic || falcon::paths::has_package_config(&path);
+            if should_run_semantic {
                 if let Some(analyzer_diagnostics) =
                     falcon::analyzer_bridge::run_dart_analyze(&path)?
                 {
@@ -4747,6 +4753,7 @@ struct AnalysisCommandOptions {
     update_baseline_path: Option<PathBuf>,
     fail_on: FailLevel,
     preset: Option<String>,
+    semantic: bool,
 }
 
 fn run_analysis_command(options: AnalysisCommandOptions) -> Result<()> {
@@ -4761,6 +4768,7 @@ fn run_analysis_command(options: AnalysisCommandOptions) -> Result<()> {
         update_baseline_path,
         fail_on,
         preset,
+        semantic,
     } = options;
 
     let config_path = config.as_deref().unwrap_or(&path);
@@ -4796,6 +4804,14 @@ fn run_analysis_command(options: AnalysisCommandOptions) -> Result<()> {
     };
 
     let mut issues = report.issues;
+
+    if semantic {
+        if let Some(analyzer_diagnostics) = falcon::analyzer_bridge::run_dart_analyze(&path)? {
+            let (filtered, _) =
+                falcon::analyzer_bridge::defer_to_analyzer(&issues, &analyzer_diagnostics, false);
+            issues = filtered;
+        }
+    }
 
     if baseline {
         let bl = Baseline::load(&path)?;

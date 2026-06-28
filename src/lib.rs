@@ -26,6 +26,7 @@ pub mod mcp;
 pub mod metrics;
 pub mod migration;
 pub mod parser;
+pub mod paths;
 pub mod platform;
 pub mod plugins;
 pub mod reporters;

@@ -28,14 +28,18 @@ falcon review . --base-ref origin/main --format gh
 falcon analyze .
 ```
 
-## Analyzer Co-Pilot
+## Semantic Analysis
 
-`falcon review` runs `dart analyze --format=json` automatically when a Dart
-project has `.dart_tool/package_config.json`. Analyzer diagnostics win on the
-same file, line, and rule class, so Falcon suppresses duplicate style, unused,
-or type findings while still reporting behavioral and security findings that the
-analyzer does not own. Use `--no-defer-to-analyzer` when you need to audit the
-raw Falcon output.
+`falcon review` runs semantic analysis automatically when a Dart project has
+`.dart_tool/package_config.json`. Semantic mode shells out to
+`dart analyze --format=json`, then lets analyzer diagnostics win on the same
+file, line, and rule class. Falcon still reports behavioral and security
+findings that the analyzer does not own. Use `--semantic` to opt in explicitly
+or `--no-defer-to-analyzer` when you need to audit the raw Falcon output.
+
+`falcon check` stays syntactic by default, including in editor-save and
+pre-commit flows. Use `falcon check --semantic` in CI when the Dart analyzer
+shellout is acceptable.
 
 ## AI Code Quality Score
 
