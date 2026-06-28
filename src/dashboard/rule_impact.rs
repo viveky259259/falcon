@@ -1,5 +1,6 @@
 use super::snapshot::AnalysisSnapshot;
 use colored::Colorize;
+use std::cmp::Reverse;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -96,7 +97,7 @@ pub fn measure_rule_impact(history: &[AnalysisSnapshot]) -> Vec<RuleImpact> {
         })
         .collect();
 
-    impacts.sort_by(|a, b| b.total_triggers.cmp(&a.total_triggers));
+    impacts.sort_by_key(|impact| Reverse(impact.total_triggers));
     impacts
 }
 
