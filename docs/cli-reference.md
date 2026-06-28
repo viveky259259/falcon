@@ -1,5 +1,10 @@
 # CLI Reference
 
+Falcon is migrating to a compact top-level CLI: `review`, `check`, `fix`,
+`score`, and `x`. See [CLI Migration](cli-migration.md) for the v1.0 command
+mapping. The full historical help remains available for one release with
+`falcon --legacy-help`.
+
 ## Core Analysis
 
 | Command | Description |

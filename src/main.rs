@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
 use colored::Colorize;
 use falcon::config::{FalconConfig, Severity};
 use falcon::incremental::baseline::Baseline;
@@ -30,6 +30,25 @@ struct Cli {
     #[command(subcommand)]
     command: Commands,
 }
+
+const CUTOVER_HELP: &str = r#"Falcon — Rust-powered static analysis for Flutter/Dart
+
+Usage: falcon <COMMAND>
+
+Commands:
+  review  Review changed Dart files for pull requests
+  check   Run project checks and static analysis
+  fix     Apply safe automated fixes
+  score   Calculate the AI Code Quality Score
+  x       Advanced, legacy, and experimental commands
+
+Options:
+  -h, --help         Print help
+  -V, --version      Print version
+      --legacy-help  Print the full legacy command list for this release
+
+Run `falcon <command> --help` for command-specific options.
+"#;
 
 const GROUPED_HELP: &str = r#"
 SEMANTIC COMMAND GROUPS:
@@ -96,6 +115,34 @@ enum Commands {
         /// Exclude public API from analysis
         #[arg(long)]
         exclude_public_api: bool,
+    },
+
+    /// Run project checks and static analysis
+    #[command(display_order = 1)]
+    Check {
+        /// Path to check (defaults to current directory)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output format
+        #[arg(short, long, default_value = "console")]
+        format: OutputFormat,
+
+        /// Output file path (for file-based formats)
+        #[arg(short, long, default_value = "falcon-report.html")]
+        output: PathBuf,
+
+        /// Path to falcon.yaml config
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+
+        /// Minimum severity to fail on (error, warning, info)
+        #[arg(long, default_value = "error")]
+        fail_on: FailLevel,
+
+        /// Apply a named rule preset (recommended, strict, flutter, riverpod, bloc, performance, ai-generated)
+        #[arg(long)]
+        preset: Option<String>,
     },
 
     /// Categorized smells report: Dead Code, Code Smells, Security Smells.
@@ -2038,6 +2085,9 @@ enum DocFormat {
 fn main() {
     env_logger::init();
     let args: Vec<String> = std::env::args().collect();
+    if handle_root_help(&args) {
+        return;
+    }
     if let Some(command) = args.get(1) {
         if let Some(new) = falcon::cli::deprecation::aliased_target(command) {
             falcon::cli::deprecation::warn_aliased(command, new);
@@ -2048,6 +2098,26 @@ fn main() {
     if let Err(e) = run(cli) {
         eprintln!("{}: {}", "error".red(), e);
         process::exit(1);
+    }
+}
+
+fn handle_root_help(args: &[String]) -> bool {
+    if args.len() != 2 {
+        return false;
+    }
+
+    match args[1].as_str() {
+        "--help" | "-h" => {
+            print!("{}", CUTOVER_HELP);
+            true
+        }
+        "--legacy-help" => {
+            let mut command = Cli::command();
+            command.print_help().expect("write legacy help");
+            println!();
+            true
+        }
+        _ => false,
     }
 }
 
@@ -2064,69 +2134,35 @@ fn run(cli: Cli) -> Result<()> {
             preset,
             exclude_public_api: _,
         } => {
-            let config_path = config.as_deref().unwrap_or(&path);
-            let mut falcon_config = FalconConfig::load(config_path)?;
-
-            if let Some(ref preset_name) = preset {
-                match falcon::plugins::presets::get_preset(preset_name) {
-                    Some(p) => {
-                        falcon_config.rules = p.rules;
-                        eprintln!(
-                            "  {} Using preset '{}' ({} rules)",
-                            "▸".bright_cyan(),
-                            preset_name.bright_white(),
-                            falcon_config.rules.len()
-                        );
-                    }
-                    None => {
-                        eprintln!(
-                            "Unknown preset '{}'. Available: recommended, strict, flutter, riverpod, bloc, performance, ai-generated",
-                            preset_name
-                        );
-                        process::exit(1);
-                    }
-                }
-            }
-
-            let falcon = Falcon::new(falcon_config.clone())?;
-
-            let report = if let Some(ref git_ref) = since {
-                run_incremental(&falcon, &path, git_ref, &falcon_config)?
-            } else {
-                falcon.analyze(&path)?
-            };
-
-            let mut issues = report.issues;
-
-            if baseline {
-                let bl = Baseline::load(&path)?;
-                issues = bl.filter_new_issues(issues, &path);
-            }
-
-            let final_report = falcon::reporters::AnalysisReport {
-                issues,
-                metrics: report.metrics,
-                file_count: report.file_count,
-                project_path: report.project_path,
-            };
-
-            get_reporter(&format, &output).report_analysis(&final_report);
-
-            // Auto-save snapshot for history tracking
-            let snap_root = if path.is_dir() {
-                path.clone()
-            } else {
-                path.parent().unwrap_or(&path).to_path_buf()
-            };
-            let snapshot =
-                falcon::dashboard::snapshot::AnalysisSnapshot::capture(&final_report, &snap_root);
-            if let Err(e) = falcon::dashboard::snapshot::save_snapshot(&snap_root, &snapshot) {
-                log::debug!("Could not save snapshot: {}", e);
-            }
-
-            if should_fail(&final_report, &fail_on) {
-                process::exit(1);
-            }
+            run_analysis_command(AnalysisCommandOptions {
+                path,
+                format,
+                output,
+                config,
+                since,
+                baseline,
+                fail_on,
+                preset,
+            })?;
+        }
+        Commands::Check {
+            path,
+            format,
+            output,
+            config,
+            fail_on,
+            preset,
+        } => {
+            run_analysis_command(AnalysisCommandOptions {
+                path,
+                format,
+                output,
+                config,
+                since: None,
+                baseline: false,
+                fail_on,
+                preset,
+            })?;
         }
         Commands::Smells {
             path,
@@ -4601,6 +4637,95 @@ fn review_observation_to_issue(
         line: observation.line,
         column: 1,
     }
+}
+
+struct AnalysisCommandOptions {
+    path: PathBuf,
+    format: OutputFormat,
+    output: PathBuf,
+    config: Option<PathBuf>,
+    since: Option<String>,
+    baseline: bool,
+    fail_on: FailLevel,
+    preset: Option<String>,
+}
+
+fn run_analysis_command(options: AnalysisCommandOptions) -> Result<()> {
+    let AnalysisCommandOptions {
+        path,
+        format,
+        output,
+        config,
+        since,
+        baseline,
+        fail_on,
+        preset,
+    } = options;
+
+    let config_path = config.as_deref().unwrap_or(&path);
+    let mut falcon_config = FalconConfig::load(config_path)?;
+
+    if let Some(ref preset_name) = preset {
+        match falcon::plugins::presets::get_preset(preset_name) {
+            Some(p) => {
+                falcon_config.rules = p.rules;
+                eprintln!(
+                    "  {} Using preset '{}' ({} rules)",
+                    "▸".bright_cyan(),
+                    preset_name.bright_white(),
+                    falcon_config.rules.len()
+                );
+            }
+            None => {
+                eprintln!(
+                    "Unknown preset '{}'. Available: recommended, strict, flutter, riverpod, bloc, performance, ai-generated",
+                    preset_name
+                );
+                process::exit(1);
+            }
+        }
+    }
+
+    let falcon = Falcon::new(falcon_config.clone())?;
+
+    let report = if let Some(ref git_ref) = since {
+        run_incremental(&falcon, &path, git_ref, &falcon_config)?
+    } else {
+        falcon.analyze(&path)?
+    };
+
+    let mut issues = report.issues;
+
+    if baseline {
+        let bl = Baseline::load(&path)?;
+        issues = bl.filter_new_issues(issues, &path);
+    }
+
+    let final_report = falcon::reporters::AnalysisReport {
+        issues,
+        metrics: report.metrics,
+        file_count: report.file_count,
+        project_path: report.project_path,
+    };
+
+    get_reporter(&format, &output).report_analysis(&final_report);
+
+    let snap_root = if path.is_dir() {
+        path.clone()
+    } else {
+        path.parent().unwrap_or(&path).to_path_buf()
+    };
+    let snapshot =
+        falcon::dashboard::snapshot::AnalysisSnapshot::capture(&final_report, &snap_root);
+    if let Err(e) = falcon::dashboard::snapshot::save_snapshot(&snap_root, &snapshot) {
+        log::debug!("Could not save snapshot: {}", e);
+    }
+
+    if should_fail(&final_report, &fail_on) {
+        process::exit(1);
+    }
+
+    Ok(())
 }
 
 fn run_incremental(

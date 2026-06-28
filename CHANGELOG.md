@@ -9,7 +9,32 @@
 - 214 source files (45480 lines of Rust)
 
 ### Changes
-- 
+- Began the four-verb CLI cutover: default `falcon --help` now highlights
+  `review`, `check`, `fix`, `score`, and `x`, while `falcon --legacy-help`
+  preserves the historical command list for one release.
+- Added `falcon check` as the stable project-checking verb. `falcon analyze`
+  remains available during the migration window.
+- Added `docs/cli-migration.md` with the command migration table for v1.0.
+
+### CLI Migration
+
+| Before | Now |
+|---|---|
+| `falcon analyze .` | `falcon check .` |
+| `falcon ai-score .` | `falcon score .` |
+| `falcon pr-comment . --base-ref origin/main` | `falcon review . --base-ref origin/main --format gh` |
+| `falcon asset-audit .` | `falcon x asset-audit .` |
+| `falcon theme-audit .` | `falcon x theme-audit .` |
+| `falcon l10n-coverage .` | `falcon x l10n-coverage .` |
+| `falcon deeplink-validate .` | `falcon x deeplink-validate .` |
+| `falcon animation-audit .` | `falcon x animation-audit .` |
+| `falcon golden-gen .` | `falcon x golden-gen .` |
+| `falcon dep-graph .` | `falcon x dep-graph .` |
+| `falcon workspace .` | `falcon x workspace .` |
+| `falcon docs docs/` | `falcon x docs docs/` |
+| `falcon vuln-scan .` | `falcon x vuln-scan .` |
+| `falcon refactor-sim . --scenario migrate-to-riverpod` | `falcon x refactor-sim . --scenario migrate-to-riverpod` |
+| `falcon test-gen .` | `falcon x test-gen .` |
 
 # Changelog
 
