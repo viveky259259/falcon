@@ -25,10 +25,16 @@ jobs:
         include:
           - target: aarch64-apple-darwin
             os: macos-14
+            package_os: macos
+            package_arch: arm64
           - target: x86_64-apple-darwin
             os: macos-15-intel
+            package_os: macos
+            package_arch: x64
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-22.04
+            package_os: linux
+            package_arch: x64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,7 +47,8 @@ jobs:
           version="${ref#v}"
           echo "tag=${ref}" >> "$GITHUB_OUTPUT"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "archive=falcon-${version}-${{ matrix.target }}.tar.gz" >> "$GITHUB_OUTPUT"
+          echo "package=falcon-${version}-${{ matrix.package_os }}-${{ matrix.package_arch }}" >> "$GITHUB_OUTPUT"
+          echo "archive=falcon-${version}-${{ matrix.package_os }}-${{ matrix.package_arch }}.tar.gz" >> "$GITHUB_OUTPUT"
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -195,11 +202,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version="${{ steps.version.outputs.version }}"
           target="${{ matrix.target }}"
+          package="${{ steps.version.outputs.package }}"
           archive="${{ steps.version.outputs.archive }}"
 
-          staging="falcon-${version}-${target}"
+          staging="${package}"
           mkdir -p "${staging}"
 
           bin_dir="target/${target}/release"
@@ -226,7 +233,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: falcon-${{ steps.version.outputs.version }}-${{ matrix.target }}
+          name: falcon-${{ steps.version.outputs.version }}-${{ matrix.package_os }}-${{ matrix.package_arch }}
           path: |
             ${{ steps.version.outputs.archive }}
             ${{ steps.version.outputs.archive }}.sha256
@@ -269,11 +276,35 @@ jobs:
           find artifacts -type f -name 'falcon-*.tar.gz' -exec cp {} dist/ \;
           ls -la dist
 
+          expected=(
+            "falcon-${{ steps.version.outputs.version }}-macos-arm64.tar.gz"
+            "falcon-${{ steps.version.outputs.version }}-macos-x64.tar.gz"
+            "falcon-${{ steps.version.outputs.version }}-linux-x64.tar.gz"
+          )
+          for archive in "${expected[@]}"; do
+            if [ ! -f "dist/${archive}" ]; then
+              echo "::error::Missing expected release archive: ${archive}"
+              exit 1
+            fi
+          done
+
+          archive_count="$(find dist -maxdepth 1 -type f -name 'falcon-*.tar.gz' | wc -l | tr -d ' ')"
+          if [ "${archive_count}" != "3" ]; then
+            echo "::error::Expected exactly 3 release archives, found ${archive_count}"
+            find dist -maxdepth 1 -type f -name 'falcon-*.tar.gz' -print
+            exit 1
+          fi
+
           cd dist
           if command -v sha256sum >/dev/null 2>&1; then
             sha256sum falcon-*.tar.gz > SHA256SUMS
           else
             shasum -a 256 falcon-*.tar.gz > SHA256SUMS
+          fi
+          checksum_count="$(wc -l < SHA256SUMS | tr -d ' ')"
+          if [ "${checksum_count}" != "3" ]; then
+            echo "::error::Expected exactly 3 SHA256SUMS entries, found ${checksum_count}"
+            exit 1
           fi
           cat SHA256SUMS
 
