@@ -162,7 +162,7 @@ fn find_reflection_patterns(root: &Path) -> HashSet<String> {
     for entry in walkdir::WalkDir::new(root)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
     {
         if let Ok(source) = std::fs::read_to_string(entry.path()) {
             if source.contains("dart:mirrors")
@@ -182,7 +182,7 @@ fn find_dynamic_usage(root: &Path) -> HashSet<String> {
     for entry in walkdir::WalkDir::new(root)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
     {
         if let Ok(source) = std::fs::read_to_string(entry.path()) {
             let dynamic_count = source.matches("dynamic ").count()
@@ -201,7 +201,7 @@ fn find_barrel_exports(root: &Path) -> HashSet<String> {
     for entry in walkdir::WalkDir::new(root)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
     {
         if let Ok(source) = std::fs::read_to_string(entry.path()) {
             for line in source.lines() {

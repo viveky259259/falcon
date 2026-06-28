@@ -94,7 +94,7 @@ impl AiConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum AiProvider {
     #[serde(alias = "openai")]
@@ -104,13 +104,8 @@ pub enum AiProvider {
     Local,
     #[serde(alias = "embedded")]
     Embedded,
+    #[default]
     None,
-}
-
-impl Default for AiProvider {
-    fn default() -> Self {
-        AiProvider::None
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -180,7 +175,7 @@ fn default_embedded_max_issues() -> usize {
     100
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AiFeatureToggles {
     #[serde(default)]
     pub confidence_scoring: bool,
@@ -193,17 +188,6 @@ pub struct AiFeatureToggles {
 
     #[serde(default)]
     pub false_positive_reduction: bool,
-}
-
-impl Default for AiFeatureToggles {
-    fn default() -> Self {
-        Self {
-            confidence_scoring: false,
-            smart_fixes: false,
-            explanations: false,
-            false_positive_reduction: false,
-        }
-    }
 }
 
 pub fn generate_ai_setup(path: &Path) -> anyhow::Result<()> {
