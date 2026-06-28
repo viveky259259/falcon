@@ -13,7 +13,7 @@ pub fn coupling_between_objects(class_node: Node, source: &str) -> u32 {
             let text = &source[node.byte_range()];
             if text != class_name
                 && !is_builtin_type(text)
-                && text.chars().next().map_or(false, |c| c.is_uppercase())
+                && text.chars().next().is_some_and(|c| c.is_uppercase())
             {
                 referenced_types.insert(text.to_string());
             }

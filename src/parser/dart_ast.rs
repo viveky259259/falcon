@@ -130,12 +130,10 @@ pub fn get_function_parameters(node: Node) -> Vec<Node> {
 pub fn get_function_body(node: Node) -> Option<Node> {
     let parent = node.parent()?;
     let mut cursor = parent.walk();
-    for child in parent.children(&mut cursor) {
-        if child.kind() == "function_body" {
-            return Some(child);
-        }
-    }
-    None
+    let body = parent
+        .children(&mut cursor)
+        .find(|&child| child.kind() == "function_body");
+    body
 }
 
 pub fn get_class_methods(node: Node) -> Vec<Node> {

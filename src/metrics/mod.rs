@@ -153,10 +153,7 @@ fn collect_function_metrics(
     let function_nodes = crate::parser::find_descendants_by_kind(root, "function_signature");
     let method_nodes = crate::parser::find_descendants_by_kind(root, "method_signature");
 
-    let all_nodes: Vec<Node> = function_nodes
-        .into_iter()
-        .chain(method_nodes.into_iter())
-        .collect();
+    let all_nodes: Vec<Node> = function_nodes.into_iter().chain(method_nodes).collect();
 
     for node in all_nodes {
         let name = crate::parser::dart_ast::get_declaration_name(node, source)
