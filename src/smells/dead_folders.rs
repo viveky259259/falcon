@@ -45,13 +45,13 @@ pub fn find_dead_folders(root: &Path, unused_files: &HashSet<PathBuf>) -> Vec<Pa
             continue;
         }
         let path = entry.path();
-        if path.extension().map_or(true, |ext| ext != "dart") {
+        if path.extension().is_none_or(|ext| ext != "dart") {
             continue;
         }
         if path.components().any(|c| {
             c.as_os_str()
                 .to_str()
-                .map_or(false, |s| SKIP_FOLDER_NAMES.contains(&s))
+                .is_some_and(|s| SKIP_FOLDER_NAMES.contains(&s))
         }) {
             continue;
         }

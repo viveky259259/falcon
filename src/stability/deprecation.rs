@@ -45,7 +45,7 @@ pub fn check_deprecated_in_config(config: &crate::config::FalconConfig) -> Vec<D
     let mut found = Vec::new();
     for rule in &config.rules {
         let name = rule.name();
-        if let Some(dep) = is_deprecated(&name) {
+        if let Some(dep) = is_deprecated(name) {
             found.push(dep);
         }
     }

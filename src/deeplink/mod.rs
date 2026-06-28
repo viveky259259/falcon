@@ -322,7 +322,7 @@ fn validate_flutter_routes(path: &Path, report: &mut DeeplinkReport) {
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .map(|e| e.path().to_path_buf())
         .collect();
 

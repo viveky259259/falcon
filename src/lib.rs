@@ -293,7 +293,7 @@ impl Falcon {
                 }
             })
             .filter(|e| e.file_type().is_file())
-            .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
             .filter(|e| {
                 let rel = e.path().strip_prefix(path).unwrap_or(e.path());
                 !exclude_patterns.iter().any(|p| p.matches_path(rel))

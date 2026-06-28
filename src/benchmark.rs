@@ -28,7 +28,7 @@ pub fn run_benchmark(root: &Path) -> anyhow::Result<BenchmarkResult> {
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .filter(|e| {
             let rel = e.path().strip_prefix(root).unwrap_or(e.path());
             !exclude_patterns.iter().any(|p| p.matches_path(rel))
