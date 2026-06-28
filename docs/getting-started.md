@@ -195,6 +195,12 @@ Add to your Cursor/Windsurf MCP config:
 }
 ```
 
+Agent-specific setup:
+
+- [Cursor](install/cursor.md)
+- [Claude Code](install/claude-code.md)
+- [Cline](install/cline.md)
+
 ## What's Next
 
 - [CLI Reference](cli-reference.md) — all commands and flags

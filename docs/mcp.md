@@ -247,6 +247,12 @@ Cursor uses the same `.mcp.json` shape. Place it at the project root:
 If `falcon-mcp` is not on PATH, point `command` at the absolute binary path
 (e.g. `/usr/local/bin/falcon-mcp` or `target/release/falcon-mcp`).
 
+### Agent-specific install docs
+
+- [Cursor](install/cursor.md)
+- [Claude Code](install/claude-code.md)
+- [Cline](install/cline.md)
+
 ## Notes
 
 - Transport is **stdio only**. There is no HTTP/WebSocket variant.
