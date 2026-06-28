@@ -142,7 +142,7 @@ fn top_level_dart_files(dir: &Path) -> Vec<PathBuf> {
     if let Ok(entries) = std::fs::read_dir(dir) {
         for e in entries.flatten() {
             let p = e.path();
-            if p.is_file() && p.extension().map_or(false, |ext| ext == "dart") {
+            if p.is_file() && p.extension().is_some_and(|ext| ext == "dart") {
                 files.push(p);
             }
         }

@@ -51,14 +51,6 @@ impl L10nSeverity {
             L10nSeverity::Error => "✕",
         }
     }
-
-    fn color_name(&self) -> &'static str {
-        match self {
-            L10nSeverity::Info => "cyan",
-            L10nSeverity::Warning => "yellow",
-            L10nSeverity::Error => "red",
-        }
-    }
 }
 
 /// Detailed issue with localization

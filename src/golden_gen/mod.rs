@@ -12,16 +12,6 @@ pub enum WidgetType {
     Consumer,
 }
 
-impl WidgetType {
-    fn as_str(&self) -> &'static str {
-        match self {
-            WidgetType::Stateless => "StatelessWidget",
-            WidgetType::Stateful => "StatefulWidget",
-            WidgetType::Consumer => "ConsumerWidget",
-        }
-    }
-}
-
 /// Represents a constructor parameter of a widget
 #[derive(Debug, Clone)]
 pub struct WidgetParam {

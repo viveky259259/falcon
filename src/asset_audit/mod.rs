@@ -62,14 +62,6 @@ impl AssetSeverity {
         }
     }
 
-    fn color_name(&self) -> &'static str {
-        match self {
-            AssetSeverity::Info => "blue",
-            AssetSeverity::Warning => "yellow",
-            AssetSeverity::Error => "red",
-        }
-    }
-
     fn symbol(&self) -> &'static str {
         match self {
             AssetSeverity::Info => "ℹ",
@@ -98,16 +90,6 @@ pub struct AssetAuditReport {
     pub issues: Vec<AssetIssue>,
     pub potential_savings_bytes: u64,
     pub score: u32,
-}
-
-/// Internal structure for tracking assets by category
-#[derive(Debug)]
-struct AssetAnalysis {
-    oversized: Vec<(PathBuf, u64)>,
-    unused: Vec<PathBuf>,
-    no_webp: Vec<(PathBuf, u64)>,
-    duplicates: Vec<Vec<PathBuf>>,
-    unoptimized_svgs: Vec<(PathBuf, String)>,
 }
 
 /// Parse pubspec.yaml to extract asset declarations
