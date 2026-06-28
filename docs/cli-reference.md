@@ -9,15 +9,15 @@ mapping. The full historical help remains available for one release with
 
 | Command | Description |
 |---|---|
-| `falcon analyze [path]` | Full analysis (metrics + rules + unused detection) |
+| `falcon check [path]` | Full analysis (metrics + rules + unused detection) |
 | `falcon metrics [path]` | Calculate code metrics only |
 | `falcon score [path]` | AI Code Quality Score (0-100) with 6-dimension breakdown |
 | `falcon ai-report [path]` | Full "State of AI-Generated Flutter Code" report |
 
-### falcon analyze
+### falcon check
 
 ```bash
-falcon analyze . --format console --preset ai-generated --fail-on error
+falcon check . --format console --preset ai-generated --fail-on error
 ```
 
 | Flag | Description | Default |
@@ -33,7 +33,7 @@ falcon analyze . --format console --preset ai-generated --fail-on error
 #### HTML Report (v0.2.0)
 
 ```bash
-falcon analyze . --format html --output report.html
+falcon check . --format html --output report.html
 ```
 
 Generates an enterprise-grade HTML dashboard with:
@@ -93,7 +93,7 @@ List all stored analysis runs for a project.
 falcon history /path/to/project
 ```
 
-Shows a table with timestamp, branch, file count, health score, issue count, and commit hash. Snapshots are automatically saved after every `falcon analyze` and `falcon compare-branches` run.
+Shows a table with timestamp, branch, file count, health score, issue count, and commit hash. Snapshots are automatically saved after every `falcon check` and `falcon compare-branches` run.
 
 ### falcon compare-reports
 

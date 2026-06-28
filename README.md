@@ -29,7 +29,7 @@ falcon score .
 falcon review . --base-ref origin/main --format gh
 
 # Full analysis
-falcon analyze .
+falcon check .
 ```
 
 ## Semantic Analysis
@@ -70,7 +70,7 @@ $ falcon score .
 | **Architect** | `falcon manage arch` | Architecture governance, layer violations, hotspots |
 | **Maintenance** | `falcon manage maint` | Tech debt score, cleanup tasks, auto-fix pipeline |
 | **AI Score** | `falcon score` | 0-100 AI Code Quality Score with 6-dimension breakdown |
-| **61+ Rules** | `falcon analyze` | Flutter, BLoC, Riverpod, accessibility rules |
+| **61+ Rules** | `falcon check` | Flutter, BLoC, Riverpod, accessibility rules |
 | **MCP Server** | `falcon-mcp` | AI tools call Falcon during code generation |
 | **PR Comments** | `falcon review --format gh` | Generate GitHub-ready PR review markdown |
 | **Vulnerability** | `falcon vuln-scan` | Security radar with CWE classification |
@@ -104,7 +104,7 @@ Falcon analyzes Flutter code in real-time during generation — the AI self-corr
 - name: Install Falcon
   run: cargo install --git https://github.com/viveky259259/falcon
 - name: Analyze
-  run: falcon analyze . --fail-on error
+  run: falcon check . --fail-on error
 - name: PR Comment
   run: falcon review . --base-ref origin/main --format gh | gh pr comment --body-file -
 ```
@@ -112,9 +112,9 @@ Falcon analyzes Flutter code in real-time during generation — the AI self-corr
 ### Presets
 
 ```bash
-falcon analyze --preset ai-generated    # 20 rules for AI code
-falcon analyze --preset strict          # All rules, max severity
-falcon analyze --preset flutter         # Flutter best practices
+falcon check --preset ai-generated    # 20 rules for AI code
+falcon check --preset strict          # All rules, max severity
+falcon check --preset flutter         # Flutter best practices
 ```
 
 ## Pricing

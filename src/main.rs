@@ -2124,20 +2124,32 @@ enum DocFormat {
 
 fn main() {
     env_logger::init();
-    let args: Vec<String> = std::env::args().collect();
+    let mut args: Vec<String> = std::env::args().collect();
     if handle_root_help(&args) {
         return;
     }
-    if let Some(command) = args.get(1) {
-        if let Some(new) = falcon::cli::deprecation::aliased_target(command) {
-            falcon::cli::deprecation::warn_aliased(command, new);
-        }
-    }
+    rewrite_deprecated_args(&mut args);
     let cli = Cli::parse_from(args);
 
     if let Err(e) = run(cli) {
         eprintln!("{}: {}", "error".red(), e);
         process::exit(1);
+    }
+}
+
+fn rewrite_deprecated_args(args: &mut Vec<String>) {
+    let Some(command) = args.get(1).cloned() else {
+        return;
+    };
+    let Some(new) = falcon::cli::deprecation::aliased_target(&command) else {
+        return;
+    };
+
+    falcon::cli::deprecation::warn_aliased(&command, new);
+
+    let replacement: Vec<String> = new.split_whitespace().map(str::to_string).collect();
+    if !replacement.is_empty() {
+        args.splice(1..2, replacement);
     }
 }
 
@@ -3768,7 +3780,7 @@ fn run(cli: Cli) -> Result<()> {
                 eprintln!(
                     "  ❌ {} Need at least 2 analysis runs to compare. Run {} first.",
                     "error:".bright_red(),
-                    "falcon analyze".bright_blue()
+                    "falcon check".bright_blue()
                 );
                 process::exit(1);
             }

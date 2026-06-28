@@ -109,11 +109,11 @@ Falcon includes 61+ lint rules across 7 categories.
 Use `--preset` to apply a curated rule set:
 
 ```bash
-falcon analyze --preset ai-generated    # 20 rules for AI-generated code
-falcon analyze --preset strict          # 33 rules at max severity
-falcon analyze --preset recommended     # 14 balanced rules
-falcon analyze --preset flutter         # 9 Flutter-specific rules
-falcon analyze --preset riverpod        # 8 Riverpod rules
-falcon analyze --preset bloc            # 8 BLoC rules
-falcon analyze --preset performance     # 6 performance rules
+falcon check --preset ai-generated    # 20 rules for AI-generated code
+falcon check --preset strict          # 33 rules at max severity
+falcon check --preset recommended     # 14 balanced rules
+falcon check --preset flutter         # 9 Flutter-specific rules
+falcon check --preset riverpod        # 8 Riverpod rules
+falcon check --preset bloc            # 8 BLoC rules
+falcon check --preset performance     # 6 performance rules
 ```
