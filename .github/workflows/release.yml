@@ -363,3 +363,85 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --provenance --access public
+
+  homebrew:
+    name: Update Homebrew Tap
+    needs: release
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Falcon
+        uses: actions/checkout@v4
+
+      - name: Derive version from tag
+        id: version
+        shell: bash
+        run: |
+          ref="${GITHUB_REF#refs/tags/}"
+          version="${ref#v}"
+          echo "tag=${ref}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Check Homebrew tap config
+        id: tap
+        shell: bash
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          HOMEBREW_TAP_REPOSITORY: ${{ vars.HOMEBREW_TAP_REPOSITORY }}
+        run: |
+          set -euo pipefail
+          repository="${HOMEBREW_TAP_REPOSITORY:-falcon-lint/homebrew-tap}"
+          echo "repository=${repository}" >> "$GITHUB_OUTPUT"
+          if [ -z "${HOMEBREW_TAP_TOKEN}" ]; then
+            echo "::notice::Skipping Homebrew tap update; HOMEBREW_TAP_TOKEN is not configured."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download release checksums
+        if: steps.tap.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/${{ steps.version.outputs.tag }}/SHA256SUMS" \
+            -o SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Checkout Homebrew tap
+        if: steps.tap.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.tap.outputs.repository }}
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Update formula
+        if: steps.tap.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/update_homebrew_formula.sh \
+            --version "${{ steps.version.outputs.version }}" \
+            --tag "${{ steps.version.outputs.tag }}" \
+            --source-repo "${GITHUB_REPOSITORY}" \
+            --checksums SHA256SUMS \
+            --tap-dir homebrew-tap
+
+      - name: Commit and push formula
+        if: steps.tap.outputs.enabled == 'true'
+        shell: bash
+        working-directory: homebrew-tap
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- Formula/falcon.rb; then
+            echo "Homebrew formula already up to date."
+            exit 0
+          fi
+          git add Formula/falcon.rb
+          git commit -m "Update falcon to ${{ steps.version.outputs.tag }}"
+          git push

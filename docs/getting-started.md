@@ -4,7 +4,17 @@ Falcon is a Rust-powered static analysis tool for Flutter and Dart. It catches i
 
 ## Installation
 
-### From source (recommended)
+### Homebrew on macOS (recommended)
+
+```bash
+brew tap falcon-lint/tap
+brew install falcon
+```
+
+The preview Homebrew tap installs the release archives from GitHub Releases and
+includes all three binaries: `falcon`, `falcon-lsp`, and `falcon-mcp`.
+
+### From source
 
 ```bash
 cargo install --git https://github.com/viveky259259/falcon
@@ -197,6 +207,7 @@ Add to your Cursor/Windsurf MCP config:
 
 Agent-specific setup:
 
+- [Homebrew](install/homebrew.md)
 - [Cursor](install/cursor.md)
 - [Claude Code](install/claude-code.md)
 - [Cline](install/cline.md)

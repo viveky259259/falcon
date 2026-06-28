@@ -13,6 +13,10 @@ Falcon is the only Flutter linter specifically designed to catch the bugs AI too
 
 ```bash
 # Install
+brew tap falcon-lint/tap
+brew install falcon
+
+# Or install from source
 cargo install --git https://github.com/viveky259259/falcon
 
 # Or run without a global install
