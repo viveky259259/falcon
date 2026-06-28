@@ -1,6 +1,6 @@
 use crate::ai::config::EmbeddedModelConfig;
 use crate::ai::local::completer::{Completer, GenOpts};
-use crate::ai::local::model_cache::ensure_model;
+use crate::ai::local::model_cache::{ensure_model, ensure_tokenizer};
 use anyhow::Result;
 use candle_core::{Device, Tensor};
 use candle_transformers::generation::LogitsProcessor;
@@ -8,7 +8,6 @@ use candle_transformers::models::quantized_qwen2::ModelWeights;
 use tokenizers::Tokenizer;
 
 const TOKENIZER_MODEL_ID: &str = "Qwen/Qwen2.5-0.5B-Instruct";
-const TOKENIZER_FILE: &str = "tokenizer.json";
 const DEFAULT_EOS_TOKEN: &str = "<|im_end|>";
 const SYSTEM_PROMPT: &str = "You are a strict JSON generator for Flutter/Dart static-analysis triage. Respond with exactly one JSON object and no prose.";
 
@@ -22,7 +21,7 @@ pub struct LocalEngine {
 impl LocalEngine {
     pub fn load(cfg: &EmbeddedModelConfig) -> Result<Self> {
         let model_path = ensure_model(cfg)?;
-        let tokenizer_path = ensure_tokenizer()?;
+        let tokenizer_path = ensure_tokenizer(TOKENIZER_MODEL_ID)?;
         let device = Device::Cpu;
 
         let mut file = std::fs::File::open(&model_path).map_err(|err| {
@@ -110,24 +109,6 @@ impl Completer for LocalEngine {
             .decode(&output_tokens, true)
             .map_err(|err| anyhow::anyhow!("decode failed: {err}"))
     }
-}
-
-fn ensure_tokenizer() -> Result<std::path::PathBuf> {
-    let api = hf_hub::api::sync::Api::new()?;
-    eprintln!(
-        "falcon: ensuring embedded tokenizer {} ({})",
-        TOKENIZER_MODEL_ID, TOKENIZER_FILE
-    );
-    api.model(TOKENIZER_MODEL_ID.to_string())
-        .get(TOKENIZER_FILE)
-        .map_err(|err| {
-            anyhow::anyhow!(
-                "failed to resolve tokenizer file '{}' from '{}': {err}. \
-Pre-download the file into the Hugging Face cache or configure network access.",
-                TOKENIZER_FILE,
-                TOKENIZER_MODEL_ID
-            )
-        })
 }
 
 fn contains_stop(text: &str, stops: &[String]) -> bool {

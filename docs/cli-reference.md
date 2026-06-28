@@ -178,7 +178,12 @@ the default build it exits successfully and reports that embedded triage
 requires rebuilding with `--features ai-local`. With `ai-local` enabled, the
 command analyzes findings, loads the configured Qwen2.5 GGUF model once, and
 returns triage-shaped text or JSON. If per-issue inference or verdict parsing
-fails, that issue degrades safely to `is_real: true`, `confidence: 0`.
+fails, that issue degrades safely to `is_real: true`, `confidence: 0`. First
+use downloads the model and tokenizer into Falcon's model cache under
+`XDG_CACHE_HOME` or `~/.cache/falcon/models`. This command is an explicit
+embedded-triage action: it uses `ai.embedded` when present, otherwise embedded
+defaults, even if the general `ai.enabled` flag is off or another provider is
+selected for other AI surfaces.
 
 | Flag | Description | Default |
 |---|---|---|

@@ -150,6 +150,56 @@ fn ai_triage_ai_local_json_clean_project_skips_engine_load() {
 
 #[test]
 #[cfg(feature = "ai-local")]
+fn ai_triage_ai_local_uses_embedded_defaults_even_when_ai_config_disabled() {
+    let dir = tempfile::tempdir().expect("temp project");
+    std::fs::create_dir_all(dir.path().join("lib")).expect("create lib");
+    std::fs::write(dir.path().join("lib/main.dart"), "void main() {}\n").expect("write dart file");
+    std::fs::write(
+        dir.path().join("falcon.yaml"),
+        r#"
+rules: []
+ai:
+  enabled: false
+  provider: openai
+"#,
+    )
+    .expect("write falcon config");
+
+    let output = falcon_cmd()
+        .args([
+            "ai",
+            "triage",
+            dir.path().to_str().unwrap(),
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("run falcon ai triage");
+
+    assert!(
+        output.status.success(),
+        "unexpected status {:?}\nstdout:\n{}\nstderr:\n{}",
+        output.status.code(),
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("ensuring embedded model"),
+        "stderr:\n{stderr}"
+    );
+
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|err| {
+        panic!(
+            "invalid triage json: {err}\nstdout:\n{}",
+            String::from_utf8_lossy(&output.stdout)
+        )
+    });
+    assert_eq!(json["triaged"], 0);
+}
+
+#[test]
+#[cfg(feature = "ai-local")]
 #[ignore = "downloads the embedded model/tokenizer and runs local inference"]
 fn ai_triage_ai_local_json_runs_with_embedded_engine() {
     let dir = tempfile::tempdir().expect("temp project");
