@@ -27,6 +27,7 @@
   ],
   "activationEvents": [
     "onLanguage:dart",
+    "onChatParticipant:falcon.chat",
     "workspaceContains:**/pubspec.yaml"
   ],
   "main": "./out/extension.js",
@@ -111,6 +112,25 @@
       {
         "command": "falcon.showOutput",
         "title": "Falcon: Show Output"
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "falcon.chat",
+        "name": "falcon",
+        "fullName": "Falcon",
+        "description": "Ask Falcon about local score changes and lint rules.",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "score",
+            "description": "Explain the current Falcon score delta."
+          },
+          {
+            "name": "explain",
+            "description": "Explain a Falcon rule by id."
+          }
+        ]
       }
     ]
   },

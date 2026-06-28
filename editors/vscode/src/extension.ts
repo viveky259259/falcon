@@ -6,6 +6,7 @@ import {
   ServerOptions,
   TransportKind,
 } from "vscode-languageclient/node";
+import { registerFalconChatParticipant } from "./chatParticipant";
 import { buildHandleDiagnosticsMiddleware } from "./diagnosticsMiddleware";
 import { ScoreLensProvider } from "./scoreLens";
 
@@ -30,6 +31,8 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(statusBarItem);
 
   startServer(context);
+  registerFalconChatParticipant(context, outputChannel);
+
   const scoreLensProvider = new ScoreLensProvider(context, outputChannel);
   context.subscriptions.push(
     vscode.languages.registerCodeLensProvider(

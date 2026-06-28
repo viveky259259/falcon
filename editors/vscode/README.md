@@ -13,6 +13,7 @@ Real-time diagnostics, quick fixes, and AI-powered code quality.
 - **19 metrics** — complexity, coupling, cohesion, and more
 - **Status bar** — issue counts at a glance
 - **Score lens** — file-header Falcon score with delta from previous save
+- **Chat participant** — ask `@falcon` about score drops and rule explanations
 
 ## Requirements
 

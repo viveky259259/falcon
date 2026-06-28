@@ -37,6 +37,7 @@ exports.activate = activate;
 exports.deactivate = deactivate;
 const vscode = __importStar(require("vscode"));
 const node_1 = require("vscode-languageclient/node");
+const chatParticipant_1 = require("./chatParticipant");
 const diagnosticsMiddleware_1 = require("./diagnosticsMiddleware");
 const scoreLens_1 = require("./scoreLens");
 let client;
@@ -53,6 +54,7 @@ function activate(context) {
     statusBarItem.command = "falcon.showOutput";
     context.subscriptions.push(statusBarItem);
     startServer(context);
+    (0, chatParticipant_1.registerFalconChatParticipant)(context, outputChannel);
     const scoreLensProvider = new scoreLens_1.ScoreLensProvider(context, outputChannel);
     context.subscriptions.push(vscode.languages.registerCodeLensProvider({ scheme: "file", language: "dart" }, scoreLensProvider));
     context.subscriptions.push(vscode.commands.registerCommand("falcon.analyzeWorkspace", () => {
