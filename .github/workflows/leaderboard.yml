@@ -1,0 +1,99 @@
+name: Pub.dev Leaderboard
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Number of packages to score"
+        required: false
+        default: "500"
+      candidate_limit:
+        description: "Number of ranked pub.dev package names to consider"
+        required: false
+        default: "5000"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  build:
+    name: Rebuild leaderboard
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Cache cargo and pub artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+            target/leaderboard/pub-cache/
+          key: ${{ runner.os }}-leaderboard-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-leaderboard-
+
+      - name: Build Falcon
+        run: cargo build --release --bin falcon
+
+      - name: Generate leaderboard
+        env:
+          INPUT_LIMIT: ${{ github.event.inputs.limit }}
+          INPUT_CANDIDATE_LIMIT: ${{ github.event.inputs.candidate_limit }}
+        run: |
+          set -euo pipefail
+          limit="${INPUT_LIMIT:-500}"
+          candidate_limit="${INPUT_CANDIDATE_LIMIT:-5000}"
+          python3 scripts/leaderboard/build_pubdev_leaderboard.py \
+            --falcon-bin target/release/falcon \
+            --limit "${limit}" \
+            --candidate-limit "${candidate_limit}" \
+            --opt-out-file docs/leaderboard-opt-outs.txt \
+            --workdir target/leaderboard \
+            --manifest target/leaderboard/leaderboard-input.json \
+            --site-output site/leaderboard
+
+      - name: Copy docs into site
+        run: |
+          rm -rf site/docs
+          cp -r docs site/docs
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

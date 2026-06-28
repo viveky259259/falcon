@@ -1,0 +1,2 @@
+# Package names listed here are excluded from the weekly pub.dev leaderboard.
+# Add one package name per line after maintainer ownership has been verified.
