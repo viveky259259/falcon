@@ -64,7 +64,7 @@ impl Rule for AvoidPublicNotifierProperties {
                                                     && id
                                                         .chars()
                                                         .next()
-                                                        .map_or(false, |c| c.is_lowercase())
+                                                        .is_some_and(|c| c.is_lowercase())
                                                 {
                                                     issues.push(Issue {
                                                         rule: self.name().to_string(),

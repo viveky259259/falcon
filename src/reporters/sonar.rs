@@ -55,12 +55,8 @@ fn sonar_severity(severity: &Severity) -> &'static str {
     }
 }
 
-fn sonar_type(rule: &str) -> &'static str {
-    if rule.starts_with("unused-") || rule.starts_with("metrics/") {
-        "CODE_SMELL"
-    } else {
-        "CODE_SMELL"
-    }
+fn sonar_type(_rule: &str) -> &'static str {
+    "CODE_SMELL"
 }
 
 fn output_sonar(sonar: &Value, output_path: &Option<PathBuf>) {

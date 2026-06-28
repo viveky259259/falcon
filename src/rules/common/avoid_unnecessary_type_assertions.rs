@@ -28,33 +28,30 @@ impl Rule for AvoidUnnecessaryTypeAssertions {
         walk_tree(root, &mut |node| {
             let text = &source[node.byte_range()];
 
-            if node.kind() == "is_operator"
-                || (node.kind() == "binary_expression" && text.contains(" is "))
+            if (node.kind() == "is_operator"
+                || (node.kind() == "binary_expression" && text.contains(" is ")))
+                && (text.ends_with("Object") || text.ends_with("dynamic"))
             {
-                if text.ends_with("Object") || text.ends_with("dynamic") {
-                    issues.push(Issue {
-                        rule: self.name().to_string(),
-                        message: "Unnecessary type check. Every non-null value is an Object."
-                            .to_string(),
-                        severity: self.default_severity(),
-                        file: file.to_path_buf(),
-                        line: node_start_line(node),
-                        column: node.start_position().column + 1,
-                    });
-                }
+                issues.push(Issue {
+                    rule: self.name().to_string(),
+                    message: "Unnecessary type check. Every non-null value is an Object."
+                        .to_string(),
+                    severity: self.default_severity(),
+                    file: file.to_path_buf(),
+                    line: node_start_line(node),
+                    column: node.start_position().column + 1,
+                });
             }
 
-            if node.kind() == "as_expression" {
-                if text.ends_with("dynamic") {
-                    issues.push(Issue {
-                        rule: self.name().to_string(),
-                        message: "Unnecessary cast to dynamic.".to_string(),
-                        severity: self.default_severity(),
-                        file: file.to_path_buf(),
-                        line: node_start_line(node),
-                        column: node.start_position().column + 1,
-                    });
-                }
+            if node.kind() == "as_expression" && text.ends_with("dynamic") {
+                issues.push(Issue {
+                    rule: self.name().to_string(),
+                    message: "Unnecessary cast to dynamic.".to_string(),
+                    severity: self.default_severity(),
+                    file: file.to_path_buf(),
+                    line: node_start_line(node),
+                    column: node.start_position().column + 1,
+                });
             }
         });
 

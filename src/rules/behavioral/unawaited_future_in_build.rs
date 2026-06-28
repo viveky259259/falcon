@@ -8,11 +8,10 @@
 //! throws.
 //!
 //! Conservative MVP — flag, inside a method named `build`, an
-//! `expression_statement` whose call:
-//!   * starts with `Future.delayed(`, `Future.wait(`, `Future.value(`,
-//!     `Future(`, OR
-//!   * contains a chained `.then(` / `.catchError(` / `.whenComplete(`,
-//! and is NOT prefixed with `await ` or wrapped in `unawaited(`.
+//! `expression_statement` whose call starts with `Future.delayed(`,
+//! `Future.wait(`, `Future.value(`, `Future(`, or contains a chained `.then(` /
+//! `.catchError(` / `.whenComplete(`. The call must not be prefixed with
+//! `await ` or wrapped in `unawaited(`.
 
 use crate::config::Severity;
 use crate::parser::node_start_line;

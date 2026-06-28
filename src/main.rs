@@ -14,6 +14,7 @@ use falcon::reporters::sarif::SarifReporter;
 use falcon::reporters::sonar::SonarReporter;
 use falcon::reporters::Reporter;
 use falcon::Falcon;
+use std::cmp::Reverse;
 use std::path::{Path, PathBuf};
 use std::process;
 
@@ -2248,7 +2249,7 @@ fn run(cli: Cli) -> Result<()> {
             no_monitor,
         } => {
             // Resolve output_dir relative to path when it is the default "."
-            let resolved_output = if output_dir == PathBuf::from(".") {
+            let resolved_output = if output_dir == Path::new(".") {
                 path.clone()
             } else {
                 output_dir
@@ -2825,7 +2826,7 @@ fn run(cli: Cli) -> Result<()> {
                     .iter()
                     .map(|(file, deps)| (deps.len(), file))
                     .collect();
-                stats.sort_by(|a, b| b.0.cmp(&a.0));
+                stats.sort_by_key(|(count, _)| Reverse(*count));
 
                 println!(
                     "  {} (by number of dependents):",
@@ -3169,7 +3170,7 @@ fn run(cli: Cli) -> Result<()> {
             for entry in walkdir::WalkDir::new(&path)
                 .into_iter()
                 .filter_map(|e| e.ok())
-                .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+                .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
                 .filter(|e| {
                     let rel = e.path().strip_prefix(&path).unwrap_or(e.path());
                     !exclude.iter().any(|p| p.matches_path(rel))
@@ -3237,7 +3238,7 @@ fn run(cli: Cli) -> Result<()> {
             for entry in walkdir::WalkDir::new(&path)
                 .into_iter()
                 .filter_map(|e| e.ok())
-                .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+                .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
                 .filter(|e| {
                     let rel = e.path().strip_prefix(&path).unwrap_or(e.path());
                     !exclude.iter().any(|p| p.matches_path(rel))
@@ -3281,7 +3282,7 @@ fn run(cli: Cli) -> Result<()> {
             for entry in walkdir::WalkDir::new(&path)
                 .into_iter()
                 .filter_map(|e| e.ok())
-                .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+                .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
                 .filter(|e| {
                     let rel = e.path().strip_prefix(&path).unwrap_or(e.path());
                     !exclude.iter().any(|p| p.matches_path(rel))
@@ -3403,9 +3404,7 @@ fn run(cli: Cli) -> Result<()> {
             PluginAction::List => {
                 let plugin_dir = get_plugin_dir();
                 let plugins = falcon::plugins::scaffold::list_plugins(&plugin_dir)?;
-                falcon::plugins::scaffold::print_plugins(
-                    &plugins.iter().map(|m| m.clone()).collect::<Vec<_>>(),
-                );
+                falcon::plugins::scaffold::print_plugins(&plugins);
             }
             PluginAction::Install { path } => {
                 let plugin_dir = get_plugin_dir();
@@ -4869,24 +4868,24 @@ fn run_ai_triage(path: &Path, format: TriageOutputFormat) -> Result<()> {
     }
 }
 
-fn get_reporter(format: &OutputFormat, output: &PathBuf) -> Box<dyn Reporter> {
+fn get_reporter(format: &OutputFormat, output: &Path) -> Box<dyn Reporter> {
     match format {
         OutputFormat::Console => Box::new(ConsoleReporter),
         OutputFormat::Json => Box::new(JsonReporter),
         OutputFormat::Html => Box::new(HtmlReporter {
-            output_path: output.clone(),
+            output_path: output.to_path_buf(),
         }),
         OutputFormat::Sarif => Box::new(SarifReporter {
-            output_path: Some(output.clone()),
+            output_path: Some(output.to_path_buf()),
         }),
         OutputFormat::Codeclimate | OutputFormat::Gitlab => Box::new(CodeClimateReporter {
-            output_path: Some(output.clone()),
+            output_path: Some(output.to_path_buf()),
         }),
         OutputFormat::Checkstyle => Box::new(CheckstyleReporter {
-            output_path: Some(output.clone()),
+            output_path: Some(output.to_path_buf()),
         }),
         OutputFormat::Sonar => Box::new(SonarReporter {
-            output_path: Some(output.clone()),
+            output_path: Some(output.to_path_buf()),
         }),
     }
 }

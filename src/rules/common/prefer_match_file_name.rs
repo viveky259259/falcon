@@ -34,7 +34,7 @@ impl Rule for PreferMatchFileName {
         let classes = find_descendants_by_kind(root, "class_declaration");
         let enums = find_descendants_by_kind(root, "enum_declaration");
 
-        let all_decls: Vec<Node> = classes.into_iter().chain(enums.into_iter()).collect();
+        let all_decls: Vec<Node> = classes.into_iter().chain(enums).collect();
 
         if all_decls.len() == 1 {
             let decl = all_decls[0];

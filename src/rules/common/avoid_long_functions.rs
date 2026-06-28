@@ -43,7 +43,7 @@ impl Rule for AvoidLongFunctions {
         let functions = find_descendants_by_kind(root, "function_signature");
         let methods = find_descendants_by_kind(root, "method_signature");
 
-        for node in functions.into_iter().chain(methods.into_iter()) {
+        for node in functions.into_iter().chain(methods) {
             if let Some(parent) = node.parent() {
                 let text = &source[parent.byte_range()];
                 let line_count = text.lines().count() as u32;
