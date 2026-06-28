@@ -117,17 +117,17 @@ impl RuleRegistry {
             Box::new(flutter::EnsureImageSemantics),
             Box::new(flutter::EnsureTouchTargetSize),
             // Behavioral rule pack (PR-F) — 6 implemented; richer provider/import resolution remains EPIC 3.1 work.
-            Box::new(behavioral::SetStateAfterDispose::default()),
-            Box::new(behavioral::UnawaitedFutureInBuild::default()),
-            Box::new(behavioral::FakeMountedCheck::default()),
-            Box::new(behavioral::SilentCatch::default()),
-            Box::new(behavioral::RiverpodScopeLeak::default()),
-            Box::new(behavioral::DisposeNotCalled::default()),
+            Box::new(behavioral::SetStateAfterDispose),
+            Box::new(behavioral::UnawaitedFutureInBuild),
+            Box::new(behavioral::FakeMountedCheck),
+            Box::new(behavioral::SilentCatch),
+            Box::new(behavioral::RiverpodScopeLeak),
+            Box::new(behavioral::DisposeNotCalled),
         ];
 
         for mut rule in all_rules {
             if let Some((severity, options)) = configured_rules.get(rule.name()) {
-                rule.configure(&options);
+                rule.configure(options);
                 self.rules.push((rule, *severity));
             }
         }
@@ -165,6 +165,12 @@ impl RuleRegistry {
         }
 
         issues
+    }
+}
+
+impl Default for RuleRegistry {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
