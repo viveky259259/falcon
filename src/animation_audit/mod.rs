@@ -75,7 +75,7 @@ pub fn audit_animations(path: &Path) -> Result<AnimationAuditReport> {
         .filter(|e| e.file_type().is_file())
     {
         let path = entry.path();
-        if !path.extension().map_or(false, |ext| ext == "dart") {
+        if path.extension().is_none_or(|ext| ext != "dart") {
             continue;
         }
 
@@ -159,7 +159,7 @@ fn check_missing_disposal(path: &Path, lines: &[&str]) -> Vec<AnimationIssue> {
                 let class_code: String = lines[class_start..=class_end]
                     .iter()
                     .filter(|l| !l.trim().starts_with("//"))
-                    .map(|l| *l)
+                    .copied()
                     .collect::<Vec<_>>()
                     .join("\n");
                 // Flag only when there is NO dispose() call at all in the class
@@ -442,8 +442,8 @@ fn find_class_end(lines: &[&str], from_idx: usize) -> Option<usize> {
     let mut brace_count = 0;
     let mut found_opening = false;
 
-    for i in from_idx..lines.len() {
-        for ch in lines[i].chars() {
+    for (i, line) in lines.iter().enumerate().skip(from_idx) {
+        for ch in line.chars() {
             if ch == '{' {
                 found_opening = true;
                 brace_count += 1;
@@ -459,20 +459,15 @@ fn find_class_end(lines: &[&str], from_idx: usize) -> Option<usize> {
 }
 
 fn find_builder_start(lines: &[&str], from_idx: usize) -> Option<usize> {
-    for i in from_idx..lines.len().min(from_idx + 20) {
-        if lines[i].contains("builder:") {
-            return Some(i);
-        }
-    }
-    None
+    (from_idx..lines.len().min(from_idx + 20)).find(|&i| lines[i].contains("builder:"))
 }
 
 fn find_builder_end(lines: &[&str], from_idx: usize) -> Option<usize> {
     let mut paren_count = 0;
     let mut found_opening = false;
 
-    for i in from_idx..lines.len() {
-        for ch in lines[i].chars() {
+    for (i, line) in lines.iter().enumerate().skip(from_idx) {
+        for ch in line.chars() {
             if ch == '(' {
                 found_opening = true;
                 paren_count += 1;

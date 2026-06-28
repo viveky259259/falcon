@@ -131,7 +131,7 @@ fn parse_arb_file(path: &Path) -> Result<ArbFile> {
     // Extract locale from filename (e.g., "app_en.arb" -> "en")
     let filename = path.file_stem().unwrap_or_default().to_string_lossy();
     let locale = if filename.contains('_') {
-        filename.split('_').last().unwrap_or("unknown").to_string()
+        filename.rsplit('_').next().unwrap_or("unknown").to_string()
     } else {
         "base".to_string()
     };
@@ -255,17 +255,17 @@ fn find_keys_in_content(content: &str, used_keys: &mut HashSet<String>) {
         // Look for patterns like ".keyName" or ".l10n.keyName"
         if (i == 0 || chars[i - 1] == '.' || chars[i - 1] == '?' || chars[i - 1] == ')')
             && chars[i] == '.'
+            && i + 1 < len
+            && (chars[i + 1].is_alphabetic() || chars[i + 1] == '_')
         {
-            if i + 1 < len && (chars[i + 1].is_alphabetic() || chars[i + 1] == '_') {
-                let mut key = String::new();
-                let mut j = i + 1;
-                while j < len && (chars[j].is_alphanumeric() || chars[j] == '_') {
-                    key.push(chars[j]);
-                    j += 1;
-                }
-                if !key.is_empty() && key != "l10n" && key != "of" {
-                    used_keys.insert(key);
-                }
+            let mut key = String::new();
+            let mut j = i + 1;
+            while j < len && (chars[j].is_alphanumeric() || chars[j] == '_') {
+                key.push(chars[j]);
+                j += 1;
+            }
+            if !key.is_empty() && key != "l10n" && key != "of" {
+                used_keys.insert(key);
             }
         }
     }
@@ -496,12 +496,9 @@ pub fn print_l10n_report(report: &L10nCoverageReport) {
 
     // Header information
     println!(
-        "{}",
-        format!(
-            "Template Locale: {} | Keys: {}",
-            report.template_locale.cyan(),
-            report.template_key_count.to_string().yellow()
-        )
+        "Template Locale: {} | Keys: {}",
+        report.template_locale.cyan(),
+        report.template_key_count.to_string().yellow()
     );
     println!(
         "{}",
@@ -830,13 +827,13 @@ fn generate_html_report(report: &L10nCoverageReport) -> String {
     );
 
     // Header
-    html.push_str(&format!(
+    html.push_str(
         r#"        <div class="header">
             <h1>📋 Localization Coverage Report</h1>
             <p>Flutter/Dart Project Localization Analysis</p>
         </div>
-"#
-    ));
+"#,
+    );
 
     // Stats
     html.push_str(&format!(
