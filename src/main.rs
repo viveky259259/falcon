@@ -543,14 +543,6 @@ enum Commands {
         file: Option<PathBuf>,
     },
 
-    /// Analyze all packages in a monorepo workspace
-    #[command(name = "workspace", display_order = 8)]
-    Workspace {
-        /// Workspace root path
-        #[arg(default_value = ".")]
-        path: PathBuf,
-    },
-
     /// Validate falcon.yaml configuration
     #[command(display_order = 7)]
     Validate {
@@ -2930,12 +2922,6 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
-        Commands::Workspace { path } => {
-            let report = falcon::workspace::analyze_workspace(&path)?;
-            if report.total_errors > 0 {
-                process::exit(1);
-            }
-        }
         Commands::Validate { path } => {
             let errors = falcon::config::validator::validate_config(&path);
             falcon::config::validator::print_validation_results(&errors);
@@ -4633,7 +4619,13 @@ fn run(cli: Cli) -> Result<()> {
                     no_html,
                 },
                 XAction::DepGraph { path, file } => Commands::DepGraph { path, file },
-                XAction::Workspace { path } => Commands::Workspace { path },
+                XAction::Workspace { path } => {
+                    let report = falcon::workspace::analyze_workspace(&path)?;
+                    if report.total_errors > 0 {
+                        process::exit(1);
+                    }
+                    return Ok(());
+                }
                 XAction::Docs { output } => {
                     falcon::docs::generate_rule_docs(&output)?;
                     return Ok(());
