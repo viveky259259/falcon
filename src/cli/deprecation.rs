@@ -47,6 +47,14 @@ pub fn aliased_target(command: &str) -> Option<&'static str> {
         "compare-reports" => Some("x compare-reports"),
         "compare-branches" => Some("x compare-branches"),
         "history" => Some("x history"),
+        "baseline" => Some("x baseline"),
+        "validate" => Some("x validate"),
+        "explain" => Some("x explain"),
+        "preset" => Some("x preset"),
+        "rule-docs" => Some("x rule-docs"),
+        "stability-contract" => Some("x stability-contract"),
+        "deprecation-status" => Some("x deprecation-status"),
+        "suppress" => Some("x suppress"),
         "dashboard" => Some("x dashboard"),
         "trends" => Some("x trends"),
         "rule-impact" => Some("x rule-impact"),
@@ -142,6 +150,7 @@ mod tests {
         assert_eq!(aliased_target("ai-profile"), Some("x ai-profile"));
         assert_eq!(aliased_target("ai-report"), Some("x ai-report"));
         assert_eq!(aliased_target("asset-audit"), Some("x asset-audit"));
+        assert_eq!(aliased_target("baseline"), Some("x baseline"));
         assert_eq!(aliased_target("benchmark"), Some("x benchmark"));
         assert_eq!(aliased_target("benchmark-db"), Some("x benchmark-db"));
         assert_eq!(aliased_target("check-cycles"), Some("x check-cycles"));
@@ -186,23 +195,36 @@ mod tests {
             Some("x cognitive-complexity")
         );
         assert_eq!(aliased_target("dashboard"), Some("x dashboard"));
+        assert_eq!(
+            aliased_target("deprecation-status"),
+            Some("x deprecation-status")
+        );
         assert_eq!(aliased_target("discover-rules"), Some("x discover-rules"));
         assert_eq!(aliased_target("docs"), Some("x docs"));
         assert_eq!(aliased_target("drift"), Some("x drift"));
+        assert_eq!(aliased_target("explain"), Some("x explain"));
         assert_eq!(aliased_target("fix-track"), Some("x fix-track"));
         assert_eq!(aliased_target("history"), Some("x history"));
         assert_eq!(aliased_target("learn"), Some("x learn"));
         assert_eq!(aliased_target("metrics"), Some("x metrics"));
         assert_eq!(aliased_target("perf-track"), Some("x perf-track"));
         assert_eq!(aliased_target("predict"), Some("x predict"));
+        assert_eq!(aliased_target("preset"), Some("x preset"));
         assert_eq!(aliased_target("provenance"), Some("x provenance"));
+        assert_eq!(aliased_target("rule-docs"), Some("x rule-docs"));
         assert_eq!(aliased_target("rule-impact"), Some("x rule-impact"));
         assert_eq!(aliased_target("score-track"), Some("x score-track"));
         assert_eq!(aliased_target("self-tune"), Some("x self-tune"));
+        assert_eq!(
+            aliased_target("stability-contract"),
+            Some("x stability-contract")
+        );
         assert_eq!(aliased_target("smells"), Some("x smells"));
+        assert_eq!(aliased_target("suppress"), Some("x suppress"));
         assert_eq!(aliased_target("test-gen"), Some("x test-gen"));
         assert_eq!(aliased_target("trends"), Some("x trends"));
         assert_eq!(aliased_target("upgrade-check"), Some("x upgrade-check"));
+        assert_eq!(aliased_target("validate"), Some("x validate"));
     }
 
     #[test]

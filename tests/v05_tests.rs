@@ -342,12 +342,12 @@ fn test_rule_docs_generation() {
 
 #[test]
 fn test_new_command_count() {
-    // v0.3+v0.5 added: workspace, docs, validate, check-cycles,
+    // v0.3+v0.5 added: workspace, docs, x validate, check-cycles,
     // check-unused-params, check-dead-code, check-unused-l10n, check-promoted-deps
     let new_commands = [
         "workspace",
         "docs",
-        "validate",
+        "x validate",
         "check-cycles",
         "check-unused-params",
         "check-dead-code",

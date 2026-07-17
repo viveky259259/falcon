@@ -153,8 +153,8 @@ async function explainRule(
   response: vscode.ChatResponseStream,
   token: vscode.CancellationToken
 ) {
-  response.progress(`Running \`falcon explain ${rule}\`...`);
-  const text = await runFalconCommand(["explain", rule], token);
+  response.progress(`Running \`falcon x explain ${rule}\`...`);
+  const text = await runFalconCommand(["x", "explain", rule], token);
   const clean = stripAnsi(text).trim();
   if (!clean) {
     response.markdown(`Falcon did not return an explanation for \`${rule}\`.`);

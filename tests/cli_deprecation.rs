@@ -244,6 +244,30 @@ fn legacy_tracking_learning_commands_warn_and_show_help() {
 }
 
 #[test]
+fn legacy_config_rule_admin_commands_warn_and_show_help() {
+    let cases = [
+        ("baseline", "x baseline"),
+        ("validate", "x validate"),
+        ("explain", "x explain"),
+        ("preset", "x preset"),
+        ("rule-docs", "x rule-docs"),
+        ("stability-contract", "x stability-contract"),
+        ("deprecation-status", "x deprecation-status"),
+        ("suppress", "x suppress"),
+    ];
+
+    for (old, new) in cases {
+        let output = falcon_cmd()
+            .args([old, "--help"])
+            .output()
+            .expect("run falcon legacy config admin command help");
+
+        assert_success(&output);
+        assert_deprecation_warning(&output, old, new);
+    }
+}
+
+#[test]
 fn legacy_docs_command_warns_and_still_runs() {
     let temp = tempfile::tempdir().unwrap();
     let output_dir = temp.path().join("docs");
@@ -623,6 +647,30 @@ fn x_tracking_learning_commands_do_not_warn_on_help() {
             .args(["x", command, "--help"])
             .output()
             .expect("run falcon x tracking command help");
+
+        assert_success(&output);
+        assert_no_deprecation_warning(&output);
+    }
+}
+
+#[test]
+fn x_config_rule_admin_commands_do_not_warn_on_help() {
+    let cases = [
+        "baseline",
+        "validate",
+        "explain",
+        "preset",
+        "rule-docs",
+        "stability-contract",
+        "deprecation-status",
+        "suppress",
+    ];
+
+    for command in cases {
+        let output = falcon_cmd()
+            .args(["x", command, "--help"])
+            .output()
+            .expect("run falcon x config admin command help");
 
         assert_success(&output);
         assert_no_deprecation_warning(&output);

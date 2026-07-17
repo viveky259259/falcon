@@ -39,6 +39,14 @@ Falcon is moving to a compact top-level CLI before 1.0:
 | `falcon history .` | `falcon x history .` |
 | `falcon compare-reports . --run1 1 --run2 3` | `falcon x compare-reports . --run1 1 --run2 3` |
 | `falcon compare-branches . --base main --branch feature` | `falcon x compare-branches . --base main --branch feature` |
+| `falcon baseline create .` | `falcon x baseline create .` |
+| `falcon validate .` | `falcon x validate .` |
+| `falcon explain <rule>` | `falcon x explain <rule>` |
+| `falcon preset list` | `falcon x preset list` |
+| `falcon rule-docs --format markdown` | `falcon x rule-docs --format markdown` |
+| `falcon stability-contract` | `falcon x stability-contract` |
+| `falcon deprecation-status` | `falcon x deprecation-status` |
+| `falcon suppress list .` | `falcon x suppress list .` |
 | `falcon dashboard snapshot` | `falcon x dashboard snapshot` |
 | `falcon dashboard history` | `falcon x dashboard history` |
 | `falcon dashboard serve` | `falcon x dashboard serve` |

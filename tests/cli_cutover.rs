@@ -47,6 +47,14 @@ fn default_help_lists_only_cutover_verbs() {
         "compare-reports",
         "compare-branches",
         "history",
+        "baseline",
+        "validate",
+        "explain",
+        "preset",
+        "rule-docs",
+        "stability-contract",
+        "deprecation-status",
+        "suppress",
         "dashboard",
         "trends",
         "rule-impact",
@@ -287,6 +295,32 @@ fn x_help_lists_tracking_learning_commands() {
         "fix-track",
         "self-tune",
         "learn",
+    ] {
+        assert!(
+            stdout.contains(command),
+            "missing x {command} command in help:\n{stdout}"
+        );
+    }
+}
+
+#[test]
+fn x_help_lists_config_rule_admin_commands() {
+    let output = falcon_cmd()
+        .args(["x", "--help"])
+        .output()
+        .expect("run falcon x --help");
+
+    assert_success(&output);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for command in [
+        "baseline",
+        "validate",
+        "explain",
+        "preset",
+        "rule-docs",
+        "stability-contract",
+        "deprecation-status",
+        "suppress",
     ] {
         assert!(
             stdout.contains(command),

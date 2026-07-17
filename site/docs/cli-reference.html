@@ -120,7 +120,7 @@
                 <tbody>
                     <tr><td><code>fix</code></td><td>Auto-fix safe issues</td><td><code>--dry-run</code>, <code>--rules</code></td></tr>
                     <tr><td><code>review</code></td><td>Review code changes (diff-aware)</td><td><code>--base</code>, <code>--head</code></td></tr>
-                    <tr><td><code>explain</code></td><td>Explain why a rule fired</td><td><code>--rule</code>, <code>--file</code></td></tr>
+                    <tr><td><code>x explain</code></td><td>Explain why a rule fired</td><td><code>--rule</code>, <code>--file</code></td></tr>
                     <tr><td><code>x codebase-intel</code></td><td>Query codebase with natural language</td><td><code>--query</code>, <code>--format</code></td></tr>
                 </tbody>
             </table>
@@ -158,12 +158,12 @@
                 </thead>
                 <tbody>
                     <tr><td><code>init</code></td><td>Initialize Falcon config in project</td><td><code>--force</code>, <code>--preset</code></td></tr>
-                    <tr><td><code>validate</code></td><td>Validate falcon.yaml and config</td><td><code>--strict</code></td></tr>
+                    <tr><td><code>x validate</code></td><td>Validate falcon.yaml and config</td><td><code>--strict</code></td></tr>
                     <tr><td><code>watch</code></td><td>Watch mode — re-run on file changes</td><td><code>--debounce</code>, <code>--command</code></td></tr>
-                    <tr><td><code>baseline</code></td><td>Create or update baseline</td><td><code>--create</code>, <code>--update</code></td></tr>
-                    <tr><td><code>dep-graph</code></td><td>Generate dependency graph</td><td><code>--format</code>, <code>--output</code></td></tr>
-                    <tr><td><code>workspace</code></td><td>Multi-package workspace support</td><td><code>--packages</code>, <code>--all</code></td></tr>
-                    <tr><td><code>docs</code></td><td>Generate or serve documentation</td><td><code>--serve</code>, <code>--output</code></td></tr>
+                    <tr><td><code>x baseline</code></td><td>Create or update baseline</td><td><code>create</code></td></tr>
+                    <tr><td><code>x dep-graph</code></td><td>Generate dependency graph</td><td><code>--file</code></td></tr>
+                    <tr><td><code>x workspace</code></td><td>Multi-package workspace support</td><td><code>[path]</code></td></tr>
+                    <tr><td><code>x docs</code></td><td>Generate documentation</td><td><code>[output]</code></td></tr>
                 </tbody>
             </table>
 
@@ -174,8 +174,8 @@
                 </thead>
                 <tbody>
                     <tr><td><code>plugin</code></td><td>Plugin management (create, list, install, search, test)</td><td><code>create</code>, <code>list</code>, <code>install</code>, <code>search</code>, <code>test</code></td></tr>
-                    <tr><td><code>preset</code></td><td>Preset management (list, show, apply)</td><td><code>list</code>, <code>show</code>, <code>apply</code></td></tr>
-                    <tr><td><code>rule-docs</code></td><td>Generate rule documentation</td><td><code>--output</code>, <code>--format</code></td></tr>
+                    <tr><td><code>x preset</code></td><td>Preset management (list, show, apply)</td><td><code>list</code>, <code>show</code>, <code>apply</code></td></tr>
+                    <tr><td><code>x rule-docs</code></td><td>Generate rule documentation</td><td><code>--output</code>, <code>--format</code></td></tr>
                     <tr><td><code>showcase</code></td><td>Showcase rule examples</td><td><code>--rule</code>, <code>--interactive</code></td></tr>
                 </tbody>
             </table>
@@ -188,7 +188,7 @@
                 <tbody>
                     <tr><td><code>x learn</code></td><td>Learn patterns from codebase</td><td><code>--output</code>, <code>--min-support</code></td></tr>
                     <tr><td><code>x fix-track</code></td><td>Track fix history and effectiveness</td><td><code>--since</code>, <code>--report</code></td></tr>
-                    <tr><td><code>suppress</code></td><td>Manage suppressions</td><td><code>--add</code>, <code>--list</code>, <code>--remove</code></td></tr>
+                    <tr><td><code>x suppress</code></td><td>Manage suppressions</td><td><code>add</code>, <code>stats</code>, <code>list</code></td></tr>
                     <tr><td><code>community</code></td><td>Community rules and contributions</td><td><code>--list</code>, <code>--install</code></td></tr>
                     <tr><td><code>export</code></td><td>Export analysis data</td><td><code>--format</code>, <code>--output</code></td></tr>
                 </tbody>

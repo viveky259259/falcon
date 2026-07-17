@@ -197,7 +197,7 @@ is money saved — and Falcon does it for free.
 - [x] Watch mode for continuous analysis (`falcon watch`)
 
 ### Baseline Support (moved from v0.4 → here for CI)
-- [x] Baseline file management (`falcon baseline create`)
+- [x] Baseline file management (`falcon x baseline create`)
 - [x] Only report NEW violations mode (`--baseline`)
 - [x] Baseline diff for PRs (new issues introduced in this PR)
 - [x] `--exclude-public-api` flag
@@ -274,10 +274,10 @@ features are off by default.
 | Context-aware fix generation (LLM) | M | Matches codebase naming conventions |
 | "Existing constant available" detection | M | For magic numbers — find the constant that already exists |
 | `falcon fix --preview` | M | Batch auto-fix with diff preview |
-| `falcon explain <rule>` | M | AI-generated contextual explanation of any violation |
+| `falcon x explain <rule>` | M | AI-generated contextual explanation of any violation |
 
 **Exit criteria**: Dead code confidence scores match manual review 90%+ of
-the time. `falcon explain` produces useful, contextual explanations — not
+the time. `falcon x explain` produces useful, contextual explanations — not
 generic rule descriptions. False positive rate on magic numbers drops 60%+
 with context-aware mode.
 
@@ -471,9 +471,9 @@ Codebase intelligence produces actionable decomposition suggestions on 233-file 
 | Deliverable | Status |
 |---|---|
 | Shareable rule presets: recommended (14), strict (33), flutter (9), riverpod (8), bloc (8), performance (6) | ✅ |
-| `falcon preset list` | ✅ |
-| `falcon preset show <name>` | ✅ |
-| `falcon preset apply <name>` (writes to falcon.yaml) | ✅ |
+| `falcon x preset list` | ✅ |
+| `falcon x preset show <name>` | ✅ |
+| `falcon x preset apply <name>` (writes to falcon.yaml) | ✅ |
 | Plugin registry with search, ratings, downloads | ✅ |
 | Seeded registry (flutter-hooks, clean-arch, freezed, firebase, getx, accessibility) | ✅ |
 | Team configuration sharing (apply preset to falcon.yaml) | ✅ |
@@ -571,7 +571,7 @@ Prometheus export produces valid scrape-ready metrics.
 | ✅ `falcon migrate-from-dcm` | Done | Auto-converts DCM YAML config to falcon.yaml |
 | ✅ Rule name mapping (DCM → Falcon) | Done | 40 rules mapped with name translation |
 | ✅ Feature gap report | Done | `falcon feature-gap` lists all unmapped rules |
-| ✅ `falcon rule-docs` | Done | Console + Markdown rule reference generation |
+| ✅ `falcon x rule-docs` | Done | Console + Markdown rule reference generation |
 | ✅ Rule documentation generator | Done | Per-rule markdown files with config examples |
 | 🔜 Side-by-side comparison mode | Future | Run both, diff results |
 | 🔜 Comprehensive docs site (`falcon.dev`) | Future | Every rule, metric, config option |
@@ -649,12 +649,12 @@ Prometheus export produces valid scrape-ready metrics.
 > make Falcon a CI gate unless they trust it won't break their workflow.
 
 ### Stability & Predictability ✅
-- [x] `falcon stability-contract` — 6 guarantees covering config, naming, exit codes, formats, performance, behavior
+- [x] `falcon x stability-contract` — 6 guarantees covering config, naming, exit codes, formats, performance, behavior
 - [x] Rule deprecation policy — 4-stage process with 6-month notice period
 - [x] Migration policy — auto-migration, backwards-compatible configs, migration guides
-- [x] `falcon deprecation-status` — view currently deprecated rules (none yet)
+- [x] `falcon x deprecation-status` — view currently deprecated rules (none yet)
 - [x] `falcon x perf-track` — record & track performance over time with regression detection (>20% = alert)
-- [x] `falcon suppress` — false-positive database with categories (FP, won't-fix, acknowledged, deferred)
+- [x] `falcon x suppress` — false-positive database with categories (FP, won't-fix, acknowledged, deferred)
 - [x] Suppression statistics with per-rule breakdown and false-positive rate
 
 ### Community Ownership ✅

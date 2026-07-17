@@ -31,7 +31,7 @@ dimensions, and current contributors from the local score payload.
 The rule response runs:
 
 ```bash
-falcon explain <rule-id>
+falcon x explain <rule-id>
 ```
 
 and returns the local rule explanation as text.

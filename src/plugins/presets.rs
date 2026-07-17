@@ -225,8 +225,8 @@ pub fn print_presets(presets: &[RulePreset]) {
 
     println!();
     println!("  Usage:");
-    println!("    falcon preset apply recommended");
-    println!("    falcon preset show strict");
+    println!("    falcon x preset apply recommended");
+    println!("    falcon x preset show strict");
     println!();
 }
 

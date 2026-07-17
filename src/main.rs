@@ -67,7 +67,9 @@ SEMANTIC COMMAND GROUPS:
   Tracking          x dashboard, x trends, x rule-impact, x benchmark,
                     x benchmark-db, x score-track, x perf-track, x fix-track,
                     x self-tune, x learn
-  Configuration     init, validate, explain, preset, suppress, baseline
+  Configuration     init, x validate, x explain, x preset, x suppress,
+                    x baseline, x rule-docs, x stability-contract,
+                    x deprecation-status
   App Management    manage, review, watch, runtime-check, live, devtools, workspace
   Flutter Quality   asset-audit, theme-audit, l10n-coverage, deeplink-validate,
                     animation-audit, golden-gen
@@ -332,28 +334,6 @@ enum Commands {
         action: DevtoolsAction,
     },
 
-    /// Manage analysis baselines
-    #[command(display_order = 7)]
-    Baseline {
-        #[command(subcommand)]
-        action: BaselineAction,
-    },
-
-    /// Validate falcon.yaml configuration
-    #[command(display_order = 7)]
-    Validate {
-        /// Path containing falcon.yaml
-        #[arg(default_value = ".")]
-        path: PathBuf,
-    },
-
-    /// Explain a rule with examples and context
-    #[command(display_order = 7)]
-    Explain {
-        /// Rule name to explain (or 'list' to show all rules)
-        rule: String,
-    },
-
     /// AI configuration and tools
     #[command(name = "ai", display_order = 4)]
     Ai {
@@ -420,13 +400,6 @@ enum Commands {
         action: PluginAction,
     },
 
-    /// Rule presets (recommended, strict, flutter, riverpod, bloc, performance)
-    #[command(display_order = 7)]
-    Preset {
-        #[command(subcommand)]
-        action: PresetAction,
-    },
-
     /// Export metrics (prometheus, json, webhook)
     #[command(display_order = 5)]
     Export {
@@ -463,18 +436,6 @@ enum Commands {
     #[command(name = "feature-gap", display_order = 11)]
     FeatureGap,
 
-    /// Generate rule documentation
-    #[command(name = "rule-docs", display_order = 12)]
-    RuleDocs {
-        /// Output format (console or markdown)
-        #[arg(long, default_value = "console")]
-        format: DocFormat,
-
-        /// Output file for markdown format
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-    },
-
     /// Update Falcon to the latest or a specific version
     #[command(display_order = 11)]
     Update {
@@ -500,21 +461,6 @@ enum Commands {
         /// Output file for markdown format
         #[arg(short, long)]
         output: Option<PathBuf>,
-    },
-
-    /// Show Falcon's stability contract and guarantees
-    #[command(name = "stability-contract", display_order = 11)]
-    StabilityContract,
-
-    /// Show rule deprecation status
-    #[command(name = "deprecation-status", display_order = 11)]
-    DeprecationStatus,
-
-    /// Manage issue suppressions and false-positive tracking
-    #[command(display_order = 7)]
-    Suppress {
-        #[command(subcommand)]
-        action: SuppressAction,
     },
 
     /// Community features — rule requests, voting, contributed rules
@@ -1025,6 +971,62 @@ enum XAction {
         /// Path to project
         #[arg(default_value = ".")]
         path: PathBuf,
+    },
+
+    /// Manage analysis baselines
+    #[command(name = "baseline")]
+    Baseline {
+        #[command(subcommand)]
+        action: BaselineAction,
+    },
+
+    /// Validate falcon.yaml configuration
+    #[command(name = "validate")]
+    Validate {
+        /// Path containing falcon.yaml
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Explain a rule with examples and context
+    #[command(name = "explain")]
+    Explain {
+        /// Rule name to explain (or 'list' to show all rules)
+        rule: String,
+    },
+
+    /// Rule presets (recommended, strict, flutter, riverpod, bloc, performance)
+    #[command(name = "preset")]
+    Preset {
+        #[command(subcommand)]
+        action: PresetAction,
+    },
+
+    /// Generate rule documentation
+    #[command(name = "rule-docs")]
+    RuleDocs {
+        /// Output format (console or markdown)
+        #[arg(long, default_value = "console")]
+        format: DocFormat,
+
+        /// Output file for markdown format
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Show Falcon's stability contract and guarantees
+    #[command(name = "stability-contract")]
+    StabilityContract,
+
+    /// Show rule deprecation status
+    #[command(name = "deprecation-status")]
+    DeprecationStatus,
+
+    /// Manage issue suppressions and false-positive tracking
+    #[command(name = "suppress")]
+    Suppress {
+        #[command(subcommand)]
+        action: SuppressAction,
     },
 
     /// Dashboard and analytics
@@ -2685,6 +2687,175 @@ fn run_history(path: PathBuf) -> Result<()> {
     Ok(())
 }
 
+fn run_baseline(action: BaselineAction) -> Result<()> {
+    match action {
+        BaselineAction::Create { path, config } => {
+            let config_path = config.as_deref().unwrap_or(&path);
+            let falcon_config = FalconConfig::load(config_path)?;
+            let falcon = Falcon::new(falcon_config)?;
+            let report = falcon.analyze(&path)?;
+
+            let baseline_path = Baseline::create(&report.issues, &path)?;
+            println!(
+                "{} Baseline created with {} issues at {}",
+                "✓".green().bold(),
+                report.issues.len(),
+                baseline_path.display()
+            );
+        }
+    }
+
+    Ok(())
+}
+
+fn run_validate(path: PathBuf) {
+    let errors = falcon::config::validator::validate_config(&path);
+    falcon::config::validator::print_validation_results(&errors);
+    if errors.iter().any(|e| {
+        matches!(
+            e.severity,
+            falcon::config::validator::ConfigErrorSeverity::Error
+        )
+    }) {
+        process::exit(1);
+    }
+}
+
+fn run_explain(rule: String) {
+    if rule == "list" || rule == "all" {
+        falcon::ai::explain::list_all_rules();
+    } else if let Some(explanation) = falcon::ai::explain::explain_rule(&rule) {
+        falcon::ai::explain::print_explanation(&explanation);
+    } else {
+        eprintln!(
+            "{}: Unknown rule '{}'. Use 'falcon x explain list' to see all rules.",
+            "error".red(),
+            rule
+        );
+        process::exit(1);
+    }
+}
+
+fn run_preset(action: PresetAction) -> Result<()> {
+    match action {
+        PresetAction::List => {
+            let presets = falcon::plugins::presets::list_presets();
+            falcon::plugins::presets::print_presets(&presets);
+        }
+        PresetAction::Show { name } => match falcon::plugins::presets::get_preset(&name) {
+            Some(preset) => falcon::plugins::presets::print_preset_detail(&preset),
+            None => {
+                eprintln!("Unknown preset '{}'. Use: falcon x preset list", name);
+                process::exit(1);
+            }
+        },
+        PresetAction::Apply { name, path } => match falcon::plugins::presets::get_preset(&name) {
+            Some(preset) => falcon::plugins::presets::apply_preset(&preset, &path)?,
+            None => {
+                eprintln!("Unknown preset '{}'. Use: falcon x preset list", name);
+                process::exit(1);
+            }
+        },
+    }
+
+    Ok(())
+}
+
+fn run_rule_docs(format: DocFormat, output: Option<PathBuf>) -> Result<()> {
+    match format {
+        DocFormat::Console => {
+            let docs = falcon::docs::rule_docs::generate_rule_docs();
+            falcon::docs::rule_docs::print_rule_docs(&docs);
+        }
+        DocFormat::Markdown => {
+            let docs = falcon::docs::rule_docs::generate_rule_docs();
+            let md = falcon::docs::rule_docs::generate_markdown_docs(&docs);
+            match output {
+                Some(out) => {
+                    std::fs::write(&out, &md)?;
+                    println!(
+                        "  {} Rule docs written to {}",
+                        "✓".green().bold(),
+                        out.display()
+                    );
+                }
+                None => print!("{}", md),
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn run_stability_contract() {
+    let contract = falcon::stability::contract::StabilityContract::default();
+    falcon::stability::contract::print_stability_contract(&contract);
+}
+
+fn run_deprecation_status() {
+    falcon::stability::deprecation::print_deprecation_status();
+}
+
+fn run_suppress(action: SuppressAction) -> Result<()> {
+    match action {
+        SuppressAction::Add {
+            rule,
+            file,
+            line,
+            reason,
+            category,
+            path,
+        } => {
+            let cat = match category.as_str() {
+                "false-positive" | "fp" => {
+                    falcon::stability::suppression::SuppressionCategory::FalsePositive
+                }
+                "wont-fix" | "wf" => falcon::stability::suppression::SuppressionCategory::WontFix,
+                "acknowledged" | "ack" => {
+                    falcon::stability::suppression::SuppressionCategory::Acknowledged
+                }
+                "deferred" | "defer" => {
+                    falcon::stability::suppression::SuppressionCategory::Deferred
+                }
+                _ => {
+                    eprintln!(
+                        "Unknown category '{}'. Use: false-positive, wont-fix, acknowledged, deferred",
+                        category
+                    );
+                    process::exit(1);
+                }
+            };
+            falcon::stability::suppression::add_suppression(
+                &path,
+                &falcon::stability::suppression::SuppressionRequest {
+                    rule: &rule,
+                    file: &file,
+                    line,
+                    reason: &reason,
+                    category: cat,
+                },
+            )?;
+            println!(
+                "  {} Suppression added for '{}' in {}",
+                "✓".green().bold(),
+                rule,
+                file
+            );
+        }
+        SuppressAction::Stats { path } => {
+            let db = falcon::stability::suppression::load_suppressions(&path)?;
+            let stats = falcon::stability::suppression::suppression_stats(&db);
+            falcon::stability::suppression::print_suppression_stats(&stats);
+        }
+        SuppressAction::List { path } => {
+            let db = falcon::stability::suppression::load_suppressions(&path)?;
+            falcon::stability::suppression::print_suppression_list(&db);
+        }
+    }
+
+    Ok(())
+}
+
 fn run_dashboard(action: DashboardAction) -> Result<()> {
     match action {
         DashboardAction::Snapshot { path } => {
@@ -3554,48 +3725,6 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
-        Commands::Baseline { action } => match action {
-            BaselineAction::Create { path, config } => {
-                let config_path = config.as_deref().unwrap_or(&path);
-                let falcon_config = FalconConfig::load(config_path)?;
-                let falcon = Falcon::new(falcon_config)?;
-                let report = falcon.analyze(&path)?;
-
-                let baseline_path = Baseline::create(&report.issues, &path)?;
-                println!(
-                    "{} Baseline created with {} issues at {}",
-                    "✓".green().bold(),
-                    report.issues.len(),
-                    baseline_path.display()
-                );
-            }
-        },
-        Commands::Validate { path } => {
-            let errors = falcon::config::validator::validate_config(&path);
-            falcon::config::validator::print_validation_results(&errors);
-            if errors.iter().any(|e| {
-                matches!(
-                    e.severity,
-                    falcon::config::validator::ConfigErrorSeverity::Error
-                )
-            }) {
-                process::exit(1);
-            }
-        }
-        Commands::Explain { rule } => {
-            if rule == "list" || rule == "all" {
-                falcon::ai::explain::list_all_rules();
-            } else if let Some(explanation) = falcon::ai::explain::explain_rule(&rule) {
-                falcon::ai::explain::print_explanation(&explanation);
-            } else {
-                eprintln!(
-                    "{}: Unknown rule '{}'. Use 'falcon explain list' to see all rules.",
-                    "error".red(),
-                    rule
-                );
-                process::exit(1);
-            }
-        }
         Commands::Ai { action } => {
             match action {
                 AiAction::Setup { path } => {
@@ -3864,28 +3993,6 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         },
-        Commands::Preset { action } => match action {
-            PresetAction::List => {
-                let presets = falcon::plugins::presets::list_presets();
-                falcon::plugins::presets::print_presets(&presets);
-            }
-            PresetAction::Show { name } => match falcon::plugins::presets::get_preset(&name) {
-                Some(preset) => falcon::plugins::presets::print_preset_detail(&preset),
-                None => {
-                    eprintln!("Unknown preset '{}'. Use: falcon preset list", name);
-                    process::exit(1);
-                }
-            },
-            PresetAction::Apply { name, path } => {
-                match falcon::plugins::presets::get_preset(&name) {
-                    Some(preset) => falcon::plugins::presets::apply_preset(&preset, &path)?,
-                    None => {
-                        eprintln!("Unknown preset '{}'. Use: falcon preset list", name);
-                        process::exit(1);
-                    }
-                }
-            }
-        },
         Commands::Export {
             path,
             format,
@@ -3962,27 +4069,6 @@ fn run(cli: Cli) -> Result<()> {
             let report = falcon::migration::dcm::feature_gap_report();
             println!("{}", report);
         }
-        Commands::RuleDocs { format, output } => match format {
-            DocFormat::Console => {
-                let docs = falcon::docs::rule_docs::generate_rule_docs();
-                falcon::docs::rule_docs::print_rule_docs(&docs);
-            }
-            DocFormat::Markdown => {
-                let docs = falcon::docs::rule_docs::generate_rule_docs();
-                let md = falcon::docs::rule_docs::generate_markdown_docs(&docs);
-                match output {
-                    Some(out) => {
-                        std::fs::write(&out, &md)?;
-                        println!(
-                            "  {} Rule docs written to {}",
-                            "✓".green().bold(),
-                            out.display()
-                        );
-                    }
-                    None => print!("{}", md),
-                }
-            }
-        },
         Commands::Update { version, list } => {
             if list {
                 falcon::self_update::print_version_info();
@@ -4043,67 +4129,6 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
-        Commands::StabilityContract => {
-            let contract = falcon::stability::contract::StabilityContract::default();
-            falcon::stability::contract::print_stability_contract(&contract);
-        }
-        Commands::DeprecationStatus => {
-            falcon::stability::deprecation::print_deprecation_status();
-        }
-        Commands::Suppress { action } => match action {
-            SuppressAction::Add {
-                rule,
-                file,
-                line,
-                reason,
-                category,
-                path,
-            } => {
-                let cat = match category.as_str() {
-                    "false-positive" | "fp" => {
-                        falcon::stability::suppression::SuppressionCategory::FalsePositive
-                    }
-                    "wont-fix" | "wf" => {
-                        falcon::stability::suppression::SuppressionCategory::WontFix
-                    }
-                    "acknowledged" | "ack" => {
-                        falcon::stability::suppression::SuppressionCategory::Acknowledged
-                    }
-                    "deferred" | "defer" => {
-                        falcon::stability::suppression::SuppressionCategory::Deferred
-                    }
-                    _ => {
-                        eprintln!("Unknown category '{}'. Use: false-positive, wont-fix, acknowledged, deferred", category);
-                        process::exit(1);
-                    }
-                };
-                falcon::stability::suppression::add_suppression(
-                    &path,
-                    &falcon::stability::suppression::SuppressionRequest {
-                        rule: &rule,
-                        file: &file,
-                        line,
-                        reason: &reason,
-                        category: cat,
-                    },
-                )?;
-                println!(
-                    "  {} Suppression added for '{}' in {}",
-                    "✓".green().bold(),
-                    rule,
-                    file
-                );
-            }
-            SuppressAction::Stats { path } => {
-                let db = falcon::stability::suppression::load_suppressions(&path)?;
-                let stats = falcon::stability::suppression::suppression_stats(&db);
-                falcon::stability::suppression::print_suppression_stats(&stats);
-            }
-            SuppressAction::List { path } => {
-                let db = falcon::stability::suppression::load_suppressions(&path)?;
-                falcon::stability::suppression::print_suppression_list(&db);
-            }
-        },
         Commands::Manage { action } => match action {
             ManageAction::Health { path, json } => {
                 let report = falcon::manage::health::generate_health_report(&path)?;
@@ -4581,6 +4606,38 @@ fn run(cli: Cli) -> Result<()> {
                 }
                 XAction::History { path } => {
                     run_history(path)?;
+                    return Ok(());
+                }
+                XAction::Baseline { action } => {
+                    run_baseline(action)?;
+                    return Ok(());
+                }
+                XAction::Validate { path } => {
+                    run_validate(path);
+                    return Ok(());
+                }
+                XAction::Explain { rule } => {
+                    run_explain(rule);
+                    return Ok(());
+                }
+                XAction::Preset { action } => {
+                    run_preset(action)?;
+                    return Ok(());
+                }
+                XAction::RuleDocs { format, output } => {
+                    run_rule_docs(format, output)?;
+                    return Ok(());
+                }
+                XAction::StabilityContract => {
+                    run_stability_contract();
+                    return Ok(());
+                }
+                XAction::DeprecationStatus => {
+                    run_deprecation_status();
+                    return Ok(());
+                }
+                XAction::Suppress { action } => {
+                    run_suppress(action)?;
                     return Ok(());
                 }
                 XAction::Dashboard { action } => {
