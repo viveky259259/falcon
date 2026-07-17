@@ -102,7 +102,7 @@ This project uses **falcon** for AI-aware static analysis on top of
 falcon analyze .
 falcon x smells .               # categorized: dead code / code smells / security smells
 falcon x check-unused-files .
-falcon check-dead-code .
+falcon x check-dead-code .
 ```
 A non-zero `security smells` count blocks merge. Code smells are advisory.
 

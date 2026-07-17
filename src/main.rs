@@ -54,10 +54,11 @@ const GROUPED_HELP: &str = r#"
 SEMANTIC COMMAND GROUPS:
 
   Analysis          analyze, x metrics, score, cognitive-complexity, codebase-intel
-  Code Checks       check-unused-code, check-unused-files, check-cycles, check-async,
-                    check-widgets, check-dead-code, check-layers, check-imports,
-                    check-platform, check-codegen, check-perf, check-unused-params,
-                    check-unused-l10n, check-dependencies, check-promoted-deps
+  Code Checks       x check-unused-code, x check-unused-files, x check-dependencies,
+                    x check-cycles, x check-unused-params, x check-dead-code,
+                    x check-unused-l10n, x check-promoted-deps, check-async,
+                    check-widgets, check-layers, check-imports, check-platform,
+                    check-codegen, check-perf
   Comparison        compare-branches, compare-reports, compare, history
   AI Intelligence   score, ai-report, provenance, conventions, drift, predict,
                     discover-rules, refactor-sim, test-gen, vuln-scan
@@ -341,78 +342,6 @@ enum Commands {
         /// Path containing falcon.yaml
         #[arg(default_value = ".")]
         path: PathBuf,
-    },
-
-    /// Detect cyclic import dependencies
-    #[command(name = "check-cycles", display_order = 2)]
-    CheckCycles {
-        /// Path to analyze
-        #[arg(default_value = ".")]
-        path: PathBuf,
-    },
-
-    /// Detect unused method/function parameters
-    #[command(name = "check-unused-params", display_order = 2)]
-    CheckUnusedParams {
-        /// Path to analyze
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Output format
-        #[arg(short, long, default_value = "console")]
-        format: OutputFormat,
-
-        /// Output file path
-        #[arg(short, long, default_value = "falcon-report.html")]
-        output: PathBuf,
-    },
-
-    /// Detect dead code paths (unreachable code after return/throw)
-    #[command(name = "check-dead-code", display_order = 2)]
-    CheckDeadCode {
-        /// Path to analyze
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Output format
-        #[arg(short, long, default_value = "console")]
-        format: OutputFormat,
-
-        /// Output file path
-        #[arg(short, long, default_value = "falcon-report.html")]
-        output: PathBuf,
-    },
-
-    /// Detect unused localization keys in ARB files
-    #[command(name = "check-unused-l10n", display_order = 2)]
-    CheckUnusedL10n {
-        /// Path to analyze
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Output format
-        #[arg(short, long, default_value = "console")]
-        format: OutputFormat,
-
-        /// Output file path
-        #[arg(short, long, default_value = "falcon-report.html")]
-        output: PathBuf,
-    },
-
-    /// Detect over-promoted and under-promoted dependencies
-    #[command(name = "check-promoted-deps", display_order = 2)]
-    CheckPromotedDeps {
-        /// Path to analyze
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Output format
-        #[arg(short, long, default_value = "console")]
-        format: OutputFormat,
-
-        /// Output file path
-        #[arg(short, long, default_value = "falcon-report.html")]
-        output: PathBuf,
     },
 
     /// Explain a rule with examples and context
@@ -1150,6 +1079,78 @@ enum XAction {
         format: OutputFormat,
 
         /// Output file path (for file-based formats)
+        #[arg(short, long, default_value = "falcon-report.html")]
+        output: PathBuf,
+    },
+
+    /// Detect cyclic import dependencies
+    #[command(name = "check-cycles")]
+    CheckCycles {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Detect unused method/function parameters
+    #[command(name = "check-unused-params")]
+    CheckUnusedParams {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output format
+        #[arg(short, long, default_value = "console")]
+        format: OutputFormat,
+
+        /// Output file path
+        #[arg(short, long, default_value = "falcon-report.html")]
+        output: PathBuf,
+    },
+
+    /// Detect dead code paths (unreachable code after return/throw)
+    #[command(name = "check-dead-code")]
+    CheckDeadCode {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output format
+        #[arg(short, long, default_value = "console")]
+        format: OutputFormat,
+
+        /// Output file path
+        #[arg(short, long, default_value = "falcon-report.html")]
+        output: PathBuf,
+    },
+
+    /// Detect unused localization keys in ARB files
+    #[command(name = "check-unused-l10n")]
+    CheckUnusedL10n {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output format
+        #[arg(short, long, default_value = "console")]
+        format: OutputFormat,
+
+        /// Output file path
+        #[arg(short, long, default_value = "falcon-report.html")]
+        output: PathBuf,
+    },
+
+    /// Detect over-promoted and under-promoted dependencies
+    #[command(name = "check-promoted-deps")]
+    CheckPromotedDeps {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output format
+        #[arg(short, long, default_value = "console")]
+        format: OutputFormat,
+
+        /// Output file path
         #[arg(short, long, default_value = "falcon-report.html")]
         output: PathBuf,
     },
@@ -2147,6 +2148,75 @@ where
     Ok(())
 }
 
+fn run_excluded_issue_check<F>(
+    path: PathBuf,
+    format: OutputFormat,
+    output: PathBuf,
+    check: F,
+) -> Result<()>
+where
+    F: FnOnce(&Path, &[glob::Pattern]) -> Vec<falcon::reporters::Issue>,
+{
+    let config = FalconConfig::load(&path)?;
+    let exclude: Vec<glob::Pattern> = config
+        .exclude
+        .iter()
+        .filter_map(|p| glob::Pattern::new(p).ok())
+        .collect();
+
+    let issues = check(&path, &exclude);
+    report_issues_and_exit(format, output, issues);
+    Ok(())
+}
+
+fn run_path_issue_check<F>(path: PathBuf, format: OutputFormat, output: PathBuf, check: F)
+where
+    F: FnOnce(&Path) -> Vec<falcon::reporters::Issue>,
+{
+    let issues = check(&path);
+    report_issues_and_exit(format, output, issues);
+}
+
+fn report_issues_and_exit(
+    format: OutputFormat,
+    output: PathBuf,
+    issues: Vec<falcon::reporters::Issue>,
+) {
+    get_reporter(&format, &output).report_issues(&issues);
+
+    if !issues.is_empty() {
+        process::exit(1);
+    }
+}
+
+fn run_check_cycles(path: PathBuf) -> Result<()> {
+    let config = FalconConfig::load(&path)?;
+    let exclude: Vec<glob::Pattern> = config
+        .exclude
+        .iter()
+        .filter_map(|p| glob::Pattern::new(p).ok())
+        .collect();
+
+    let graph = DependencyGraph::build(&path, &exclude);
+    let (issues, cycles) = falcon::resolver::cyclic::detect_cycles(&graph, &path);
+
+    println!(
+        "{}",
+        falcon::resolver::cyclic::format_cycles(&cycles, &path)
+    );
+
+    if !issues.is_empty() {
+        println!(
+            "{} {} files involved in cycles",
+            "⚠".yellow().bold(),
+            issues.len()
+        );
+        process::exit(1);
+    }
+
+    Ok(())
+}
+
 fn run_refactor_sim(
     path: PathBuf,
     scenario: falcon::analysis::refactor_sim::RefactorScenario,
@@ -2796,100 +2866,6 @@ fn run(cli: Cli) -> Result<()> {
                     falcon::config::validator::ConfigErrorSeverity::Error
                 )
             }) {
-                process::exit(1);
-            }
-        }
-        Commands::CheckCycles { path } => {
-            let config = FalconConfig::load(&path)?;
-            let exclude: Vec<glob::Pattern> = config
-                .exclude
-                .iter()
-                .filter_map(|p| glob::Pattern::new(p).ok())
-                .collect();
-
-            let graph = DependencyGraph::build(&path, &exclude);
-            let (issues, cycles) = falcon::resolver::cyclic::detect_cycles(&graph, &path);
-
-            println!(
-                "{}",
-                falcon::resolver::cyclic::format_cycles(&cycles, &path)
-            );
-
-            if !issues.is_empty() {
-                println!(
-                    "{} {} files involved in cycles",
-                    "⚠".yellow().bold(),
-                    issues.len()
-                );
-                process::exit(1);
-            }
-        }
-        Commands::CheckUnusedParams {
-            path,
-            format,
-            output,
-        } => {
-            let config = FalconConfig::load(&path)?;
-            let exclude: Vec<glob::Pattern> = config
-                .exclude
-                .iter()
-                .filter_map(|p| glob::Pattern::new(p).ok())
-                .collect();
-
-            let issues = falcon::resolver::unused_params::detect_unused_params(&path, &exclude);
-            get_reporter(&format, &output).report_issues(&issues);
-
-            if !issues.is_empty() {
-                process::exit(1);
-            }
-        }
-        Commands::CheckDeadCode {
-            path,
-            format,
-            output,
-        } => {
-            let config = FalconConfig::load(&path)?;
-            let exclude: Vec<glob::Pattern> = config
-                .exclude
-                .iter()
-                .filter_map(|p| glob::Pattern::new(p).ok())
-                .collect();
-
-            let issues = falcon::resolver::dead_code::detect_dead_code(&path, &exclude);
-            get_reporter(&format, &output).report_issues(&issues);
-
-            if !issues.is_empty() {
-                process::exit(1);
-            }
-        }
-        Commands::CheckUnusedL10n {
-            path,
-            format,
-            output,
-        } => {
-            let config = FalconConfig::load(&path)?;
-            let exclude: Vec<glob::Pattern> = config
-                .exclude
-                .iter()
-                .filter_map(|p| glob::Pattern::new(p).ok())
-                .collect();
-
-            let issues = falcon::resolver::unused_l10n::detect_unused_l10n(&path, &exclude);
-            get_reporter(&format, &output).report_issues(&issues);
-
-            if !issues.is_empty() {
-                process::exit(1);
-            }
-        }
-        Commands::CheckPromotedDeps {
-            path,
-            format,
-            output,
-        } => {
-            let issues = falcon::resolver::cyclic::detect_promoted_deps(&path);
-            get_reporter(&format, &output).report_issues(&issues);
-
-            if !issues.is_empty() {
                 process::exit(1);
             }
         }
@@ -4399,6 +4375,62 @@ fn run(cli: Cli) -> Result<()> {
                     output,
                 } => {
                     run_issue_check(path, format, output, Falcon::check_dependencies)?;
+                    return Ok(());
+                }
+                XAction::CheckCycles { path } => {
+                    run_check_cycles(path)?;
+                    return Ok(());
+                }
+                XAction::CheckUnusedParams {
+                    path,
+                    format,
+                    output,
+                } => {
+                    run_excluded_issue_check(
+                        path,
+                        format,
+                        output,
+                        falcon::resolver::unused_params::detect_unused_params,
+                    )?;
+                    return Ok(());
+                }
+                XAction::CheckDeadCode {
+                    path,
+                    format,
+                    output,
+                } => {
+                    run_excluded_issue_check(
+                        path,
+                        format,
+                        output,
+                        falcon::resolver::dead_code::detect_dead_code,
+                    )?;
+                    return Ok(());
+                }
+                XAction::CheckUnusedL10n {
+                    path,
+                    format,
+                    output,
+                } => {
+                    run_excluded_issue_check(
+                        path,
+                        format,
+                        output,
+                        falcon::resolver::unused_l10n::detect_unused_l10n,
+                    )?;
+                    return Ok(());
+                }
+                XAction::CheckPromotedDeps {
+                    path,
+                    format,
+                    output,
+                } => {
+                    run_path_issue_check(
+                        path,
+                        format,
+                        output,
+                        falcon::resolver::cyclic::detect_promoted_deps,
+                    );
                     return Ok(());
                 }
                 XAction::Smells {

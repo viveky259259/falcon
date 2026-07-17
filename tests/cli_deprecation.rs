@@ -62,7 +62,7 @@ fn legacy_smells_command_warns_and_still_runs() {
 }
 
 #[test]
-fn legacy_check_trio_warns_and_still_runs() {
+fn legacy_moved_check_commands_warn_and_still_run() {
     let temp = tempfile::tempdir().unwrap();
     write_dart_project(temp.path());
     let root = temp.path().to_str().unwrap();
@@ -70,6 +70,11 @@ fn legacy_check_trio_warns_and_still_runs() {
         ("check-unused-code", "x check-unused-code"),
         ("check-unused-files", "x check-unused-files"),
         ("check-dependencies", "x check-dependencies"),
+        ("check-cycles", "x check-cycles"),
+        ("check-unused-params", "x check-unused-params"),
+        ("check-dead-code", "x check-dead-code"),
+        ("check-unused-l10n", "x check-unused-l10n"),
+        ("check-promoted-deps", "x check-promoted-deps"),
     ];
 
     for (old, new) in cases {
@@ -309,7 +314,7 @@ fn x_smells_command_does_not_warn() {
 }
 
 #[test]
-fn x_check_trio_does_not_warn() {
+fn x_moved_check_commands_do_not_warn() {
     let temp = tempfile::tempdir().unwrap();
     write_dart_project(temp.path());
     let root = temp.path().to_str().unwrap();
@@ -317,6 +322,11 @@ fn x_check_trio_does_not_warn() {
         "check-unused-code",
         "check-unused-files",
         "check-dependencies",
+        "check-cycles",
+        "check-unused-params",
+        "check-dead-code",
+        "check-unused-l10n",
+        "check-promoted-deps",
     ];
 
     for command in cases {

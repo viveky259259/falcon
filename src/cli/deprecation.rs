@@ -20,6 +20,11 @@ pub fn aliased_target(command: &str) -> Option<&'static str> {
         "check-unused-code" => Some("x check-unused-code"),
         "check-unused-files" => Some("x check-unused-files"),
         "check-dependencies" => Some("x check-dependencies"),
+        "check-cycles" => Some("x check-cycles"),
+        "check-unused-params" => Some("x check-unused-params"),
+        "check-dead-code" => Some("x check-dead-code"),
+        "check-unused-l10n" => Some("x check-unused-l10n"),
+        "check-promoted-deps" => Some("x check-promoted-deps"),
         "smells" => Some("x smells"),
         "metrics" => Some("x metrics"),
         "asset-audit" => Some("x asset-audit"),
@@ -103,9 +108,23 @@ mod tests {
     #[test]
     fn aliased_target_maps_moved_x_commands() {
         assert_eq!(aliased_target("asset-audit"), Some("x asset-audit"));
+        assert_eq!(aliased_target("check-cycles"), Some("x check-cycles"));
+        assert_eq!(aliased_target("check-dead-code"), Some("x check-dead-code"));
+        assert_eq!(
+            aliased_target("check-promoted-deps"),
+            Some("x check-promoted-deps")
+        );
         assert_eq!(
             aliased_target("check-unused-code"),
             Some("x check-unused-code")
+        );
+        assert_eq!(
+            aliased_target("check-unused-l10n"),
+            Some("x check-unused-l10n")
+        );
+        assert_eq!(
+            aliased_target("check-unused-params"),
+            Some("x check-unused-params")
         );
         assert_eq!(aliased_target("docs"), Some("x docs"));
         assert_eq!(aliased_target("metrics"), Some("x metrics"));

@@ -12,6 +12,11 @@ Falcon is moving to a compact top-level CLI before 1.0:
 | `falcon check-unused-code .` | `falcon x check-unused-code .` |
 | `falcon check-unused-files .` | `falcon x check-unused-files .` |
 | `falcon check-dependencies .` | `falcon x check-dependencies .` |
+| `falcon check-cycles .` | `falcon x check-cycles .` |
+| `falcon check-unused-params .` | `falcon x check-unused-params .` |
+| `falcon check-dead-code .` | `falcon x check-dead-code .` |
+| `falcon check-unused-l10n .` | `falcon x check-unused-l10n .` |
+| `falcon check-promoted-deps .` | `falcon x check-promoted-deps .` |
 | `falcon asset-audit .` | `falcon x asset-audit .` |
 | `falcon theme-audit .` | `falcon x theme-audit .` |
 | `falcon l10n-coverage .` | `falcon x l10n-coverage .` |

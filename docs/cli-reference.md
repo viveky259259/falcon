@@ -69,11 +69,11 @@ falcon score . --badge --json
 | `falcon x check-unused-code` | Unused code declarations |
 | `falcon x check-unused-files` | Unused Dart files |
 | `falcon x check-dependencies` | Unused pubspec.yaml dependencies |
-| `falcon check-cycles` | Cyclic import dependencies |
-| `falcon check-unused-params` | Unused function parameters |
-| `falcon check-dead-code` | Unreachable code after return/throw |
-| `falcon check-unused-l10n` | Unused localization keys |
-| `falcon check-promoted-deps` | Over/under-promoted dependencies |
+| `falcon x check-cycles` | Cyclic import dependencies |
+| `falcon x check-unused-params` | Unused function parameters |
+| `falcon x check-dead-code` | Unreachable code after return/throw |
+| `falcon x check-unused-l10n` | Unused localization keys |
+| `falcon x check-promoted-deps` | Over/under-promoted dependencies |
 | `falcon check-layers` | Clean architecture layer enforcement |
 | `falcon check-imports` | Import restriction rules |
 | `falcon check-widgets` | Widget rebuild issues and build method complexity |

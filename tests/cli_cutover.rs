@@ -20,6 +20,11 @@ fn default_help_lists_only_cutover_verbs() {
         "check-unused-code",
         "check-unused-files",
         "check-dependencies",
+        "check-cycles",
+        "check-unused-params",
+        "check-dead-code",
+        "check-unused-l10n",
+        "check-promoted-deps",
         "smells",
         "metrics",
         "asset-audit",
@@ -114,6 +119,11 @@ fn x_help_lists_moved_check_commands() {
         "check-unused-code",
         "check-unused-files",
         "check-dependencies",
+        "check-cycles",
+        "check-unused-params",
+        "check-dead-code",
+        "check-unused-l10n",
+        "check-promoted-deps",
     ] {
         assert!(
             stdout.contains(command),
