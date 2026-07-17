@@ -73,10 +73,10 @@ $ falcon score .
 | **61+ Rules** | `falcon check` | Flutter, BLoC, Riverpod, accessibility rules |
 | **MCP Server** | `falcon-mcp` | AI tools call Falcon during code generation |
 | **PR Comments** | `falcon review --format gh` | Generate GitHub-ready PR review markdown |
-| **Vulnerability** | `falcon vuln-scan` | Security radar with CWE classification |
+| **Vulnerability** | `falcon x vuln-scan` | Security radar with CWE classification |
 | **Risk Prediction** | `falcon x predict` | Predict production issues from patterns |
-| **Test Generation** | `falcon test-gen` | Generate test stubs from code analysis |
-| **Refactoring Sim** | `falcon refactor-sim` | "What if we migrate to Riverpod?" impact |
+| **Test Generation** | `falcon x test-gen` | Generate test stubs from code analysis |
+| **Refactoring Sim** | `falcon x refactor-sim` | "What if we migrate to Riverpod?" impact |
 | **Enterprise** | `falcon x enterprise` | Policies, audit logs, compliance |
 | **HTTP API** | `falcon x api` | REST API for integrations |
 

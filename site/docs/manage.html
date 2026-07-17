@@ -76,9 +76,9 @@
 
   ▸ Action Items (by priority)
     1. [Error Handling] Score 45/100 — empty catches, unawaited futures
-       Run: falcon analyze --preset ai-generated
+       Run: falcon check --preset ai-generated
     2. [Test Coverage] 8 test files for 120 source files
-       Run: falcon test-gen --write</code></pre>
+       Run: falcon x test-gen --write</code></pre>
 
             <h3>Dimension Weights</h3>
             <table>
@@ -168,11 +168,11 @@
   Est. savings:    ~3740 lines removable
 
   · [Dead Code] 216 unused declarations can be removed
-     Run: falcon check-unused-code
+     Run: falcon x check-unused-code
   · [Unused Files] 10 files not imported anywhere
-     Run: falcon check-unused-files
+     Run: falcon x check-unused-files
   · [Empty Catch Blocks] 12 silently swallowing errors
-     Run: falcon analyze --preset ai-generated
+     Run: falcon check --preset ai-generated
   ⚡ [Trailing Commas] 467 missing — auto-fixable
      Run: falcon fix</code></pre>
 
@@ -228,7 +228,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: cargo install --git https://github.com/viveky259259/falcon
       - run: falcon x manage health . --json > health.json
-      - run: falcon pr-comment .</code></pre>
+      - run: falcon review . --format gh</code></pre>
 
             <div class="callout">
                 <div class="callout-title">Tip</div>

@@ -118,7 +118,7 @@ command:
 
 scripts:
   analyze:
-    run: melos exec -- falcon analyze . --fail-on error
+    run: melos exec -- falcon check . --fail-on error
     description: Run Falcon on all packages
     
   test:
@@ -316,7 +316,7 @@ jobs:
       - run: |
           cd modules/${{ matrix.module }}
           flutter test --coverage
-          falcon analyze . --fail-on error
+          falcon check . --fail-on error
 
   test-shared:
     runs-on: ubuntu-latest
@@ -338,7 +338,7 @@ jobs:
           melos bootstrap
           cd apps/shell
           flutter build apk --release
-          falcon ai-score . --json > score.json
+          falcon score . --json > score.json
 ```
 
 ### 7. Team Ownership Model
@@ -354,7 +354,7 @@ Team Platform    → packages/* + apps/shell/ + tools/
 **Rules enforced by Falcon:**
 ```bash
 # Each team runs Falcon on their module
-falcon analyze modules/payments/ --fail-on error
+falcon check modules/payments/ --fail-on error
 falcon x manage arch modules/payments/  # No cross-module imports
 falcon x check-layers modules/payments/ # Clean Architecture enforced
 falcon x drift modules/payments/ --since main  # Convention adherence
@@ -409,7 +409,7 @@ exclude:
 # CI: Per-module quality gates
 for module in modules/*/; do
   echo "=== Analyzing $module ==="
-  falcon ai-score "$module"
+  falcon score "$module"
   falcon x manage deps "$module"
   falcon x check-layers "$module"
 done

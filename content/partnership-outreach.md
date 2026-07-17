@@ -87,7 +87,7 @@ I built **Falcon**, an open-source Rust-powered static analysis engine for Flutt
 **Integration options**:
 1. Copilot Extension that calls Falcon's HTTP API
 2. VS Code extension with our LSP server
-3. GitHub Actions with `falcon pr-comment` for PR analysis
+3. GitHub Actions with `falcon review --format gh` for PR analysis
 
 GitHub: https://github.com/viveky259259/falcon
 

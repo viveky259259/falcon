@@ -381,9 +381,9 @@ end
 
 ```bash
 # CI: Analyze Flutter module
-falcon analyze flutter_module/ --fail-on error
+falcon check flutter_module/ --fail-on error
 falcon x check-platform .  # Analyze Kotlin/Swift channel code
-falcon ai-score flutter_module/
+falcon score flutter_module/
 
 # Check channel consistency
 falcon x manage deps flutter_module/

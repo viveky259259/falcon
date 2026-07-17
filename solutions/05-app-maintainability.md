@@ -46,7 +46,7 @@ falcon x manage arch .
 falcon x manage maint .
 
 # 5. Security vulnerabilities
-falcon vuln-scan .
+falcon x vuln-scan .
 
 # 6. Production risk prediction
 falcon x predict .
@@ -58,7 +58,7 @@ falcon x upgrade-check .
 falcon x check-perf .
 
 # 9. Full AI code quality breakdown
-falcon ai-score .
+falcon score .
 
 # 10. Or run everything at once:
 falcon x manage all .
@@ -144,7 +144,7 @@ Priority order (fix in this sequence):
 
 ```bash
 # Find and fix security issues
-falcon vuln-scan .
+falcon x vuln-scan .
 
 # Critical fixes:
 # 1. Remove hardcoded credentials → use env vars or flutter_secure_storage
@@ -156,7 +156,7 @@ falcon vuln-scan .
 
 ```bash
 # Find crash-causing patterns
-falcon analyze --preset ai-generated .
+falcon check --preset ai-generated .
 
 # Critical fixes:
 # 1. Add try-catch to all network calls
@@ -196,12 +196,12 @@ jobs:
       
       - name: Quality Gate
         run: |
-          falcon analyze . --fail-on error
-          falcon vuln-scan .
-          falcon ai-score . --json > score.json
+          falcon check . --fail-on error
+          falcon x vuln-scan .
+          falcon score . --json > score.json
       
       - name: PR Comment
-        run: falcon pr-comment . --dry-run
+        run: falcon review . --format gh
       
       - name: Enterprise Policy Check
         run: falcon x enterprise check .
@@ -228,7 +228,7 @@ falcon x score-track . --history --last 4
 falcon x manage deps .
 
 # 3. New issues since last check
-falcon analyze . --since HEAD~7
+falcon check . --since HEAD~7
 
 # 4. Performance regression
 falcon x perf-track .
@@ -291,7 +291,7 @@ falcon x check-perf .
 falcon x predict .
 
 # 5. Test gap analysis
-falcon test-gen .  # Review, then --write if tests are useful
+falcon x test-gen .  # Review, then --write if tests are useful
 
 # 6. Trend report
 falcon x score-track . --history --last 12
@@ -333,7 +333,7 @@ dart format .
 
 ```bash
 # Before refactoring, simulate impact:
-falcon refactor-sim --scenario clean-architecture
+falcon x refactor-sim --scenario clean-architecture
 # Output: 120 files, 60 hours estimated
 
 # DON'T do it all at once. Instead:
@@ -347,7 +347,7 @@ falcon refactor-sim --scenario clean-architecture
 
 ```bash
 # Generate test stubs for untested code
-falcon test-gen . --write
+falcon x test-gen . --write
 
 # Focus testing on:
 # 1. Business logic (providers/blocs/services)
@@ -363,10 +363,10 @@ falcon test-gen . --write
 1. Reproduce the bug
 2. Write a failing test
 3. Fix the bug
-4. Run: falcon analyze . --since HEAD~1
+4. Run: falcon check . --since HEAD~1
 5. Run: falcon x predict .  (did we introduce new risks?)
 6. Commit with: git commit -m "fix: <description>"
-7. CI runs: falcon pr-comment posts analysis on PR
+7. CI runs: falcon review --format gh posts analysis on PR
 ```
 
 ### Dependency Update Workflow
@@ -385,7 +385,7 @@ falcon test-gen . --write
 ```
 1. Create branch: git checkout -b hotfix/<description>
 2. Make minimal fix
-3. Run: falcon analyze . --fail-on error
+3. Run: falcon check . --fail-on error
 4. Run: flutter test
 5. Merge to main + release
 6. Post-mortem: add test + falcon rule to prevent recurrence
@@ -396,7 +396,7 @@ falcon test-gen . --write
 ```bash
 # === Daily ===
 falcon x manage health .              # Quick health check
-falcon analyze . --since HEAD~1     # What changed today
+falcon check . --since HEAD~1     # What changed today
 
 # === Weekly ===
 falcon x score-track .              # Record score
@@ -409,7 +409,7 @@ falcon x ai-report . --format markdown --output report.md
 falcon x enterprise compliance --output compliance.md
 
 # === On Bug Fix ===
-falcon analyze . --fail-on error    # Check fix doesn't introduce issues
+falcon check . --fail-on error    # Check fix doesn't introduce issues
 falcon x predict .                 # Risk assessment
 
 # === On Dependency Update ===
@@ -417,7 +417,7 @@ falcon x upgrade-check .           # Deprecated APIs
 falcon x manage deps .               # Unused deps check
 
 # === On Refactoring ===
-falcon refactor-sim --scenario <x>  # Impact analysis
+falcon x refactor-sim --scenario <x>  # Impact analysis
 falcon x manage arch .               # Architecture compliance
 falcon x check-layers .            # Layer violations
 ```
@@ -431,7 +431,7 @@ falcon x check-layers .            # Layer violations
 | Health score trend | `falcon x score-track --history` | Improving or stable |
 | Crash rate | Production monitoring | < 0.1% |
 | Dependency freshness | `flutter pub outdated` | < 3 months behind |
-| Security vulnerabilities | `falcon vuln-scan` | Zero critical |
+| Security vulnerabilities | `falcon x vuln-scan` | Zero critical |
 | Test coverage | `flutter test --coverage` | > 40% (improving) |
 | Tech debt score | `falcon x manage maint` | > 60/100 |
 | CI pass rate | GitHub Actions history | > 95% |

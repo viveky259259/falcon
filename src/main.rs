@@ -1994,7 +1994,7 @@ fn handle_root_help(args: &[String]) -> bool {
     }
 
     match args[1].as_str() {
-        "--help" | "-h" => {
+        "--help" | "-h" | "help" => {
             print!("{}", CUTOVER_HELP);
             true
         }

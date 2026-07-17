@@ -299,7 +299,7 @@ jobs:
       - name: Falcon Quality Gate
         run: |
           cargo install --git https://github.com/viveky259259/falcon
-          falcon ai-score . --json > build/web/falcon-score.json
+          falcon score . --json > build/web/falcon-score.json
           
       - name: Deploy to Firebase/Vercel/Cloudflare
         run: firebase deploy --only hosting

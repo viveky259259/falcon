@@ -18,7 +18,7 @@
 - Report history with auto-save after every analysis
 - `falcon x history` to view stored runs
 - `falcon x compare-reports --run1 N --run2 M` for run comparison
-- Self-update: `falcon update` / `falcon update --version X`
+- Self-update: `falcon x update` / `falcon x update --version X`
 - Rich console icons for improved UX
 - 61+ lint rules, 470+ tests
 

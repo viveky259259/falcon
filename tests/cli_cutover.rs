@@ -6,7 +6,13 @@ fn default_help_lists_only_cutover_verbs() {
         .arg("--help")
         .output()
         .expect("run falcon --help");
+    assert_compact_root_help(output);
 
+    let output = falcon_cmd().arg("help").output().expect("run falcon help");
+    assert_compact_root_help(output);
+}
+
+fn assert_compact_root_help(output: Output) {
     assert_success(&output);
     let stdout = String::from_utf8_lossy(&output.stdout);
     for command in ["review", "check", "fix", "score", "x"] {

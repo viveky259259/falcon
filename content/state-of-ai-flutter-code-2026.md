@@ -28,7 +28,7 @@ This report presents the first systematic analysis of AI-generated Flutter code 
 cargo install --git https://github.com/viveky259259/falcon
 
 # Score any Flutter project
-falcon ai-score /path/to/your/flutter/app
+falcon score /path/to/your/flutter/app
 
 # Full report with provenance
 falcon x ai-report /path/to/your/flutter/app
@@ -122,8 +122,8 @@ navigateToNextScreen(); // Missing await!
 
 ### For developers using AI tools
 
-1. **Always run `falcon ai-score` after an AI coding session** — catch the patterns AI consistently misses
-2. **Use `falcon analyze --preset ai-generated`** — the preset targets the 20 most common AI code issues
+1. **Always run `falcon score` after an AI coding session** — catch the patterns AI consistently misses
+2. **Use `falcon check --preset ai-generated`** — the preset targets the 20 most common AI code issues
 3. **Check dispose lifecycle** — run `falcon x check-widgets` after generating StatefulWidgets
 4. **Never trust empty catch blocks** — search for `catch (e) {}` in AI-generated code
 
@@ -136,8 +136,8 @@ navigateToNextScreen(); // Missing await!
 
 ### For engineering leads
 
-1. **Add `falcon ai-score` to CI** — set a minimum score threshold (we recommend 70+)
-2. **Use `falcon pr-comment`** — automatic analysis on every PR
+1. **Add `falcon score` to CI** — set a minimum score threshold (we recommend 70+)
+2. **Use `falcon review --format gh`** — automatic analysis on every PR
 3. **Track score trends** — `falcon x score-track` shows quality trajectory over time
 4. **Set enterprise policies** — `falcon x enterprise check` enforces team standards
 

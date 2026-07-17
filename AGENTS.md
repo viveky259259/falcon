@@ -55,7 +55,7 @@ entry in `src/smells/mod.rs::classify` if the rule should be bucketed.
 
 ## Useful falcon-on-falcon commands
 ```
-falcon analyze .
-falcon smells .
+falcon check .
+falcon x smells .
 falcon x agents init           # regenerate this file
 ```

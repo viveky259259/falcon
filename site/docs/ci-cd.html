@@ -80,12 +80,12 @@
         run: cargo install --git https://github.com/viveky259259/falcon
 
       - name: Run Falcon analysis
-        run: falcon analyze . --fail-on error
+        run: falcon check . --fail-on error
 
       - name: Run AI score
         id: ai-score
         run: |
-          falcon ai-score . --json > score.json
+          falcon score . --json > score.json
           SCORE=$(jq -r '.score' score.json)
           echo "score=$SCORE" >> $GITHUB_OUTPUT
 
@@ -119,27 +119,27 @@ falcon:
   before_script:
     - cargo install --git https://github.com/viveky259259/falcon
   script:
-    - falcon analyze . --format codeclimate --output gl-codeclimate-report.json
+    - falcon check . --format codeclimate --output gl-codeclimate-report.json
   artifacts:
     reports:
       codequality: gl-codeclimate-report.json</code></pre>
 
             <h2>3. PR Comment Bot</h2>
-            <p>Use <code>falcon pr-comment</code> to post analysis results as a comment on pull requests.</p>
+            <p>Use <code>falcon review --format gh</code> to print PR-ready markdown, then pipe it into your CI comment step.</p>
 
             <h3>How it works</h3>
-            <p>The command runs Falcon analysis, formats the output as markdown, and posts it as a PR comment via the GitHub API. It can auto-detect context from GitHub Actions environment variables or accept explicit targeting.</p>
+            <p>The command analyzes changed Dart files, formats the output as markdown, and leaves posting to tools such as the GitHub CLI.</p>
 
             <h3>Flags</h3>
             <ul>
-                <li><code>--dry-run</code> — Preview the comment without posting</li>
-                <li><code>--owner</code> — Repository owner (e.g., <code>myorg</code>)</li>
-                <li><code>--repo</code> — Repository name (e.g., <code>myapp</code>)</li>
-                <li><code>--pr</code> — Pull request number</li>
+                <li><code>--base-ref</code> — Git ref to diff against</li>
+                <li><code>--strictness</code> — Review strictness level</li>
+                <li><code>--semantic</code> — Run dart analyze and defer overlapping Falcon findings</li>
+                <li><code>--baseline</code> — Only report findings not present in a baseline file</li>
             </ul>
 
-            <h3>Auto-detection</h3>
-            <p>When running in GitHub Actions, Falcon automatically uses <code>GITHUB_REPOSITORY</code> and <code>GITHUB_EVENT_PATH</code> to determine owner, repo, and PR number.</p>
+            <h3>Posting</h3>
+            <p>In GitHub Actions, pipe the rendered markdown into <code>gh pr comment --body-file -</code>.</p>
 
             <h3>Example PR comment output</h3>
             <pre><code><span class="str">## Falcon Analysis</span>
@@ -159,10 +159,10 @@ falcon:
 - 2 errors
 - 2 warnings
 
-<em>Run Falcon locally: `falcon analyze .`</em></code></pre>
+<em>Run Falcon locally: `falcon check .`</em></code></pre>
 
             <h2>4. Webhook Integration</h2>
-            <p>Use <code>falcon webhook</code> to send analysis events to external services.</p>
+            <p>Use <code>falcon x webhook</code> to send analysis events to external services.</p>
 
             <h3>Event types</h3>
             <ul>
@@ -221,7 +221,7 @@ falcon:
             </table>
 
             <p>Example:</p>
-            <pre><code>falcon analyze . --format sarif --output falcon-report.sarif</code></pre>
+            <pre><code>falcon check . --format sarif --output falcon-report.sarif</code></pre>
         </main>
     </div>
 </body>

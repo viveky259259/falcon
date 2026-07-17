@@ -23,7 +23,7 @@
 - Audience reaction: "Impressive!"
 
 **Slide 3**: "But does it work in production?"
-- Run `falcon ai-score` on the generated code
+- Run `falcon score` on the generated code
 - Score: 38/100 (Grade: F)
 - Audience reaction: tension
 
@@ -71,7 +71,7 @@
 
 **Slide 11**: The AI-Generated preset
 ```bash
-falcon analyze --preset ai-generated
+falcon check --preset ai-generated
 ```
 - Show the 20 rules targeting AI-specific patterns
 - Before/after issue counts
@@ -79,8 +79,8 @@ falcon analyze --preset ai-generated
 **Slide 12**: CI Integration
 ```yaml
 # .github/workflows/falcon.yml
-- run: falcon ai-score --json
-- run: falcon pr-comment
+- run: falcon score --json
+- run: falcon review --format gh
 ```
 - Show a PR comment with the full analysis
 
@@ -92,7 +92,7 @@ falcon analyze --preset ai-generated
 
 **Slide 14**: "3 things you can do right now"
 1. `cargo install falcon` — takes 30 seconds
-2. `falcon ai-score .` — know your score today
+2. `falcon score .` — know your score today
 3. Add `falcon-mcp` to your AI tool — self-correction loop
 
 **Slide 15**: The mission

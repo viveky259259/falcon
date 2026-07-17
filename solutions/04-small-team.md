@@ -302,7 +302,7 @@ falcon x manage health .
 
 When these thresholds hit, refactor incrementally:
 ```bash
-falcon refactor-sim --scenario clean-architecture
+falcon x refactor-sim --scenario clean-architecture
 # Shows: 45 files affected, 22 hours estimated
 ```
 
@@ -317,4 +317,4 @@ falcon refactor-sim --scenario clean-architecture
 - [ ] Models in `/models` (shared, not per-feature)
 - [ ] `falcon x manage health .` passes 70+
 - [ ] Provider tests for business logic
-- [ ] CI runs `falcon analyze --fail-on error`
+- [ ] CI runs `falcon check --fail-on error`

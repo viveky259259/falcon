@@ -228,7 +228,7 @@
             <h3 id="analyze">analyze</h3>
             <p>Run full static analysis on your Flutter/Dart project. This is the primary entry point for catching issues.</p>
             <p><strong>Full syntax:</strong></p>
-            <pre><code>falcon analyze [PATH] [OPTIONS]</code></pre>
+            <pre><code>falcon check [PATH] [OPTIONS]</code></pre>
             <p><strong>Flags:</strong></p>
             <table>
                 <thead><tr><th>Flag</th><th>Description</th></tr></thead>
@@ -242,13 +242,13 @@
                 </tbody>
             </table>
             <p><strong>Example:</strong></p>
-            <pre><code><span class="cmd">$</span> falcon analyze . --fix --json
+            <pre><code><span class="cmd">$</span> falcon check . --fix --json
 <span class="str">{"issues": 12, "fixed": 3, "warnings": 9}</span></code></pre>
 
             <h3 id="ai-score">ai-score</h3>
             <p>Get an AI-powered quality score (0–100) for your project. Uses static analysis plus optional AI models for deeper insights.</p>
             <p><strong>Full syntax:</strong></p>
-            <pre><code>falcon ai-score [PATH] [OPTIONS]</code></pre>
+            <pre><code>falcon score [PATH] [OPTIONS]</code></pre>
             <p><strong>Flags:</strong></p>
             <table>
                 <thead><tr><th>Flag</th><th>Description</th></tr></thead>
@@ -260,31 +260,29 @@
                 </tbody>
             </table>
             <p><strong>Example:</strong></p>
-            <pre><code><span class="cmd">$</span> falcon ai-score .
+            <pre><code><span class="cmd">$</span> falcon score .
 <span class="str">Analyzing project...</span>
 <span class="str">AI Score: 78/100</span>
 <span class="str">Suggestions: 3 improvements found</span></code></pre>
 
-            <h3 id="pr-comment">pr-comment</h3>
-            <p>Post analysis results as a comment on a pull request. Integrates with GitHub, GitLab, and Bitbucket.</p>
+            <h3 id="pr-comment">review --format gh</h3>
+            <p>Print PR-ready markdown for changed Dart files. Pipe the output into your GitHub CLI or CI comment step when you want to post it.</p>
             <p><strong>Full syntax:</strong></p>
-            <pre><code>falcon pr-comment [OPTIONS]</code></pre>
+            <pre><code>falcon review [PATH] --format gh [OPTIONS]</code></pre>
             <p><strong>Flags:</strong></p>
             <table>
                 <thead><tr><th>Flag</th><th>Description</th></tr></thead>
                 <tbody>
-                    <tr><td><code>--token</code></td><td>Git provider token (or GITHUB_TOKEN env)</td></tr>
-                    <tr><td><code>--pr</code></td><td>PR number (auto-detected in CI)</td></tr>
-                    <tr><td><code>--repo</code></td><td>Repository (owner/repo)</td></tr>
-                    <tr><td><code>--base</code></td><td>Base branch for diff</td></tr>
-                    <tr><td><code>--head</code></td><td>Head branch/commit</td></tr>
-                    <tr><td><code>--update</code></td><td>Update existing comment instead of new</td></tr>
+                    <tr><td><code>--base-ref</code></td><td>Git ref to diff against</td></tr>
+                    <tr><td><code>--strictness</code></td><td>Review strictness level</td></tr>
+                    <tr><td><code>--semantic</code></td><td>Run dart analyze and defer overlapping Falcon findings</td></tr>
+                    <tr><td><code>--baseline</code></td><td>Only report findings not present in a baseline file</td></tr>
                 </tbody>
             </table>
             <p><strong>Example:</strong></p>
-            <pre><code><span class="cmd">$</span> falcon pr-comment --token $GITHUB_TOKEN --pr 42
-<span class="str">Posted analysis to PR #42</span>
-<span class="str">Issues: 5 | Warnings: 12 | Score: 82/100</span></code></pre>
+            <pre><code><span class="cmd">$</span> falcon review . --base-ref origin/main --format gh | gh pr comment --body-file -
+<span class="str">## Falcon Review</span>
+<span class="str">Changed Dart files analyzed with PR-ready markdown output.</span></code></pre>
 
             <h3 id="mcp">mcp</h3>
             <p>Start the Model Context Protocol (MCP) server. Enables AI assistants like Cursor to query your codebase via Falcon.</p>

@@ -21,7 +21,7 @@
 3. **Bug #2: Empty Catch Blocks**
    - AI generates `catch (e) {}` to "handle" errors
    - Show a real production crash caused by swallowed exception
-   - `falcon analyze --preset ai-generated` flags these
+   - `falcon check --preset ai-generated` flags these
 
 4. **Bug #3: Unawaited Futures**
    - `saveData(data);` without await — fire-and-forget that crashes
@@ -36,9 +36,9 @@
 6. **Bug #5: The setState Spaghetti**
    - AI defaults to setState for everything
    - Show a widget with 15 setState calls
-   - `falcon refactor-sim --scenario set-state-to-riverpod` shows the path forward
+   - `falcon x refactor-sim --scenario set-state-to-riverpod` shows the path forward
 
-7. **CTA**: "Run `falcon ai-score` on your project right now — it takes 2 seconds."
+7. **CTA**: "Run `falcon score` on your project right now — it takes 2 seconds."
 
 ---
 
@@ -49,7 +49,7 @@
 ### Outline
 
 1. **Hook**: Data-driven analysis of real Cursor-generated Flutter projects
-2. **Methodology**: How we used `falcon ai-score` and `falcon x provenance`
+2. **Methodology**: How we used `falcon score` and `falcon x provenance`
 3. **The Numbers**: Average score, top violations, worst files
 4. **The Pattern**: What Cursor consistently gets right vs. wrong
 5. **The Fix**: How to add Falcon to your Cursor workflow (MCP integration)
@@ -67,7 +67,7 @@
 2. **Root cause**: Undisposed controllers = objects that never get garbage collected
 3. **The math**: Each TextEditingController leaks ~2KB. 50 screens × 3 controllers = 300KB/navigation
 4. **The proof**: Run `falcon x check-perf` and `falcon x predict` on a real app
-5. **The fix**: `falcon analyze --preset ai-generated` + CI enforcement
+5. **The fix**: `falcon check --preset ai-generated` + CI enforcement
 6. **CTA**: "Add one line to your CI pipeline. Never ship a memory leak again."
 
 ---

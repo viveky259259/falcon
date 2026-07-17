@@ -20,10 +20,10 @@ dart pub global activate falcon_cli
 
 ```bash
 # Full analysis with HTML report
-falcon analyze . --format html --output report.html
+falcon check . --format html --output report.html
 
 # AI Code Quality Score (0-100)
-falcon ai-score .
+falcon score .
 
 # Compare two branches
 falcon x compare-branches . --base main --branch feature/my-feature
@@ -35,7 +35,7 @@ falcon x history .
 falcon x codebase-intel .
 
 # Self-update
-falcon update
+falcon x update
 ```
 
 ## What Falcon Detects
@@ -50,7 +50,7 @@ falcon update
 ## Enterprise HTML Reports
 
 ```bash
-falcon analyze . --format html --output report.html
+falcon check . --format html --output report.html
 ```
 
 Generates a full dashboard with:
@@ -73,7 +73,7 @@ Analyzes both branches and shows delta: health score, issues, metrics, and rule 
 
 ## Report History
 
-Every `falcon analyze` auto-saves a snapshot:
+Every `falcon check` auto-saves a snapshot:
 
 ```bash
 falcon x history .                            # List all runs
@@ -85,20 +85,20 @@ falcon x compare-reports . --run1 1 --run2 3  # Compare any two
 ```yaml
 # GitHub Actions
 - run: cargo install --git https://github.com/viveky259259/falcon
-- run: falcon analyze . --fail-on error
-- run: falcon analyze . --format html --output report.html
+- run: falcon check . --fail-on error
+- run: falcon check . --format html --output report.html
 ```
 
 ## All Commands
 
 | Category | Commands |
 |----------|----------|
-| **Analysis** | `analyze`, `x metrics`, `score`, `x ai-report` |
+| **Analysis** | `check`, `x metrics`, `score`, `x ai-report` |
 | **Checks** | `x check-unused-code`, `x check-cycles`, `x check-widgets`, `x check-async`, `x cognitive-complexity`, `x codebase-intel` |
 | **Comparison** | `x compare-branches`, `x compare-reports`, `x history` |
 | **AI** | `x provenance`, `x conventions`, `x drift`, `x predict`, `x vuln-scan` |
-| **CI/CD** | `pr-comment`, `webhook`, `fix`, `x benchmark` |
-| **Update** | `update`, `update --version X`, `update --list` |
+| **CI/CD** | `review --format gh`, `x webhook`, `fix`, `x benchmark` |
+| **Update** | `x update`, `x update --version X`, `x update --list` |
 
 See the [CLI Reference](https://github.com/viveky259259/falcon/blob/master/docs/cli-reference.md) for all flags and options.
 

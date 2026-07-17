@@ -81,9 +81,9 @@
             <pre><code>cd /path/to/flutter/app</code></pre>
 
             <h3>Step 2: Run AI score</h3>
-            <pre><code>falcon ai-score .</code></pre>
+            <pre><code>falcon score .</code></pre>
             <p>Example output:</p>
-            <pre><code><span class="cmd">$</span> falcon ai-score .
+            <pre><code><span class="cmd">$</span> falcon score .
 <span class="str">Analyzing project...</span>
 <span class="str">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>
 <span class="str">  Overall Score:  78/100</span>
@@ -91,12 +91,12 @@
 <span class="str">  Performance:     71</span>
 <span class="str">  Best Practices: 80</span>
 <span class="str">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>
-<span class="str">3 suggestions found. Run falcon analyze for details.</span></code></pre>
+<span class="str">3 suggestions found. Run falcon check for details.</span></code></pre>
 
             <h3>Step 3: Run full analysis</h3>
-            <pre><code>falcon analyze .</code></pre>
+            <pre><code>falcon check .</code></pre>
             <p>Example output:</p>
-            <pre><code><span class="cmd">$</span> falcon analyze .
+            <pre><code><span class="cmd">$</span> falcon check .
 <span class="str">Analyzing lib/...</span>
 <span class="badge badge-error">error</span> <span class="str">lib/main.dart:12:5</span> — Avoid using print in production
 <span class="badge badge-warning">warning</span> <span class="str">lib/widgets/card.dart:45:10</span> — Prefer const constructors
@@ -192,7 +192,7 @@
             </table>
 
             <p>Example:</p>
-            <pre><code>falcon analyze --preset ai-generated .</code></pre>
+            <pre><code>falcon check --preset ai-generated .</code></pre>
 
             <h2>What's Next</h2>
             <ul>
