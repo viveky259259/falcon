@@ -15,7 +15,18 @@ fn default_help_lists_only_cutover_verbs() {
             "missing command {command} in help:\n{stdout}"
         );
     }
-    for legacy in ["analyze", "metrics", "asset-audit", "vuln-scan", "test-gen"] {
+    for legacy in [
+        "analyze",
+        "metrics",
+        "asset-audit",
+        "theme-audit",
+        "l10n-coverage",
+        "deeplink-validate",
+        "animation-audit",
+        "golden-gen",
+        "vuln-scan",
+        "test-gen",
+    ] {
         assert!(
             !stdout.contains(legacy),
             "legacy command {legacy} leaked into default help:\n{stdout}"
@@ -33,10 +44,34 @@ fn legacy_help_lists_historical_commands() {
 
     assert_success(&output);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    for command in ["analyze", "metrics", "asset-audit"] {
+    for command in ["analyze", "metrics"] {
         assert!(
             stdout.contains(command),
             "missing legacy command {command} in legacy help:\n{stdout}"
+        );
+    }
+}
+
+#[test]
+fn x_help_lists_flutter_quality_commands() {
+    let output = falcon_cmd()
+        .args(["x", "--help"])
+        .output()
+        .expect("run falcon x --help");
+
+    assert_success(&output);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for command in [
+        "asset-audit",
+        "theme-audit",
+        "l10n-coverage",
+        "deeplink-validate",
+        "animation-audit",
+        "golden-gen",
+    ] {
+        assert!(
+            stdout.contains(command),
+            "missing x command {command} in help:\n{stdout}"
         );
     }
 }

@@ -416,114 +416,6 @@ enum Commands {
         action: DevtoolsAction,
     },
 
-    /// Audit Flutter project assets — find unused, oversized, and WebP-convertible files
-    #[command(name = "asset-audit", display_order = 9)]
-    AssetAudit {
-        /// Path to analyze
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Output HTML report path
-        #[arg(short, long, default_value = "falcon-asset-report.html")]
-        output: PathBuf,
-
-        /// Size threshold in KB above which an image is flagged (default 200)
-        #[arg(long, default_value = "200")]
-        size_threshold_kb: u64,
-
-        /// Skip HTML report
-        #[arg(long)]
-        no_html: bool,
-    },
-
-    /// Audit Flutter theme consistency — hardcoded colors, fonts, missing dark mode
-    #[command(name = "theme-audit", display_order = 9)]
-    ThemeAudit {
-        /// Path to analyze
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Output HTML report path
-        #[arg(short, long, default_value = "falcon-theme-report.html")]
-        output: PathBuf,
-
-        /// Skip HTML report
-        #[arg(long)]
-        no_html: bool,
-    },
-
-    /// Analyze localization coverage across all ARB locales
-    #[command(name = "l10n-coverage", display_order = 9)]
-    L10nCoverage {
-        /// Path to analyze
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Output HTML report path
-        #[arg(short, long, default_value = "falcon-l10n-report.html")]
-        output: PathBuf,
-
-        /// Skip HTML report
-        #[arg(long)]
-        no_html: bool,
-    },
-
-    /// Validate deep link configuration across Android, iOS, and Flutter routes
-    #[command(name = "deeplink-validate", display_order = 9)]
-    DeeplinkValidate {
-        /// Path to analyze
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Output HTML report path
-        #[arg(short, long, default_value = "falcon-deeplink-report.html")]
-        output: PathBuf,
-
-        /// Skip HTML report
-        #[arg(long)]
-        no_html: bool,
-    },
-
-    /// Audit Flutter animations for anti-patterns, missing disposal, and jank risks
-    #[command(name = "animation-audit", display_order = 9)]
-    AnimationAudit {
-        /// Path to analyze
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Output HTML report path
-        #[arg(short, long, default_value = "falcon-animation-report.html")]
-        output: PathBuf,
-
-        /// Skip HTML report
-        #[arg(long)]
-        no_html: bool,
-    },
-
-    /// Generate golden (snapshot) test stubs for all discoverable widgets
-    #[command(name = "golden-gen", display_order = 9)]
-    GoldenGen {
-        /// Path to analyze
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Directory to write generated test files into
-        #[arg(short, long, default_value = "test/golden_generated")]
-        output_dir: PathBuf,
-
-        /// Preview what would be generated without writing files
-        #[arg(long)]
-        dry_run: bool,
-
-        /// Output HTML report path
-        #[arg(long, default_value = "falcon-golden-report.html")]
-        html_output: PathBuf,
-
-        /// Skip HTML report
-        #[arg(long)]
-        no_html: bool,
-    },
-
     /// Manage analysis baselines
     #[command(display_order = 7)]
     Baseline {
@@ -2230,6 +2122,160 @@ fn run_vuln_scan(path: PathBuf) {
     }
 }
 
+fn run_asset_audit(
+    path: PathBuf,
+    output: PathBuf,
+    size_threshold_kb: u64,
+    no_html: bool,
+) -> Result<()> {
+    eprintln!(
+        "  {} Scanning assets in {} …",
+        "▸".bright_cyan(),
+        path.display()
+    );
+    let report = falcon::asset_audit::audit_assets_with_threshold(&path, size_threshold_kb)?;
+    falcon::asset_audit::print_asset_report(&report);
+    if !no_html {
+        falcon::asset_audit::write_asset_html_report(&report, &output)?;
+        eprintln!(
+            "  {} HTML report → {}",
+            "✓".green().bold(),
+            output.display()
+        );
+    }
+    if report.score < 60 {
+        process::exit(1);
+    }
+
+    Ok(())
+}
+
+fn run_theme_audit(path: PathBuf, output: PathBuf, no_html: bool) -> Result<()> {
+    eprintln!(
+        "  {} Auditing theme consistency in {} …",
+        "▸".bright_cyan(),
+        path.display()
+    );
+    let report = falcon::theme_audit::audit_theme(&path)?;
+    falcon::theme_audit::print_theme_report(&report);
+    if !no_html {
+        falcon::theme_audit::write_theme_html_report(&report, &output)?;
+        eprintln!(
+            "  {} HTML report → {}",
+            "✓".green().bold(),
+            output.display()
+        );
+    }
+    if report.score < 60 {
+        process::exit(1);
+    }
+
+    Ok(())
+}
+
+fn run_l10n_coverage(path: PathBuf, output: PathBuf, no_html: bool) -> Result<()> {
+    eprintln!(
+        "  {} Analysing localization coverage in {} …",
+        "▸".bright_cyan(),
+        path.display()
+    );
+    let report = falcon::l10n_coverage::analyze_l10n_coverage(&path)?;
+    falcon::l10n_coverage::print_l10n_report(&report);
+    if !no_html {
+        falcon::l10n_coverage::write_l10n_html_report(&report, &output)?;
+        eprintln!(
+            "  {} HTML report → {}",
+            "✓".green().bold(),
+            output.display()
+        );
+    }
+    if report.score < 60 {
+        process::exit(1);
+    }
+
+    Ok(())
+}
+
+fn run_deeplink_validate(path: PathBuf, output: PathBuf, no_html: bool) -> Result<()> {
+    eprintln!(
+        "  {} Validating deep links in {} …",
+        "▸".bright_cyan(),
+        path.display()
+    );
+    let report = falcon::deeplink::validate_deeplinks(&path)?;
+    falcon::deeplink::print_deeplink_report(&report);
+    if !no_html {
+        falcon::deeplink::write_deeplink_html_report(&report, &output)?;
+        eprintln!(
+            "  {} HTML report → {}",
+            "✓".green().bold(),
+            output.display()
+        );
+    }
+    if report.score < 60 {
+        process::exit(1);
+    }
+
+    Ok(())
+}
+
+fn run_animation_audit(path: PathBuf, output: PathBuf, no_html: bool) -> Result<()> {
+    eprintln!(
+        "  {} Auditing animations in {} …",
+        "▸".bright_cyan(),
+        path.display()
+    );
+    let report = falcon::animation_audit::audit_animations(&path)?;
+    falcon::animation_audit::print_animation_report(&report);
+    if !no_html {
+        falcon::animation_audit::write_animation_html_report(&report, &output)?;
+        eprintln!(
+            "  {} HTML report → {}",
+            "✓".green().bold(),
+            output.display()
+        );
+    }
+    if report.score < 60 {
+        process::exit(1);
+    }
+
+    Ok(())
+}
+
+fn run_golden_gen(
+    path: PathBuf,
+    output_dir: PathBuf,
+    dry_run: bool,
+    html_output: PathBuf,
+    no_html: bool,
+) -> Result<()> {
+    if dry_run {
+        eprintln!(
+            "  {} Dry-run: discovering widgets in {} …",
+            "▸".bright_cyan(),
+            path.display()
+        );
+    } else {
+        eprintln!(
+            "  {} Generating golden tests in {} …",
+            "▸".bright_cyan(),
+            path.display()
+        );
+    }
+    let report = falcon::golden_gen::generate_golden_tests(&path, &output_dir, dry_run)?;
+    falcon::golden_gen::print_golden_report(&report);
+    if !no_html {
+        falcon::golden_gen::write_golden_html_report(&report, &html_output)?;
+        eprintln!(
+            "  {} HTML report → {}",
+            "✓".green().bold(),
+            html_output.display()
+        );
+    }
+
+    Ok(())
+}
+
 fn run(cli: Cli) -> Result<()> {
     match cli.command {
         Commands::Analyze {
@@ -2751,165 +2797,6 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
-        Commands::AssetAudit {
-            path,
-            output,
-            size_threshold_kb,
-            no_html,
-        } => {
-            eprintln!(
-                "  {} Scanning assets in {} …",
-                "▸".bright_cyan(),
-                path.display()
-            );
-            let report =
-                falcon::asset_audit::audit_assets_with_threshold(&path, size_threshold_kb)?;
-            falcon::asset_audit::print_asset_report(&report);
-            if !no_html {
-                falcon::asset_audit::write_asset_html_report(&report, &output)?;
-                eprintln!(
-                    "  {} HTML report → {}",
-                    "✓".green().bold(),
-                    output.display()
-                );
-            }
-            if report.score < 60 {
-                process::exit(1);
-            }
-        }
-
-        Commands::ThemeAudit {
-            path,
-            output,
-            no_html,
-        } => {
-            eprintln!(
-                "  {} Auditing theme consistency in {} …",
-                "▸".bright_cyan(),
-                path.display()
-            );
-            let report = falcon::theme_audit::audit_theme(&path)?;
-            falcon::theme_audit::print_theme_report(&report);
-            if !no_html {
-                falcon::theme_audit::write_theme_html_report(&report, &output)?;
-                eprintln!(
-                    "  {} HTML report → {}",
-                    "✓".green().bold(),
-                    output.display()
-                );
-            }
-            if report.score < 60 {
-                process::exit(1);
-            }
-        }
-
-        Commands::L10nCoverage {
-            path,
-            output,
-            no_html,
-        } => {
-            eprintln!(
-                "  {} Analysing localization coverage in {} …",
-                "▸".bright_cyan(),
-                path.display()
-            );
-            let report = falcon::l10n_coverage::analyze_l10n_coverage(&path)?;
-            falcon::l10n_coverage::print_l10n_report(&report);
-            if !no_html {
-                falcon::l10n_coverage::write_l10n_html_report(&report, &output)?;
-                eprintln!(
-                    "  {} HTML report → {}",
-                    "✓".green().bold(),
-                    output.display()
-                );
-            }
-            if report.score < 60 {
-                process::exit(1);
-            }
-        }
-
-        Commands::DeeplinkValidate {
-            path,
-            output,
-            no_html,
-        } => {
-            eprintln!(
-                "  {} Validating deep links in {} …",
-                "▸".bright_cyan(),
-                path.display()
-            );
-            let report = falcon::deeplink::validate_deeplinks(&path)?;
-            falcon::deeplink::print_deeplink_report(&report);
-            if !no_html {
-                falcon::deeplink::write_deeplink_html_report(&report, &output)?;
-                eprintln!(
-                    "  {} HTML report → {}",
-                    "✓".green().bold(),
-                    output.display()
-                );
-            }
-            if report.score < 60 {
-                process::exit(1);
-            }
-        }
-
-        Commands::AnimationAudit {
-            path,
-            output,
-            no_html,
-        } => {
-            eprintln!(
-                "  {} Auditing animations in {} …",
-                "▸".bright_cyan(),
-                path.display()
-            );
-            let report = falcon::animation_audit::audit_animations(&path)?;
-            falcon::animation_audit::print_animation_report(&report);
-            if !no_html {
-                falcon::animation_audit::write_animation_html_report(&report, &output)?;
-                eprintln!(
-                    "  {} HTML report → {}",
-                    "✓".green().bold(),
-                    output.display()
-                );
-            }
-            if report.score < 60 {
-                process::exit(1);
-            }
-        }
-
-        Commands::GoldenGen {
-            path,
-            output_dir,
-            dry_run,
-            html_output,
-            no_html,
-        } => {
-            if dry_run {
-                eprintln!(
-                    "  {} Dry-run: discovering widgets in {} …",
-                    "▸".bright_cyan(),
-                    path.display()
-                );
-            } else {
-                eprintln!(
-                    "  {} Generating golden tests in {} …",
-                    "▸".bright_cyan(),
-                    path.display()
-                );
-            }
-            let report = falcon::golden_gen::generate_golden_tests(&path, &output_dir, dry_run)?;
-            falcon::golden_gen::print_golden_report(&report);
-            if !no_html {
-                falcon::golden_gen::write_golden_html_report(&report, &html_output)?;
-                eprintln!(
-                    "  {} HTML report → {}",
-                    "✓".green().bold(),
-                    html_output.display()
-                );
-            }
-        }
-
         Commands::Baseline { action } => match action {
             BaselineAction::Create { path, config } => {
                 let config_path = config.as_deref().unwrap_or(&path);
@@ -4513,71 +4400,60 @@ fn run(cli: Cli) -> Result<()> {
             }
         },
         Commands::X { action } => {
-            // The `x` namespace is the new home for extended commands. Every
-            // entry here re-dispatches into the matching top-level command
-            // without changing behavior or argument shapes. Legacy warnings
-            // are emitted before clap parsing so `falcon x ...` stays quiet.
-            let legacy = match action {
+            // Legacy warnings are emitted before clap parsing so
+            // `falcon x ...` stays quiet.
+            match action {
                 XAction::AssetAudit {
                     path,
                     output,
                     size_threshold_kb,
                     no_html,
-                } => Commands::AssetAudit {
-                    path,
-                    output,
-                    size_threshold_kb,
-                    no_html,
-                },
+                } => {
+                    run_asset_audit(path, output, size_threshold_kb, no_html)?;
+                    return Ok(());
+                }
                 XAction::ThemeAudit {
                     path,
                     output,
                     no_html,
-                } => Commands::ThemeAudit {
-                    path,
-                    output,
-                    no_html,
-                },
+                } => {
+                    run_theme_audit(path, output, no_html)?;
+                    return Ok(());
+                }
                 XAction::L10nCoverage {
                     path,
                     output,
                     no_html,
-                } => Commands::L10nCoverage {
-                    path,
-                    output,
-                    no_html,
-                },
+                } => {
+                    run_l10n_coverage(path, output, no_html)?;
+                    return Ok(());
+                }
                 XAction::DeeplinkValidate {
                     path,
                     output,
                     no_html,
-                } => Commands::DeeplinkValidate {
-                    path,
-                    output,
-                    no_html,
-                },
+                } => {
+                    run_deeplink_validate(path, output, no_html)?;
+                    return Ok(());
+                }
                 XAction::AnimationAudit {
                     path,
                     output,
                     no_html,
-                } => Commands::AnimationAudit {
-                    path,
-                    output,
-                    no_html,
-                },
+                } => {
+                    run_animation_audit(path, output, no_html)?;
+                    return Ok(());
+                }
                 XAction::GoldenGen {
                     path,
                     output_dir,
                     dry_run,
                     html_output,
                     no_html,
-                } => Commands::GoldenGen {
-                    path,
-                    output_dir,
-                    dry_run,
-                    html_output,
-                    no_html,
-                },
+                } => {
+                    run_golden_gen(path, output_dir, dry_run, html_output, no_html)?;
+                    return Ok(());
+                }
                 XAction::DepGraph { path, file } => {
                     run_dep_graph(path, file)?;
                     return Ok(());
@@ -4614,8 +4490,7 @@ fn run(cli: Cli) -> Result<()> {
                     run_test_gen(path, write);
                     return Ok(());
                 }
-            };
-            return run(Cli { command: legacy });
+            }
         }
     }
 

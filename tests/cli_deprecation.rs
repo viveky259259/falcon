@@ -124,6 +124,55 @@ fn legacy_test_gen_command_warns_and_still_runs() {
 }
 
 #[test]
+fn legacy_audit_commands_warn_and_still_run() {
+    let temp = tempfile::tempdir().unwrap();
+    write_l10n_fixture(temp.path());
+    let root = temp.path().to_str().unwrap();
+    let cases = [
+        (
+            vec!["asset-audit", root, "--no-html"],
+            "asset-audit",
+            "x asset-audit",
+        ),
+        (
+            vec!["theme-audit", root, "--no-html"],
+            "theme-audit",
+            "x theme-audit",
+        ),
+        (
+            vec!["l10n-coverage", root, "--no-html"],
+            "l10n-coverage",
+            "x l10n-coverage",
+        ),
+        (
+            vec!["deeplink-validate", root, "--no-html"],
+            "deeplink-validate",
+            "x deeplink-validate",
+        ),
+        (
+            vec!["animation-audit", root, "--no-html"],
+            "animation-audit",
+            "x animation-audit",
+        ),
+        (
+            vec!["golden-gen", root, "--dry-run", "--no-html"],
+            "golden-gen",
+            "x golden-gen",
+        ),
+    ];
+
+    for (args, old, new) in cases {
+        let output = falcon_cmd()
+            .args(args)
+            .output()
+            .expect("run falcon legacy audit command");
+
+        assert_success(&output);
+        assert_deprecation_warning(&output, old, new);
+    }
+}
+
+#[test]
 fn x_analysis_tools_do_not_warn() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().to_str().unwrap();
@@ -146,12 +195,32 @@ fn x_analysis_tools_do_not_warn() {
             .expect("run falcon x analysis tool");
 
         assert_success(&output);
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(
-            !stderr.contains("removed in v1.0"),
-            "unexpected deprecation warning:\n{}",
-            stderr
-        );
+        assert_no_deprecation_warning(&output);
+    }
+}
+
+#[test]
+fn x_audit_commands_do_not_warn() {
+    let temp = tempfile::tempdir().unwrap();
+    write_l10n_fixture(temp.path());
+    let root = temp.path().to_str().unwrap();
+    let cases = [
+        vec!["x", "asset-audit", root, "--no-html"],
+        vec!["x", "theme-audit", root, "--no-html"],
+        vec!["x", "l10n-coverage", root, "--no-html"],
+        vec!["x", "deeplink-validate", root, "--no-html"],
+        vec!["x", "animation-audit", root, "--no-html"],
+        vec!["x", "golden-gen", root, "--dry-run", "--no-html"],
+    ];
+
+    for args in cases {
+        let output = falcon_cmd()
+            .args(args)
+            .output()
+            .expect("run falcon x audit command");
+
+        assert_success(&output);
+        assert_no_deprecation_warning(&output);
     }
 }
 
@@ -168,6 +237,30 @@ fn assert_deprecation_warning(output: &Output, old: &str, new: &str) {
         "stderr:\n{}",
         stderr
     );
+}
+
+fn assert_no_deprecation_warning(output: &Output) {
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("removed in v1.0"),
+        "unexpected deprecation warning:\n{}",
+        stderr
+    );
+}
+
+fn write_l10n_fixture(root: &std::path::Path) {
+    let l10n_dir = root.join("lib/l10n");
+    std::fs::create_dir_all(&l10n_dir).unwrap();
+    std::fs::write(
+        l10n_dir.join("app_en.arb"),
+        r#"{"@@locale":"en","hello":"Hello"}"#,
+    )
+    .unwrap();
+    std::fs::write(
+        l10n_dir.join("app_es.arb"),
+        r#"{"@@locale":"es","hello":"Hola"}"#,
+    )
+    .unwrap();
 }
 
 fn assert_success(output: &Output) {
