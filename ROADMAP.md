@@ -636,7 +636,7 @@ Prometheus export produces valid scrape-ready metrics.
 - [x] `prefer-named-boolean-parameters` — `MyWidget(true, false, true)` is unreadable
 
 ### Community & Credibility ✅
-- [x] `falcon compare` — benchmarks vs `dart analyze` (3.1x faster, 84% more issues found)
+- [x] `falcon x compare` — benchmarks vs `dart analyze` (3.1x faster, 84% more issues found)
 - [x] `falcon showcase` — analyze Flutter projects with console + markdown reports
 - 🔜 "Falcon Certified" badge for pub.dev packages
 - 🔜 Blog post: "Why AI-Generated Flutter Code Needs Static Analysis"

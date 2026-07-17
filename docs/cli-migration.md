@@ -35,6 +35,10 @@ Falcon is moving to a compact top-level CLI before 1.0:
 | `falcon predict .` | `falcon x predict .` |
 | `falcon drift .` | `falcon x drift .` |
 | `falcon conventions .` | `falcon x conventions .` |
+| `falcon compare .` | `falcon x compare .` |
+| `falcon history .` | `falcon x history .` |
+| `falcon compare-reports . --run1 1 --run2 3` | `falcon x compare-reports . --run1 1 --run2 3` |
+| `falcon compare-branches . --base main --branch feature` | `falcon x compare-branches . --base main --branch feature` |
 | `falcon asset-audit .` | `falcon x asset-audit .` |
 | `falcon theme-audit .` | `falcon x theme-audit .` |
 | `falcon l10n-coverage .` | `falcon x l10n-coverage .` |

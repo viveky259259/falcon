@@ -120,7 +120,7 @@ exclude:
 Compare code quality between two git branches:
 
 ```bash
-falcon compare-branches . --base main --branch feature/my-feature
+falcon x compare-branches . --base main --branch feature/my-feature
 ```
 
 This checks out each branch, runs analysis, and shows the delta:
@@ -146,13 +146,13 @@ Add `--output comparison.html` for an HTML comparison report.
 Every `falcon check` run is automatically saved. View your history:
 
 ```bash
-falcon history .
+falcon x history .
 ```
 
 Compare any two stored runs:
 
 ```bash
-falcon compare-reports . --run1 1 --run2 3 --output delta.html
+falcon x compare-reports . --run1 1 --run2 3 --output delta.html
 ```
 
 ## Codebase Intelligence

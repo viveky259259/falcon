@@ -87,23 +87,23 @@ falcon score . --badge --json
 
 ## Comparison & History (v0.2.0)
 
-### falcon history
+### falcon x history
 
 List all stored analysis runs for a project.
 
 ```bash
-falcon history /path/to/project
+falcon x history /path/to/project
 ```
 
-Shows a table with timestamp, branch, file count, health score, issue count, and commit hash. Snapshots are automatically saved after every `falcon check` and `falcon compare-branches` run.
+Shows a table with timestamp, branch, file count, health score, issue count, and commit hash. Snapshots are automatically saved after every `falcon check` and `falcon x compare-branches` run.
 
-### falcon compare-reports
+### falcon x compare-reports
 
 Compare two stored analysis runs from history.
 
 ```bash
-falcon compare-reports /path/to/project --run1 1 --run2 3
-falcon compare-reports /path/to/project --run1 1 --run2 3 --output comparison.html
+falcon x compare-reports /path/to/project --run1 1 --run2 3
+falcon x compare-reports /path/to/project --run1 1 --run2 3 --output comparison.html
 ```
 
 | Flag | Description | Default |
@@ -112,13 +112,13 @@ falcon compare-reports /path/to/project --run1 1 --run2 3 --output comparison.ht
 | `--run2` | Run number for comparison | latest |
 | `--output` | Generate HTML comparison report | none |
 
-### falcon compare-branches
+### falcon x compare-branches
 
 Compare analysis results between two git branches. Checks out each branch, runs full analysis, then shows the delta.
 
 ```bash
-falcon compare-branches /path/to/project --base main --branch feature/my-feature
-falcon compare-branches . --base main --branch dev --output comparison.html
+falcon x compare-branches /path/to/project --base main --branch feature/my-feature
+falcon x compare-branches . --base main --branch dev --output comparison.html
 ```
 
 | Flag | Description | Default |
@@ -208,7 +208,7 @@ selected for other AI surfaces.
 | `falcon webhook --url <url>` | Send webhook notification |
 | `falcon fix [path]` | Auto-fix lint issues |
 | `falcon benchmark` | Run performance benchmark |
-| `falcon compare` | Compare Falcon vs dart analyze |
+| `falcon x compare` | Compare Falcon vs dart analyze |
 
 `falcon review` defaults its base ref to `origin/main` and uses
 `git diff --name-only --diff-filter=ACMR <base-ref>...HEAD` to analyze only

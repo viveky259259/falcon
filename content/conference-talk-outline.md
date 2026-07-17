@@ -120,7 +120,7 @@ A: Traditional linters check syntax. Falcon understands that AI-generated code f
 A: The gap is structural. AI tools generate code without runtime context, lifecycle awareness, or project conventions. Even if AI quality doubles, you still need a safety net. And Falcon's AI-Tool Profiling tracks exactly how each tool improves over time.
 
 **Q: "How is this different from dart analyze?"**
-A: `dart analyze` checks Dart language rules. Falcon checks Flutter-specific patterns — dispose lifecycle, widget rebuilds, state management, architecture compliance, and AI-specific anti-patterns. Run `falcon compare` to see the difference.
+A: `dart analyze` checks Dart language rules. Falcon checks Flutter-specific patterns — dispose lifecycle, widget rebuilds, state management, architecture compliance, and AI-specific anti-patterns. Run `falcon x compare` to see the difference.
 
 **Q: "Is it really 10x faster?"**
 A: Yes. Rust + tree-sitter + rayon parallelism. We analyze 233 files in under 2 seconds. Try `falcon benchmark` on your project.

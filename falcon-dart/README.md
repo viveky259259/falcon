@@ -26,10 +26,10 @@ falcon analyze . --format html --output report.html
 falcon ai-score .
 
 # Compare two branches
-falcon compare-branches . --base main --branch feature/my-feature
+falcon x compare-branches . --base main --branch feature/my-feature
 
 # View analysis history
-falcon history .
+falcon x history .
 
 # Codebase intelligence
 falcon x codebase-intel .
@@ -66,7 +66,7 @@ Generates a full dashboard with:
 ## Branch Comparison
 
 ```bash
-falcon compare-branches . --base main --branch dev --output comparison.html
+falcon x compare-branches . --base main --branch dev --output comparison.html
 ```
 
 Analyzes both branches and shows delta: health score, issues, metrics, and rule changes.
@@ -76,8 +76,8 @@ Analyzes both branches and shows delta: health score, issues, metrics, and rule 
 Every `falcon analyze` auto-saves a snapshot:
 
 ```bash
-falcon history .                              # List all runs
-falcon compare-reports . --run1 1 --run2 3    # Compare any two
+falcon x history .                            # List all runs
+falcon x compare-reports . --run1 1 --run2 3  # Compare any two
 ```
 
 ## CI/CD
@@ -95,7 +95,7 @@ falcon compare-reports . --run1 1 --run2 3    # Compare any two
 |----------|----------|
 | **Analysis** | `analyze`, `x metrics`, `score`, `x ai-report` |
 | **Checks** | `x check-unused-code`, `x check-cycles`, `x check-widgets`, `x check-async`, `x cognitive-complexity`, `x codebase-intel` |
-| **Comparison** | `compare-branches`, `compare-reports`, `history` |
+| **Comparison** | `x compare-branches`, `x compare-reports`, `x history` |
 | **AI** | `x provenance`, `x conventions`, `x drift`, `x predict`, `x vuln-scan` |
 | **CI/CD** | `pr-comment`, `webhook`, `fix`, `benchmark` |
 | **Update** | `update`, `update --version X`, `update --list` |

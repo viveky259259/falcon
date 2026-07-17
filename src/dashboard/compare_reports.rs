@@ -641,7 +641,7 @@ pub fn list_history(root: &Path) -> anyhow::Result<()> {
     if history.is_empty() {
         println!(
             "  📭 No analysis history found. Run {} to start recording.",
-            "falcon analyze".bright_blue()
+            "falcon check".bright_blue()
         );
         return Ok(());
     }
@@ -697,12 +697,12 @@ pub fn list_history(root: &Path) -> anyhow::Result<()> {
     println!(
         "  💡 {} Use {} to compare two runs.",
         "tip:".dimmed(),
-        "falcon compare-reports <path> --run1 N --run2 M".bright_blue()
+        "falcon x compare-reports <path> --run1 N --run2 M".bright_blue()
     );
     println!(
         "     {} Use {} to compare branches.",
         "   ".dimmed(),
-        "falcon compare-branches <path> --base main --branch dev".bright_blue()
+        "falcon x compare-branches <path> --base main --branch dev".bright_blue()
     );
     println!();
     Ok(())

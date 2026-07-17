@@ -74,10 +74,10 @@ All notable changes to Falcon are documented in this file.
 - **Project Properties**: Parses `pubspec.yaml` and displays project name, version, SDK constraints, and dependencies in the report header
 - **Level of Concern**: Visual breakdown of issues across 8 categories (Security, Error Handling, Type Safety, Complexity, Performance, Resource Safety, Code Smells, Conventions) with severity gauges
 - **Test Coverage Section**: Maps source files to test files and shows coverage percentages with ring gauges and stacked bar visualization
-- **Branch Comparison** (`falcon compare-branches`): Analyzes two git branches side-by-side with auto stash/restore safety, shows delta with color-coded indicators, and generates HTML comparison reports
+- **Branch Comparison** (`falcon x compare-branches`): Analyzes two git branches side-by-side with auto stash/restore safety, shows delta with color-coded indicators, and generates HTML comparison reports
 - **Report History**: Auto-saves analysis snapshots after every `falcon analyze` run to `.falcon-data/history.json`
-- **History Viewer** (`falcon history`): Lists all stored analysis runs with timestamp, branch, health score, and issue counts
-- **Report Comparison** (`falcon compare-reports`): Compares any two stored runs with `--run1 N --run2 M` flags, supports HTML output
+- **History Viewer** (`falcon x history`): Lists all stored analysis runs with timestamp, branch, health score, and issue counts
+- **Report Comparison** (`falcon x compare-reports`): Compares any two stored runs with `--run1 N --run2 M` flags, supports HTML output
 - **Self-Update** (`falcon update`): Updates Falcon from GitHub releases, supports `--version X.Y.Z` for specific versions and `--list` for available versions
 - **Rich Console Icons**: Icons throughout CLI output for branches, files, health, issues, errors, metrics, and more
 

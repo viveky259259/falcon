@@ -59,12 +59,12 @@ SEMANTIC COMMAND GROUPS:
                     x check-unused-l10n, x check-promoted-deps, x check-platform,
                     x check-codegen, x check-perf, x check-unused-confidence,
                     x check-async, x check-widgets, x check-layers, x check-imports
-  Comparison        compare-branches, compare-reports, compare, history
+  Comparison        x compare-branches, x compare-reports, x compare, x history
   AI Intelligence   score, ai, x ai-report, x provenance, x conventions,
                     x drift, x predict, x discover-rules, x ai-profile,
                     x refactor-sim, x test-gen, x vuln-scan
   CI/CD             pr-comment, webhook, export, fix
-  Tracking          trends, history, benchmark, score-track, perf-track, fix-track
+  Tracking          trends, benchmark, score-track, perf-track, fix-track
   Configuration     init, validate, explain, preset, suppress, baseline, self-tune
   App Management    manage, review, watch, runtime-check, live, devtools, workspace
   Flutter Quality   asset-audit, theme-audit, l10n-coverage, deeplink-validate,
@@ -506,66 +506,6 @@ enum Commands {
         /// Output file for markdown format
         #[arg(short, long)]
         output: Option<PathBuf>,
-    },
-
-    /// Compare Falcon analysis with dart analyze
-    #[command(display_order = 3)]
-    Compare {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-    },
-
-    /// Compare two stored analysis runs
-    #[command(display_order = 3)]
-    CompareReports {
-        /// Path to project (where .falcon-data/ lives)
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Run number for baseline (1-based, from `falcon history`)
-        #[arg(long, default_value = "0")]
-        run1: usize,
-
-        /// Run number for comparison (1-based, 0 = latest)
-        #[arg(long, default_value = "0")]
-        run2: usize,
-
-        /// Output HTML comparison report
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-    },
-
-    /// Compare analysis results between two git branches
-    #[command(display_order = 3)]
-    CompareBranches {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Base branch (e.g. main)
-        #[arg(long)]
-        base: String,
-
-        /// Branch to compare against base
-        #[arg(long)]
-        branch: String,
-
-        /// Output HTML comparison report
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-
-        /// Path to falcon.yaml config
-        #[arg(short, long)]
-        config: Option<PathBuf>,
-    },
-
-    /// Show analysis run history
-    #[command(display_order = 3)]
-    History {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
     },
 
     /// Update Falcon to the latest or a specific version
@@ -1154,6 +1094,66 @@ enum XAction {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+    },
+
+    /// Compare Falcon analysis with dart analyze
+    #[command(name = "compare")]
+    Compare {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Compare two stored analysis runs
+    #[command(name = "compare-reports")]
+    CompareReports {
+        /// Path to project (where .falcon-data/ lives)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Run number for baseline (1-based, from `falcon x history`)
+        #[arg(long, default_value = "0")]
+        run1: usize,
+
+        /// Run number for comparison (1-based, 0 = latest)
+        #[arg(long, default_value = "0")]
+        run2: usize,
+
+        /// Output HTML comparison report
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Compare analysis results between two git branches
+    #[command(name = "compare-branches")]
+    CompareBranches {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Base branch (e.g. main)
+        #[arg(long)]
+        base: String,
+
+        /// Branch to compare against base
+        #[arg(long)]
+        branch: String,
+
+        /// Output HTML comparison report
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Path to falcon.yaml config
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+    },
+
+    /// Show analysis run history
+    #[command(name = "history")]
+    History {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
     },
 
     /// Categorized smells report: Dead Code, Code Smells, Security Smells.
@@ -2591,6 +2591,98 @@ fn run_conventions(path: PathBuf, json: bool) -> Result<()> {
     Ok(())
 }
 
+fn run_compare(path: PathBuf) -> Result<()> {
+    let result = falcon::benchmark_compare::compare_with_dart_analyze(&path)?;
+    falcon::benchmark_compare::print_compare_result(&result);
+    Ok(())
+}
+
+fn run_compare_reports(
+    path: PathBuf,
+    run1: usize,
+    run2: usize,
+    output: Option<PathBuf>,
+) -> Result<()> {
+    let history = falcon::dashboard::snapshot::load_history(&path)?;
+    if history.len() < 2 {
+        eprintln!(
+            "  ❌ {} Need at least 2 analysis runs to compare. Run {} first.",
+            "error:".bright_red(),
+            "falcon check".bright_blue()
+        );
+        process::exit(1);
+    }
+
+    let idx1 = if run1 == 0 {
+        history.len() - 2
+    } else {
+        (run1 - 1).min(history.len() - 1)
+    };
+    let idx2 = if run2 == 0 {
+        history.len() - 1
+    } else {
+        (run2 - 1).min(history.len() - 1)
+    };
+
+    let snap1 = &history[idx1];
+    let snap2 = &history[idx2];
+
+    let result = falcon::dashboard::compare_reports::compare_snapshots(snap1, snap2);
+    falcon::dashboard::compare_reports::print_comparison(&result);
+
+    if let Some(out) = output {
+        falcon::dashboard::compare_reports::generate_html_comparison(&result, &out)?;
+    }
+    Ok(())
+}
+
+fn run_compare_branches(
+    path: PathBuf,
+    base: String,
+    branch: String,
+    output: Option<PathBuf>,
+    config: Option<PathBuf>,
+) -> Result<()> {
+    let config_path = config.as_deref().unwrap_or(&path);
+    let falcon_config = FalconConfig::load(config_path)?;
+
+    let html_out = output.unwrap_or_else(|| path.join("falcon-branch-comparison.html"));
+
+    println!();
+    println!(
+        "  🦅 {} {}",
+        "falcon".bright_blue().bold(),
+        "Branch Comparison".bold()
+    );
+    println!(
+        "  🌿 {} {} {}",
+        base.bright_cyan(),
+        "vs".dimmed(),
+        branch.bright_cyan()
+    );
+    println!();
+
+    match falcon::dashboard::compare_reports::compare_branches(
+        &path,
+        &base,
+        &branch,
+        &falcon_config,
+        &html_out,
+    ) {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("  ❌ {} {}", "error:".bright_red(), e);
+            process::exit(1);
+        }
+    }
+    Ok(())
+}
+
+fn run_history(path: PathBuf) -> Result<()> {
+    falcon::dashboard::compare_reports::list_history(&path)?;
+    Ok(())
+}
+
 fn run_refactor_sim(
     path: PathBuf,
     scenario: falcon::analysis::refactor_sim::RefactorScenario,
@@ -3718,90 +3810,6 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         },
-        Commands::Compare { path } => {
-            let result = falcon::benchmark_compare::compare_with_dart_analyze(&path)?;
-            falcon::benchmark_compare::print_compare_result(&result);
-        }
-        Commands::CompareReports {
-            path,
-            run1,
-            run2,
-            output,
-        } => {
-            let history = falcon::dashboard::snapshot::load_history(&path)?;
-            if history.len() < 2 {
-                eprintln!(
-                    "  ❌ {} Need at least 2 analysis runs to compare. Run {} first.",
-                    "error:".bright_red(),
-                    "falcon check".bright_blue()
-                );
-                process::exit(1);
-            }
-
-            let idx1 = if run1 == 0 {
-                history.len() - 2
-            } else {
-                (run1 - 1).min(history.len() - 1)
-            };
-            let idx2 = if run2 == 0 {
-                history.len() - 1
-            } else {
-                (run2 - 1).min(history.len() - 1)
-            };
-
-            let snap1 = &history[idx1];
-            let snap2 = &history[idx2];
-
-            let result = falcon::dashboard::compare_reports::compare_snapshots(snap1, snap2);
-            falcon::dashboard::compare_reports::print_comparison(&result);
-
-            if let Some(out) = output {
-                falcon::dashboard::compare_reports::generate_html_comparison(&result, &out)?;
-            }
-        }
-        Commands::CompareBranches {
-            path,
-            base,
-            branch,
-            output,
-            config,
-        } => {
-            let config_path = config.as_deref().unwrap_or(&path);
-            let falcon_config = FalconConfig::load(config_path)?;
-
-            let html_out = output.unwrap_or_else(|| path.join("falcon-branch-comparison.html"));
-
-            println!();
-            println!(
-                "  🦅 {} {}",
-                "falcon".bright_blue().bold(),
-                "Branch Comparison".bold()
-            );
-            println!(
-                "  🌿 {} {} {}",
-                base.bright_cyan(),
-                "vs".dimmed(),
-                branch.bright_cyan()
-            );
-            println!();
-
-            match falcon::dashboard::compare_reports::compare_branches(
-                &path,
-                &base,
-                &branch,
-                &falcon_config,
-                &html_out,
-            ) {
-                Ok(_) => {}
-                Err(e) => {
-                    eprintln!("  ❌ {} {}", "error:".bright_red(), e);
-                    process::exit(1);
-                }
-            }
-        }
-        Commands::History { path } => {
-            falcon::dashboard::compare_reports::list_history(&path)?;
-        }
         Commands::Update { version, list } => {
             if list {
                 falcon::self_update::print_version_info();
@@ -4534,6 +4542,33 @@ fn run(cli: Cli) -> Result<()> {
                 }
                 XAction::Conventions { path, json } => {
                     run_conventions(path, json)?;
+                    return Ok(());
+                }
+                XAction::Compare { path } => {
+                    run_compare(path)?;
+                    return Ok(());
+                }
+                XAction::CompareReports {
+                    path,
+                    run1,
+                    run2,
+                    output,
+                } => {
+                    run_compare_reports(path, run1, run2, output)?;
+                    return Ok(());
+                }
+                XAction::CompareBranches {
+                    path,
+                    base,
+                    branch,
+                    output,
+                    config,
+                } => {
+                    run_compare_branches(path, base, branch, output, config)?;
+                    return Ok(());
+                }
+                XAction::History { path } => {
+                    run_history(path)?;
                     return Ok(());
                 }
                 XAction::Smells {

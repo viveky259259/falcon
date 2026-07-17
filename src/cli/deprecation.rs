@@ -43,6 +43,10 @@ pub fn aliased_target(command: &str) -> Option<&'static str> {
         "predict" => Some("x predict"),
         "drift" => Some("x drift"),
         "conventions" => Some("x conventions"),
+        "compare" => Some("x compare"),
+        "compare-reports" => Some("x compare-reports"),
+        "compare-branches" => Some("x compare-branches"),
+        "history" => Some("x history"),
         "smells" => Some("x smells"),
         "metrics" => Some("x metrics"),
         "asset-audit" => Some("x asset-audit"),
@@ -158,6 +162,12 @@ mod tests {
         );
         assert_eq!(aliased_target("check-widgets"), Some("x check-widgets"));
         assert_eq!(aliased_target("codebase-intel"), Some("x codebase-intel"));
+        assert_eq!(aliased_target("compare"), Some("x compare"));
+        assert_eq!(
+            aliased_target("compare-branches"),
+            Some("x compare-branches")
+        );
+        assert_eq!(aliased_target("compare-reports"), Some("x compare-reports"));
         assert_eq!(aliased_target("conventions"), Some("x conventions"));
         assert_eq!(
             aliased_target("cognitive-complexity"),
@@ -166,6 +176,7 @@ mod tests {
         assert_eq!(aliased_target("discover-rules"), Some("x discover-rules"));
         assert_eq!(aliased_target("docs"), Some("x docs"));
         assert_eq!(aliased_target("drift"), Some("x drift"));
+        assert_eq!(aliased_target("history"), Some("x history"));
         assert_eq!(aliased_target("metrics"), Some("x metrics"));
         assert_eq!(aliased_target("predict"), Some("x predict"));
         assert_eq!(aliased_target("provenance"), Some("x provenance"));

@@ -164,6 +164,26 @@ fn legacy_ai_insight_commands_warn_and_still_run() {
 }
 
 #[test]
+fn legacy_comparison_history_commands_warn_and_show_help() {
+    let cases = [
+        ("compare", "x compare"),
+        ("compare-reports", "x compare-reports"),
+        ("compare-branches", "x compare-branches"),
+        ("history", "x history"),
+    ];
+
+    for (old, new) in cases {
+        let output = falcon_cmd()
+            .args([old, "--help"])
+            .output()
+            .expect("run falcon legacy comparison command help");
+
+        assert_success(&output);
+        assert_deprecation_warning(&output, old, new);
+    }
+}
+
+#[test]
 fn legacy_docs_command_warns_and_still_runs() {
     let temp = tempfile::tempdir().unwrap();
     let output_dir = temp.path().join("docs");
@@ -484,6 +504,21 @@ fn x_ai_insight_commands_do_not_warn() {
             .args(["x", command, root])
             .output()
             .expect("run falcon x AI insight command");
+
+        assert_success(&output);
+        assert_no_deprecation_warning(&output);
+    }
+}
+
+#[test]
+fn x_comparison_history_commands_do_not_warn_on_help() {
+    let cases = ["compare", "compare-reports", "compare-branches", "history"];
+
+    for command in cases {
+        let output = falcon_cmd()
+            .args(["x", command, "--help"])
+            .output()
+            .expect("run falcon x comparison command help");
 
         assert_success(&output);
         assert_no_deprecation_warning(&output);
