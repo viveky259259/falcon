@@ -17,6 +17,7 @@ pub fn warn_aliased(old: &str, new: &str) {
 pub fn aliased_target(command: &str) -> Option<&'static str> {
     match command {
         "ai-score" => Some("score"),
+        "smells" => Some("x smells"),
         "metrics" => Some("x metrics"),
         "asset-audit" => Some("x asset-audit"),
         "theme-audit" => Some("x theme-audit"),
@@ -101,6 +102,7 @@ mod tests {
         assert_eq!(aliased_target("asset-audit"), Some("x asset-audit"));
         assert_eq!(aliased_target("docs"), Some("x docs"));
         assert_eq!(aliased_target("metrics"), Some("x metrics"));
+        assert_eq!(aliased_target("smells"), Some("x smells"));
         assert_eq!(aliased_target("test-gen"), Some("x test-gen"));
     }
 

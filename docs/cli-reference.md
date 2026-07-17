@@ -10,6 +10,7 @@ mapping. The full historical help remains available for one release with
 | Command | Description |
 |---|---|
 | `falcon check [path]` | Full analysis (metrics + rules + unused detection) |
+| `falcon x smells [path]` | Categorized dead code, code smell, and security smell report |
 | `falcon x metrics [path]` | Calculate code metrics only |
 | `falcon score [path]` | AI Code Quality Score (0-100) with 6-dimension breakdown |
 | `falcon ai-report [path]` | Full "State of AI-Generated Flutter Code" report |
@@ -165,9 +166,9 @@ The update mechanism downloads pre-built binaries from GitHub releases. If no bi
 | `falcon predict [path]` | Predict production risks from code patterns |
 | `falcon discover-rules [path]` | Propose new rules from observed patterns |
 | `falcon ai triage [path] --format text\|json` | Embedded AI false-positive triage entry point |
-| `falcon refactor-sim --scenario <s>` | Simulate refactoring impact |
-| `falcon test-gen [path]` | Generate test stubs from code analysis |
-| `falcon vuln-scan [path]` | Security vulnerability radar |
+| `falcon x refactor-sim --scenario <s>` | Simulate refactoring impact |
+| `falcon x test-gen [path]` | Generate test stubs from code analysis |
+| `falcon x vuln-scan [path]` | Security vulnerability radar |
 | `falcon upgrade-check [path]` | Flutter upgrade compatibility |
 
 ### falcon ai triage
@@ -324,5 +325,5 @@ The bundled GitHub Action can do the same upload for full-project analysis:
 | `falcon explain <rule>` | Explain a rule with examples |
 | `falcon validate` | Validate falcon.yaml config |
 | `falcon watch` | Watch for file changes and re-analyze |
-| `falcon dep-graph` | Show file dependency graph |
-| `falcon workspace` | Analyze all packages in a monorepo |
+| `falcon x dep-graph` | Show file dependency graph |
+| `falcon x workspace` | Analyze all packages in a monorepo |

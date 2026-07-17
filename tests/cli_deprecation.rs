@@ -49,6 +49,19 @@ fn legacy_metrics_command_warns_and_still_runs() {
 }
 
 #[test]
+fn legacy_smells_command_warns_and_still_runs() {
+    let temp = tempfile::tempdir().unwrap();
+    write_dart_project(temp.path());
+    let output = falcon_cmd()
+        .args(["smells", temp.path().to_str().unwrap()])
+        .output()
+        .expect("run falcon smells");
+
+    assert_success(&output);
+    assert_deprecation_warning(&output, "smells", "x smells");
+}
+
+#[test]
 fn legacy_docs_command_warns_and_still_runs() {
     let temp = tempfile::tempdir().unwrap();
     let output_dir = temp.path().join("docs");
@@ -255,6 +268,19 @@ fn x_metrics_command_does_not_warn() {
         .args(["x", "metrics", temp.path().to_str().unwrap()])
         .output()
         .expect("run falcon x metrics");
+
+    assert_success(&output);
+    assert_no_deprecation_warning(&output);
+}
+
+#[test]
+fn x_smells_command_does_not_warn() {
+    let temp = tempfile::tempdir().unwrap();
+    write_dart_project(temp.path());
+    let output = falcon_cmd()
+        .args(["x", "smells", temp.path().to_str().unwrap()])
+        .output()
+        .expect("run falcon x smells");
 
     assert_success(&output);
     assert_no_deprecation_warning(&output);

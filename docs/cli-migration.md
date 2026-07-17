@@ -5,6 +5,7 @@ Falcon is moving to a compact top-level CLI before 1.0:
 | Before | Now |
 |---|---|
 | `falcon analyze .` | `falcon check .` |
+| `falcon smells .` | `falcon x smells .` |
 | `falcon metrics .` | `falcon x metrics .` |
 | `falcon ai-score .` | `falcon score .` |
 | `falcon pr-comment . --base-ref origin/main` | `falcon review . --base-ref origin/main --format gh` |

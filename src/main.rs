@@ -165,30 +165,6 @@ enum Commands {
         no_defer_to_analyzer: bool,
     },
 
-    /// Categorized smells report: Dead Code, Code Smells, Security Smells.
-    #[command(display_order = 1)]
-    Smells {
-        /// Path to analyze (defaults to current directory)
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Output format
-        #[arg(short, long, default_value = "console")]
-        format: OutputFormat,
-
-        /// Output file path (for file-based formats)
-        #[arg(short, long, default_value = "falcon-report.html")]
-        output: PathBuf,
-
-        /// Path to falcon.yaml config
-        #[arg(short, long)]
-        config: Option<PathBuf>,
-
-        /// Maximum issues to print per category in console output
-        #[arg(long, default_value_t = 20)]
-        limit: usize,
-    },
-
     /// Check for unused code declarations
     #[command(name = "check-unused-code", display_order = 2)]
     CheckUnusedCode {
@@ -1178,6 +1154,30 @@ enum Commands {
 /// 4-verb story (`review`, `check`, `fix`, `score`).
 #[derive(Subcommand)]
 enum XAction {
+    /// Categorized smells report: Dead Code, Code Smells, Security Smells.
+    #[command(name = "smells")]
+    Smells {
+        /// Path to analyze (defaults to current directory)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output format
+        #[arg(short, long, default_value = "console")]
+        format: OutputFormat,
+
+        /// Output file path (for file-based formats)
+        #[arg(short, long, default_value = "falcon-report.html")]
+        output: PathBuf,
+
+        /// Path to falcon.yaml config
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+
+        /// Maximum issues to print per category in console output
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
+    },
+
     /// Calculate code metrics only
     #[command(name = "metrics")]
     Metrics {
@@ -2090,6 +2090,46 @@ fn run_metrics(
     Ok(())
 }
 
+fn run_smells(
+    path: PathBuf,
+    format: OutputFormat,
+    output: PathBuf,
+    config: Option<PathBuf>,
+    limit: usize,
+) -> Result<()> {
+    let config_path = config.as_deref().unwrap_or(&path);
+    let falcon_config = FalconConfig::load(config_path)?;
+    let falcon = Falcon::new(falcon_config.clone())?;
+
+    let report = falcon.analyze(&path)?;
+    let mut all_issues = report.issues;
+
+    let exclude: Vec<glob::Pattern> = falcon_config
+        .exclude
+        .iter()
+        .filter_map(|p| glob::Pattern::new(p).ok())
+        .collect();
+    all_issues.extend(falcon::resolver::dead_code::detect_dead_code(
+        &path, &exclude,
+    ));
+
+    let resolver = falcon::resolver::ProjectResolver::new(&path, &falcon_config)?;
+    let unused_file_issues = resolver.find_unused_files().unwrap_or_default();
+    let unused_set: std::collections::HashSet<std::path::PathBuf> =
+        unused_file_issues.iter().map(|i| i.file.clone()).collect();
+    all_issues.extend(unused_file_issues);
+
+    let dead_folders = falcon::smells::dead_folders::find_dead_folders(&path, &unused_set);
+    let summary = falcon::smells::SmellsSummary::from_issues(&all_issues, dead_folders);
+    print_smells_summary(&summary, &path, limit, &format, &output);
+
+    if !summary.security_smells.is_empty() {
+        process::exit(1);
+    }
+
+    Ok(())
+}
+
 fn run_refactor_sim(
     path: PathBuf,
     scenario: falcon::analysis::refactor_sim::RefactorScenario,
@@ -2348,49 +2388,6 @@ fn run(cli: Cli) -> Result<()> {
                 semantic,
                 no_defer_to_analyzer,
             })?;
-        }
-        Commands::Smells {
-            path,
-            format,
-            output,
-            config,
-            limit,
-        } => {
-            let config_path = config.as_deref().unwrap_or(&path);
-            let falcon_config = FalconConfig::load(config_path)?;
-            let falcon = Falcon::new(falcon_config.clone())?;
-
-            // 1. Full analysis (rules + metrics)
-            let report = falcon.analyze(&path)?;
-            let mut all_issues = report.issues;
-
-            // 2. Dead-code-path detector (in case the rule is gated off)
-            let exclude: Vec<glob::Pattern> = falcon_config
-                .exclude
-                .iter()
-                .filter_map(|p| glob::Pattern::new(p).ok())
-                .collect();
-            all_issues.extend(falcon::resolver::dead_code::detect_dead_code(
-                &path, &exclude,
-            ));
-
-            // 3. Unused files (so dead-folder rollup has data to work from)
-            let resolver = falcon::resolver::ProjectResolver::new(&path, &falcon_config)?;
-            let unused_file_issues = resolver.find_unused_files().unwrap_or_default();
-            let unused_set: std::collections::HashSet<std::path::PathBuf> =
-                unused_file_issues.iter().map(|i| i.file.clone()).collect();
-            all_issues.extend(unused_file_issues);
-
-            // 4. Dead-folder rollup
-            let dead_folders = falcon::smells::dead_folders::find_dead_folders(&path, &unused_set);
-
-            // 5. Categorize and print
-            let summary = falcon::smells::SmellsSummary::from_issues(&all_issues, dead_folders);
-            print_smells_summary(&summary, &path, limit, &format, &output);
-
-            if !summary.security_smells.is_empty() {
-                process::exit(1);
-            }
         }
         Commands::CheckUnusedCode {
             path,
@@ -4408,6 +4405,16 @@ fn run(cli: Cli) -> Result<()> {
             // Legacy warnings are emitted before clap parsing so
             // `falcon x ...` stays quiet.
             match action {
+                XAction::Smells {
+                    path,
+                    format,
+                    output,
+                    config,
+                    limit,
+                } => {
+                    run_smells(path, format, output, config, limit)?;
+                    return Ok(());
+                }
                 XAction::Metrics {
                     path,
                     format,

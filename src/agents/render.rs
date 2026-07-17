@@ -65,7 +65,7 @@ entry in `src/smells/mod.rs::classify` if the rule should be bucketed.
 ## Useful falcon-on-falcon commands
 ```
 falcon analyze .
-falcon smells .
+falcon x smells .
 falcon agents init           # regenerate this file
 ```
 "#,
@@ -100,7 +100,7 @@ This project uses **falcon** for AI-aware static analysis on top of
 `flutter analyze`. Run before submitting:
 ```
 falcon analyze .
-falcon smells .                 # categorized: dead code / code smells / security smells
+falcon x smells .               # categorized: dead code / code smells / security smells
 falcon check-unused-files .
 falcon check-dead-code .
 ```
@@ -181,7 +181,7 @@ Top-level files in this feature:
 {entry_files}
 
 ## How to work here
-- Run `falcon smells {dir}` after changes — it reports dead code, code smells,
+- Run `falcon x smells {dir}` after changes — it reports dead code, code smells,
   and security smells scoped to this folder.
 - Run `flutter test test/{name}/` if a matching test folder exists.
 - New widgets: prefer `StatelessWidget` + `const` constructors; falcon flags
@@ -206,7 +206,7 @@ Top-level files in this feature:
 
 ## Quick checks before submitting
 ```
-falcon smells {dir}
+falcon x smells {dir}
 flutter analyze {dir}
 flutter test
 ```
