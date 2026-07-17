@@ -65,10 +65,10 @@ $ falcon score .
 
 | Feature | Command | Description |
 |---|---|---|
-| **App Manager** | `falcon manage health` | Unified 0-100 health score across 6 dimensions |
-| **Dep Manager** | `falcon manage deps` | Unused deps, version issues, path/git deps |
-| **Architect** | `falcon manage arch` | Architecture governance, layer violations, hotspots |
-| **Maintenance** | `falcon manage maint` | Tech debt score, cleanup tasks, auto-fix pipeline |
+| **App Manager** | `falcon x manage health` | Unified 0-100 health score across 6 dimensions |
+| **Dep Manager** | `falcon x manage deps` | Unused deps, version issues, path/git deps |
+| **Architect** | `falcon x manage arch` | Architecture governance, layer violations, hotspots |
+| **Maintenance** | `falcon x manage maint` | Tech debt score, cleanup tasks, auto-fix pipeline |
 | **AI Score** | `falcon score` | 0-100 AI Code Quality Score with 6-dimension breakdown |
 | **61+ Rules** | `falcon check` | Flutter, BLoC, Riverpod, accessibility rules |
 | **MCP Server** | `falcon-mcp` | AI tools call Falcon during code generation |

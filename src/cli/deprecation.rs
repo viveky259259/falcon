@@ -65,6 +65,14 @@ pub fn aliased_target(command: &str) -> Option<&'static str> {
         "fix-track" => Some("x fix-track"),
         "self-tune" => Some("x self-tune"),
         "learn" => Some("x learn"),
+        "watch" => Some("x watch"),
+        "run" => Some("x run"),
+        "flutter" => Some("x flutter"),
+        "fvm" => Some("x fvm"),
+        "runtime-check" => Some("x runtime-check"),
+        "live" => Some("x live"),
+        "devtools" => Some("x devtools"),
+        "manage" => Some("x manage"),
         "cloud" => Some("x cloud"),
         "enterprise" => Some("x enterprise"),
         "marketplace" => Some("x marketplace"),
@@ -206,14 +214,19 @@ mod tests {
             aliased_target("deprecation-status"),
             Some("x deprecation-status")
         );
+        assert_eq!(aliased_target("devtools"), Some("x devtools"));
         assert_eq!(aliased_target("discover-rules"), Some("x discover-rules"));
         assert_eq!(aliased_target("docs"), Some("x docs"));
         assert_eq!(aliased_target("drift"), Some("x drift"));
         assert_eq!(aliased_target("enterprise"), Some("x enterprise"));
         assert_eq!(aliased_target("explain"), Some("x explain"));
         assert_eq!(aliased_target("fix-track"), Some("x fix-track"));
+        assert_eq!(aliased_target("flutter"), Some("x flutter"));
+        assert_eq!(aliased_target("fvm"), Some("x fvm"));
         assert_eq!(aliased_target("history"), Some("x history"));
         assert_eq!(aliased_target("learn"), Some("x learn"));
+        assert_eq!(aliased_target("live"), Some("x live"));
+        assert_eq!(aliased_target("manage"), Some("x manage"));
         assert_eq!(aliased_target("marketplace"), Some("x marketplace"));
         assert_eq!(aliased_target("metrics"), Some("x metrics"));
         assert_eq!(aliased_target("partners"), Some("x partners"));
@@ -223,6 +236,8 @@ mod tests {
         assert_eq!(aliased_target("provenance"), Some("x provenance"));
         assert_eq!(aliased_target("rule-docs"), Some("x rule-docs"));
         assert_eq!(aliased_target("rule-impact"), Some("x rule-impact"));
+        assert_eq!(aliased_target("run"), Some("x run"));
+        assert_eq!(aliased_target("runtime-check"), Some("x runtime-check"));
         assert_eq!(aliased_target("score-track"), Some("x score-track"));
         assert_eq!(aliased_target("self-tune"), Some("x self-tune"));
         assert_eq!(
@@ -235,6 +250,7 @@ mod tests {
         assert_eq!(aliased_target("trends"), Some("x trends"));
         assert_eq!(aliased_target("upgrade-check"), Some("x upgrade-check"));
         assert_eq!(aliased_target("validate"), Some("x validate"));
+        assert_eq!(aliased_target("watch"), Some("x watch"));
     }
 
     #[test]

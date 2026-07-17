@@ -70,11 +70,11 @@ SEMANTIC COMMAND GROUPS:
   Configuration     init, x validate, x explain, x preset, x suppress,
                     x baseline, x rule-docs, x stability-contract,
                     x deprecation-status
-  App Management    manage, review, watch, runtime-check, live, devtools, workspace
+  App Management    x manage, review, x watch, x runtime-check, x live, x devtools, x workspace
   Flutter Quality   asset-audit, theme-audit, l10n-coverage, deeplink-validate,
                     animation-audit, golden-gen
   Integration       mcp, api
-  Flutter SDK       flutter (passthrough — every flutter subcommand: run, build, test, pub, doctor, …)
+  Flutter SDK       x flutter (passthrough — every flutter subcommand: run, build, test, pub, doctor, …)
   Enterprise        x cloud, x enterprise, x certify, x marketplace, x partners
   Setup             init, update
 
@@ -179,159 +179,11 @@ enum Commands {
         path: PathBuf,
     },
 
-    /// Watch for file changes and re-analyze continuously
-    #[command(display_order = 8)]
-    Watch {
-        /// Path to watch
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Path to falcon.yaml config
-        #[arg(short, long)]
-        config: Option<PathBuf>,
-    },
-
-    /// Run a Flutter app and capture any errors to numbered error_N.md files
-    #[command(name = "run", display_order = 7)]
-    Run {
-        /// Path to the Flutter project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Directory where error_N.md files are written (defaults to project root)
-        #[arg(long, default_value = ".")]
-        output_dir: PathBuf,
-
-        /// Target device ID passed to `flutter run -d`
-        #[arg(long)]
-        device: Option<String>,
-
-        /// Build flavor passed to `flutter run --flavor`
-        #[arg(long)]
-        flavor: Option<String>,
-
-        /// Send an OS desktop notification when errors are found
-        #[arg(long)]
-        notify: bool,
-
-        /// POST a JSON summary to this webhook URL when errors are found
-        #[arg(long)]
-        webhook: Option<String>,
-
-        /// Live monitor interval in seconds (memory + issue snapshots).
-        /// Min 5, max 600, default 30.
-        #[arg(
-            long,
-            default_value_t = falcon::flutter_run::monitor::DEFAULT_MONITOR_INTERVAL_SECS,
-            value_parser = clap::value_parser!(u64)
-                .range(falcon::flutter_run::monitor::MIN_MONITOR_INTERVAL_SECS
-                    ..=falcon::flutter_run::monitor::MAX_MONITOR_INTERVAL_SECS),
-        )]
-        monitor_interval: u64,
-
-        /// Disable the live memory / issues monitor entirely
-        #[arg(long)]
-        no_monitor: bool,
-    },
-
-    /// Proxy to the Flutter SDK — exposes every `flutter` subcommand (run, build, test, pub, doctor, …)
-    #[command(
-        name = "flutter",
-        display_order = 7,
-        trailing_var_arg = true,
-        allow_hyphen_values = true,
-        disable_help_flag = true,
-        disable_help_subcommand = true
-    )]
-    Flutter {
-        /// Arguments forwarded verbatim to the `flutter` CLI (e.g. `falcon flutter build apk --release`)
-        #[arg(num_args = 0.., value_name = "ARGS")]
-        args: Vec<String>,
-    },
-
     /// Generate AGENTS.md files (root + per-feature) so Codex/Cursor/Aider follow the same rules
     #[command(display_order = 7)]
     Agents {
         #[command(subcommand)]
         action: AgentsAction,
-    },
-
-    /// Proxy to FVM — manage Flutter SDK versions (`falcon fvm install 3.24.0`, `falcon fvm use stable`, …)
-    #[command(
-        name = "fvm",
-        display_order = 7,
-        trailing_var_arg = true,
-        allow_hyphen_values = true,
-        disable_help_flag = true,
-        disable_help_subcommand = true
-    )]
-    Fvm {
-        /// Arguments forwarded verbatim to the `fvm` CLI
-        #[arg(num_args = 0.., value_name = "ARGS")]
-        args: Vec<String>,
-    },
-
-    /// Run runtime diagnostics on a Flutter app (memory, rendering, network, CPU)
-    #[command(name = "runtime-check", display_order = 8)]
-    RuntimeCheck {
-        /// Path to the Flutter project (used for `flutter run`)
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Attach to an already-running app by VM Service URI instead of launching
-        #[arg(long)]
-        attach: Option<String>,
-
-        /// Duration in seconds to collect diagnostics
-        #[arg(short, long, default_value = "30")]
-        duration: u64,
-
-        /// Output file path for the HTML dashboard report
-        #[arg(short, long, default_value = "falcon-runtime-report.html")]
-        output: PathBuf,
-
-        /// Memory warning threshold in MB
-        #[arg(long, default_value = "150")]
-        memory_warn_mb: f64,
-
-        /// Frame build time warning threshold in ms
-        #[arg(long, default_value = "16")]
-        frame_warn_ms: f64,
-
-        /// Skip HTML report generation (CLI output only)
-        #[arg(long)]
-        no_html: bool,
-    },
-
-    /// Watch a running Flutter app and surface runtime issues in realtime
-    #[command(name = "live", display_order = 8)]
-    Live {
-        /// Path to the Flutter project (used for `flutter run` when not attaching)
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Attach to an already-running app by VM Service URI instead of launching
-        #[arg(long)]
-        attach: Option<String>,
-
-        /// Total session duration in seconds
-        #[arg(short, long, default_value = "30")]
-        duration: u64,
-
-        /// Collection window in seconds for each iteration
-        #[arg(long, default_value = "10")]
-        interval: u64,
-
-        /// Print machine-readable JSON
-        #[arg(long)]
-        json: bool,
-    },
-
-    /// Query DevTools-backed runtime APIs directly
-    #[command(name = "devtools", display_order = 8)]
-    Devtools {
-        #[command(subcommand)]
-        action: DevtoolsAction,
     },
 
     /// AI configuration and tools
@@ -488,13 +340,6 @@ enum Commands {
         /// Output format alias. Currently supports `json`.
         #[arg(long, value_name = "FORMAT", value_parser = ["json"])]
         format: Option<String>,
-    },
-
-    /// Manage Flutter app — health, deps, architecture, maintenance, build
-    #[command(display_order = 8)]
-    Manage {
-        #[command(subcommand)]
-        action: ManageAction,
     },
 
     /// Start Falcon MCP server (stdio) for AI tool integration
@@ -1124,6 +969,159 @@ enum XAction {
         /// Show insights instead of recording
         #[arg(long)]
         insights: bool,
+    },
+
+    /// Watch for file changes and re-analyze continuously
+    #[command(name = "watch")]
+    Watch {
+        /// Path to watch
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Path to falcon.yaml config
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+    },
+
+    /// Run a Flutter app and capture any errors to numbered error_N.md files
+    #[command(name = "run")]
+    Run {
+        /// Path to the Flutter project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Directory where error_N.md files are written (defaults to project root)
+        #[arg(long, default_value = ".")]
+        output_dir: PathBuf,
+
+        /// Target device ID passed to `flutter run -d`
+        #[arg(long)]
+        device: Option<String>,
+
+        /// Build flavor passed to `flutter run --flavor`
+        #[arg(long)]
+        flavor: Option<String>,
+
+        /// Send an OS desktop notification when errors are found
+        #[arg(long)]
+        notify: bool,
+
+        /// POST a JSON summary to this webhook URL when errors are found
+        #[arg(long)]
+        webhook: Option<String>,
+
+        /// Live monitor interval in seconds (memory + issue snapshots).
+        /// Min 5, max 600, default 30.
+        #[arg(
+            long,
+            default_value_t = falcon::flutter_run::monitor::DEFAULT_MONITOR_INTERVAL_SECS,
+            value_parser = clap::value_parser!(u64)
+                .range(falcon::flutter_run::monitor::MIN_MONITOR_INTERVAL_SECS
+                    ..=falcon::flutter_run::monitor::MAX_MONITOR_INTERVAL_SECS),
+        )]
+        monitor_interval: u64,
+
+        /// Disable the live memory / issues monitor entirely
+        #[arg(long)]
+        no_monitor: bool,
+    },
+
+    /// Proxy to the Flutter SDK — exposes every `flutter` subcommand (run, build, test, pub, doctor, …)
+    #[command(
+        name = "flutter",
+        trailing_var_arg = true,
+        allow_hyphen_values = true,
+        disable_help_flag = true,
+        disable_help_subcommand = true
+    )]
+    Flutter {
+        /// Arguments forwarded verbatim to the `flutter` CLI (e.g. `falcon x flutter build apk --release`)
+        #[arg(num_args = 0.., value_name = "ARGS")]
+        args: Vec<String>,
+    },
+
+    /// Proxy to FVM — manage Flutter SDK versions (`falcon x fvm install 3.24.0`, `falcon x fvm use stable`, …)
+    #[command(
+        name = "fvm",
+        trailing_var_arg = true,
+        allow_hyphen_values = true,
+        disable_help_flag = true,
+        disable_help_subcommand = true
+    )]
+    Fvm {
+        /// Arguments forwarded verbatim to the `fvm` CLI
+        #[arg(num_args = 0.., value_name = "ARGS")]
+        args: Vec<String>,
+    },
+
+    /// Run runtime diagnostics on a Flutter app (memory, rendering, network, CPU)
+    #[command(name = "runtime-check")]
+    RuntimeCheck {
+        /// Path to the Flutter project (used for `flutter run`)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Attach to an already-running app by VM Service URI instead of launching
+        #[arg(long)]
+        attach: Option<String>,
+
+        /// Duration in seconds to collect diagnostics
+        #[arg(short, long, default_value = "30")]
+        duration: u64,
+
+        /// Output file path for the HTML dashboard report
+        #[arg(short, long, default_value = "falcon-runtime-report.html")]
+        output: PathBuf,
+
+        /// Memory warning threshold in MB
+        #[arg(long, default_value = "150")]
+        memory_warn_mb: f64,
+
+        /// Frame build time warning threshold in ms
+        #[arg(long, default_value = "16")]
+        frame_warn_ms: f64,
+
+        /// Skip HTML report generation (CLI output only)
+        #[arg(long)]
+        no_html: bool,
+    },
+
+    /// Watch a running Flutter app and surface runtime issues in realtime
+    #[command(name = "live")]
+    Live {
+        /// Path to the Flutter project (used for `flutter run` when not attaching)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Attach to an already-running app by VM Service URI instead of launching
+        #[arg(long)]
+        attach: Option<String>,
+
+        /// Total session duration in seconds
+        #[arg(short, long, default_value = "30")]
+        duration: u64,
+
+        /// Collection window in seconds for each iteration
+        #[arg(long, default_value = "10")]
+        interval: u64,
+
+        /// Print machine-readable JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Query DevTools-backed runtime APIs directly
+    #[command(name = "devtools")]
+    Devtools {
+        #[command(subcommand)]
+        action: DevtoolsAction,
+    },
+
+    /// Manage Flutter app — health, deps, architecture, maintenance, build
+    #[command(name = "manage")]
+    Manage {
+        #[command(subcommand)]
+        action: ManageAction,
     },
 
     /// Falcon Cloud — team dashboards and multi-project tracking
@@ -3101,6 +3099,389 @@ fn run_score_track(path: PathBuf, history: bool, last: usize) -> Result<()> {
     Ok(())
 }
 
+fn run_watch(path: PathBuf, config: Option<PathBuf>) -> Result<()> {
+    let config_path = config.as_deref().unwrap_or(&path);
+    let falcon_config = FalconConfig::load(config_path)?;
+    falcon::incremental::watcher::watch(&path, falcon_config)?;
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_flutter_capture(
+    path: PathBuf,
+    output_dir: PathBuf,
+    device: Option<String>,
+    flavor: Option<String>,
+    notify: bool,
+    webhook: Option<String>,
+    monitor_interval: u64,
+    no_monitor: bool,
+) -> Result<()> {
+    let resolved_output = if output_dir == Path::new(".") {
+        path.clone()
+    } else {
+        output_dir
+    };
+
+    let config = falcon::flutter_run::FlutterRunConfig {
+        project_path: path,
+        output_dir: resolved_output,
+        device,
+        flavor,
+        notify,
+        webhook,
+        monitor_interval: std::time::Duration::from_secs(monitor_interval),
+        monitor_enabled: !no_monitor,
+    };
+
+    let report = falcon::flutter_run::run_flutter_app(&config)?;
+    if report.has_errors() {
+        process::exit(1);
+    }
+
+    Ok(())
+}
+
+fn run_flutter_passthrough(args: Vec<String>) -> Result<()> {
+    let status = std::process::Command::new("flutter")
+        .args(&args)
+        .status()
+        .map_err(|e| {
+            anyhow::anyhow!("failed to invoke `flutter`: {e}. Is the Flutter SDK on your PATH?")
+        })?;
+    process::exit(status.code().unwrap_or(1));
+}
+
+fn run_fvm_passthrough(args: Vec<String>) -> Result<()> {
+    let status = std::process::Command::new("fvm")
+        .args(&args)
+        .status()
+        .map_err(|e| anyhow::anyhow!("failed to invoke `fvm`: {e}. Install FVM (https://fvm.app) or ensure it is on your PATH."))?;
+    process::exit(status.code().unwrap_or(1));
+}
+
+fn run_runtime_check(
+    path: PathBuf,
+    attach: Option<String>,
+    duration: u64,
+    output: PathBuf,
+    memory_warn_mb: f64,
+    frame_warn_ms: f64,
+    no_html: bool,
+) -> Result<()> {
+    let config = falcon::runtime::RuntimeCheckConfig {
+        project_path: path.clone(),
+        duration: std::time::Duration::from_secs(duration),
+        attach_uri: attach,
+        html_output: if no_html { None } else { Some(output.clone()) },
+        thresholds: falcon::runtime::RuntimeThresholds {
+            memory_warn_mb,
+            frame_warn_ms,
+            ..Default::default()
+        },
+    };
+
+    let rt = tokio::runtime::Runtime::new()?;
+    let report = rt.block_on(falcon::runtime::run_runtime_check(&config))?;
+    falcon::runtime::print_console_report(&report);
+
+    if !no_html {
+        falcon::runtime::write_html_report(&report, &output)?;
+        eprintln!(
+            "  {} HTML report written to {}",
+            "✓".green().bold(),
+            output.display().to_string().bright_white()
+        );
+    }
+
+    if report.error_count() > 0 {
+        process::exit(1);
+    }
+
+    Ok(())
+}
+
+fn run_live(
+    path: PathBuf,
+    attach: Option<String>,
+    duration: u64,
+    interval: u64,
+    json: bool,
+) -> Result<()> {
+    let config = falcon::runtime::live::LiveConfig {
+        project_path: path,
+        attach_uri: attach,
+        duration: std::time::Duration::from_secs(duration),
+        interval: std::time::Duration::from_secs(interval.max(1)),
+        ..Default::default()
+    };
+
+    let rt = tokio::runtime::Runtime::new()?;
+    let report = rt.block_on(falcon::runtime::live::run_live_session(&config))?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    }
+
+    if report
+        .issues
+        .iter()
+        .any(|issue| issue.severity == falcon::runtime::live::LiveIssueSeverity::Error)
+    {
+        process::exit(1);
+    }
+
+    Ok(())
+}
+
+fn run_devtools(action: DevtoolsAction) -> Result<()> {
+    let rt = tokio::runtime::Runtime::new()?;
+    match action {
+        DevtoolsAction::Memory { path, attach, json } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_memory_report(
+                &client, &vm_uri,
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_memory_report(&report);
+            }
+        }
+        DevtoolsAction::Network {
+            path,
+            attach,
+            duration,
+            json,
+        } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_network_report(
+                &client,
+                &vm_uri,
+                std::time::Duration::from_secs(duration),
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_network_report(&report);
+            }
+        }
+        DevtoolsAction::Performance {
+            path,
+            attach,
+            duration,
+            json,
+        } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_performance_report(
+                &client,
+                &vm_uri,
+                std::time::Duration::from_secs(duration),
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_performance_report(&report);
+            }
+        }
+        DevtoolsAction::Profiler {
+            path,
+            attach,
+            duration,
+            json,
+        } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_profiler_report(
+                &client,
+                &vm_uri,
+                std::time::Duration::from_secs(duration),
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_profiler_report(&report);
+            }
+        }
+        DevtoolsAction::Debugger {
+            path,
+            attach,
+            action,
+            json,
+        } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let action = action.map(|action| match action {
+                DebuggerActionArg::Pause => falcon::runtime::tools::DebuggerAction::Pause,
+                DebuggerActionArg::Resume => falcon::runtime::tools::DebuggerAction::Resume,
+                DebuggerActionArg::StepOver => falcon::runtime::tools::DebuggerAction::StepOver,
+                DebuggerActionArg::StepIn => falcon::runtime::tools::DebuggerAction::StepIn,
+                DebuggerActionArg::StepOut => falcon::runtime::tools::DebuggerAction::StepOut,
+            });
+            let report = rt.block_on(falcon::runtime::tools::collect_debugger_report(
+                &client, &vm_uri, action,
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_debugger_report(&report);
+            }
+        }
+        DevtoolsAction::Logging {
+            path,
+            attach,
+            duration,
+            json,
+        } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_logging_report(
+                &client,
+                &vm_uri,
+                std::time::Duration::from_secs(duration),
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_logging_report(&report);
+            }
+        }
+        DevtoolsAction::Rebuilds { path, attach, json } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_rebuilds_report(
+                &client, &vm_uri,
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_rebuilds_report(&report);
+            }
+        }
+        DevtoolsAction::Inspector { path, attach, json } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_inspector_report(
+                &client, &vm_uri,
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_inspector_report(&report);
+            }
+        }
+        DevtoolsAction::Reload { path, attach, json } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_reload_report(
+                &client,
+                &vm_uri,
+                falcon::runtime::tools::ReloadMode::HotReload,
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_reload_report(&report);
+            }
+            if !report.success {
+                process::exit(1);
+            }
+        }
+        DevtoolsAction::Restart { path, attach, json } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_reload_report(
+                &client,
+                &vm_uri,
+                falcon::runtime::tools::ReloadMode::HotRestart,
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_reload_report(&report);
+            }
+            if !report.success {
+                process::exit(1);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn run_manage(action: ManageAction) -> Result<()> {
+    match action {
+        ManageAction::Health { path, json } => {
+            let report = falcon::manage::health::generate_health_report(&path)?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::manage::health::print_health_report(&report);
+            }
+        }
+        ManageAction::Deps { path } => {
+            let report = falcon::manage::deps::analyze_dependencies(&path)?;
+            falcon::manage::deps::print_dep_report(&report);
+        }
+        ManageAction::Arch { path, json } => {
+            let report = falcon::manage::architect::analyze_architecture(&path)?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::manage::architect::print_arch_report(&report);
+            }
+        }
+        ManageAction::Maint { path } => {
+            let report = falcon::manage::maintenance::analyze_maintenance(&path)?;
+            falcon::manage::maintenance::print_maintenance_report(&report);
+        }
+        ManageAction::Build { path } => {
+            let report = falcon::manage::build_opt::analyze_build(&path)?;
+            falcon::manage::build_opt::print_build_report(&report);
+        }
+        ManageAction::All { path } => {
+            let health = falcon::manage::health::generate_health_report(&path)?;
+            falcon::manage::health::print_health_report(&health);
+
+            let deps = falcon::manage::deps::analyze_dependencies(&path)?;
+            falcon::manage::deps::print_dep_report(&deps);
+
+            let arch = falcon::manage::architect::analyze_architecture(&path)?;
+            falcon::manage::architect::print_arch_report(&arch);
+
+            let maint = falcon::manage::maintenance::analyze_maintenance(&path)?;
+            falcon::manage::maintenance::print_maintenance_report(&maint);
+
+            let build = falcon::manage::build_opt::analyze_build(&path)?;
+            falcon::manage::build_opt::print_build_report(&build);
+        }
+    }
+
+    Ok(())
+}
+
 fn run_cloud(action: CloudAction) -> Result<()> {
     match action {
         CloudAction::Init { team, path } => {
@@ -3488,66 +3869,6 @@ fn run(cli: Cli) -> Result<()> {
             falcon::init_config(&path)?;
             println!("Created falcon.yaml in {}", path.display());
         }
-        Commands::Watch { path, config } => {
-            let config_path = config.as_deref().unwrap_or(&path);
-            let falcon_config = FalconConfig::load(config_path)?;
-            falcon::incremental::watcher::watch(&path, falcon_config)?;
-        }
-        Commands::Run {
-            path,
-            output_dir,
-            device,
-            flavor,
-            notify,
-            webhook,
-            monitor_interval,
-            no_monitor,
-        } => {
-            // Resolve output_dir relative to path when it is the default "."
-            let resolved_output = if output_dir == Path::new(".") {
-                path.clone()
-            } else {
-                output_dir
-            };
-
-            let config = falcon::flutter_run::FlutterRunConfig {
-                project_path: path,
-                output_dir: resolved_output,
-                device,
-                flavor,
-                notify,
-                webhook,
-                monitor_interval: std::time::Duration::from_secs(monitor_interval),
-                monitor_enabled: !no_monitor,
-            };
-
-            let report = falcon::flutter_run::run_flutter_app(&config)?;
-
-            if report.has_errors() {
-                process::exit(1);
-            }
-        }
-
-        Commands::Flutter { args } => {
-            let status = std::process::Command::new("flutter")
-                .args(&args)
-                .status()
-                .map_err(|e| {
-                    anyhow::anyhow!(
-                        "failed to invoke `flutter`: {e}. Is the Flutter SDK on your PATH?"
-                    )
-                })?;
-            process::exit(status.code().unwrap_or(1));
-        }
-
-        Commands::Fvm { args } => {
-            let status = std::process::Command::new("fvm")
-                .args(&args)
-                .status()
-                .map_err(|e| anyhow::anyhow!("failed to invoke `fvm`: {e}. Install FVM (https://fvm.app) or ensure it is on your PATH."))?;
-            process::exit(status.code().unwrap_or(1));
-        }
-
         Commands::Agents { action } => match action {
             AgentsAction::Init { path, force } => {
                 let report = falcon::agents::run_init(&path, force)?;
@@ -3579,276 +3900,6 @@ fn run(cli: Cli) -> Result<()> {
             }
         },
 
-        Commands::RuntimeCheck {
-            path,
-            attach,
-            duration,
-            output,
-            memory_warn_mb,
-            frame_warn_ms,
-            no_html,
-        } => {
-            let config = falcon::runtime::RuntimeCheckConfig {
-                project_path: path.clone(),
-                duration: std::time::Duration::from_secs(duration),
-                attach_uri: attach,
-                html_output: if no_html { None } else { Some(output.clone()) },
-                thresholds: falcon::runtime::RuntimeThresholds {
-                    memory_warn_mb,
-                    frame_warn_ms,
-                    ..Default::default()
-                },
-            };
-
-            let rt = tokio::runtime::Runtime::new()?;
-            let report = rt.block_on(falcon::runtime::run_runtime_check(&config))?;
-
-            // Console output.
-            falcon::runtime::print_console_report(&report);
-
-            // HTML output.
-            if !no_html {
-                falcon::runtime::write_html_report(&report, &output)?;
-                eprintln!(
-                    "  {} HTML report written to {}",
-                    "✓".green().bold(),
-                    output.display().to_string().bright_white()
-                );
-            }
-
-            if report.error_count() > 0 {
-                process::exit(1);
-            }
-        }
-        Commands::Live {
-            path,
-            attach,
-            duration,
-            interval,
-            json,
-        } => {
-            let config = falcon::runtime::live::LiveConfig {
-                project_path: path,
-                attach_uri: attach,
-                duration: std::time::Duration::from_secs(duration),
-                interval: std::time::Duration::from_secs(interval.max(1)),
-                ..Default::default()
-            };
-
-            let rt = tokio::runtime::Runtime::new()?;
-            let report = rt.block_on(falcon::runtime::live::run_live_session(&config))?;
-            if json {
-                println!("{}", serde_json::to_string_pretty(&report)?);
-            }
-
-            if report
-                .issues
-                .iter()
-                .any(|issue| issue.severity == falcon::runtime::live::LiveIssueSeverity::Error)
-            {
-                process::exit(1);
-            }
-        }
-        Commands::Devtools { action } => {
-            let rt = tokio::runtime::Runtime::new()?;
-            match action {
-                DevtoolsAction::Memory { path, attach, json } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let report = rt.block_on(falcon::runtime::tools::collect_memory_report(
-                        &client, &vm_uri,
-                    ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_memory_report(&report);
-                    }
-                }
-                DevtoolsAction::Network {
-                    path,
-                    attach,
-                    duration,
-                    json,
-                } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let report = rt.block_on(falcon::runtime::tools::collect_network_report(
-                        &client,
-                        &vm_uri,
-                        std::time::Duration::from_secs(duration),
-                    ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_network_report(&report);
-                    }
-                }
-                DevtoolsAction::Performance {
-                    path,
-                    attach,
-                    duration,
-                    json,
-                } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let report =
-                        rt.block_on(falcon::runtime::tools::collect_performance_report(
-                            &client,
-                            &vm_uri,
-                            std::time::Duration::from_secs(duration),
-                        ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_performance_report(&report);
-                    }
-                }
-                DevtoolsAction::Profiler {
-                    path,
-                    attach,
-                    duration,
-                    json,
-                } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let report = rt.block_on(falcon::runtime::tools::collect_profiler_report(
-                        &client,
-                        &vm_uri,
-                        std::time::Duration::from_secs(duration),
-                    ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_profiler_report(&report);
-                    }
-                }
-                DevtoolsAction::Debugger {
-                    path,
-                    attach,
-                    action,
-                    json,
-                } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let action = action.map(|action| match action {
-                        DebuggerActionArg::Pause => falcon::runtime::tools::DebuggerAction::Pause,
-                        DebuggerActionArg::Resume => falcon::runtime::tools::DebuggerAction::Resume,
-                        DebuggerActionArg::StepOver => {
-                            falcon::runtime::tools::DebuggerAction::StepOver
-                        }
-                        DebuggerActionArg::StepIn => falcon::runtime::tools::DebuggerAction::StepIn,
-                        DebuggerActionArg::StepOut => {
-                            falcon::runtime::tools::DebuggerAction::StepOut
-                        }
-                    });
-                    let report = rt.block_on(falcon::runtime::tools::collect_debugger_report(
-                        &client, &vm_uri, action,
-                    ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_debugger_report(&report);
-                    }
-                }
-                DevtoolsAction::Logging {
-                    path,
-                    attach,
-                    duration,
-                    json,
-                } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let report = rt.block_on(falcon::runtime::tools::collect_logging_report(
-                        &client,
-                        &vm_uri,
-                        std::time::Duration::from_secs(duration),
-                    ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_logging_report(&report);
-                    }
-                }
-                DevtoolsAction::Rebuilds { path, attach, json } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let report = rt.block_on(falcon::runtime::tools::collect_rebuilds_report(
-                        &client, &vm_uri,
-                    ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_rebuilds_report(&report);
-                    }
-                }
-                DevtoolsAction::Inspector { path, attach, json } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let report = rt.block_on(falcon::runtime::tools::collect_inspector_report(
-                        &client, &vm_uri,
-                    ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_inspector_report(&report);
-                    }
-                }
-                DevtoolsAction::Reload { path, attach, json } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let report = rt.block_on(falcon::runtime::tools::collect_reload_report(
-                        &client,
-                        &vm_uri,
-                        falcon::runtime::tools::ReloadMode::HotReload,
-                    ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_reload_report(&report);
-                    }
-                    if !report.success {
-                        process::exit(1);
-                    }
-                }
-                DevtoolsAction::Restart { path, attach, json } => {
-                    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                        &path,
-                        attach.as_deref(),
-                    ))?;
-                    let report = rt.block_on(falcon::runtime::tools::collect_reload_report(
-                        &client,
-                        &vm_uri,
-                        falcon::runtime::tools::ReloadMode::HotRestart,
-                    ))?;
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    } else {
-                        falcon::runtime::tools::print_reload_report(&report);
-                    }
-                    if !report.success {
-                        process::exit(1);
-                    }
-                }
-            }
-        }
         Commands::Ai { action } => {
             match action {
                 AiAction::Setup { path } => {
@@ -4253,52 +4304,6 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
-        Commands::Manage { action } => match action {
-            ManageAction::Health { path, json } => {
-                let report = falcon::manage::health::generate_health_report(&path)?;
-                if json {
-                    println!("{}", serde_json::to_string_pretty(&report)?);
-                } else {
-                    falcon::manage::health::print_health_report(&report);
-                }
-            }
-            ManageAction::Deps { path } => {
-                let report = falcon::manage::deps::analyze_dependencies(&path)?;
-                falcon::manage::deps::print_dep_report(&report);
-            }
-            ManageAction::Arch { path, json } => {
-                let report = falcon::manage::architect::analyze_architecture(&path)?;
-                if json {
-                    println!("{}", serde_json::to_string_pretty(&report)?);
-                } else {
-                    falcon::manage::architect::print_arch_report(&report);
-                }
-            }
-            ManageAction::Maint { path } => {
-                let report = falcon::manage::maintenance::analyze_maintenance(&path)?;
-                falcon::manage::maintenance::print_maintenance_report(&report);
-            }
-            ManageAction::Build { path } => {
-                let report = falcon::manage::build_opt::analyze_build(&path)?;
-                falcon::manage::build_opt::print_build_report(&report);
-            }
-            ManageAction::All { path } => {
-                let health = falcon::manage::health::generate_health_report(&path)?;
-                falcon::manage::health::print_health_report(&health);
-
-                let deps = falcon::manage::deps::analyze_dependencies(&path)?;
-                falcon::manage::deps::print_dep_report(&deps);
-
-                let arch = falcon::manage::architect::analyze_architecture(&path)?;
-                falcon::manage::architect::print_arch_report(&arch);
-
-                let maint = falcon::manage::maintenance::analyze_maintenance(&path)?;
-                falcon::manage::maintenance::print_maintenance_report(&maint);
-
-                let build = falcon::manage::build_opt::analyze_build(&path)?;
-                falcon::manage::build_opt::print_build_report(&build);
-            }
-        },
         Commands::Mcp => {
             falcon::mcp::server::run_mcp_server()?;
         }
@@ -4714,6 +4719,78 @@ fn run(cli: Cli) -> Result<()> {
                     insights,
                 } => {
                     run_learn(project, db, insights)?;
+                    return Ok(());
+                }
+                XAction::Watch { path, config } => {
+                    run_watch(path, config)?;
+                    return Ok(());
+                }
+                XAction::Run {
+                    path,
+                    output_dir,
+                    device,
+                    flavor,
+                    notify,
+                    webhook,
+                    monitor_interval,
+                    no_monitor,
+                } => {
+                    run_flutter_capture(
+                        path,
+                        output_dir,
+                        device,
+                        flavor,
+                        notify,
+                        webhook,
+                        monitor_interval,
+                        no_monitor,
+                    )?;
+                    return Ok(());
+                }
+                XAction::Flutter { args } => {
+                    run_flutter_passthrough(args)?;
+                    return Ok(());
+                }
+                XAction::Fvm { args } => {
+                    run_fvm_passthrough(args)?;
+                    return Ok(());
+                }
+                XAction::RuntimeCheck {
+                    path,
+                    attach,
+                    duration,
+                    output,
+                    memory_warn_mb,
+                    frame_warn_ms,
+                    no_html,
+                } => {
+                    run_runtime_check(
+                        path,
+                        attach,
+                        duration,
+                        output,
+                        memory_warn_mb,
+                        frame_warn_ms,
+                        no_html,
+                    )?;
+                    return Ok(());
+                }
+                XAction::Live {
+                    path,
+                    attach,
+                    duration,
+                    interval,
+                    json,
+                } => {
+                    run_live(path, attach, duration, interval, json)?;
+                    return Ok(());
+                }
+                XAction::Devtools { action } => {
+                    run_devtools(action)?;
+                    return Ok(());
+                }
+                XAction::Manage { action } => {
+                    run_manage(action)?;
                     return Ok(());
                 }
                 XAction::Cloud { action } => {

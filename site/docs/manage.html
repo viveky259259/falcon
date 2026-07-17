@@ -47,19 +47,19 @@
         <main class="main">
             <div class="breadcrumb"><a href="index.html">Docs</a> &gt; App Management</div>
             <h1>App Management</h1>
-            <p>Falcon goes beyond static analysis — it <strong>manages</strong> your Flutter app. The <code>falcon manage</code> command provides a unified dashboard covering project health, dependencies, architecture, maintenance, and build optimization.</p>
+            <p>Falcon goes beyond static analysis — it <strong>manages</strong> your Flutter app. The <code>falcon x manage</code> command provides a unified dashboard covering project health, dependencies, architecture, maintenance, and build optimization.</p>
 
             <div class="callout">
                 <div class="callout-title">Run everything at once</div>
-                <pre><code>falcon manage all /path/to/flutter/app</code></pre>
+                <pre><code>falcon x manage all /path/to/flutter/app</code></pre>
             </div>
 
             <h2>Project Health Dashboard</h2>
             <p>A unified 0-100 health score combining 6 weighted dimensions into a single number.</p>
 
-            <pre><code><span class="cmd">$</span> falcon manage health .
+            <pre><code><span class="cmd">$</span> falcon x manage health .
 
-  falcon manage Project Health — my_app
+  falcon x manage Project Health — my_app
   ═══════════════════════════════════════
 
   Overall Health: 72/100 (Grade: C)
@@ -92,14 +92,14 @@
             </table>
 
             <p>Use <code>--json</code> to get machine-readable output for CI pipelines:</p>
-            <pre><code>falcon manage health . --json</code></pre>
+            <pre><code>falcon x manage health . --json</code></pre>
 
             <h2>Dependency Manager</h2>
             <p>Analyzes <code>pubspec.yaml</code> and all Dart imports to find dependency health issues.</p>
 
-            <pre><code><span class="cmd">$</span> falcon manage deps .
+            <pre><code><span class="cmd">$</span> falcon x manage deps .
 
-  falcon manage Dependency Manager
+  falcon x manage Dependency Manager
 
   Total dependencies: 50 (49 direct, 1 dev)
 
@@ -126,9 +126,9 @@
             <h2>Architecture Governor</h2>
             <p>Detects your architecture pattern, enforces layer boundaries, and finds complexity hotspots.</p>
 
-            <pre><code><span class="cmd">$</span> falcon manage arch .
+            <pre><code><span class="cmd">$</span> falcon x manage arch .
 
-  falcon manage Architecture Governor
+  falcon x manage Architecture Governor
 
   Pattern:         Clean Architecture
   Compliance:      92%
@@ -159,9 +159,9 @@
             <h2>Maintenance Advisor</h2>
             <p>Identifies cleanup tasks, calculates tech debt score, and shows what can be auto-fixed.</p>
 
-            <pre><code><span class="cmd">$</span> falcon manage maint .
+            <pre><code><span class="cmd">$</span> falcon x manage maint .
 
-  falcon manage Maintenance Advisor
+  falcon x manage Maintenance Advisor
 
   Tech Debt Score: 55/100
   Cleanup tasks:   7 (1 auto-fixable, 6 manual)
@@ -192,9 +192,9 @@
             <h2>Build Optimizer</h2>
             <p>Analyzes assets, build configuration, and provides optimization recommendations.</p>
 
-            <pre><code><span class="cmd">$</span> falcon manage build .
+            <pre><code><span class="cmd">$</span> falcon x manage build .
 
-  falcon manage Build Optimizer
+  falcon x manage Build Optimizer
 
   Assets: 45 files (2400 KB total, 30 images, 4 fonts)
   Platforms: 3
@@ -209,9 +209,9 @@
     → [Code Size] 200+ Dart files — consider deferred imports</code></pre>
 
             <h2>Running All Analyses</h2>
-            <p>Use <code>falcon manage all</code> to run health, deps, arch, maint, and build analyses in sequence:</p>
+            <p>Use <code>falcon x manage all</code> to run health, deps, arch, maint, and build analyses in sequence:</p>
 
-            <pre><code><span class="cmd">$</span> falcon manage all /path/to/app</code></pre>
+            <pre><code><span class="cmd">$</span> falcon x manage all /path/to/app</code></pre>
 
             <p>This gives you a complete picture of your Flutter app's state in a single command.</p>
 
@@ -227,12 +227,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: cargo install --git https://github.com/viveky259259/falcon
-      - run: falcon manage health . --json > health.json
+      - run: falcon x manage health . --json > health.json
       - run: falcon pr-comment .</code></pre>
 
             <div class="callout">
                 <div class="callout-title">Tip</div>
-                <p>Combine <code>falcon manage health</code> with <code>falcon x enterprise check</code> to enforce minimum health scores as a CI gate.</p>
+                <p>Combine <code>falcon x manage health</code> with <code>falcon x enterprise check</code> to enforce minimum health scores as a CI gate.</p>
             </div>
         </main>
     </div>

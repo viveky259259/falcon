@@ -65,6 +65,14 @@ fn default_help_lists_only_cutover_verbs() {
         "fix-track",
         "self-tune",
         "learn",
+        "watch",
+        "run",
+        "flutter",
+        "fvm",
+        "runtime-check",
+        "live",
+        "devtools",
+        "manage",
         "cloud",
         "enterprise",
         "marketplace",
@@ -318,6 +326,32 @@ fn x_help_lists_platform_business_commands() {
     assert_success(&output);
     let stdout = String::from_utf8_lossy(&output.stdout);
     for command in ["cloud", "enterprise", "marketplace", "certify", "partners"] {
+        assert!(
+            stdout.contains(command),
+            "missing x {command} command in help:\n{stdout}"
+        );
+    }
+}
+
+#[test]
+fn x_help_lists_app_runtime_sdk_commands() {
+    let output = falcon_cmd()
+        .args(["x", "--help"])
+        .output()
+        .expect("run falcon x --help");
+
+    assert_success(&output);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for command in [
+        "watch",
+        "run",
+        "flutter",
+        "fvm",
+        "runtime-check",
+        "live",
+        "devtools",
+        "manage",
+    ] {
         assert!(
             stdout.contains(command),
             "missing x {command} command in help:\n{stdout}"

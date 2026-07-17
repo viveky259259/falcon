@@ -59,6 +59,14 @@ Falcon is moving to a compact top-level CLI before 1.0:
 | `falcon fix-track . --report` | `falcon x fix-track . --report` |
 | `falcon self-tune .` | `falcon x self-tune .` |
 | `falcon learn .` | `falcon x learn .` |
+| `falcon watch .` | `falcon x watch .` |
+| `falcon run .` | `falcon x run .` |
+| `falcon flutter doctor` | `falcon x flutter doctor` |
+| `falcon fvm use stable` | `falcon x fvm use stable` |
+| `falcon runtime-check .` | `falcon x runtime-check .` |
+| `falcon live .` | `falcon x live .` |
+| `falcon devtools memory .` | `falcon x devtools memory .` |
+| `falcon manage health .` | `falcon x manage health .` |
 | `falcon cloud dashboard` | `falcon x cloud dashboard` |
 | `falcon enterprise check .` | `falcon x enterprise check .` |
 | `falcon marketplace` | `falcon x marketplace` |

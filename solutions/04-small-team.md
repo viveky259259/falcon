@@ -285,7 +285,7 @@ exclude:
 
 ```bash
 # One command to check everything
-falcon manage health .
+falcon x manage health .
 ```
 
 ---
@@ -315,6 +315,6 @@ falcon refactor-sim --scenario clean-architecture
 - [ ] GoRouter for navigation (URL-ready from day 1)
 - [ ] One ApiClient class (not per-feature)
 - [ ] Models in `/models` (shared, not per-feature)
-- [ ] `falcon manage health .` passes 70+
+- [ ] `falcon x manage health .` passes 70+
 - [ ] Provider tests for business logic
 - [ ] CI runs `falcon analyze --fail-on error`

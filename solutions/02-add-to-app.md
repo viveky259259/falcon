@@ -386,7 +386,7 @@ falcon x check-platform .  # Analyze Kotlin/Swift channel code
 falcon ai-score flutter_module/
 
 # Check channel consistency
-falcon manage deps flutter_module/
+falcon x manage deps flutter_module/
 ```
 
 ---

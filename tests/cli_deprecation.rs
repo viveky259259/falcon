@@ -1,3 +1,6 @@
+use std::ffi::OsString;
+use std::os::unix::fs::PermissionsExt;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 #[test]
@@ -285,6 +288,55 @@ fn legacy_platform_business_commands_warn_and_show_help() {
 
         assert_success(&output);
         assert_deprecation_warning(&output, old, new);
+    }
+}
+
+#[test]
+fn legacy_app_runtime_commands_warn_and_show_help() {
+    let cases = [
+        ("watch", "x watch"),
+        ("run", "x run"),
+        ("runtime-check", "x runtime-check"),
+        ("live", "x live"),
+        ("devtools", "x devtools"),
+        ("manage", "x manage"),
+    ];
+
+    for (old, new) in cases {
+        let output = falcon_cmd()
+            .args([old, "--help"])
+            .output()
+            .expect("run falcon legacy app runtime command help");
+
+        assert_success(&output);
+        assert_deprecation_warning(&output, old, new);
+    }
+}
+
+#[test]
+fn legacy_sdk_passthrough_commands_warn_and_forward() {
+    let cases = [
+        ("flutter", "x flutter", ["doctor", "--verbose"].as_slice()),
+        ("fvm", "x fvm", ["use", "stable"].as_slice()),
+    ];
+
+    for (old, new, forwarded_args) in cases {
+        let temp = tempfile::tempdir().unwrap();
+        let bin = temp.path().join("bin");
+        let log = temp.path().join("sdk.log");
+        make_fake_executable(&bin, old);
+
+        let output = falcon_cmd()
+            .arg(old)
+            .args(forwarded_args)
+            .env("PATH", path_with_front(&bin))
+            .env("FAKE_SDK_LOG", &log)
+            .output()
+            .expect("run falcon legacy sdk passthrough command");
+
+        assert_success(&output);
+        assert_deprecation_warning(&output, old, new);
+        assert_forwarded_args(&log, forwarded_args);
     }
 }
 
@@ -714,6 +766,55 @@ fn x_platform_business_commands_do_not_warn_on_help() {
 }
 
 #[test]
+fn x_app_runtime_commands_do_not_warn_on_help() {
+    let cases = [
+        "watch",
+        "run",
+        "runtime-check",
+        "live",
+        "devtools",
+        "manage",
+    ];
+
+    for command in cases {
+        let output = falcon_cmd()
+            .args(["x", command, "--help"])
+            .output()
+            .expect("run falcon x app runtime command help");
+
+        assert_success(&output);
+        assert_no_deprecation_warning(&output);
+    }
+}
+
+#[test]
+fn x_sdk_passthrough_commands_do_not_warn_and_forward() {
+    let cases = [
+        ("flutter", ["doctor", "--verbose"].as_slice()),
+        ("fvm", ["use", "stable"].as_slice()),
+    ];
+
+    for (command, forwarded_args) in cases {
+        let temp = tempfile::tempdir().unwrap();
+        let bin = temp.path().join("bin");
+        let log = temp.path().join("sdk.log");
+        make_fake_executable(&bin, command);
+
+        let output = falcon_cmd()
+            .args(["x", command])
+            .args(forwarded_args)
+            .env("PATH", path_with_front(&bin))
+            .env("FAKE_SDK_LOG", &log)
+            .output()
+            .expect("run falcon x sdk passthrough command");
+
+        assert_success(&output);
+        assert_no_deprecation_warning(&output);
+        assert_forwarded_args(&log, forwarded_args);
+    }
+}
+
+#[test]
 fn x_audit_commands_do_not_warn() {
     let temp = tempfile::tempdir().unwrap();
     write_l10n_fixture(temp.path());
@@ -740,6 +841,34 @@ fn x_audit_commands_do_not_warn() {
 
 fn falcon_cmd() -> Command {
     Command::new(env!("CARGO_BIN_EXE_falcon"))
+}
+
+fn make_fake_executable(bin_dir: &Path, name: &str) -> PathBuf {
+    std::fs::create_dir_all(bin_dir).unwrap();
+    let path = bin_dir.join(name);
+    std::fs::write(
+        &path,
+        "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$FAKE_SDK_LOG\"\nexit 0\n",
+    )
+    .unwrap();
+    let mut perms = std::fs::metadata(&path).unwrap().permissions();
+    perms.set_mode(0o755);
+    std::fs::set_permissions(&path, perms).unwrap();
+    path
+}
+
+fn path_with_front(dir: &Path) -> OsString {
+    let mut paths = vec![dir.to_path_buf()];
+    if let Some(existing) = std::env::var_os("PATH") {
+        paths.extend(std::env::split_paths(&existing));
+    }
+    std::env::join_paths(paths).unwrap()
+}
+
+fn assert_forwarded_args(log: &Path, expected: &[&str]) {
+    let logged = std::fs::read_to_string(log).unwrap();
+    let actual: Vec<_> = logged.lines().collect();
+    assert_eq!(actual, expected, "forwarded args log:\n{}", logged);
 }
 
 fn assert_deprecation_warning(output: &Output, old: &str, new: &str) {

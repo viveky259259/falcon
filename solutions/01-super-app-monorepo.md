@@ -326,7 +326,7 @@ jobs:
       - run: |
           melos bootstrap
           melos run test -- --select-scope packages/
-          falcon manage health apps/shell
+          falcon x manage health apps/shell
 
   build-shell:
     needs: [test-changed, test-shared]
@@ -355,7 +355,7 @@ Team Platform    → packages/* + apps/shell/ + tools/
 ```bash
 # Each team runs Falcon on their module
 falcon analyze modules/payments/ --fail-on error
-falcon manage arch modules/payments/  # No cross-module imports
+falcon x manage arch modules/payments/  # No cross-module imports
 falcon x check-layers modules/payments/ # Clean Architecture enforced
 falcon x drift modules/payments/ --since main  # Convention adherence
 ```
@@ -410,13 +410,13 @@ exclude:
 for module in modules/*/; do
   echo "=== Analyzing $module ==="
   falcon ai-score "$module"
-  falcon manage deps "$module"
+  falcon x manage deps "$module"
   falcon x check-layers "$module"
 done
 
 # Full app health
-falcon manage health apps/shell
-falcon manage all apps/shell
+falcon x manage health apps/shell
+falcon x manage all apps/shell
 ```
 
 ---

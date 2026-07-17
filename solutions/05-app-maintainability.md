@@ -34,16 +34,16 @@ A dedicated maintenance team (often different from the original builders) takes 
 
 ```bash
 # 1. Overall health
-falcon manage health .
+falcon x manage health .
 
 # 2. Dependency audit
-falcon manage deps .
+falcon x manage deps .
 
 # 3. Architecture analysis
-falcon manage arch .
+falcon x manage arch .
 
 # 4. Maintenance tasks
-falcon manage maint .
+falcon x manage maint .
 
 # 5. Security vulnerabilities
 falcon vuln-scan .
@@ -61,7 +61,7 @@ falcon x check-perf .
 falcon ai-score .
 
 # 10. Or run everything at once:
-falcon manage all .
+falcon x manage all .
 ```
 
 **Document the baseline:**
@@ -225,7 +225,7 @@ falcon x score-track .
 falcon x score-track . --history --last 4
 
 # 2. Dependency health
-falcon manage deps .
+falcon x manage deps .
 
 # 3. New issues since last check
 falcon analyze . --since HEAD~7
@@ -248,7 +248,7 @@ echo "=== Done ==="
 echo "=== Monthly Maintenance ==="
 
 # 1. Full health report
-falcon manage all .
+falcon x manage all .
 falcon x ai-report . --format markdown --output "reports/monthly-$(date +%Y-%m).md"
 
 # 2. Dependency updates
@@ -280,10 +280,10 @@ flutter upgrade
 
 # 2. Full dependency audit
 flutter pub outdated --show-all
-falcon manage deps .
+falcon x manage deps .
 
 # 3. Architecture review
-falcon manage arch .
+falcon x manage arch .
 falcon x discover-rules .
 
 # 4. Performance deep-dive
@@ -307,7 +307,7 @@ echo "=== Done ==="
 
 ```bash
 # Generate prioritized tech debt list
-falcon manage maint .
+falcon x manage maint .
 ```
 
 **Prioritization framework:**
@@ -339,7 +339,7 @@ falcon refactor-sim --scenario clean-architecture
 # DON'T do it all at once. Instead:
 # 1. Extract ONE feature into Clean Architecture
 # 2. Verify tests pass
-# 3. Run falcon manage arch . → compliance should improve
+# 3. Run falcon x manage arch . → compliance should improve
 # 4. Repeat for next feature
 ```
 
@@ -375,7 +375,7 @@ falcon test-gen . --write
 1. flutter pub outdated
 2. Update ONE dependency at a time
 3. Run: flutter test
-4. Run: falcon manage deps .
+4. Run: falcon x manage deps .
 5. Run: falcon x upgrade-check .  (breaking API changes?)
 6. Commit with: git commit -m "chore: update <dep> to <version>"
 ```
@@ -395,16 +395,16 @@ falcon test-gen . --write
 
 ```bash
 # === Daily ===
-falcon manage health .              # Quick health check
+falcon x manage health .              # Quick health check
 falcon analyze . --since HEAD~1     # What changed today
 
 # === Weekly ===
 falcon x score-track .              # Record score
 falcon x drift . --since HEAD~7    # Convention drift
-falcon manage deps .               # Dependency health
+falcon x manage deps .               # Dependency health
 
 # === Monthly ===
-falcon manage all .                 # Full audit
+falcon x manage all .                 # Full audit
 falcon x ai-report . --format markdown --output report.md
 falcon x enterprise compliance --output compliance.md
 
@@ -414,11 +414,11 @@ falcon x predict .                 # Risk assessment
 
 # === On Dependency Update ===
 falcon x upgrade-check .           # Deprecated APIs
-falcon manage deps .               # Unused deps check
+falcon x manage deps .               # Unused deps check
 
 # === On Refactoring ===
 falcon refactor-sim --scenario <x>  # Impact analysis
-falcon manage arch .               # Architecture compliance
+falcon x manage arch .               # Architecture compliance
 falcon x check-layers .            # Layer violations
 ```
 
@@ -433,6 +433,6 @@ falcon x check-layers .            # Layer violations
 | Dependency freshness | `flutter pub outdated` | < 3 months behind |
 | Security vulnerabilities | `falcon vuln-scan` | Zero critical |
 | Test coverage | `flutter test --coverage` | > 40% (improving) |
-| Tech debt score | `falcon manage maint` | > 60/100 |
+| Tech debt score | `falcon x manage maint` | > 60/100 |
 | CI pass rate | GitHub Actions history | > 95% |
 | Time to fix critical bugs | Issue tracker | < 48 hours |
