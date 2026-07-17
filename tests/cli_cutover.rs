@@ -17,6 +17,9 @@ fn default_help_lists_only_cutover_verbs() {
     }
     for legacy in [
         "analyze",
+        "check-unused-code",
+        "check-unused-files",
+        "check-dependencies",
         "smells",
         "metrics",
         "asset-audit",
@@ -91,6 +94,27 @@ fn x_help_lists_core_analysis_commands() {
     assert_success(&output);
     let stdout = String::from_utf8_lossy(&output.stdout);
     for command in ["metrics", "smells"] {
+        assert!(
+            stdout.contains(command),
+            "missing x {command} command in help:\n{stdout}"
+        );
+    }
+}
+
+#[test]
+fn x_help_lists_moved_check_commands() {
+    let output = falcon_cmd()
+        .args(["x", "--help"])
+        .output()
+        .expect("run falcon x --help");
+
+    assert_success(&output);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for command in [
+        "check-unused-code",
+        "check-unused-files",
+        "check-dependencies",
+    ] {
         assert!(
             stdout.contains(command),
             "missing x {command} command in help:\n{stdout}"

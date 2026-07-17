@@ -66,9 +66,9 @@ falcon score . --badge --json
 
 | Command | Description |
 |---|---|
-| `falcon check-unused-code` | Unused code declarations |
-| `falcon check-unused-files` | Unused Dart files |
-| `falcon check-dependencies` | Unused pubspec.yaml dependencies |
+| `falcon x check-unused-code` | Unused code declarations |
+| `falcon x check-unused-files` | Unused Dart files |
+| `falcon x check-dependencies` | Unused pubspec.yaml dependencies |
 | `falcon check-cycles` | Cyclic import dependencies |
 | `falcon check-unused-params` | Unused function parameters |
 | `falcon check-dead-code` | Unreachable code after return/throw |

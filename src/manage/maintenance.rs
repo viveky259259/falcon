@@ -73,7 +73,7 @@ pub fn analyze_maintenance(root: &Path) -> anyhow::Result<MaintenanceReport> {
             description: format!("{} unused declarations can be removed", unused_code),
             files_affected: unused_code,
             auto_fixable: false,
-            command: "falcon check-unused-code".to_string(),
+            command: "falcon x check-unused-code".to_string(),
         });
     }
 
@@ -89,7 +89,7 @@ pub fn analyze_maintenance(root: &Path) -> anyhow::Result<MaintenanceReport> {
             description: format!("{} files are not imported anywhere", unused_files),
             files_affected: unused_files,
             auto_fixable: false,
-            command: "falcon check-unused-files".to_string(),
+            command: "falcon x check-unused-files".to_string(),
         });
     }
 
@@ -107,7 +107,7 @@ pub fn analyze_maintenance(root: &Path) -> anyhow::Result<MaintenanceReport> {
             ),
             files_affected: 1,
             auto_fixable: false,
-            command: "falcon check-dependencies".to_string(),
+            command: "falcon x check-dependencies".to_string(),
         });
     }
 

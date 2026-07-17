@@ -165,54 +165,6 @@ enum Commands {
         no_defer_to_analyzer: bool,
     },
 
-    /// Check for unused code declarations
-    #[command(name = "check-unused-code", display_order = 2)]
-    CheckUnusedCode {
-        /// Path to analyze
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Output format
-        #[arg(short, long, default_value = "console")]
-        format: OutputFormat,
-
-        /// Output file path (for file-based formats)
-        #[arg(short, long, default_value = "falcon-report.html")]
-        output: PathBuf,
-    },
-
-    /// Check for unused Dart files
-    #[command(name = "check-unused-files", display_order = 2)]
-    CheckUnusedFiles {
-        /// Path to analyze
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Output format
-        #[arg(short, long, default_value = "console")]
-        format: OutputFormat,
-
-        /// Output file path (for file-based formats)
-        #[arg(short, long, default_value = "falcon-report.html")]
-        output: PathBuf,
-    },
-
-    /// Check for unused dependencies in pubspec.yaml
-    #[command(name = "check-dependencies", display_order = 2)]
-    CheckDependencies {
-        /// Path to analyze
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Output format
-        #[arg(short, long, default_value = "console")]
-        format: OutputFormat,
-
-        /// Output file path (for file-based formats)
-        #[arg(short, long, default_value = "falcon-report.html")]
-        output: PathBuf,
-    },
-
     /// Generate a default falcon.yaml configuration file
     #[command(display_order = 7)]
     Init {
@@ -1154,6 +1106,54 @@ enum Commands {
 /// 4-verb story (`review`, `check`, `fix`, `score`).
 #[derive(Subcommand)]
 enum XAction {
+    /// Check for unused code declarations
+    #[command(name = "check-unused-code")]
+    CheckUnusedCode {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output format
+        #[arg(short, long, default_value = "console")]
+        format: OutputFormat,
+
+        /// Output file path (for file-based formats)
+        #[arg(short, long, default_value = "falcon-report.html")]
+        output: PathBuf,
+    },
+
+    /// Check for unused Dart files
+    #[command(name = "check-unused-files")]
+    CheckUnusedFiles {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output format
+        #[arg(short, long, default_value = "console")]
+        format: OutputFormat,
+
+        /// Output file path (for file-based formats)
+        #[arg(short, long, default_value = "falcon-report.html")]
+        output: PathBuf,
+    },
+
+    /// Check for unused dependencies in pubspec.yaml
+    #[command(name = "check-dependencies")]
+    CheckDependencies {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output format
+        #[arg(short, long, default_value = "console")]
+        format: OutputFormat,
+
+        /// Output file path (for file-based formats)
+        #[arg(short, long, default_value = "falcon-report.html")]
+        output: PathBuf,
+    },
+
     /// Categorized smells report: Dead Code, Code Smells, Security Smells.
     #[command(name = "smells")]
     Smells {
@@ -2130,6 +2130,23 @@ fn run_smells(
     Ok(())
 }
 
+fn run_issue_check<F>(path: PathBuf, format: OutputFormat, output: PathBuf, check: F) -> Result<()>
+where
+    F: FnOnce(&Falcon, &Path) -> Result<Vec<falcon::reporters::Issue>>,
+{
+    let config = FalconConfig::load(&path)?;
+    let falcon = Falcon::new(config)?;
+    let issues = check(&falcon, &path)?;
+
+    get_reporter(&format, &output).report_issues(&issues);
+
+    if !issues.is_empty() {
+        process::exit(1);
+    }
+
+    Ok(())
+}
+
 fn run_refactor_sim(
     path: PathBuf,
     scenario: falcon::analysis::refactor_sim::RefactorScenario,
@@ -2388,51 +2405,6 @@ fn run(cli: Cli) -> Result<()> {
                 semantic,
                 no_defer_to_analyzer,
             })?;
-        }
-        Commands::CheckUnusedCode {
-            path,
-            format,
-            output,
-        } => {
-            let config = FalconConfig::load(&path)?;
-            let falcon = Falcon::new(config)?;
-            let issues = falcon.check_unused_code(&path)?;
-
-            get_reporter(&format, &output).report_issues(&issues);
-
-            if !issues.is_empty() {
-                process::exit(1);
-            }
-        }
-        Commands::CheckUnusedFiles {
-            path,
-            format,
-            output,
-        } => {
-            let config = FalconConfig::load(&path)?;
-            let falcon = Falcon::new(config)?;
-            let issues = falcon.check_unused_files(&path)?;
-
-            get_reporter(&format, &output).report_issues(&issues);
-
-            if !issues.is_empty() {
-                process::exit(1);
-            }
-        }
-        Commands::CheckDependencies {
-            path,
-            format,
-            output,
-        } => {
-            let config = FalconConfig::load(&path)?;
-            let falcon = Falcon::new(config)?;
-            let issues = falcon.check_dependencies(&path)?;
-
-            get_reporter(&format, &output).report_issues(&issues);
-
-            if !issues.is_empty() {
-                process::exit(1);
-            }
         }
         Commands::Init { path } => {
             falcon::init_config(&path)?;
@@ -4405,6 +4377,30 @@ fn run(cli: Cli) -> Result<()> {
             // Legacy warnings are emitted before clap parsing so
             // `falcon x ...` stays quiet.
             match action {
+                XAction::CheckUnusedCode {
+                    path,
+                    format,
+                    output,
+                } => {
+                    run_issue_check(path, format, output, Falcon::check_unused_code)?;
+                    return Ok(());
+                }
+                XAction::CheckUnusedFiles {
+                    path,
+                    format,
+                    output,
+                } => {
+                    run_issue_check(path, format, output, Falcon::check_unused_files)?;
+                    return Ok(());
+                }
+                XAction::CheckDependencies {
+                    path,
+                    format,
+                    output,
+                } => {
+                    run_issue_check(path, format, output, Falcon::check_dependencies)?;
+                    return Ok(());
+                }
                 XAction::Smells {
                     path,
                     format,

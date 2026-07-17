@@ -9,6 +9,9 @@ Falcon is moving to a compact top-level CLI before 1.0:
 | `falcon metrics .` | `falcon x metrics .` |
 | `falcon ai-score .` | `falcon score .` |
 | `falcon pr-comment . --base-ref origin/main` | `falcon review . --base-ref origin/main --format gh` |
+| `falcon check-unused-code .` | `falcon x check-unused-code .` |
+| `falcon check-unused-files .` | `falcon x check-unused-files .` |
+| `falcon check-dependencies .` | `falcon x check-dependencies .` |
 | `falcon asset-audit .` | `falcon x asset-audit .` |
 | `falcon theme-audit .` | `falcon x theme-audit .` |
 | `falcon l10n-coverage .` | `falcon x l10n-coverage .` |

@@ -62,6 +62,28 @@ fn legacy_smells_command_warns_and_still_runs() {
 }
 
 #[test]
+fn legacy_check_trio_warns_and_still_runs() {
+    let temp = tempfile::tempdir().unwrap();
+    write_dart_project(temp.path());
+    let root = temp.path().to_str().unwrap();
+    let cases = [
+        ("check-unused-code", "x check-unused-code"),
+        ("check-unused-files", "x check-unused-files"),
+        ("check-dependencies", "x check-dependencies"),
+    ];
+
+    for (old, new) in cases {
+        let output = falcon_cmd()
+            .args([old, root])
+            .output()
+            .expect("run falcon legacy check command");
+
+        assert_success(&output);
+        assert_deprecation_warning(&output, old, new);
+    }
+}
+
+#[test]
 fn legacy_docs_command_warns_and_still_runs() {
     let temp = tempfile::tempdir().unwrap();
     let output_dir = temp.path().join("docs");
@@ -284,6 +306,28 @@ fn x_smells_command_does_not_warn() {
 
     assert_success(&output);
     assert_no_deprecation_warning(&output);
+}
+
+#[test]
+fn x_check_trio_does_not_warn() {
+    let temp = tempfile::tempdir().unwrap();
+    write_dart_project(temp.path());
+    let root = temp.path().to_str().unwrap();
+    let cases = [
+        "check-unused-code",
+        "check-unused-files",
+        "check-dependencies",
+    ];
+
+    for command in cases {
+        let output = falcon_cmd()
+            .args(["x", command, root])
+            .output()
+            .expect("run falcon x check command");
+
+        assert_success(&output);
+        assert_no_deprecation_warning(&output);
+    }
 }
 
 #[test]
