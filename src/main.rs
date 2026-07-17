@@ -1086,42 +1086,6 @@ enum Commands {
         summary: bool,
     },
 
-    /// Simulate a refactoring and analyze impact
-    #[command(name = "refactor-sim", display_order = 4)]
-    RefactorSim {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Refactoring scenario
-        #[arg(long)]
-        scenario: falcon::analysis::refactor_sim::RefactorScenario,
-
-        /// Output as JSON
-        #[arg(long)]
-        json: bool,
-    },
-
-    /// Generate test stubs from code analysis
-    #[command(name = "test-gen", display_order = 4)]
-    TestGen {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Write test files to disk
-        #[arg(long)]
-        write: bool,
-    },
-
-    /// Scan for security vulnerabilities and anti-patterns
-    #[command(name = "vuln-scan", display_order = 4)]
-    VulnScan {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-    },
-
     /// Profile AI tools based on benchmark data
     #[command(name = "ai-profile", display_order = 4)]
     AiProfile {
@@ -2215,6 +2179,55 @@ fn run_dep_graph(path: PathBuf, file: Option<PathBuf>) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn run_refactor_sim(
+    path: PathBuf,
+    scenario: falcon::analysis::refactor_sim::RefactorScenario,
+    json: bool,
+) -> Result<()> {
+    let impact = falcon::analysis::refactor_sim::simulate_refactor(&path, &scenario)?;
+    if json {
+        let j = serde_json::to_string_pretty(&impact)?;
+        println!("{}", j);
+    } else {
+        falcon::analysis::refactor_sim::print_refactor_impact(&impact);
+    }
+
+    Ok(())
+}
+
+fn run_test_gen(path: PathBuf, write: bool) {
+    let stubs = falcon::analysis::test_gen::generate_test_stubs(&path);
+    falcon::analysis::test_gen::print_test_gen_summary(&stubs);
+
+    if write {
+        let mut written = 0;
+        for stub in &stubs {
+            let test_path = path.join(&stub.test_file);
+            if !test_path.exists() && !stub.test_cases.is_empty() {
+                if let Some(parent) = test_path.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                let content = falcon::analysis::test_gen::render_test_file(stub);
+                if std::fs::write(&test_path, &content).is_ok() {
+                    written += 1;
+                }
+            }
+        }
+        println!("  {} Wrote {} test file(s)", "✓".green().bold(), written);
+    }
+}
+
+fn run_vuln_scan(path: PathBuf) {
+    let findings = falcon::analysis::vuln_radar::scan_vulnerabilities(&path);
+    falcon::analysis::vuln_radar::print_vuln_report(&findings);
+    if findings
+        .iter()
+        .any(|f| f.risk_level == falcon::analysis::vuln_radar::RiskLevel::Critical)
+    {
+        process::exit(1);
+    }
 }
 
 fn run(cli: Cli) -> Result<()> {
@@ -4120,50 +4133,6 @@ fn run(cli: Cli) -> Result<()> {
                 process::exit(1);
             }
         }
-        Commands::RefactorSim {
-            path,
-            scenario,
-            json,
-        } => {
-            let impact = falcon::analysis::refactor_sim::simulate_refactor(&path, &scenario)?;
-            if json {
-                let j = serde_json::to_string_pretty(&impact)?;
-                println!("{}", j);
-            } else {
-                falcon::analysis::refactor_sim::print_refactor_impact(&impact);
-            }
-        }
-        Commands::TestGen { path, write } => {
-            let stubs = falcon::analysis::test_gen::generate_test_stubs(&path);
-            falcon::analysis::test_gen::print_test_gen_summary(&stubs);
-
-            if write {
-                let mut written = 0;
-                for stub in &stubs {
-                    let test_path = path.join(&stub.test_file);
-                    if !test_path.exists() && !stub.test_cases.is_empty() {
-                        if let Some(parent) = test_path.parent() {
-                            let _ = std::fs::create_dir_all(parent);
-                        }
-                        let content = falcon::analysis::test_gen::render_test_file(stub);
-                        if std::fs::write(&test_path, &content).is_ok() {
-                            written += 1;
-                        }
-                    }
-                }
-                println!("  {} Wrote {} test file(s)", "✓".green().bold(), written);
-            }
-        }
-        Commands::VulnScan { path } => {
-            let findings = falcon::analysis::vuln_radar::scan_vulnerabilities(&path);
-            falcon::analysis::vuln_radar::print_vuln_report(&findings);
-            if findings
-                .iter()
-                .any(|f| f.risk_level == falcon::analysis::vuln_radar::RiskLevel::Critical)
-            {
-                process::exit(1);
-            }
-        }
         Commands::AiProfile { path } => {
             let db = falcon::ai_score::benchmark_db::load_benchmark_db(&path)?;
             let profiles = falcon::ai_score::ai_profiling::build_tool_profiles(&db);
@@ -4629,17 +4598,22 @@ fn run(cli: Cli) -> Result<()> {
                     eprintln!("Leaderboard written to {}", output.display());
                     return Ok(());
                 }
-                XAction::VulnScan { path } => Commands::VulnScan { path },
+                XAction::VulnScan { path } => {
+                    run_vuln_scan(path);
+                    return Ok(());
+                }
                 XAction::RefactorSim {
                     path,
                     scenario,
                     json,
-                } => Commands::RefactorSim {
-                    path,
-                    scenario,
-                    json,
-                },
-                XAction::TestGen { path, write } => Commands::TestGen { path, write },
+                } => {
+                    run_refactor_sim(path, scenario, json)?;
+                    return Ok(());
+                }
+                XAction::TestGen { path, write } => {
+                    run_test_gen(path, write);
+                    return Ok(());
+                }
             };
             return run(Cli { command: legacy });
         }

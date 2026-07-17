@@ -33,7 +33,7 @@ fn legacy_help_lists_historical_commands() {
 
     assert_success(&output);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    for command in ["analyze", "metrics", "asset-audit", "vuln-scan", "test-gen"] {
+    for command in ["analyze", "metrics", "asset-audit"] {
         assert!(
             stdout.contains(command),
             "missing legacy command {command} in legacy help:\n{stdout}"

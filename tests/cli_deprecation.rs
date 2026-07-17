@@ -82,8 +82,92 @@ fn legacy_dep_graph_command_warns_and_still_runs() {
     );
 }
 
+#[test]
+fn legacy_vuln_scan_command_warns_and_still_runs() {
+    let temp = tempfile::tempdir().unwrap();
+    let output = falcon_cmd()
+        .args(["vuln-scan", temp.path().to_str().unwrap()])
+        .output()
+        .expect("run falcon vuln-scan");
+
+    assert_success(&output);
+    assert_deprecation_warning(&output, "vuln-scan", "x vuln-scan");
+}
+
+#[test]
+fn legacy_refactor_sim_command_warns_and_still_runs() {
+    let temp = tempfile::tempdir().unwrap();
+    let output = falcon_cmd()
+        .args([
+            "refactor-sim",
+            temp.path().to_str().unwrap(),
+            "--scenario",
+            "set-state-to-riverpod",
+        ])
+        .output()
+        .expect("run falcon refactor-sim");
+
+    assert_success(&output);
+    assert_deprecation_warning(&output, "refactor-sim", "x refactor-sim");
+}
+
+#[test]
+fn legacy_test_gen_command_warns_and_still_runs() {
+    let temp = tempfile::tempdir().unwrap();
+    let output = falcon_cmd()
+        .args(["test-gen", temp.path().to_str().unwrap()])
+        .output()
+        .expect("run falcon test-gen");
+
+    assert_success(&output);
+    assert_deprecation_warning(&output, "test-gen", "x test-gen");
+}
+
+#[test]
+fn x_analysis_tools_do_not_warn() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().to_str().unwrap();
+    let cases = [
+        vec!["x", "vuln-scan", root],
+        vec![
+            "x",
+            "refactor-sim",
+            root,
+            "--scenario",
+            "set-state-to-riverpod",
+        ],
+        vec!["x", "test-gen", root],
+    ];
+
+    for args in cases {
+        let output = falcon_cmd()
+            .args(args)
+            .output()
+            .expect("run falcon x analysis tool");
+
+        assert_success(&output);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            !stderr.contains("removed in v1.0"),
+            "unexpected deprecation warning:\n{}",
+            stderr
+        );
+    }
+}
+
 fn falcon_cmd() -> Command {
     Command::new(env!("CARGO_BIN_EXE_falcon"))
+}
+
+fn assert_deprecation_warning(output: &Output, old: &str, new: &str) {
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains(&format!("`falcon {old}`"))
+            && stderr.contains(&format!("`falcon {new}`"))
+            && stderr.contains("removed in v1.0"),
+        "stderr:\n{}",
+        stderr
+    );
 }
 
 fn assert_success(output: &Output) {
