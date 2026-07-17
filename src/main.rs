@@ -531,18 +531,6 @@ enum Commands {
         action: BaselineAction,
     },
 
-    /// Show file dependency graph
-    #[command(name = "dep-graph", display_order = 12)]
-    DepGraph {
-        /// Path to analyze
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Show dependents of a specific file
-        #[arg(long)]
-        file: Option<PathBuf>,
-    },
-
     /// Validate falcon.yaml configuration
     #[command(display_order = 7)]
     Validate {
@@ -2157,6 +2145,78 @@ fn handle_root_help(args: &[String]) -> bool {
     }
 }
 
+fn run_dep_graph(path: PathBuf, file: Option<PathBuf>) -> Result<()> {
+    let config = FalconConfig::load(&path)?;
+    let exclude: Vec<glob::Pattern> = config
+        .exclude
+        .iter()
+        .filter_map(|p| glob::Pattern::new(p).ok())
+        .collect();
+
+    let graph = DependencyGraph::build(&path, &exclude);
+
+    if let Some(target) = file {
+        let abs = if target.is_absolute() {
+            target.clone()
+        } else {
+            path.join(&target)
+        };
+
+        println!(
+            "{} Dependencies for: {}",
+            "→".bright_cyan(),
+            target.display()
+        );
+
+        if let Some(imports) = graph.imports.get(&abs) {
+            println!("\n  {} ({}):", "Imports".bright_green(), imports.len());
+            for imp in imports {
+                let rel = imp.strip_prefix(&path).unwrap_or(imp);
+                println!("    {}", rel.display());
+            }
+        }
+
+        if let Some(deps) = graph.dependents.get(&abs) {
+            println!("\n  {} ({}):", "Depended on by".bright_yellow(), deps.len());
+            for dep in deps {
+                let rel = dep.strip_prefix(&path).unwrap_or(dep);
+                println!("    {}", rel.display());
+            }
+        }
+
+        let affected = graph.affected_files(&[abs]);
+        println!(
+            "\n  {} {} file(s) would need re-analysis if changed",
+            "Impact:".bright_red(),
+            affected.len()
+        );
+    } else {
+        println!(
+            "{} Dependency graph: {} files tracked\n",
+            "falcon".bright_cyan().bold(),
+            graph.imports.len()
+        );
+
+        let mut stats: Vec<(usize, &PathBuf)> = graph
+            .dependents
+            .iter()
+            .map(|(file, deps)| (deps.len(), file))
+            .collect();
+        stats.sort_by_key(|(count, _)| Reverse(*count));
+
+        println!(
+            "  {} (by number of dependents):",
+            "Most depended-on files".bright_green()
+        );
+        for (count, file) in stats.iter().take(20) {
+            let rel = file.strip_prefix(&path).unwrap_or(file);
+            println!("    {:>4} ← {}", count, rel.display());
+        }
+    }
+
+    Ok(())
+}
+
 fn run(cli: Cli) -> Result<()> {
     match cli.command {
         Commands::Analyze {
@@ -2853,75 +2913,6 @@ fn run(cli: Cli) -> Result<()> {
                 );
             }
         },
-        Commands::DepGraph { path, file } => {
-            let config = FalconConfig::load(&path)?;
-            let exclude: Vec<glob::Pattern> = config
-                .exclude
-                .iter()
-                .filter_map(|p| glob::Pattern::new(p).ok())
-                .collect();
-
-            let graph = DependencyGraph::build(&path, &exclude);
-
-            if let Some(target) = file {
-                let abs = if target.is_absolute() {
-                    target.clone()
-                } else {
-                    path.join(&target)
-                };
-
-                println!(
-                    "{} Dependencies for: {}",
-                    "→".bright_cyan(),
-                    target.display()
-                );
-
-                if let Some(imports) = graph.imports.get(&abs) {
-                    println!("\n  {} ({}):", "Imports".bright_green(), imports.len());
-                    for imp in imports {
-                        let rel = imp.strip_prefix(&path).unwrap_or(imp);
-                        println!("    {}", rel.display());
-                    }
-                }
-
-                if let Some(deps) = graph.dependents.get(&abs) {
-                    println!("\n  {} ({}):", "Depended on by".bright_yellow(), deps.len());
-                    for dep in deps {
-                        let rel = dep.strip_prefix(&path).unwrap_or(dep);
-                        println!("    {}", rel.display());
-                    }
-                }
-
-                let affected = graph.affected_files(&[abs]);
-                println!(
-                    "\n  {} {} file(s) would need re-analysis if changed",
-                    "Impact:".bright_red(),
-                    affected.len()
-                );
-            } else {
-                println!(
-                    "{} Dependency graph: {} files tracked\n",
-                    "falcon".bright_cyan().bold(),
-                    graph.imports.len()
-                );
-
-                let mut stats: Vec<(usize, &PathBuf)> = graph
-                    .dependents
-                    .iter()
-                    .map(|(file, deps)| (deps.len(), file))
-                    .collect();
-                stats.sort_by_key(|(count, _)| Reverse(*count));
-
-                println!(
-                    "  {} (by number of dependents):",
-                    "Most depended-on files".bright_green()
-                );
-                for (count, file) in stats.iter().take(20) {
-                    let rel = file.strip_prefix(&path).unwrap_or(file);
-                    println!("    {:>4} ← {}", count, rel.display());
-                }
-            }
-        }
         Commands::Validate { path } => {
             let errors = falcon::config::validator::validate_config(&path);
             falcon::config::validator::print_validation_results(&errors);
@@ -4618,7 +4609,10 @@ fn run(cli: Cli) -> Result<()> {
                     html_output,
                     no_html,
                 },
-                XAction::DepGraph { path, file } => Commands::DepGraph { path, file },
+                XAction::DepGraph { path, file } => {
+                    run_dep_graph(path, file)?;
+                    return Ok(());
+                }
                 XAction::Workspace { path } => {
                     let report = falcon::workspace::analyze_workspace(&path)?;
                     if report.total_errors > 0 {
