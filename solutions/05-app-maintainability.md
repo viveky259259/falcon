@@ -68,10 +68,10 @@ falcon manage all .
 
 ```bash
 # Record initial score
-falcon score-track .
+falcon x score-track .
 
 # Record to learning database
-falcon learn .
+falcon x learn .
 
 # Generate comprehensive report
 falcon x ai-report . --format markdown --output maintenance-baseline.md
@@ -221,8 +221,8 @@ jobs:
 echo "=== Weekly Maintenance Check ==="
 
 # 1. Score trend
-falcon score-track .
-falcon score-track . --history --last 4
+falcon x score-track .
+falcon x score-track . --history --last 4
 
 # 2. Dependency health
 falcon manage deps .
@@ -231,7 +231,7 @@ falcon manage deps .
 falcon analyze . --since HEAD~7
 
 # 4. Performance regression
-falcon perf-track .
+falcon x perf-track .
 
 # 5. Convention drift
 falcon x drift . --since HEAD~7
@@ -259,7 +259,7 @@ flutter pub upgrade --major-versions  # Review changes!
 falcon x upgrade-check .
 
 # 4. Self-tune rules
-falcon self-tune .
+falcon x self-tune .
 
 # 5. Enterprise compliance
 falcon enterprise compliance --output "reports/compliance-$(date +%Y-%m).md"
@@ -294,9 +294,9 @@ falcon x predict .
 falcon test-gen .  # Review, then --write if tests are useful
 
 # 6. Trend report
-falcon score-track . --history --last 12
-falcon learn .
-falcon learn --insights
+falcon x score-track . --history --last 12
+falcon x learn .
+falcon x learn --insights
 
 echo "=== Done ==="
 ```
@@ -399,7 +399,7 @@ falcon manage health .              # Quick health check
 falcon analyze . --since HEAD~1     # What changed today
 
 # === Weekly ===
-falcon score-track .                # Record score
+falcon x score-track .              # Record score
 falcon x drift . --since HEAD~7    # Convention drift
 falcon manage deps .               # Dependency health
 
@@ -428,7 +428,7 @@ falcon x check-layers .            # Layer violations
 
 | KPI | How to Measure | Target |
 |---|---|---|
-| Health score trend | `falcon score-track --history` | Improving or stable |
+| Health score trend | `falcon x score-track --history` | Improving or stable |
 | Crash rate | Production monitoring | < 0.1% |
 | Dependency freshness | `flutter pub outdated` | < 3 months behind |
 | Security vulnerabilities | `falcon vuln-scan` | Zero critical |

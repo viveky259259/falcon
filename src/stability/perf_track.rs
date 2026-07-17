@@ -142,7 +142,7 @@ pub fn print_perf_history(history: &PerfHistory, last_n: usize) {
 
     if snapshots.is_empty() {
         println!("  No performance data recorded yet.");
-        println!("  Run: falcon perf-track <path>");
+        println!("  Run: falcon x perf-track <path>");
         println!();
         return;
     }

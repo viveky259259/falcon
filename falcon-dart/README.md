@@ -97,7 +97,7 @@ falcon x compare-reports . --run1 1 --run2 3  # Compare any two
 | **Checks** | `x check-unused-code`, `x check-cycles`, `x check-widgets`, `x check-async`, `x cognitive-complexity`, `x codebase-intel` |
 | **Comparison** | `x compare-branches`, `x compare-reports`, `x history` |
 | **AI** | `x provenance`, `x conventions`, `x drift`, `x predict`, `x vuln-scan` |
-| **CI/CD** | `pr-comment`, `webhook`, `fix`, `benchmark` |
+| **CI/CD** | `pr-comment`, `webhook`, `fix`, `x benchmark` |
 | **Update** | `update`, `update --version X`, `update --list` |
 
 See the [CLI Reference](https://github.com/viveky259259/falcon/blob/master/docs/cli-reference.md) for all flags and options.

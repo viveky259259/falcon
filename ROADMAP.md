@@ -559,7 +559,7 @@ Prometheus export produces valid scrape-ready metrics.
 
 | Deliverable | Status | Notes |
 |---|---|---|
-| ✅ `falcon benchmark` command | Done | Performance profiling with throughput metrics |
+| ✅ `falcon x benchmark` command | Done | Performance profiling with throughput metrics |
 | ✅ Performance: 32K LOC in 794ms | Done | ~41K lines/sec, well under 5s target |
 | ✅ Graceful error handling | Done | Edge cases, large files, panic recovery |
 | ✅ Production stability | Done | 196 tests pass, zero known crashers |
@@ -653,7 +653,7 @@ Prometheus export produces valid scrape-ready metrics.
 - [x] Rule deprecation policy — 4-stage process with 6-month notice period
 - [x] Migration policy — auto-migration, backwards-compatible configs, migration guides
 - [x] `falcon deprecation-status` — view currently deprecated rules (none yet)
-- [x] `falcon perf-track` — record & track performance over time with regression detection (>20% = alert)
+- [x] `falcon x perf-track` — record & track performance over time with regression detection (>20% = alert)
 - [x] `falcon suppress` — false-positive database with categories (FP, won't-fix, acknowledged, deferred)
 - [x] Suppression statistics with per-rule breakdown and false-positive rate
 
@@ -780,13 +780,13 @@ v1.x Architecture:                    v2.0 Architecture:
 - [x] `--json` flag for CI/CD integration
 
 ### Self-Tuning Rules ✅
-- [x] `falcon self-tune` — auto-adjust rule recommendations based on usage patterns
+- [x] `falcon x self-tune` — auto-adjust rule recommendations based on usage patterns
 - [x] Signal ratio tracking: triggers vs. suppressions per rule
 - [x] Auto-recommendations: UPGRADE (high-value rules), DOWNGRADE (noisy rules), DISABLE (mostly suppressed)
 - [x] Tune history persistence (`.falcon-data/tune-history.json`)
 
 ### AI Score Trends ✅
-- [x] `falcon score-track` — record AI Code Quality Score snapshots over time
+- [x] `falcon x score-track` — record AI Code Quality Score snapshots over time
 - [x] `--history` flag to view score history with per-dimension breakdown
 - [x] Score deltas between snapshots (↑ improved / ↓ regressed)
 - [x] Git commit tracking per snapshot
@@ -863,8 +863,8 @@ AI Code Quality Score: 72/100
 - [x] **AI Code Score (0-100)** — single number for production-readiness ✅ (v1.3)
 - [x] **Score Breakdown** — Resource Safety, Error Handling, Type Safety, Security, Convention Match, Complexity ✅ (v1.3)
 - [x] **Score API** — embeddable badge for READMEs, PR comments, dashboards ✅ (v1.3 `--badge`)
-- [x] **Benchmark Database** — `falcon benchmark-db` records per-tool scores, computes avg/min/max by AI tool ✅
-- [x] **Score Trends** — track score over time per project ✅ (v2.0 `score-track`)
+- [x] **Benchmark Database** — `falcon x benchmark-db` records per-tool scores, computes avg/min/max by AI tool ✅
+- [x] **Score Trends** — track score over time per project ✅ (v2.0 `x score-track`)
 - [x] **Certification** — "Falcon Certified: Production Ready" badge for repos maintaining 85+ ✅ (v1.3)
 
 ---
@@ -874,10 +874,10 @@ AI Code Quality Score: 72/100
 > **Thesis**: Falcon gets smarter with scale. Every project that uses Falcon makes
 > Falcon better for every other project.
 
-- [x] **Cross-Project Learning** — `falcon learn` records projects, `--insights` derives cross-project patterns and recommendations ✅
+- [x] **Cross-Project Learning** — `falcon x learn` records projects, `--insights` derives cross-project patterns and recommendations ✅
 - [x] **AI-Tool Profiling** — `falcon x ai-profile` builds per-tool error profiles from benchmark database ✅
 - [x] **Auto-Rule Generation** — `falcon x discover-rules` proposes new rules from observed code patterns ✅
-- [x] **Fix Effectiveness Tracking** — `falcon fix-track` records accept/reject outcomes per rule ✅
+- [x] **Fix Effectiveness Tracking** — `falcon x fix-track` records accept/reject outcomes per rule ✅
 - [x] **Regression Prediction** — `falcon x predict` forecasts production risks with probability, timeframe, evidence, and recommendations ✅
 
 ### v2.x Success Metrics

@@ -85,7 +85,7 @@ falcon analyze --preset ai-generated
 - Show a PR comment with the full analysis
 
 **Slide 13**: Score tracking over time
-- `falcon score-track` chart showing improvement
+- `falcon x score-track` chart showing improvement
 - Team went from 35/100 to 78/100 in 3 months
 
 ### Part 4: Call to Action (5 min)
@@ -123,7 +123,7 @@ A: The gap is structural. AI tools generate code without runtime context, lifecy
 A: `dart analyze` checks Dart language rules. Falcon checks Flutter-specific patterns — dispose lifecycle, widget rebuilds, state management, architecture compliance, and AI-specific anti-patterns. Run `falcon x compare` to see the difference.
 
 **Q: "Is it really 10x faster?"**
-A: Yes. Rust + tree-sitter + rayon parallelism. We analyze 233 files in under 2 seconds. Try `falcon benchmark` on your project.
+A: Yes. Rust + tree-sitter + rayon parallelism. We analyze 233 files in under 2 seconds. Try `falcon x benchmark` on your project.
 
 ---
 

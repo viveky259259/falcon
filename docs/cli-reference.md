@@ -207,7 +207,7 @@ selected for other AI surfaces.
 | `falcon pr-comment [path]` | Post full-project analysis results as GitHub PR comment |
 | `falcon webhook --url <url>` | Send webhook notification |
 | `falcon fix [path]` | Auto-fix lint issues |
-| `falcon benchmark` | Run performance benchmark |
+| `falcon x benchmark` | Run performance benchmark |
 | `falcon x compare` | Compare Falcon vs dart analyze |
 
 `falcon review` defaults its base ref to `origin/main` and uses

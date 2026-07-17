@@ -221,6 +221,29 @@ fn legacy_dashboard_analytics_commands_warn_and_show_help() {
 }
 
 #[test]
+fn legacy_tracking_learning_commands_warn_and_show_help() {
+    let cases = [
+        ("benchmark", "x benchmark"),
+        ("benchmark-db", "x benchmark-db"),
+        ("score-track", "x score-track"),
+        ("perf-track", "x perf-track"),
+        ("fix-track", "x fix-track"),
+        ("self-tune", "x self-tune"),
+        ("learn", "x learn"),
+    ];
+
+    for (old, new) in cases {
+        let output = falcon_cmd()
+            .args([old, "--help"])
+            .output()
+            .expect("run falcon legacy tracking command help");
+
+        assert_success(&output);
+        assert_deprecation_warning(&output, old, new);
+    }
+}
+
+#[test]
 fn legacy_docs_command_warns_and_still_runs() {
     let temp = tempfile::tempdir().unwrap();
     let output_dir = temp.path().join("docs");
@@ -577,6 +600,29 @@ fn x_dashboard_analytics_commands_do_not_warn_on_help() {
             .args(args)
             .output()
             .expect("run falcon x dashboard analytics help");
+
+        assert_success(&output);
+        assert_no_deprecation_warning(&output);
+    }
+}
+
+#[test]
+fn x_tracking_learning_commands_do_not_warn_on_help() {
+    let cases = [
+        "benchmark",
+        "benchmark-db",
+        "score-track",
+        "perf-track",
+        "fix-track",
+        "self-tune",
+        "learn",
+    ];
+
+    for command in cases {
+        let output = falcon_cmd()
+            .args(["x", command, "--help"])
+            .output()
+            .expect("run falcon x tracking command help");
 
         assert_success(&output);
         assert_no_deprecation_warning(&output);

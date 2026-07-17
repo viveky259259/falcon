@@ -44,6 +44,13 @@ Falcon is moving to a compact top-level CLI before 1.0:
 | `falcon dashboard serve` | `falcon x dashboard serve` |
 | `falcon trends .` | `falcon x trends .` |
 | `falcon rule-impact .` | `falcon x rule-impact .` |
+| `falcon benchmark .` | `falcon x benchmark .` |
+| `falcon benchmark-db . --tool cursor` | `falcon x benchmark-db . --tool cursor` |
+| `falcon score-track .` | `falcon x score-track .` |
+| `falcon perf-track .` | `falcon x perf-track .` |
+| `falcon fix-track . --report` | `falcon x fix-track . --report` |
+| `falcon self-tune .` | `falcon x self-tune .` |
+| `falcon learn .` | `falcon x learn .` |
 | `falcon asset-audit .` | `falcon x asset-audit .` |
 | `falcon theme-audit .` | `falcon x theme-audit .` |
 | `falcon l10n-coverage .` | `falcon x l10n-coverage .` |

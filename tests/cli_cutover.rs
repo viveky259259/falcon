@@ -50,6 +50,13 @@ fn default_help_lists_only_cutover_verbs() {
         "dashboard",
         "trends",
         "rule-impact",
+        "benchmark",
+        "benchmark-db",
+        "score-track",
+        "perf-track",
+        "fix-track",
+        "self-tune",
+        "learn",
         "smells",
         "metrics",
         "asset-audit",
@@ -256,6 +263,31 @@ fn x_help_lists_dashboard_analytics_commands() {
     assert_success(&output);
     let stdout = String::from_utf8_lossy(&output.stdout);
     for command in ["dashboard", "trends", "rule-impact"] {
+        assert!(
+            stdout.contains(command),
+            "missing x {command} command in help:\n{stdout}"
+        );
+    }
+}
+
+#[test]
+fn x_help_lists_tracking_learning_commands() {
+    let output = falcon_cmd()
+        .args(["x", "--help"])
+        .output()
+        .expect("run falcon x --help");
+
+    assert_success(&output);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for command in [
+        "benchmark",
+        "benchmark-db",
+        "score-track",
+        "perf-track",
+        "fix-track",
+        "self-tune",
+        "learn",
+    ] {
         assert!(
             stdout.contains(command),
             "missing x {command} command in help:\n{stdout}"

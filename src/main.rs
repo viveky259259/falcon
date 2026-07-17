@@ -64,9 +64,10 @@ SEMANTIC COMMAND GROUPS:
                     x drift, x predict, x discover-rules, x ai-profile,
                     x refactor-sim, x test-gen, x vuln-scan
   CI/CD             pr-comment, webhook, export, fix
-  Tracking          x dashboard, x trends, x rule-impact, benchmark, score-track,
-                    perf-track, fix-track
-  Configuration     init, validate, explain, preset, suppress, baseline, self-tune
+  Tracking          x dashboard, x trends, x rule-impact, x benchmark,
+                    x benchmark-db, x score-track, x perf-track, x fix-track,
+                    x self-tune, x learn
+  Configuration     init, validate, explain, preset, suppress, baseline
   App Management    manage, review, watch, runtime-check, live, devtools, workspace
   Flutter Quality   asset-audit, theme-audit, l10n-coverage, deeplink-validate,
                     animation-audit, golden-gen
@@ -462,14 +463,6 @@ enum Commands {
     #[command(name = "feature-gap", display_order = 11)]
     FeatureGap,
 
-    /// Run performance benchmark on a project
-    #[command(display_order = 6)]
-    Benchmark {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-    },
-
     /// Generate rule documentation
     #[command(name = "rule-docs", display_order = 12)]
     RuleDocs {
@@ -516,22 +509,6 @@ enum Commands {
     /// Show rule deprecation status
     #[command(name = "deprecation-status", display_order = 11)]
     DeprecationStatus,
-
-    /// Track performance over time
-    #[command(name = "perf-track", display_order = 6)]
-    PerfTrack {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Show history instead of recording a new snapshot
-        #[arg(long)]
-        history: bool,
-
-        /// Number of recent entries to show
-        #[arg(long, default_value = "20")]
-        last: usize,
-    },
 
     /// Manage issue suppressions and false-positive tracking
     #[command(display_order = 7)]
@@ -622,62 +599,6 @@ enum Commands {
         event: String,
     },
 
-    /// Record and view AI tool benchmark comparisons
-    #[command(name = "benchmark-db", display_order = 6)]
-    BenchmarkDb {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// AI tool name (cursor, copilot, claude, gemini, human)
-        #[arg(long)]
-        tool: Option<String>,
-
-        /// Show benchmark summary instead of recording
-        #[arg(long)]
-        summary: bool,
-    },
-
-    /// Track fix acceptance/rejection effectiveness
-    #[command(name = "fix-track", display_order = 6)]
-    FixTrack {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Rule name (for recording)
-        #[arg(long)]
-        rule: Option<String>,
-
-        /// Fix outcome (accepted, rejected, modified)
-        #[arg(long)]
-        outcome: Option<String>,
-
-        /// File where fix was applied
-        #[arg(long)]
-        file: Option<String>,
-
-        /// Show effectiveness report
-        #[arg(long)]
-        report: bool,
-    },
-
-    /// Record a project into the cross-project learning database
-    #[command(display_order = 12)]
-    Learn {
-        /// Path to project to record
-        #[arg(default_value = ".")]
-        project: PathBuf,
-
-        /// Path to the learning database (defaults to current dir)
-        #[arg(long, default_value = ".")]
-        db: PathBuf,
-
-        /// Show insights instead of recording
-        #[arg(long)]
-        insights: bool,
-    },
-
     /// Falcon Cloud — team dashboards and multi-project tracking
     #[command(display_order = 10)]
     Cloud {
@@ -722,30 +643,6 @@ enum Commands {
         /// Port to listen on
         #[arg(long, default_value = "8090")]
         port: u16,
-    },
-
-    /// Self-tune rules based on usage patterns and suppression history
-    #[command(name = "self-tune", display_order = 7)]
-    SelfTune {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-    },
-
-    /// Track AI Code Quality Score over time
-    #[command(name = "score-track", display_order = 6)]
-    ScoreTrack {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Show history instead of recording a new snapshot
-        #[arg(long)]
-        history: bool,
-
-        /// Number of recent entries to show
-        #[arg(long, default_value = "20")]
-        last: usize,
     },
 
     /// Experimental / extended commands (see council roadmap)
@@ -1155,6 +1052,110 @@ enum XAction {
         /// Path to project
         #[arg(default_value = ".")]
         path: PathBuf,
+    },
+
+    /// Run performance benchmark on a project
+    #[command(name = "benchmark")]
+    Benchmark {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Record and view AI tool benchmark comparisons
+    #[command(name = "benchmark-db")]
+    BenchmarkDb {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// AI tool name (cursor, copilot, claude, gemini, human)
+        #[arg(long)]
+        tool: Option<String>,
+
+        /// Show benchmark summary instead of recording
+        #[arg(long)]
+        summary: bool,
+    },
+
+    /// Track AI Code Quality Score over time
+    #[command(name = "score-track")]
+    ScoreTrack {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Show history instead of recording a new snapshot
+        #[arg(long)]
+        history: bool,
+
+        /// Number of recent entries to show
+        #[arg(long, default_value = "20")]
+        last: usize,
+    },
+
+    /// Track performance over time
+    #[command(name = "perf-track")]
+    PerfTrack {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Show history instead of recording a new snapshot
+        #[arg(long)]
+        history: bool,
+
+        /// Number of recent entries to show
+        #[arg(long, default_value = "20")]
+        last: usize,
+    },
+
+    /// Track fix acceptance/rejection effectiveness
+    #[command(name = "fix-track")]
+    FixTrack {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Rule name (for recording)
+        #[arg(long)]
+        rule: Option<String>,
+
+        /// Fix outcome (accepted, rejected, modified)
+        #[arg(long)]
+        outcome: Option<String>,
+
+        /// File where fix was applied
+        #[arg(long)]
+        file: Option<String>,
+
+        /// Show effectiveness report
+        #[arg(long)]
+        report: bool,
+    },
+
+    /// Self-tune rules based on usage patterns and suppression history
+    #[command(name = "self-tune")]
+    SelfTune {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Record a project into the cross-project learning database
+    #[command(name = "learn")]
+    Learn {
+        /// Path to project to record
+        #[arg(default_value = ".")]
+        project: PathBuf,
+
+        /// Path to the learning database (defaults to current dir)
+        #[arg(long, default_value = ".")]
+        db: PathBuf,
+
+        /// Show insights instead of recording
+        #[arg(long)]
+        insights: bool,
     },
 
     /// Categorized smells report: Dead Code, Code Smells, Security Smells.
@@ -2762,6 +2763,173 @@ fn run_rule_impact(path: PathBuf) -> Result<()> {
     Ok(())
 }
 
+fn run_benchmark(path: PathBuf) -> Result<()> {
+    let result = falcon::benchmark::run_benchmark(&path)?;
+    falcon::benchmark::print_benchmark(&result);
+    Ok(())
+}
+
+fn run_perf_track(path: PathBuf, history: bool, last: usize) -> Result<()> {
+    if history {
+        let hist = falcon::stability::perf_track::load_perf_history(&path)?;
+        falcon::stability::perf_track::print_perf_history(&hist, last);
+    } else {
+        let snapshot = falcon::stability::perf_track::capture_perf_snapshot(&path)?;
+        falcon::stability::perf_track::save_perf_snapshot(&path, &snapshot)?;
+        println!(
+            "  {} Performance snapshot recorded: {} files, {} lines, {}ms",
+            "✓".green().bold(),
+            snapshot.file_count,
+            snapshot.total_lines,
+            snapshot.analysis_time_ms
+        );
+
+        let hist = falcon::stability::perf_track::load_perf_history(&path)?;
+        if let Some(regression) = falcon::stability::perf_track::check_regression(&hist) {
+            if regression.is_regression {
+                eprintln!(
+                    "  {} Performance regression: {:.1}% slower",
+                    "⚠".yellow(),
+                    regression.time_change_pct
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn run_benchmark_db(path: PathBuf, tool: Option<String>, summary: bool) -> Result<()> {
+    if summary {
+        let db = falcon::ai_score::benchmark_db::load_benchmark_db(&path)?;
+        let stats = falcon::ai_score::benchmark_db::compute_tool_stats(&db);
+        falcon::ai_score::benchmark_db::print_benchmark_summary(&stats);
+    } else if let Some(tool_name) = tool {
+        let project = path
+            .file_name()
+            .and_then(|f| f.to_str())
+            .unwrap_or("project");
+        let entry = falcon::ai_score::benchmark_db::record_benchmark(&path, project, &tool_name)?;
+        println!(
+            "  {} Recorded benchmark: {} (tool: {}) — score {}/100",
+            "✓".green().bold(),
+            entry.project_name,
+            entry.ai_tool,
+            entry.score
+        );
+    } else {
+        eprintln!("Use --tool <name> to record, or --summary to view benchmarks");
+        process::exit(1);
+    }
+
+    Ok(())
+}
+
+fn run_fix_track(
+    path: PathBuf,
+    rule: Option<String>,
+    outcome: Option<String>,
+    file: Option<String>,
+    report: bool,
+) -> Result<()> {
+    if report {
+        let history = falcon::ai_score::fix_tracking::load_fix_history(&path)?;
+        let eff = falcon::ai_score::fix_tracking::compute_effectiveness(&history);
+        falcon::ai_score::fix_tracking::print_fix_effectiveness(&eff);
+    } else if let (Some(rule), Some(outcome_str), Some(file)) = (rule, outcome, file) {
+        let outcome = match outcome_str.as_str() {
+            "accepted" | "accept" => falcon::ai_score::fix_tracking::FixOutcome::Accepted,
+            "rejected" | "reject" => falcon::ai_score::fix_tracking::FixOutcome::Rejected,
+            "modified" | "modify" => falcon::ai_score::fix_tracking::FixOutcome::Modified,
+            _ => {
+                eprintln!(
+                    "Unknown outcome '{}'. Use: accepted, rejected, modified",
+                    outcome_str
+                );
+                process::exit(1);
+            }
+        };
+        falcon::ai_score::fix_tracking::record_fix(&path, &rule, &file, outcome)?;
+        println!(
+            "  {} Recorded fix outcome for '{}' in {}",
+            "✓".green().bold(),
+            rule,
+            file
+        );
+    } else {
+        eprintln!("Use --report to view, or --rule/--outcome/--file to record");
+        process::exit(1);
+    }
+
+    Ok(())
+}
+
+fn run_learn(project: PathBuf, db: PathBuf, insights: bool) -> Result<()> {
+    if insights {
+        let learning_db = falcon::ai_score::cross_project::load_learning_db(&db)?;
+        let ins = falcon::ai_score::cross_project::derive_insights(&learning_db);
+        falcon::ai_score::cross_project::print_insights(&ins);
+    } else {
+        let profile = falcon::ai_score::cross_project::record_project(&db, &project)?;
+        println!(
+            "  {} Recorded project '{}' — {} files, arch: {}, score: {}",
+            "✓".green().bold(),
+            profile.project_id,
+            profile.file_count,
+            profile.architecture,
+            profile
+                .ai_score
+                .map_or("N/A".to_string(), |s| format!("{}/100", s))
+        );
+    }
+
+    Ok(())
+}
+
+fn run_self_tune(path: PathBuf) -> Result<()> {
+    let history = falcon::ai_score::self_tune::record_analysis(&path)?;
+    let recs = falcon::ai_score::self_tune::generate_recommendations(&history);
+    falcon::ai_score::self_tune::print_tune_recommendations(&recs, &history);
+    Ok(())
+}
+
+fn run_score_track(path: PathBuf, history: bool, last: usize) -> Result<()> {
+    if history {
+        let hist = falcon::ai_score::score_trends::load_score_history(&path)?;
+        falcon::ai_score::score_trends::print_score_history(&hist, last);
+    } else {
+        let snapshot = falcon::ai_score::score_trends::record_score(&path)?;
+        println!(
+            "  {} Score snapshot recorded: {}/100 (Grade: {}), {} issues",
+            "✓".green().bold(),
+            snapshot.overall,
+            snapshot.grade,
+            snapshot.total_issues
+        );
+
+        let hist = falcon::ai_score::score_trends::load_score_history(&path)?;
+        if hist.snapshots.len() >= 2 {
+            let prev = &hist.snapshots[hist.snapshots.len() - 2];
+            let delta = falcon::ai_score::score_trends::compare_scores(prev, &snapshot);
+            if delta.overall > 0 {
+                println!(
+                    "    {} Score improved by {} points",
+                    "↑".bright_green(),
+                    delta.overall
+                );
+            } else if delta.overall < 0 {
+                println!(
+                    "    {} Score dropped by {} points",
+                    "↓".red(),
+                    delta.overall.abs()
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
 fn run_refactor_sim(
     path: PathBuf,
     scenario: falcon::analysis::refactor_sim::RefactorScenario,
@@ -3794,10 +3962,6 @@ fn run(cli: Cli) -> Result<()> {
             let report = falcon::migration::dcm::feature_gap_report();
             println!("{}", report);
         }
-        Commands::Benchmark { path } => {
-            let result = falcon::benchmark::run_benchmark(&path)?;
-            falcon::benchmark::print_benchmark(&result);
-        }
         Commands::RuleDocs { format, output } => match format {
             DocFormat::Console => {
                 let docs = falcon::docs::rule_docs::generate_rule_docs();
@@ -3885,37 +4049,6 @@ fn run(cli: Cli) -> Result<()> {
         }
         Commands::DeprecationStatus => {
             falcon::stability::deprecation::print_deprecation_status();
-        }
-        Commands::PerfTrack {
-            path,
-            history,
-            last,
-        } => {
-            if history {
-                let hist = falcon::stability::perf_track::load_perf_history(&path)?;
-                falcon::stability::perf_track::print_perf_history(&hist, last);
-            } else {
-                let snapshot = falcon::stability::perf_track::capture_perf_snapshot(&path)?;
-                falcon::stability::perf_track::save_perf_snapshot(&path, &snapshot)?;
-                println!(
-                    "  {} Performance snapshot recorded: {} files, {} lines, {}ms",
-                    "✓".green().bold(),
-                    snapshot.file_count,
-                    snapshot.total_lines,
-                    snapshot.analysis_time_ms
-                );
-
-                let hist = falcon::stability::perf_track::load_perf_history(&path)?;
-                if let Some(regression) = falcon::stability::perf_track::check_regression(&hist) {
-                    if regression.is_regression {
-                        eprintln!(
-                            "  {} Performance regression: {:.1}% slower",
-                            "⚠".yellow(),
-                            regression.time_change_pct
-                        );
-                    }
-                }
-            }
         }
         Commands::Suppress { action } => match action {
             SuppressAction::Add {
@@ -4096,93 +4229,6 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
-        Commands::BenchmarkDb {
-            path,
-            tool,
-            summary,
-        } => {
-            if summary {
-                let db = falcon::ai_score::benchmark_db::load_benchmark_db(&path)?;
-                let stats = falcon::ai_score::benchmark_db::compute_tool_stats(&db);
-                falcon::ai_score::benchmark_db::print_benchmark_summary(&stats);
-            } else if let Some(tool_name) = tool {
-                let project = path
-                    .file_name()
-                    .and_then(|f| f.to_str())
-                    .unwrap_or("project");
-                let entry =
-                    falcon::ai_score::benchmark_db::record_benchmark(&path, project, &tool_name)?;
-                println!(
-                    "  {} Recorded benchmark: {} (tool: {}) — score {}/100",
-                    "✓".green().bold(),
-                    entry.project_name,
-                    entry.ai_tool,
-                    entry.score
-                );
-            } else {
-                eprintln!("Use --tool <name> to record, or --summary to view benchmarks");
-                process::exit(1);
-            }
-        }
-        Commands::FixTrack {
-            path,
-            rule,
-            outcome,
-            file,
-            report,
-        } => {
-            if report {
-                let history = falcon::ai_score::fix_tracking::load_fix_history(&path)?;
-                let eff = falcon::ai_score::fix_tracking::compute_effectiveness(&history);
-                falcon::ai_score::fix_tracking::print_fix_effectiveness(&eff);
-            } else if let (Some(rule), Some(outcome_str), Some(file)) = (rule, outcome, file) {
-                let outcome = match outcome_str.as_str() {
-                    "accepted" | "accept" => falcon::ai_score::fix_tracking::FixOutcome::Accepted,
-                    "rejected" | "reject" => falcon::ai_score::fix_tracking::FixOutcome::Rejected,
-                    "modified" | "modify" => falcon::ai_score::fix_tracking::FixOutcome::Modified,
-                    _ => {
-                        eprintln!(
-                            "Unknown outcome '{}'. Use: accepted, rejected, modified",
-                            outcome_str
-                        );
-                        process::exit(1);
-                    }
-                };
-                falcon::ai_score::fix_tracking::record_fix(&path, &rule, &file, outcome)?;
-                println!(
-                    "  {} Recorded fix outcome for '{}' in {}",
-                    "✓".green().bold(),
-                    rule,
-                    file
-                );
-            } else {
-                eprintln!("Use --report to view, or --rule/--outcome/--file to record");
-                process::exit(1);
-            }
-        }
-        Commands::Learn {
-            project,
-            db,
-            insights,
-        } => {
-            if insights {
-                let learning_db = falcon::ai_score::cross_project::load_learning_db(&db)?;
-                let ins = falcon::ai_score::cross_project::derive_insights(&learning_db);
-                falcon::ai_score::cross_project::print_insights(&ins);
-            } else {
-                let profile = falcon::ai_score::cross_project::record_project(&db, &project)?;
-                println!(
-                    "  {} Recorded project '{}' — {} files, arch: {}, score: {}",
-                    "✓".green().bold(),
-                    profile.project_id,
-                    profile.file_count,
-                    profile.architecture,
-                    profile
-                        .ai_score
-                        .map_or("N/A".to_string(), |s| format!("{}/100", s))
-                );
-            }
-        }
         Commands::Cloud { action } => match action {
             CloudAction::Init { team, path } => {
                 falcon::platform::cloud::init_cloud(&path, &team)?;
@@ -4295,49 +4341,6 @@ fn run(cli: Cli) -> Result<()> {
         }
         Commands::Api { host, port } => {
             falcon::api::server::start_api_server(&host, port)?;
-        }
-        Commands::SelfTune { path } => {
-            let history = falcon::ai_score::self_tune::record_analysis(&path)?;
-            let recs = falcon::ai_score::self_tune::generate_recommendations(&history);
-            falcon::ai_score::self_tune::print_tune_recommendations(&recs, &history);
-        }
-        Commands::ScoreTrack {
-            path,
-            history,
-            last,
-        } => {
-            if history {
-                let hist = falcon::ai_score::score_trends::load_score_history(&path)?;
-                falcon::ai_score::score_trends::print_score_history(&hist, last);
-            } else {
-                let snapshot = falcon::ai_score::score_trends::record_score(&path)?;
-                println!(
-                    "  {} Score snapshot recorded: {}/100 (Grade: {}), {} issues",
-                    "✓".green().bold(),
-                    snapshot.overall,
-                    snapshot.grade,
-                    snapshot.total_issues
-                );
-
-                let hist = falcon::ai_score::score_trends::load_score_history(&path)?;
-                if hist.snapshots.len() >= 2 {
-                    let prev = &hist.snapshots[hist.snapshots.len() - 2];
-                    let delta = falcon::ai_score::score_trends::compare_scores(prev, &snapshot);
-                    if delta.overall > 0 {
-                        println!(
-                            "    {} Score improved by {} points",
-                            "↑".bright_green(),
-                            delta.overall
-                        );
-                    } else if delta.overall < 0 {
-                        println!(
-                            "    {} Score dropped by {} points",
-                            "↓".red(),
-                            delta.overall.abs()
-                        );
-                    }
-                }
-            }
         }
         Commands::AiScore {
             path,
@@ -4590,6 +4593,56 @@ fn run(cli: Cli) -> Result<()> {
                 }
                 XAction::RuleImpact { path } => {
                     run_rule_impact(path)?;
+                    return Ok(());
+                }
+                XAction::Benchmark { path } => {
+                    run_benchmark(path)?;
+                    return Ok(());
+                }
+                XAction::BenchmarkDb {
+                    path,
+                    tool,
+                    summary,
+                } => {
+                    run_benchmark_db(path, tool, summary)?;
+                    return Ok(());
+                }
+                XAction::ScoreTrack {
+                    path,
+                    history,
+                    last,
+                } => {
+                    run_score_track(path, history, last)?;
+                    return Ok(());
+                }
+                XAction::PerfTrack {
+                    path,
+                    history,
+                    last,
+                } => {
+                    run_perf_track(path, history, last)?;
+                    return Ok(());
+                }
+                XAction::FixTrack {
+                    path,
+                    rule,
+                    outcome,
+                    file,
+                    report,
+                } => {
+                    run_fix_track(path, rule, outcome, file, report)?;
+                    return Ok(());
+                }
+                XAction::SelfTune { path } => {
+                    run_self_tune(path)?;
+                    return Ok(());
+                }
+                XAction::Learn {
+                    project,
+                    db,
+                    insights,
+                } => {
+                    run_learn(project, db, insights)?;
                     return Ok(());
                 }
                 XAction::Smells {

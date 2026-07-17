@@ -132,13 +132,13 @@ navigateToNextScreen(); // Missing await!
 1. **Integrate Falcon as an MCP server** — `falcon-mcp` provides real-time analysis during generation
 2. **Focus on Error Handling** — the -45 point gap is the largest and most impactful
 3. **Add dispose() awareness** — this is a Flutter-specific pattern that all AI tools miss
-4. **Use Falcon's benchmark database** — `falcon benchmark-db` tracks your tool's quality over time
+4. **Use Falcon's benchmark database** — `falcon x benchmark-db` tracks your tool's quality over time
 
 ### For engineering leads
 
 1. **Add `falcon ai-score` to CI** — set a minimum score threshold (we recommend 70+)
 2. **Use `falcon pr-comment`** — automatic analysis on every PR
-3. **Track score trends** — `falcon score-track` shows quality trajectory over time
+3. **Track score trends** — `falcon x score-track` shows quality trajectory over time
 4. **Set enterprise policies** — `falcon enterprise check` enforces team standards
 
 ---
