@@ -797,7 +797,7 @@ v1.x Architecture:                    v2.0 Architecture:
 - [x] `falcon test-gen` — generate meaningful test stubs from code analysis (unit + widget tests, `--write` to save) ✅
 - [x] `falcon vuln-scan` — vulnerability & anti-pattern radar with CWE classification (insecure storage, HTTP, injection, crypto, data exposure) ✅
 - [x] State management migration assistant — covered by `falcon refactor-sim` (6 migration scenarios) ✅
-- [x] `falcon upgrade-check` — Flutter upgrade compatibility checker, detects deprecated/removed APIs with migration guidance ✅
+- [x] `falcon x upgrade-check` — Flutter upgrade compatibility checker, detects deprecated/removed APIs with migration guidance ✅
 
 ---
 
@@ -833,10 +833,10 @@ AI Tool Integration Flow:
 - [x] **Webhook Callbacks** — analysis.complete, score.changed, drift.detected event webhooks ✅
 
 ### Platform Expansion ✅
-- [x] Multi-language support — `falcon check-platform` analyzes Kotlin/Swift platform channel code for naming, error handling, thread safety ✅
-- [x] Code generation quality — `falcon check-codegen` analyzes .g.dart/.freezed.dart for staleness, size, missing headers ✅
+- [x] Multi-language support — `falcon x check-platform` analyzes Kotlin/Swift platform channel code for naming, error handling, thread safety ✅
+- [x] Code generation quality — `falcon x check-codegen` analyzes .g.dart/.freezed.dart for staleness, size, missing headers ✅
 - [x] Accessibility lint rules — `ensure-semantics-label`, `ensure-image-semantics`, `ensure-touch-target-size` (WCAG 2.5.5) ✅
-- [x] Performance profiling — `falcon check-perf` DevTools-style analysis for rebuilds, memory, rendering, network anti-patterns ✅
+- [x] Performance profiling — `falcon x check-perf` DevTools-style analysis for rebuilds, memory, rendering, network anti-patterns ✅
 
 ---
 

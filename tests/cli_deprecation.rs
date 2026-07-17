@@ -89,6 +89,29 @@ fn legacy_moved_check_commands_warn_and_still_run() {
 }
 
 #[test]
+fn legacy_platform_diagnostics_warn_and_still_run() {
+    let temp = tempfile::tempdir().unwrap();
+    write_dart_project(temp.path());
+    let root = temp.path().to_str().unwrap();
+    let cases = [
+        ("upgrade-check", "x upgrade-check"),
+        ("check-platform", "x check-platform"),
+        ("check-codegen", "x check-codegen"),
+        ("check-perf", "x check-perf"),
+    ];
+
+    for (old, new) in cases {
+        let output = falcon_cmd()
+            .args([old, root])
+            .output()
+            .expect("run falcon legacy platform diagnostic");
+
+        assert_success(&output);
+        assert_deprecation_warning(&output, old, new);
+    }
+}
+
+#[test]
 fn legacy_docs_command_warns_and_still_runs() {
     let temp = tempfile::tempdir().unwrap();
     let output_dir = temp.path().join("docs");
@@ -334,6 +357,29 @@ fn x_moved_check_commands_do_not_warn() {
             .args(["x", command, root])
             .output()
             .expect("run falcon x check command");
+
+        assert_success(&output);
+        assert_no_deprecation_warning(&output);
+    }
+}
+
+#[test]
+fn x_platform_diagnostics_do_not_warn() {
+    let temp = tempfile::tempdir().unwrap();
+    write_dart_project(temp.path());
+    let root = temp.path().to_str().unwrap();
+    let cases = [
+        "upgrade-check",
+        "check-platform",
+        "check-codegen",
+        "check-perf",
+    ];
+
+    for command in cases {
+        let output = falcon_cmd()
+            .args(["x", command, root])
+            .output()
+            .expect("run falcon x platform diagnostic");
 
         assert_success(&output);
         assert_no_deprecation_warning(&output);

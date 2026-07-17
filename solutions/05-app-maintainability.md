@@ -52,10 +52,10 @@ falcon vuln-scan .
 falcon predict .
 
 # 7. Flutter upgrade compatibility
-falcon upgrade-check .
+falcon x upgrade-check .
 
 # 8. Performance issues
-falcon check-perf .
+falcon x check-perf .
 
 # 9. Full AI code quality breakdown
 falcon ai-score .
@@ -256,7 +256,7 @@ flutter pub outdated
 flutter pub upgrade --major-versions  # Review changes!
 
 # 3. Flutter SDK compatibility
-falcon upgrade-check .
+falcon x upgrade-check .
 
 # 4. Self-tune rules
 falcon self-tune .
@@ -287,7 +287,7 @@ falcon manage arch .
 falcon discover-rules .
 
 # 4. Performance deep-dive
-falcon check-perf .
+falcon x check-perf .
 falcon predict .
 
 # 5. Test gap analysis
@@ -376,7 +376,7 @@ falcon test-gen . --write
 2. Update ONE dependency at a time
 3. Run: flutter test
 4. Run: falcon manage deps .
-5. Run: falcon upgrade-check .  (breaking API changes?)
+5. Run: falcon x upgrade-check .  (breaking API changes?)
 6. Commit with: git commit -m "chore: update <dep> to <version>"
 ```
 
@@ -413,7 +413,7 @@ falcon analyze . --fail-on error    # Check fix doesn't introduce issues
 falcon predict .                   # Risk assessment
 
 # === On Dependency Update ===
-falcon upgrade-check .             # Deprecated APIs
+falcon x upgrade-check .           # Deprecated APIs
 falcon manage deps .               # Unused deps check
 
 # === On Refactoring ===

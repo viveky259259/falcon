@@ -120,7 +120,7 @@ pub fn analyze_maintenance(root: &Path) -> anyhow::Result<MaintenanceReport> {
             ),
             files_affected: codegen.stale_files.len(),
             auto_fixable: false,
-            command: "falcon check-codegen".to_string(),
+            command: "falcon x check-codegen".to_string(),
         });
     }
 

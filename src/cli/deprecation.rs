@@ -25,6 +25,10 @@ pub fn aliased_target(command: &str) -> Option<&'static str> {
         "check-dead-code" => Some("x check-dead-code"),
         "check-unused-l10n" => Some("x check-unused-l10n"),
         "check-promoted-deps" => Some("x check-promoted-deps"),
+        "upgrade-check" => Some("x upgrade-check"),
+        "check-platform" => Some("x check-platform"),
+        "check-codegen" => Some("x check-codegen"),
+        "check-perf" => Some("x check-perf"),
         "smells" => Some("x smells"),
         "metrics" => Some("x metrics"),
         "asset-audit" => Some("x asset-audit"),
@@ -114,6 +118,9 @@ mod tests {
             aliased_target("check-promoted-deps"),
             Some("x check-promoted-deps")
         );
+        assert_eq!(aliased_target("check-codegen"), Some("x check-codegen"));
+        assert_eq!(aliased_target("check-perf"), Some("x check-perf"));
+        assert_eq!(aliased_target("check-platform"), Some("x check-platform"));
         assert_eq!(
             aliased_target("check-unused-code"),
             Some("x check-unused-code")
@@ -130,6 +137,7 @@ mod tests {
         assert_eq!(aliased_target("metrics"), Some("x metrics"));
         assert_eq!(aliased_target("smells"), Some("x smells"));
         assert_eq!(aliased_target("test-gen"), Some("x test-gen"));
+        assert_eq!(aliased_target("upgrade-check"), Some("x upgrade-check"));
     }
 
     #[test]

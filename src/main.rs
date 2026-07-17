@@ -56,9 +56,9 @@ SEMANTIC COMMAND GROUPS:
   Analysis          analyze, x metrics, score, cognitive-complexity, codebase-intel
   Code Checks       x check-unused-code, x check-unused-files, x check-dependencies,
                     x check-cycles, x check-unused-params, x check-dead-code,
-                    x check-unused-l10n, x check-promoted-deps, check-async,
-                    check-widgets, check-layers, check-imports, check-platform,
-                    check-codegen, check-perf
+                    x check-unused-l10n, x check-promoted-deps, x check-platform,
+                    x check-codegen, x check-perf, check-async, check-widgets,
+                    check-layers, check-imports
   Comparison        compare-branches, compare-reports, compare, history
   AI Intelligence   score, ai-report, provenance, conventions, drift, predict,
                     discover-rules, refactor-sim, test-gen, vuln-scan
@@ -887,14 +887,6 @@ enum Commands {
         json: bool,
     },
 
-    /// Check Flutter upgrade compatibility (deprecated APIs)
-    #[command(name = "upgrade-check")]
-    UpgradeCheck {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-    },
-
     /// Falcon Cloud — team dashboards and multi-project tracking
     #[command(display_order = 10)]
     Cloud {
@@ -928,30 +920,6 @@ enum Commands {
     /// View Falcon partner integrations
     #[command(display_order = 10)]
     Partners,
-
-    /// Analyze platform channel code (Kotlin/Swift)
-    #[command(name = "check-platform", display_order = 2)]
-    CheckPlatform {
-        /// Path to Flutter project root
-        #[arg(default_value = ".")]
-        path: PathBuf,
-    },
-
-    /// Analyze code generation quality (.g.dart, .freezed.dart, etc.)
-    #[command(name = "check-codegen", display_order = 2)]
-    CheckCodegen {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-    },
-
-    /// Run DevTools-style performance analysis
-    #[command(name = "check-perf", display_order = 2)]
-    CheckPerf {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-    },
 
     /// Start the Falcon HTTP API server
     #[command(name = "api", display_order = 9)]
@@ -1153,6 +1121,38 @@ enum XAction {
         /// Output file path
         #[arg(short, long, default_value = "falcon-report.html")]
         output: PathBuf,
+    },
+
+    /// Check Flutter upgrade compatibility (deprecated APIs)
+    #[command(name = "upgrade-check")]
+    UpgradeCheck {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Analyze platform channel code (Kotlin/Swift)
+    #[command(name = "check-platform")]
+    CheckPlatform {
+        /// Path to Flutter project root
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Analyze code generation quality (.g.dart, .freezed.dart, etc.)
+    #[command(name = "check-codegen")]
+    CheckCodegen {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Run DevTools-style performance analysis
+    #[command(name = "check-perf")]
+    CheckPerf {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
     },
 
     /// Categorized smells report: Dead Code, Code Smells, Security Smells.
@@ -2215,6 +2215,32 @@ fn run_check_cycles(path: PathBuf) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn run_upgrade_check(path: PathBuf) {
+    let findings = falcon::analysis::upgrade_check::check_upgrade_compatibility(&path);
+    falcon::analysis::upgrade_check::print_compat_report(&findings);
+    if findings.iter().any(|f| f.removed_in.is_some()) {
+        process::exit(1);
+    }
+}
+
+fn run_check_platform(path: PathBuf) {
+    let issues = falcon::analysis::platform_channels::analyze_platform_channels(&path);
+    falcon::analysis::platform_channels::print_platform_summary(&issues);
+    if !issues.is_empty() {
+        get_reporter(&OutputFormat::Console, &PathBuf::from("")).report_issues(&issues);
+    }
+}
+
+fn run_check_codegen(path: PathBuf) {
+    let report = falcon::analysis::codegen_quality::analyze_codegen(&path);
+    falcon::analysis::codegen_quality::print_codegen_report(&report);
+}
+
+fn run_check_perf(path: PathBuf) {
+    let report = falcon::analysis::devtools_bridge::analyze_performance(&path);
+    falcon::analysis::devtools_bridge::print_perf_report(&report);
 }
 
 fn run_refactor_sim(
@@ -4047,13 +4073,6 @@ fn run(cli: Cli) -> Result<()> {
                 falcon::ai_score::regression_predict::print_risk_predictions(&predictions);
             }
         }
-        Commands::UpgradeCheck { path } => {
-            let findings = falcon::analysis::upgrade_check::check_upgrade_compatibility(&path);
-            falcon::analysis::upgrade_check::print_compat_report(&findings);
-            if findings.iter().any(|f| f.removed_in.is_some()) {
-                process::exit(1);
-            }
-        }
         Commands::Cloud { action } => match action {
             CloudAction::Init { team, path } => {
                 falcon::platform::cloud::init_cloud(&path, &team)?;
@@ -4163,21 +4182,6 @@ fn run(cli: Cli) -> Result<()> {
         Commands::Partners => {
             let partners = falcon::platform::partner::list_partners();
             falcon::platform::partner::print_partners(&partners);
-        }
-        Commands::CheckPlatform { path } => {
-            let issues = falcon::analysis::platform_channels::analyze_platform_channels(&path);
-            falcon::analysis::platform_channels::print_platform_summary(&issues);
-            if !issues.is_empty() {
-                get_reporter(&OutputFormat::Console, &PathBuf::from("")).report_issues(&issues);
-            }
-        }
-        Commands::CheckCodegen { path } => {
-            let report = falcon::analysis::codegen_quality::analyze_codegen(&path);
-            falcon::analysis::codegen_quality::print_codegen_report(&report);
-        }
-        Commands::CheckPerf { path } => {
-            let report = falcon::analysis::devtools_bridge::analyze_performance(&path);
-            falcon::analysis::devtools_bridge::print_perf_report(&report);
         }
         Commands::Api { host, port } => {
             falcon::api::server::start_api_server(&host, port)?;
@@ -4431,6 +4435,22 @@ fn run(cli: Cli) -> Result<()> {
                         output,
                         falcon::resolver::cyclic::detect_promoted_deps,
                     );
+                    return Ok(());
+                }
+                XAction::UpgradeCheck { path } => {
+                    run_upgrade_check(path);
+                    return Ok(());
+                }
+                XAction::CheckPlatform { path } => {
+                    run_check_platform(path);
+                    return Ok(());
+                }
+                XAction::CheckCodegen { path } => {
+                    run_check_codegen(path);
+                    return Ok(());
+                }
+                XAction::CheckPerf { path } => {
+                    run_check_perf(path);
                     return Ok(());
                 }
                 XAction::Smells {

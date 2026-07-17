@@ -176,7 +176,7 @@ pub fn generate_health_report(root: &Path) -> anyhow::Result<HealthReport> {
             category: "Performance".to_string(),
             description: format!("{} performance anti-patterns", perf_issues),
             impact: "Medium — janky UI".to_string(),
-            command: "falcon check-perf".to_string(),
+            command: "falcon x check-perf".to_string(),
         });
         rank += 1;
     }

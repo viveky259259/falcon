@@ -78,9 +78,9 @@ falcon score . --badge --json
 | `falcon check-imports` | Import restriction rules |
 | `falcon check-widgets` | Widget rebuild issues and build method complexity |
 | `falcon check-async` | Async/await anti-patterns (async void, unawaited futures) |
-| `falcon check-platform` | Kotlin/Swift platform channel issues |
-| `falcon check-codegen` | Code generation quality (.g.dart, .freezed.dart) |
-| `falcon check-perf` | DevTools-style performance analysis |
+| `falcon x check-platform` | Kotlin/Swift platform channel issues |
+| `falcon x check-codegen` | Code generation quality (.g.dart, .freezed.dart) |
+| `falcon x check-perf` | DevTools-style performance analysis |
 | `falcon cognitive-complexity` | Function cognitive complexity |
 | `falcon codebase-intel` | Health score, god files, hotspots, tech debt estimate |
 
@@ -169,7 +169,7 @@ The update mechanism downloads pre-built binaries from GitHub releases. If no bi
 | `falcon x refactor-sim --scenario <s>` | Simulate refactoring impact |
 | `falcon x test-gen [path]` | Generate test stubs from code analysis |
 | `falcon x vuln-scan [path]` | Security vulnerability radar |
-| `falcon upgrade-check [path]` | Flutter upgrade compatibility |
+| `falcon x upgrade-check [path]` | Flutter upgrade compatibility |
 
 ### falcon ai triage
 

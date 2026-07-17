@@ -25,6 +25,10 @@ fn default_help_lists_only_cutover_verbs() {
         "check-dead-code",
         "check-unused-l10n",
         "check-promoted-deps",
+        "upgrade-check",
+        "check-platform",
+        "check-codegen",
+        "check-perf",
         "smells",
         "metrics",
         "asset-audit",
@@ -124,6 +128,28 @@ fn x_help_lists_moved_check_commands() {
         "check-dead-code",
         "check-unused-l10n",
         "check-promoted-deps",
+    ] {
+        assert!(
+            stdout.contains(command),
+            "missing x {command} command in help:\n{stdout}"
+        );
+    }
+}
+
+#[test]
+fn x_help_lists_platform_diagnostics() {
+    let output = falcon_cmd()
+        .args(["x", "--help"])
+        .output()
+        .expect("run falcon x --help");
+
+    assert_success(&output);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for command in [
+        "upgrade-check",
+        "check-platform",
+        "check-codegen",
+        "check-perf",
     ] {
         assert!(
             stdout.contains(command),
