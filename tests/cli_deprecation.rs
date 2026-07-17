@@ -1,6 +1,41 @@
 use std::process::{Command, Output};
 
 #[test]
+fn legacy_analyze_command_warns_and_still_runs() {
+    let temp = tempfile::tempdir().unwrap();
+    write_dart_project(temp.path());
+    let output = falcon_cmd()
+        .args(["analyze", temp.path().to_str().unwrap(), "--format", "json"])
+        .output()
+        .expect("run falcon analyze");
+
+    assert_success(&output);
+    assert_deprecation_warning(&output, "analyze", "check");
+    serde_json::from_slice::<serde_json::Value>(&output.stdout).unwrap_or_else(|e| {
+        panic!(
+            "invalid analyze json: {}\nstdout:\n{}",
+            e,
+            String::from_utf8_lossy(&output.stdout)
+        )
+    });
+}
+
+#[test]
+fn legacy_pr_comment_command_warns_and_still_runs() {
+    let temp = tempfile::tempdir().unwrap();
+    write_dart_project(temp.path());
+    let output = falcon_cmd()
+        .args(["pr-comment", temp.path().to_str().unwrap(), "--dry-run"])
+        .output()
+        .expect("run falcon pr-comment");
+
+    assert_success(&output);
+    assert_deprecation_warning(&output, "pr-comment", "review --format gh");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Falcon Analysis"), "stdout:\n{}", stdout);
+}
+
+#[test]
 fn legacy_docs_command_warns_and_still_runs() {
     let temp = tempfile::tempdir().unwrap();
     let output_dir = temp.path().join("docs");
@@ -259,6 +294,17 @@ fn write_l10n_fixture(root: &std::path::Path) {
     std::fs::write(
         l10n_dir.join("app_es.arb"),
         r#"{"@@locale":"es","hello":"Hola"}"#,
+    )
+    .unwrap();
+}
+
+fn write_dart_project(root: &std::path::Path) {
+    let lib = root.join("lib");
+    std::fs::create_dir_all(&lib).unwrap();
+    std::fs::write(lib.join("main.dart"), "void main() {}\n").unwrap();
+    std::fs::write(
+        root.join("pubspec.yaml"),
+        "name: falcon_cli_deprecation_test\nenvironment:\n  sdk: '>=3.0.0 <4.0.0'\n",
     )
     .unwrap();
 }

@@ -33,6 +33,16 @@ pub fn aliased_target(command: &str) -> Option<&'static str> {
     }
 }
 
+/// Return the replacement command for deprecated commands that cannot be
+/// mechanically rewritten yet because their current option shapes differ.
+pub fn warning_target(command: &str) -> Option<&'static str> {
+    match command {
+        "analyze" => Some("check"),
+        "pr-comment" => Some("review --format gh"),
+        _ => None,
+    }
+}
+
 /// Render the warning string without printing it. Used by tests and by
 /// any caller that wants to route the message through their own logger.
 pub fn aliased_message(old: &str, new: &str) -> String {
@@ -77,6 +87,12 @@ mod tests {
     #[test]
     fn aliased_target_maps_ai_score() {
         assert_eq!(aliased_target("ai-score"), Some("score"));
+    }
+
+    #[test]
+    fn warning_target_maps_non_rewritable_commands() {
+        assert_eq!(warning_target("analyze"), Some("check"));
+        assert_eq!(warning_target("pr-comment"), Some("review --format gh"));
     }
 
     #[test]

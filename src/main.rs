@@ -144,6 +144,10 @@ enum Commands {
         #[arg(long)]
         preset: Option<String>,
 
+        /// Only analyze files changed since this git ref (e.g. HEAD~1, main)
+        #[arg(long)]
+        since: Option<String>,
+
         /// Only report findings not present in this baseline file
         #[arg(long, value_name = "FILE")]
         baseline: Option<PathBuf>,
@@ -1969,15 +1973,15 @@ fn rewrite_deprecated_args(args: &mut Vec<String>) {
     let Some(command) = args.get(1).cloned() else {
         return;
     };
-    let Some(new) = falcon::cli::deprecation::aliased_target(&command) else {
-        return;
-    };
+    if let Some(new) = falcon::cli::deprecation::aliased_target(&command) {
+        falcon::cli::deprecation::warn_aliased(&command, new);
 
-    falcon::cli::deprecation::warn_aliased(&command, new);
-
-    let replacement: Vec<String> = new.split_whitespace().map(str::to_string).collect();
-    if !replacement.is_empty() {
-        args.splice(1..2, replacement);
+        let replacement: Vec<String> = new.split_whitespace().map(str::to_string).collect();
+        if !replacement.is_empty() {
+            args.splice(1..2, replacement);
+        }
+    } else if let Some(new) = falcon::cli::deprecation::warning_target(&command) {
+        falcon::cli::deprecation::warn_aliased(&command, new);
     }
 }
 
@@ -2311,6 +2315,7 @@ fn run(cli: Cli) -> Result<()> {
             config,
             fail_on,
             preset,
+            since,
             baseline,
             update_baseline,
             semantic,
@@ -2321,7 +2326,7 @@ fn run(cli: Cli) -> Result<()> {
                 format,
                 output,
                 config,
-                since: None,
+                since,
                 baseline: false,
                 baseline_path: baseline,
                 update_baseline_path: update_baseline,
