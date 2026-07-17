@@ -9,15 +9,15 @@ mapping. The full historical help remains available for one release with
 
 | Command | Description |
 |---|---|
-| `falcon analyze [path]` | Full analysis (metrics + rules + unused detection) |
+| `falcon check [path]` | Full analysis (metrics + rules + unused detection) |
 | `falcon metrics [path]` | Calculate code metrics only |
 | `falcon score [path]` | AI Code Quality Score (0-100) with 6-dimension breakdown |
 | `falcon ai-report [path]` | Full "State of AI-Generated Flutter Code" report |
 
-### falcon analyze
+### falcon check
 
 ```bash
-falcon analyze . --format console --preset ai-generated --fail-on error
+falcon check . --format console --preset ai-generated --fail-on error
 ```
 
 | Flag | Description | Default |
@@ -33,7 +33,7 @@ falcon analyze . --format console --preset ai-generated --fail-on error
 #### HTML Report (v0.2.0)
 
 ```bash
-falcon analyze . --format html --output report.html
+falcon check . --format html --output report.html
 ```
 
 Generates an enterprise-grade HTML dashboard with:
@@ -93,7 +93,7 @@ List all stored analysis runs for a project.
 falcon history /path/to/project
 ```
 
-Shows a table with timestamp, branch, file count, health score, issue count, and commit hash. Snapshots are automatically saved after every `falcon analyze` and `falcon compare-branches` run.
+Shows a table with timestamp, branch, file count, health score, issue count, and commit hash. Snapshots are automatically saved after every `falcon check` and `falcon compare-branches` run.
 
 ### falcon compare-reports
 
@@ -217,13 +217,17 @@ Use `--strictness quick` to report only error-level findings, `standard` for
 the default lint findings plus standard review observations, and `thorough` for
 the extra review observations such as missing-test checks.
 
-For Dart projects with `.dart_tool/package_config.json`, review runs
-`dart analyze --format=json` as an analyzer co-pilot and suppresses Falcon
+For Dart projects with `.dart_tool/package_config.json`, review auto-enables
+semantic mode. It runs `dart analyze --format=json` and suppresses Falcon
 findings on the same file, line, and rule class as analyzer diagnostics.
 Style analyzer diagnostics can suppress style findings, for example, but not
-Falcon behavioral or security findings on the same line. `--analyzer-copilot`
-keeps this behavior explicit, and `--no-defer-to-analyzer` keeps Falcon findings
-even when the analyzer reports the same file, line, and class.
+Falcon behavioral or security findings on the same line. `--semantic` keeps this
+behavior explicit, and `--no-defer-to-analyzer` (`--no-defer`) keeps Falcon
+findings even when the analyzer reports the same file, line, and class.
+
+`falcon check` stays syntactic unless `--semantic` is passed. Keep editor-save
+and pre-commit hooks syntactic by default; use semantic mode in review or CI
+where the analyzer shellout is expected.
 
 ### Baselines
 

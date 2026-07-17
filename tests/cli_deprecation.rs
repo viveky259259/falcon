@@ -42,6 +42,46 @@ fn x_docs_command_does_not_warn() {
     );
 }
 
+#[test]
+fn legacy_workspace_command_warns_and_still_runs() {
+    let temp = tempfile::tempdir().unwrap();
+    let output = falcon_cmd()
+        .args(["workspace", temp.path().to_str().unwrap()])
+        .output()
+        .expect("run falcon workspace");
+
+    assert_success(&output);
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("`falcon workspace`")
+            && stderr.contains("`falcon x workspace`")
+            && stderr.contains("removed in v1.0"),
+        "stderr:\n{}",
+        stderr
+    );
+}
+
+#[test]
+fn legacy_dep_graph_command_warns_and_still_runs() {
+    let temp = tempfile::tempdir().unwrap();
+    let output = falcon_cmd()
+        .args(["dep-graph", temp.path().to_str().unwrap()])
+        .output()
+        .expect("run falcon dep-graph");
+
+    assert_success(&output);
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("`falcon dep-graph`")
+            && stderr.contains("`falcon x dep-graph`")
+            && stderr.contains("removed in v1.0"),
+        "stderr:\n{}",
+        stderr
+    );
+}
+
 fn falcon_cmd() -> Command {
     Command::new(env!("CARGO_BIN_EXE_falcon"))
 }

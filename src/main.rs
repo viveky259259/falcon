@@ -151,6 +151,14 @@ enum Commands {
         /// Rewrite the baseline file with the current findings
         #[arg(long, value_name = "FILE")]
         update_baseline: Option<PathBuf>,
+
+        /// Run dart analyze as a semantic co-pilot and defer same-line Falcon findings
+        #[arg(long)]
+        semantic: bool,
+
+        /// Keep Falcon findings even when dart analyze reports the same line
+        #[arg(long = "no-defer-to-analyzer", alias = "no-defer")]
+        no_defer_to_analyzer: bool,
     },
 
     /// Categorized smells report: Dead Code, Code Smells, Security Smells.
@@ -523,34 +531,6 @@ enum Commands {
         action: BaselineAction,
     },
 
-    /// Show file dependency graph
-    #[command(name = "dep-graph", display_order = 12)]
-    DepGraph {
-        /// Path to analyze
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Show dependents of a specific file
-        #[arg(long)]
-        file: Option<PathBuf>,
-    },
-
-    /// Analyze all packages in a monorepo workspace
-    #[command(name = "workspace", display_order = 8)]
-    Workspace {
-        /// Workspace root path
-        #[arg(default_value = ".")]
-        path: PathBuf,
-    },
-
-    /// Generate rule documentation
-    #[command(display_order = 12)]
-    Docs {
-        /// Output directory for generated docs
-        #[arg(default_value = "docs")]
-        output: PathBuf,
-    },
-
     /// Validate falcon.yaml configuration
     #[command(display_order = 7)]
     Validate {
@@ -740,12 +720,12 @@ enum Commands {
         #[arg(long, default_value = "standard")]
         strictness: falcon::review::pr_review::ReviewStrictness,
 
-        /// Run dart analyze as a co-pilot and defer same-line Falcon findings
-        #[arg(long = "analyzer-copilot")]
-        analyzer_copilot: bool,
+        /// Run dart analyze as a semantic co-pilot and defer same-line Falcon findings
+        #[arg(long)]
+        semantic: bool,
 
         /// Keep Falcon findings even when dart analyze reports the same line
-        #[arg(long = "no-defer-to-analyzer")]
+        #[arg(long = "no-defer-to-analyzer", alias = "no-defer")]
         no_defer_to_analyzer: bool,
 
         /// Only report findings not present in this baseline file
@@ -1001,6 +981,10 @@ enum Commands {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// Output format alias. Currently supports `json`.
+        #[arg(long, value_name = "FORMAT", value_parser = ["json"])]
+        format: Option<String>,
     },
 
     /// Generate a State of AI-Generated Flutter Code report
@@ -2112,20 +2096,32 @@ enum DocFormat {
 
 fn main() {
     env_logger::init();
-    let args: Vec<String> = std::env::args().collect();
+    let mut args: Vec<String> = std::env::args().collect();
     if handle_root_help(&args) {
         return;
     }
-    if let Some(command) = args.get(1) {
-        if let Some(new) = falcon::cli::deprecation::aliased_target(command) {
-            falcon::cli::deprecation::warn_aliased(command, new);
-        }
-    }
+    rewrite_deprecated_args(&mut args);
     let cli = Cli::parse_from(args);
 
     if let Err(e) = run(cli) {
         eprintln!("{}: {}", "error".red(), e);
         process::exit(1);
+    }
+}
+
+fn rewrite_deprecated_args(args: &mut Vec<String>) {
+    let Some(command) = args.get(1).cloned() else {
+        return;
+    };
+    let Some(new) = falcon::cli::deprecation::aliased_target(&command) else {
+        return;
+    };
+
+    falcon::cli::deprecation::warn_aliased(&command, new);
+
+    let replacement: Vec<String> = new.split_whitespace().map(str::to_string).collect();
+    if !replacement.is_empty() {
+        args.splice(1..2, replacement);
     }
 }
 
@@ -2147,6 +2143,78 @@ fn handle_root_help(args: &[String]) -> bool {
         }
         _ => false,
     }
+}
+
+fn run_dep_graph(path: PathBuf, file: Option<PathBuf>) -> Result<()> {
+    let config = FalconConfig::load(&path)?;
+    let exclude: Vec<glob::Pattern> = config
+        .exclude
+        .iter()
+        .filter_map(|p| glob::Pattern::new(p).ok())
+        .collect();
+
+    let graph = DependencyGraph::build(&path, &exclude);
+
+    if let Some(target) = file {
+        let abs = if target.is_absolute() {
+            target.clone()
+        } else {
+            path.join(&target)
+        };
+
+        println!(
+            "{} Dependencies for: {}",
+            "→".bright_cyan(),
+            target.display()
+        );
+
+        if let Some(imports) = graph.imports.get(&abs) {
+            println!("\n  {} ({}):", "Imports".bright_green(), imports.len());
+            for imp in imports {
+                let rel = imp.strip_prefix(&path).unwrap_or(imp);
+                println!("    {}", rel.display());
+            }
+        }
+
+        if let Some(deps) = graph.dependents.get(&abs) {
+            println!("\n  {} ({}):", "Depended on by".bright_yellow(), deps.len());
+            for dep in deps {
+                let rel = dep.strip_prefix(&path).unwrap_or(dep);
+                println!("    {}", rel.display());
+            }
+        }
+
+        let affected = graph.affected_files(&[abs]);
+        println!(
+            "\n  {} {} file(s) would need re-analysis if changed",
+            "Impact:".bright_red(),
+            affected.len()
+        );
+    } else {
+        println!(
+            "{} Dependency graph: {} files tracked\n",
+            "falcon".bright_cyan().bold(),
+            graph.imports.len()
+        );
+
+        let mut stats: Vec<(usize, &PathBuf)> = graph
+            .dependents
+            .iter()
+            .map(|(file, deps)| (deps.len(), file))
+            .collect();
+        stats.sort_by_key(|(count, _)| Reverse(*count));
+
+        println!(
+            "  {} (by number of dependents):",
+            "Most depended-on files".bright_green()
+        );
+        for (count, file) in stats.iter().take(20) {
+            let rel = file.strip_prefix(&path).unwrap_or(file);
+            println!("    {:>4} ← {}", count, rel.display());
+        }
+    }
+
+    Ok(())
 }
 
 fn run(cli: Cli) -> Result<()> {
@@ -2173,6 +2241,8 @@ fn run(cli: Cli) -> Result<()> {
                 update_baseline_path: None,
                 fail_on,
                 preset,
+                semantic: false,
+                no_defer_to_analyzer: false,
             })?;
         }
         Commands::Check {
@@ -2184,6 +2254,8 @@ fn run(cli: Cli) -> Result<()> {
             preset,
             baseline,
             update_baseline,
+            semantic,
+            no_defer_to_analyzer,
         } => {
             run_analysis_command(AnalysisCommandOptions {
                 path,
@@ -2196,6 +2268,8 @@ fn run(cli: Cli) -> Result<()> {
                 update_baseline_path: update_baseline,
                 fail_on,
                 preset,
+                semantic,
+                no_defer_to_analyzer,
             })?;
         }
         Commands::Smells {
@@ -2839,84 +2913,6 @@ fn run(cli: Cli) -> Result<()> {
                 );
             }
         },
-        Commands::DepGraph { path, file } => {
-            let config = FalconConfig::load(&path)?;
-            let exclude: Vec<glob::Pattern> = config
-                .exclude
-                .iter()
-                .filter_map(|p| glob::Pattern::new(p).ok())
-                .collect();
-
-            let graph = DependencyGraph::build(&path, &exclude);
-
-            if let Some(target) = file {
-                let abs = if target.is_absolute() {
-                    target.clone()
-                } else {
-                    path.join(&target)
-                };
-
-                println!(
-                    "{} Dependencies for: {}",
-                    "→".bright_cyan(),
-                    target.display()
-                );
-
-                if let Some(imports) = graph.imports.get(&abs) {
-                    println!("\n  {} ({}):", "Imports".bright_green(), imports.len());
-                    for imp in imports {
-                        let rel = imp.strip_prefix(&path).unwrap_or(imp);
-                        println!("    {}", rel.display());
-                    }
-                }
-
-                if let Some(deps) = graph.dependents.get(&abs) {
-                    println!("\n  {} ({}):", "Depended on by".bright_yellow(), deps.len());
-                    for dep in deps {
-                        let rel = dep.strip_prefix(&path).unwrap_or(dep);
-                        println!("    {}", rel.display());
-                    }
-                }
-
-                let affected = graph.affected_files(&[abs]);
-                println!(
-                    "\n  {} {} file(s) would need re-analysis if changed",
-                    "Impact:".bright_red(),
-                    affected.len()
-                );
-            } else {
-                println!(
-                    "{} Dependency graph: {} files tracked\n",
-                    "falcon".bright_cyan().bold(),
-                    graph.imports.len()
-                );
-
-                let mut stats: Vec<(usize, &PathBuf)> = graph
-                    .dependents
-                    .iter()
-                    .map(|(file, deps)| (deps.len(), file))
-                    .collect();
-                stats.sort_by_key(|(count, _)| Reverse(*count));
-
-                println!(
-                    "  {} (by number of dependents):",
-                    "Most depended-on files".bright_green()
-                );
-                for (count, file) in stats.iter().take(20) {
-                    let rel = file.strip_prefix(&path).unwrap_or(file);
-                    println!("    {:>4} ← {}", count, rel.display());
-                }
-            }
-        }
-        Commands::Workspace { path } => {
-            let report = falcon::workspace::analyze_workspace(&path)?;
-            if report.total_errors > 0 {
-                process::exit(1);
-            }
-        }
-        Commands::Docs { output } => {
-            falcon::docs::generate_rule_docs(&output)?;
-        }
         Commands::Validate { path } => {
             let errors = falcon::config::validator::validate_config(&path);
             falcon::config::validator::print_validation_results(&errors);
@@ -3389,7 +3385,7 @@ fn run(cli: Cli) -> Result<()> {
             base_ref,
             format,
             strictness,
-            analyzer_copilot,
+            semantic,
             no_defer_to_analyzer,
             baseline,
             update_baseline,
@@ -3419,9 +3415,8 @@ fn run(cli: Cli) -> Result<()> {
 
             apply_review_strictness(&mut report, strictness, review_observations);
 
-            let should_run_analyzer_copilot =
-                analyzer_copilot || path.join(".dart_tool/package_config.json").is_file();
-            if should_run_analyzer_copilot {
+            let should_run_semantic = semantic || falcon::paths::has_package_config(&path);
+            if should_run_semantic {
                 if let Some(analyzer_diagnostics) =
                     falcon::analyzer_bridge::run_dart_analyze(&path)?
                 {
@@ -3751,7 +3746,7 @@ fn run(cli: Cli) -> Result<()> {
                 eprintln!(
                     "  ❌ {} Need at least 2 analysis runs to compare. Run {} first.",
                     "error:".bright_red(),
-                    "falcon analyze".bright_blue()
+                    "falcon check".bright_blue()
                 );
                 process::exit(1);
             }
@@ -4433,9 +4428,14 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
-        Commands::AiScore { path, badge, json } => {
+        Commands::AiScore {
+            path,
+            badge,
+            json,
+            format,
+        } => {
             let score = falcon::ai_score::score::calculate_ai_score(&path)?;
-            if json {
+            if json || format.as_deref() == Some("json") {
                 let j = serde_json::to_string_pretty(&score)?;
                 println!("{}", j);
             } else {
@@ -4609,9 +4609,21 @@ fn run(cli: Cli) -> Result<()> {
                     html_output,
                     no_html,
                 },
-                XAction::DepGraph { path, file } => Commands::DepGraph { path, file },
-                XAction::Workspace { path } => Commands::Workspace { path },
-                XAction::Docs { output } => Commands::Docs { output },
+                XAction::DepGraph { path, file } => {
+                    run_dep_graph(path, file)?;
+                    return Ok(());
+                }
+                XAction::Workspace { path } => {
+                    let report = falcon::workspace::analyze_workspace(&path)?;
+                    if report.total_errors > 0 {
+                        process::exit(1);
+                    }
+                    return Ok(());
+                }
+                XAction::Docs { output } => {
+                    falcon::docs::generate_rule_docs(&output)?;
+                    return Ok(());
+                }
                 XAction::Leaderboard { input, output } => {
                     falcon::leaderboard::build_from_file(&input, &output)?;
                     eprintln!("Leaderboard written to {}", output.display());
@@ -4738,6 +4750,8 @@ struct AnalysisCommandOptions {
     update_baseline_path: Option<PathBuf>,
     fail_on: FailLevel,
     preset: Option<String>,
+    semantic: bool,
+    no_defer_to_analyzer: bool,
 }
 
 fn run_analysis_command(options: AnalysisCommandOptions) -> Result<()> {
@@ -4752,6 +4766,8 @@ fn run_analysis_command(options: AnalysisCommandOptions) -> Result<()> {
         update_baseline_path,
         fail_on,
         preset,
+        semantic,
+        no_defer_to_analyzer,
     } = options;
 
     let config_path = config.as_deref().unwrap_or(&path);
@@ -4787,6 +4803,17 @@ fn run_analysis_command(options: AnalysisCommandOptions) -> Result<()> {
     };
 
     let mut issues = report.issues;
+
+    if semantic {
+        if let Some(analyzer_diagnostics) = falcon::analyzer_bridge::run_dart_analyze(&path)? {
+            let (filtered, _) = falcon::analyzer_bridge::defer_to_analyzer(
+                &issues,
+                &analyzer_diagnostics,
+                no_defer_to_analyzer,
+            );
+            issues = filtered;
+        }
+    }
 
     if baseline {
         let bl = Baseline::load(&path)?;

@@ -4,7 +4,17 @@ Falcon is a Rust-powered static analysis tool for Flutter and Dart. It catches i
 
 ## Installation
 
-### From source (recommended)
+### Homebrew on macOS (recommended)
+
+```bash
+brew tap falcon-lint/tap
+brew install falcon
+```
+
+The preview Homebrew tap installs the release archives from GitHub Releases and
+includes all three binaries: `falcon`, `falcon-lsp`, and `falcon-mcp`.
+
+### From source
 
 ```bash
 cargo install --git https://github.com/viveky259259/falcon
@@ -44,7 +54,7 @@ falcon update --version X  # Install specific version
 
 ```bash
 cd /path/to/your/flutter/app
-falcon analyze .
+falcon check .
 ```
 
 Runs 61+ lint rules, code metrics, and unused code detection. Results are automatically saved to history.
@@ -52,7 +62,7 @@ Runs 61+ lint rules, code metrics, and unused code detection. Results are automa
 ### 2. Generate HTML report
 
 ```bash
-falcon analyze . --format html --output report.html
+falcon check . --format html --output report.html
 ```
 
 Opens an enterprise-grade dashboard with:
@@ -133,7 +143,7 @@ Add `--output comparison.html` for an HTML comparison report.
 
 ## Analysis History
 
-Every `falcon analyze` run is automatically saved. View your history:
+Every `falcon check` run is automatically saved. View your history:
 
 ```bash
 falcon history .
@@ -171,9 +181,9 @@ jobs:
       - name: Install Falcon
         run: cargo install --git https://github.com/viveky259259/falcon
       - name: Run Analysis
-        run: falcon analyze . --fail-on error
+        run: falcon check . --fail-on error
       - name: Generate Report
-        run: falcon analyze . --format html --output falcon-report.html
+        run: falcon check . --format html --output falcon-report.html
       - name: Upload Report
         uses: actions/upload-artifact@v4
         with:
@@ -197,6 +207,7 @@ Add to your Cursor/Windsurf MCP config:
 
 Agent-specific setup:
 
+- [Homebrew](install/homebrew.md)
 - [Cursor](install/cursor.md)
 - [Claude Code](install/claude-code.md)
 - [Cline](install/cline.md)

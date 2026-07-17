@@ -1,3 +1,4 @@
+import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import {
@@ -6,7 +7,9 @@ import {
   ServerOptions,
   TransportKind,
 } from "vscode-languageclient/node";
+import { registerFalconChatParticipant } from "./chatParticipant";
 import { buildHandleDiagnosticsMiddleware } from "./diagnosticsMiddleware";
+import { ScoreLensProvider } from "./scoreLens";
 
 let client: LanguageClient | undefined;
 let statusBarItem: vscode.StatusBarItem;
@@ -29,6 +32,15 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(statusBarItem);
 
   startServer(context);
+  registerFalconChatParticipant(context, outputChannel);
+
+  const scoreLensProvider = new ScoreLensProvider(context, outputChannel);
+  context.subscriptions.push(
+    vscode.languages.registerCodeLensProvider(
+      { scheme: "file", language: "dart" },
+      scoreLensProvider
+    )
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("falcon.analyzeWorkspace", () => {
@@ -47,6 +59,24 @@ export function activate(context: vscode.ExtensionContext) {
         client.sendRequest("workspace/executeCommand", {
           command: "falcon.fixAll",
         });
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("falcon.quickFix", async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor || editor.document.languageId !== "dart") {
+        vscode.window.showInformationMessage("Falcon: Open a Dart file to apply a quick fix.");
+        return;
+      }
+
+      const applied = await applyPreferredFalconFixes(
+        editor.document,
+        editor.selection
+      );
+      if (applied === 0) {
+        vscode.window.showInformationMessage("Falcon: No safe quick fixes available here.");
       }
     })
   );
@@ -79,6 +109,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("falcon")) {
+        scoreLensProvider.refresh();
         if (client) {
           client.sendNotification("workspace/didChangeConfiguration", {
             settings: { falcon: vscode.workspace.getConfiguration("falcon") },
@@ -87,15 +118,19 @@ export function activate(context: vscode.ExtensionContext) {
       }
     })
   );
+
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument((document) => {
+      if (document.languageId === "dart") {
+        scoreLensProvider.refresh();
+      }
+    })
+  );
 }
 
 function startServer(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration("falcon");
-  let serverPath = config.get<string>("executablePath", "");
-
-  if (!serverPath) {
-    serverPath = "falcon-lsp";
-  }
+  const serverPath = resolveFalconLspPath(context, config);
 
   const serverOptions: ServerOptions = {
     run: { command: serverPath, transport: TransportKind.stdio },
@@ -152,6 +187,64 @@ function startServer(context: vscode.ExtensionContext) {
       }
     },
   });
+}
+
+function resolveFalconLspPath(
+  context: vscode.ExtensionContext,
+  config: vscode.WorkspaceConfiguration
+): string {
+  const configured = config.get<string>("executablePath", "");
+  if (configured) {
+    return configured;
+  }
+
+  return (
+    findExecutableOnPath("falcon-lsp") ??
+    bundledFalconLspPath(context) ??
+    "falcon-lsp"
+  );
+}
+
+function bundledFalconLspPath(
+  context: vscode.ExtensionContext
+): string | undefined {
+  const executable =
+    process.platform === "win32" ? "falcon-lsp.exe" : "falcon-lsp";
+  const platformArch = `${process.platform}-${process.arch}`;
+  const candidate = context.asAbsolutePath(
+    path.join("bin", platformArch, executable)
+  );
+
+  return isExecutableFile(candidate) ? candidate : undefined;
+}
+
+function findExecutableOnPath(command: string): string | undefined {
+  const pathValue = process.env.PATH ?? "";
+  const extensions =
+    process.platform === "win32"
+      ? (process.env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";")
+      : [""];
+
+  for (const directory of pathValue.split(path.delimiter)) {
+    if (!directory) continue;
+    for (const extension of extensions) {
+      const candidate = path.join(directory, command + extension.toLowerCase());
+      if (isExecutableFile(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function isExecutableFile(candidate: string): boolean {
+  try {
+    const stat = fs.statSync(candidate);
+    return stat.isFile();
+  } catch {
+    return false;
+  }
 }
 
 function setupDiagnosticsListener() {
@@ -228,30 +321,66 @@ async function applyAutoFixes(
 
   if (falconDiags.length === 0) return [];
 
+  const actions = await preferredFalconFixes(
+    document,
+    new vscode.Range(0, 0, document.lineCount, 0)
+  );
+  return actions.flatMap((action) => action.edit?.get(document.uri) ?? []);
+}
+
+async function applyPreferredFalconFixes(
+  document: vscode.TextDocument,
+  range: vscode.Range
+): Promise<number> {
+  const actions = await preferredFalconFixes(document, range);
+  const action =
+    actions.length === 1
+      ? actions[0]
+      : (
+          await vscode.window.showQuickPick(
+            actions.map((candidate) => ({
+              label: candidate.title,
+              description: "Falcon safe fix",
+              action: candidate,
+            })),
+            {
+              placeHolder: "Select a Falcon safe quick fix",
+              matchOnDescription: true,
+            }
+          )
+        )?.action;
+
+  if (!action?.edit) {
+    return 0;
+  }
+
+  const applied = await vscode.workspace.applyEdit(action.edit);
+  if (applied) {
+    await document.save();
+  }
+
+  return applied ? 1 : 0;
+}
+
+async function preferredFalconFixes(
+  document: vscode.TextDocument,
+  range: vscode.Range
+): Promise<vscode.CodeAction[]> {
   const codeActions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
     "vscode.executeCodeActionProvider",
     document.uri,
-    new vscode.Range(0, 0, document.lineCount, 0),
+    range,
     vscode.CodeActionKind.QuickFix.value
   );
 
   if (!codeActions) return [];
 
-  const edits: vscode.TextEdit[] = [];
-  for (const action of codeActions) {
-    if (
+  return codeActions.filter(
+    (action) =>
       action.isPreferred &&
-      action.edit
-    ) {
-      const workspaceEdit = action.edit;
-      const fileEdits = workspaceEdit.get(document.uri);
-      if (fileEdits) {
-        edits.push(...fileEdits);
-      }
-    }
-  }
-
-  return edits;
+      action.edit &&
+      (action.diagnostics ?? []).some((diagnostic) => diagnostic.source === "falcon")
+  );
 }
 
 export function deactivate(): Thenable<void> | undefined {

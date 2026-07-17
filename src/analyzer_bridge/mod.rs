@@ -416,11 +416,13 @@ pub fn run_dart_analyze(project_root: &Path) -> Result<Option<Vec<AnalyzerDiagno
     }
 
     // 2. Is this a resolved Dart/Flutter project?
-    let pkg_config = project_root.join(".dart_tool").join("package_config.json");
-    if !pkg_config.exists() {
+    if !crate::paths::has_package_config(project_root) {
         log::debug!(
             "analyzer_bridge: {} missing, skipping",
-            pkg_config.display()
+            project_root
+                .join(".dart_tool")
+                .join("package_config.json")
+                .display()
         );
         return Ok(None);
     }
