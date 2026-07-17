@@ -65,6 +65,11 @@ pub fn aliased_target(command: &str) -> Option<&'static str> {
         "fix-track" => Some("x fix-track"),
         "self-tune" => Some("x self-tune"),
         "learn" => Some("x learn"),
+        "cloud" => Some("x cloud"),
+        "enterprise" => Some("x enterprise"),
+        "marketplace" => Some("x marketplace"),
+        "certify" => Some("x certify"),
+        "partners" => Some("x partners"),
         "smells" => Some("x smells"),
         "metrics" => Some("x metrics"),
         "asset-audit" => Some("x asset-audit"),
@@ -182,6 +187,8 @@ mod tests {
             Some("x check-unused-params")
         );
         assert_eq!(aliased_target("check-widgets"), Some("x check-widgets"));
+        assert_eq!(aliased_target("certify"), Some("x certify"));
+        assert_eq!(aliased_target("cloud"), Some("x cloud"));
         assert_eq!(aliased_target("codebase-intel"), Some("x codebase-intel"));
         assert_eq!(aliased_target("compare"), Some("x compare"));
         assert_eq!(
@@ -202,11 +209,14 @@ mod tests {
         assert_eq!(aliased_target("discover-rules"), Some("x discover-rules"));
         assert_eq!(aliased_target("docs"), Some("x docs"));
         assert_eq!(aliased_target("drift"), Some("x drift"));
+        assert_eq!(aliased_target("enterprise"), Some("x enterprise"));
         assert_eq!(aliased_target("explain"), Some("x explain"));
         assert_eq!(aliased_target("fix-track"), Some("x fix-track"));
         assert_eq!(aliased_target("history"), Some("x history"));
         assert_eq!(aliased_target("learn"), Some("x learn"));
+        assert_eq!(aliased_target("marketplace"), Some("x marketplace"));
         assert_eq!(aliased_target("metrics"), Some("x metrics"));
+        assert_eq!(aliased_target("partners"), Some("x partners"));
         assert_eq!(aliased_target("perf-track"), Some("x perf-track"));
         assert_eq!(aliased_target("predict"), Some("x predict"));
         assert_eq!(aliased_target("preset"), Some("x preset"));

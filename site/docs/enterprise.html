@@ -59,8 +59,8 @@
             <p>Use <code>falcon enterprise</code> to define and enforce organizational policies across your projects.</p>
 
             <h3>Initialize policies</h3>
-            <p>Run <code>falcon enterprise init</code> to create default policies in your project:</p>
-            <pre><code><span class="cmd">$</span> falcon enterprise init
+            <p>Run <code>falcon x enterprise init</code> to create default policies in your project:</p>
+            <pre><code><span class="cmd">$</span> falcon x enterprise init
 <span class="str">Created .falcon-data/policies.json with 4 default policies</span></code></pre>
 
             <h3>Default policies</h3>
@@ -92,8 +92,8 @@
             </table>
 
             <h3>Check policies</h3>
-            <p>Evaluate your project against policies with <code>falcon enterprise check</code>:</p>
-            <pre><code><span class="cmd">$</span> falcon enterprise check
+            <p>Evaluate your project against policies with <code>falcon x enterprise check</code>:</p>
+            <pre><code><span class="cmd">$</span> falcon x enterprise check
 <span class="str">Checking policies...</span>
 
 <span class="str">✓ min_ai_score</span>        (72 >= 70)
@@ -120,8 +120,8 @@
             <p>Every Falcon action is recorded with timestamp, user, action, and target for compliance and traceability.</p>
 
             <h3>View audit log</h3>
-            <p>Run <code>falcon enterprise audit</code> to view recent actions:</p>
-            <pre><code><span class="cmd">$</span> falcon enterprise audit
+            <p>Run <code>falcon x enterprise audit</code> to view recent actions:</p>
+            <pre><code><span class="cmd">$</span> falcon x enterprise audit
 <span class="str">Timestamp              User      Action           Target</span>
 <span class="str">2025-03-18 10:23:01   alice     analyze           /projects/app</span>
 <span class="str">2025-03-18 10:22:45   bob       ai-score          /projects/app</span>
@@ -129,7 +129,7 @@
 <span class="str">2025-03-18 10:18:00   bob       enterprise-check  /projects/app</span></code></pre>
 
             <h2>3. Compliance Reports</h2>
-            <p>Generate markdown compliance reports with <code>falcon enterprise compliance --output report.md</code>.</p>
+            <p>Generate markdown compliance reports with <code>falcon x enterprise compliance --output report.md</code>.</p>
 
             <h3>Report contents</h3>
             <ul>
@@ -211,15 +211,15 @@
             <p>Manage multiple projects and team dashboards with <code>falcon cloud</code>.</p>
 
             <h3>Initialize team</h3>
-            <pre><code><span class="cmd">$</span> falcon cloud init --team <span class="str">"My Team"</span>
+            <pre><code><span class="cmd">$</span> falcon x cloud init --team <span class="str">"My Team"</span>
 <span class="str">Team "My Team" initialized</span></code></pre>
 
             <h3>Add projects</h3>
-            <pre><code><span class="cmd">$</span> falcon cloud add-project --name app --project-path /path/to/app
+            <pre><code><span class="cmd">$</span> falcon x cloud add-project --name app --project-path /path/to/app
 <span class="str">Project "app" added to team</span></code></pre>
 
             <h3>Dashboard</h3>
-            <pre><code><span class="cmd">$</span> falcon cloud dashboard
+            <pre><code><span class="cmd">$</span> falcon x cloud dashboard
 <span class="str">Team: My Team</span>
 <span class="str">Projects: 3</span>
 

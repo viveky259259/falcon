@@ -81,14 +81,14 @@ falcon x ai-report . --format markdown --output maintenance-baseline.md
 
 ```bash
 # Initialize team cloud
-falcon cloud init --team "Maintenance Team"
-falcon cloud add-project --name "my-app" --project-path .
+falcon x cloud init --team "Maintenance Team"
+falcon x cloud add-project --name "my-app" --project-path .
 
 # Set up enterprise policies
-falcon enterprise init
+falcon x enterprise init
 
 # View baseline dashboard
-falcon cloud dashboard
+falcon x cloud dashboard
 ```
 
 ### Assessment Checklist
@@ -204,7 +204,7 @@ jobs:
         run: falcon pr-comment . --dry-run
       
       - name: Enterprise Policy Check
-        run: falcon enterprise check .
+        run: falcon x enterprise check .
       
       - name: Flutter Test
         run: flutter test
@@ -262,7 +262,7 @@ falcon x upgrade-check .
 falcon x self-tune .
 
 # 5. Enterprise compliance
-falcon enterprise compliance --output "reports/compliance-$(date +%Y-%m).md"
+falcon x enterprise compliance --output "reports/compliance-$(date +%Y-%m).md"
 
 echo "=== Done ==="
 ```
@@ -406,7 +406,7 @@ falcon manage deps .               # Dependency health
 # === Monthly ===
 falcon manage all .                 # Full audit
 falcon x ai-report . --format markdown --output report.md
-falcon enterprise compliance --output compliance.md
+falcon x enterprise compliance --output compliance.md
 
 # === On Bug Fix ===
 falcon analyze . --fail-on error    # Check fix doesn't introduce issues

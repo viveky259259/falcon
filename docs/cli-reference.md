@@ -309,12 +309,12 @@ The bundled GitHub Action can do the same upload for full-project analysis:
 
 | Command | Description |
 |---|---|
-| `falcon cloud init --team <name>` | Initialize team cloud config |
-| `falcon cloud dashboard` | Team dashboard |
-| `falcon enterprise init` | Initialize enterprise policies |
-| `falcon enterprise check` | Check policies |
-| `falcon enterprise compliance` | Generate compliance report |
-| `falcon certify [path]` | Evaluate for Falcon certification |
+| `falcon x cloud init --team <name>` | Initialize team cloud config |
+| `falcon x cloud dashboard` | Team dashboard |
+| `falcon x enterprise init` | Initialize enterprise policies |
+| `falcon x enterprise check` | Check policies |
+| `falcon x enterprise compliance` | Generate compliance report |
+| `falcon x certify [path]` | Evaluate for Falcon certification |
 
 ## Infrastructure
 

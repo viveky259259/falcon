@@ -268,6 +268,27 @@ fn legacy_config_rule_admin_commands_warn_and_show_help() {
 }
 
 #[test]
+fn legacy_platform_business_commands_warn_and_show_help() {
+    let cases = [
+        ("cloud", "x cloud"),
+        ("enterprise", "x enterprise"),
+        ("marketplace", "x marketplace"),
+        ("certify", "x certify"),
+        ("partners", "x partners"),
+    ];
+
+    for (old, new) in cases {
+        let output = falcon_cmd()
+            .args([old, "--help"])
+            .output()
+            .expect("run falcon legacy platform command help");
+
+        assert_success(&output);
+        assert_deprecation_warning(&output, old, new);
+    }
+}
+
+#[test]
 fn legacy_docs_command_warns_and_still_runs() {
     let temp = tempfile::tempdir().unwrap();
     let output_dir = temp.path().join("docs");
@@ -671,6 +692,21 @@ fn x_config_rule_admin_commands_do_not_warn_on_help() {
             .args(["x", command, "--help"])
             .output()
             .expect("run falcon x config admin command help");
+
+        assert_success(&output);
+        assert_no_deprecation_warning(&output);
+    }
+}
+
+#[test]
+fn x_platform_business_commands_do_not_warn_on_help() {
+    let cases = ["cloud", "enterprise", "marketplace", "certify", "partners"];
+
+    for command in cases {
+        let output = falcon_cmd()
+            .args(["x", command, "--help"])
+            .output()
+            .expect("run falcon x platform command help");
 
         assert_success(&output);
         assert_no_deprecation_warning(&output);

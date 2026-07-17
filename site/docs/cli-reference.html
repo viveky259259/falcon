@@ -200,11 +200,11 @@
                     <tr><th>Command</th><th>Description</th><th>Key Flags</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>cloud</code></td><td>Cloud platform (init, add-project, dashboard)</td><td><code>init</code>, <code>add-project</code>, <code>dashboard</code></td></tr>
-                    <tr><td><code>enterprise</code></td><td>Enterprise features (init, check, compliance, audit)</td><td><code>init</code>, <code>check</code>, <code>compliance</code>, <code>audit</code></td></tr>
-                    <tr><td><code>marketplace</code></td><td>Browse and install marketplace items</td><td><code>--search</code>, <code>--install</code></td></tr>
-                    <tr><td><code>certify</code></td><td>Certify project for standards</td><td><code>--standard</code>, <code>--report</code></td></tr>
-                    <tr><td><code>partners</code></td><td>Partner integrations</td><td><code>--list</code>, <code>--connect</code></td></tr>
+                    <tr><td><code>x cloud</code></td><td>Cloud platform (init, add-project, dashboard)</td><td><code>init</code>, <code>add-project</code>, <code>dashboard</code></td></tr>
+                    <tr><td><code>x enterprise</code></td><td>Enterprise features (init, check, compliance, audit)</td><td><code>init</code>, <code>check</code>, <code>compliance</code>, <code>audit</code></td></tr>
+                    <tr><td><code>x marketplace</code></td><td>Browse marketplace items</td><td><code>[query]</code></td></tr>
+                    <tr><td><code>x certify</code></td><td>Certify project for standards</td><td><code>[path]</code></td></tr>
+                    <tr><td><code>x partners</code></td><td>Partner integrations</td><td><code>no flags</code></td></tr>
                     <tr><td><code>api</code></td><td>API key and endpoint management</td><td><code>--key</code>, <code>--endpoint</code></td></tr>
                 </tbody>
             </table>
@@ -307,7 +307,7 @@
             <h3 id="enterprise-check">enterprise check</h3>
             <p>Run enterprise compliance and policy checks. Validates licensing, security, and organizational standards.</p>
             <p><strong>Full syntax:</strong></p>
-            <pre><code>falcon enterprise check [PATH] [OPTIONS]</code></pre>
+            <pre><code>falcon x enterprise check [PATH] [OPTIONS]</code></pre>
             <p><strong>Flags:</strong></p>
             <table>
                 <thead><tr><th>Flag</th><th>Description</th></tr></thead>
@@ -320,7 +320,7 @@
                 </tbody>
             </table>
             <p><strong>Example:</strong></p>
-            <pre><code><span class="cmd">$</span> falcon enterprise check . --report
+            <pre><code><span class="cmd">$</span> falcon x enterprise check . --report
 <span class="str">Enterprise check complete</span>
 <span class="str">Compliance: PASS | Policy violations: 0</span>
 <span class="str">Report written to enterprise-report.md</span></code></pre>

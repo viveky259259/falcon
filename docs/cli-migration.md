@@ -59,6 +59,11 @@ Falcon is moving to a compact top-level CLI before 1.0:
 | `falcon fix-track . --report` | `falcon x fix-track . --report` |
 | `falcon self-tune .` | `falcon x self-tune .` |
 | `falcon learn .` | `falcon x learn .` |
+| `falcon cloud dashboard` | `falcon x cloud dashboard` |
+| `falcon enterprise check .` | `falcon x enterprise check .` |
+| `falcon marketplace` | `falcon x marketplace` |
+| `falcon certify .` | `falcon x certify .` |
+| `falcon partners` | `falcon x partners` |
 | `falcon asset-audit .` | `falcon x asset-audit .` |
 | `falcon theme-audit .` | `falcon x theme-audit .` |
 | `falcon l10n-coverage .` | `falcon x l10n-coverage .` |

@@ -75,7 +75,7 @@ SEMANTIC COMMAND GROUPS:
                     animation-audit, golden-gen
   Integration       mcp, api
   Flutter SDK       flutter (passthrough — every flutter subcommand: run, build, test, pub, doctor, …)
-  Enterprise        cloud, enterprise, certify, marketplace
+  Enterprise        x cloud, x enterprise, x certify, x marketplace, x partners
   Setup             init, update
 
 Use 'falcon <command> --help' for details on any command.
@@ -544,40 +544,6 @@ enum Commands {
         #[arg(long, default_value = "analysis")]
         event: String,
     },
-
-    /// Falcon Cloud — team dashboards and multi-project tracking
-    #[command(display_order = 10)]
-    Cloud {
-        #[command(subcommand)]
-        action: CloudAction,
-    },
-
-    /// Enterprise features — policies, audit, compliance
-    #[command(display_order = 10)]
-    Enterprise {
-        #[command(subcommand)]
-        action: EnterpriseAction,
-    },
-
-    /// Browse the Falcon marketplace
-    #[command(display_order = 10)]
-    Marketplace {
-        /// Search query
-        #[arg(default_value = "")]
-        query: String,
-    },
-
-    /// Evaluate project for Falcon certification
-    #[command(display_order = 10)]
-    Certify {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-    },
-
-    /// View Falcon partner integrations
-    #[command(display_order = 10)]
-    Partners,
 
     /// Start the Falcon HTTP API server
     #[command(name = "api", display_order = 9)]
@@ -1159,6 +1125,40 @@ enum XAction {
         #[arg(long)]
         insights: bool,
     },
+
+    /// Falcon Cloud — team dashboards and multi-project tracking
+    #[command(name = "cloud")]
+    Cloud {
+        #[command(subcommand)]
+        action: CloudAction,
+    },
+
+    /// Enterprise features — policies, audit, compliance
+    #[command(name = "enterprise")]
+    Enterprise {
+        #[command(subcommand)]
+        action: EnterpriseAction,
+    },
+
+    /// Browse the Falcon marketplace
+    #[command(name = "marketplace")]
+    Marketplace {
+        /// Search query
+        #[arg(default_value = "")]
+        query: String,
+    },
+
+    /// Evaluate project for Falcon certification
+    #[command(name = "certify")]
+    Certify {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// View Falcon partner integrations
+    #[command(name = "partners")]
+    Partners,
 
     /// Categorized smells report: Dead Code, Code Smells, Security Smells.
     #[command(name = "smells")]
@@ -3101,6 +3101,130 @@ fn run_score_track(path: PathBuf, history: bool, last: usize) -> Result<()> {
     Ok(())
 }
 
+fn run_cloud(action: CloudAction) -> Result<()> {
+    match action {
+        CloudAction::Init { team, path } => {
+            falcon::platform::cloud::init_cloud(&path, &team)?;
+            println!(
+                "  {} Cloud initialized for team '{}'",
+                "✓".green().bold(),
+                team
+            );
+        }
+        CloudAction::AddProject {
+            name,
+            project_path,
+            path,
+        } => {
+            falcon::platform::cloud::register_project(&path, &name, &project_path)?;
+            println!("  {} Project '{}' registered", "✓".green().bold(), name);
+        }
+        CloudAction::Dashboard { path } => {
+            let dashboard = falcon::platform::cloud::generate_dashboard(&path)?;
+            falcon::platform::cloud::print_dashboard(&dashboard);
+        }
+    }
+
+    Ok(())
+}
+
+fn run_enterprise(action: EnterpriseAction) -> Result<()> {
+    match action {
+        EnterpriseAction::Init { path } => {
+            let policies = falcon::platform::enterprise::default_policies();
+            falcon::platform::enterprise::save_policies(&path, &policies)?;
+            println!(
+                "  {} Enterprise policies initialized ({} policies)",
+                "✓".green().bold(),
+                policies.policies.len()
+            );
+            falcon::platform::enterprise::record_audit(
+                &path,
+                "system",
+                "init",
+                "policies",
+                "Default enterprise policies created",
+            )?;
+        }
+        EnterpriseAction::Check { path } => {
+            let results = falcon::platform::enterprise::check_policies(&path)?;
+            falcon::platform::enterprise::print_policy_results(&results);
+            falcon::platform::enterprise::record_audit(
+                &path,
+                "system",
+                "policy-check",
+                "project",
+                &format!(
+                    "{} passed, {} failed",
+                    results.iter().filter(|r| r.passed).count(),
+                    results.iter().filter(|r| !r.passed).count()
+                ),
+            )?;
+            if results.iter().any(|r| !r.passed) {
+                process::exit(1);
+            }
+        }
+        EnterpriseAction::Compliance { path, output } => {
+            let report = falcon::platform::enterprise::generate_compliance_report(&path)?;
+            match output {
+                Some(out) => {
+                    std::fs::write(&out, &report)?;
+                    println!(
+                        "  {} Compliance report written to {}",
+                        "✓".green().bold(),
+                        out.display()
+                    );
+                }
+                None => print!("{}", report),
+            }
+        }
+        EnterpriseAction::Audit { path, last } => {
+            let log = falcon::platform::enterprise::load_audit_log(&path)?;
+            println!();
+            println!(
+                "  {} Audit Log ({} entries)",
+                "falcon".bright_cyan().bold(),
+                log.entries.len()
+            );
+            println!();
+            for entry in log.entries.iter().rev().take(last) {
+                println!(
+                    "  {} {} {} → {} ({})",
+                    entry.timestamp.dimmed(),
+                    entry.user.bright_white(),
+                    entry.action.bright_yellow(),
+                    entry.target,
+                    entry.details.dimmed()
+                );
+            }
+            println!();
+        }
+    }
+
+    Ok(())
+}
+
+fn run_marketplace(query: String) {
+    let q = if query.is_empty() {
+        None
+    } else {
+        Some(query.as_str())
+    };
+    let listings = falcon::platform::marketplace::browse_marketplace(q);
+    falcon::platform::marketplace::print_marketplace(&listings, q);
+}
+
+fn run_certify(path: PathBuf) -> Result<()> {
+    let result = falcon::platform::certification::evaluate_certification(&path)?;
+    falcon::platform::certification::print_certification(&result);
+    Ok(())
+}
+
+fn run_partners() {
+    let partners = falcon::platform::partner::list_partners();
+    falcon::platform::partner::print_partners(&partners);
+}
+
 fn run_refactor_sim(
     path: PathBuf,
     scenario: falcon::analysis::refactor_sim::RefactorScenario,
@@ -4254,116 +4378,6 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
-        Commands::Cloud { action } => match action {
-            CloudAction::Init { team, path } => {
-                falcon::platform::cloud::init_cloud(&path, &team)?;
-                println!(
-                    "  {} Cloud initialized for team '{}'",
-                    "✓".green().bold(),
-                    team
-                );
-            }
-            CloudAction::AddProject {
-                name,
-                project_path,
-                path,
-            } => {
-                falcon::platform::cloud::register_project(&path, &name, &project_path)?;
-                println!("  {} Project '{}' registered", "✓".green().bold(), name);
-            }
-            CloudAction::Dashboard { path } => {
-                let dashboard = falcon::platform::cloud::generate_dashboard(&path)?;
-                falcon::platform::cloud::print_dashboard(&dashboard);
-            }
-        },
-        Commands::Enterprise { action } => match action {
-            EnterpriseAction::Init { path } => {
-                let policies = falcon::platform::enterprise::default_policies();
-                falcon::platform::enterprise::save_policies(&path, &policies)?;
-                println!(
-                    "  {} Enterprise policies initialized ({} policies)",
-                    "✓".green().bold(),
-                    policies.policies.len()
-                );
-                falcon::platform::enterprise::record_audit(
-                    &path,
-                    "system",
-                    "init",
-                    "policies",
-                    "Default enterprise policies created",
-                )?;
-            }
-            EnterpriseAction::Check { path } => {
-                let results = falcon::platform::enterprise::check_policies(&path)?;
-                falcon::platform::enterprise::print_policy_results(&results);
-                falcon::platform::enterprise::record_audit(
-                    &path,
-                    "system",
-                    "policy-check",
-                    "project",
-                    &format!(
-                        "{} passed, {} failed",
-                        results.iter().filter(|r| r.passed).count(),
-                        results.iter().filter(|r| !r.passed).count()
-                    ),
-                )?;
-                if results.iter().any(|r| !r.passed) {
-                    process::exit(1);
-                }
-            }
-            EnterpriseAction::Compliance { path, output } => {
-                let report = falcon::platform::enterprise::generate_compliance_report(&path)?;
-                match output {
-                    Some(out) => {
-                        std::fs::write(&out, &report)?;
-                        println!(
-                            "  {} Compliance report written to {}",
-                            "✓".green().bold(),
-                            out.display()
-                        );
-                    }
-                    None => print!("{}", report),
-                }
-            }
-            EnterpriseAction::Audit { path, last } => {
-                let log = falcon::platform::enterprise::load_audit_log(&path)?;
-                println!();
-                println!(
-                    "  {} Audit Log ({} entries)",
-                    "falcon".bright_cyan().bold(),
-                    log.entries.len()
-                );
-                println!();
-                for entry in log.entries.iter().rev().take(last) {
-                    println!(
-                        "  {} {} {} → {} ({})",
-                        entry.timestamp.dimmed(),
-                        entry.user.bright_white(),
-                        entry.action.bright_yellow(),
-                        entry.target,
-                        entry.details.dimmed()
-                    );
-                }
-                println!();
-            }
-        },
-        Commands::Marketplace { query } => {
-            let q = if query.is_empty() {
-                None
-            } else {
-                Some(query.as_str())
-            };
-            let listings = falcon::platform::marketplace::browse_marketplace(q);
-            falcon::platform::marketplace::print_marketplace(&listings, q);
-        }
-        Commands::Certify { path } => {
-            let result = falcon::platform::certification::evaluate_certification(&path)?;
-            falcon::platform::certification::print_certification(&result);
-        }
-        Commands::Partners => {
-            let partners = falcon::platform::partner::list_partners();
-            falcon::platform::partner::print_partners(&partners);
-        }
         Commands::Api { host, port } => {
             falcon::api::server::start_api_server(&host, port)?;
         }
@@ -4700,6 +4714,26 @@ fn run(cli: Cli) -> Result<()> {
                     insights,
                 } => {
                     run_learn(project, db, insights)?;
+                    return Ok(());
+                }
+                XAction::Cloud { action } => {
+                    run_cloud(action)?;
+                    return Ok(());
+                }
+                XAction::Enterprise { action } => {
+                    run_enterprise(action)?;
+                    return Ok(());
+                }
+                XAction::Marketplace { query } => {
+                    run_marketplace(query);
+                    return Ok(());
+                }
+                XAction::Certify { path } => {
+                    run_certify(path)?;
+                    return Ok(());
+                }
+                XAction::Partners => {
+                    run_partners();
                     return Ok(());
                 }
                 XAction::Smells {

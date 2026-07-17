@@ -139,7 +139,7 @@ navigateToNextScreen(); // Missing await!
 1. **Add `falcon ai-score` to CI** — set a minimum score threshold (we recommend 70+)
 2. **Use `falcon pr-comment`** — automatic analysis on every PR
 3. **Track score trends** — `falcon x score-track` shows quality trajectory over time
-4. **Set enterprise policies** — `falcon enterprise check` enforces team standards
+4. **Set enterprise policies** — `falcon x enterprise check` enforces team standards
 
 ---
 

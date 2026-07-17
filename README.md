@@ -77,7 +77,7 @@ $ falcon score .
 | **Risk Prediction** | `falcon x predict` | Predict production issues from patterns |
 | **Test Generation** | `falcon test-gen` | Generate test stubs from code analysis |
 | **Refactoring Sim** | `falcon refactor-sim` | "What if we migrate to Riverpod?" impact |
-| **Enterprise** | `falcon enterprise` | Policies, audit logs, compliance |
+| **Enterprise** | `falcon x enterprise` | Policies, audit logs, compliance |
 | **HTTP API** | `falcon api` | REST API for integrations |
 
 [See all 80+ commands →](docs/cli-reference.md)

@@ -935,11 +935,11 @@ Level 5: "It's just part of Flutter"              ← v4.0+ (standard)
 
 ### The Platform
 
-- [x] **Falcon Cloud** — `falcon cloud` with team dashboards, multi-project tracking, alerts, trend monitoring ✅
-- [x] **Falcon for Enterprise** — `falcon enterprise` with custom policies, audit logs, compliance reporting ✅
-- [x] **Falcon Marketplace** — `falcon marketplace` to browse rule packs, convention configs, integrations ✅
-- [x] **Falcon Certification Program** — `falcon certify` with Bronze/Silver/Gold/Platinum levels and badges ✅
-- [x] **Falcon Partner Program** — `falcon partners` registry for AI tools, IDEs, CI/CD platforms ✅
+- [x] **Falcon Cloud** — `falcon x cloud` with team dashboards, multi-project tracking, alerts, trend monitoring ✅
+- [x] **Falcon for Enterprise** — `falcon x enterprise` with custom policies, audit logs, compliance reporting ✅
+- [x] **Falcon Marketplace** — `falcon x marketplace` to browse rule packs, convention configs, integrations ✅
+- [x] **Falcon Certification Program** — `falcon x certify` with Bronze/Silver/Gold/Platinum levels and badges ✅
+- [x] **Falcon Partner Program** — `falcon x partners` registry for AI tools, IDEs, CI/CD platforms ✅
 
 ### Revenue Model
 
