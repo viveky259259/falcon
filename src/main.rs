@@ -73,7 +73,7 @@ SEMANTIC COMMAND GROUPS:
   App Management    x manage, review, x watch, x runtime-check, x live, x devtools, x workspace
   Flutter Quality   x asset-audit, x theme-audit, x l10n-coverage, x deeplink-validate,
                     x animation-audit, x golden-gen
-  Integration       mcp, api
+  Integration       x mcp, x api
   Ecosystem         x plugin, x migrate-from-dcm, x feature-gap, x showcase, x community
   Flutter SDK       x flutter (passthrough — every flutter subcommand: run, build, test, pub, doctor, …)
   Enterprise        x cloud, x enterprise, x certify, x marketplace, x partners
@@ -278,10 +278,6 @@ enum Commands {
         format: Option<String>,
     },
 
-    /// Start Falcon MCP server (stdio) for AI tool integration
-    #[command(name = "mcp", display_order = 9)]
-    Mcp,
-
     /// Post analysis results as a GitHub PR comment
     #[command(name = "pr-comment", display_order = 5)]
     PrComment {
@@ -308,18 +304,6 @@ enum Commands {
         /// Path to falcon.yaml config
         #[arg(short, long)]
         config: Option<PathBuf>,
-    },
-
-    /// Start the Falcon HTTP API server
-    #[command(name = "api", display_order = 9)]
-    Api {
-        /// Host to bind to
-        #[arg(long, default_value = "127.0.0.1")]
-        host: String,
-
-        /// Port to listen on
-        #[arg(long, default_value = "8090")]
-        port: u16,
     },
 
     /// Experimental / extended commands (see council roadmap)
@@ -1123,6 +1107,22 @@ enum XAction {
     Community {
         #[command(subcommand)]
         action: CommunityAction,
+    },
+
+    /// Start Falcon MCP server (stdio) for AI tool integration
+    #[command(name = "mcp")]
+    Mcp,
+
+    /// Start the Falcon HTTP API server
+    #[command(name = "api")]
+    Api {
+        /// Host to bind to
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+
+        /// Port to listen on
+        #[arg(long, default_value = "8090")]
+        port: u16,
     },
 
     /// Falcon Cloud — team dashboards and multi-project tracking
@@ -3756,6 +3756,16 @@ fn run_community(action: CommunityAction) -> Result<()> {
     Ok(())
 }
 
+fn run_mcp() -> Result<()> {
+    falcon::mcp::server::run_mcp_server()?;
+    Ok(())
+}
+
+fn run_api(host: String, port: u16) -> Result<()> {
+    falcon::api::server::start_api_server(&host, port)?;
+    Ok(())
+}
+
 fn run_cloud(action: CloudAction) -> Result<()> {
     match action {
         CloudAction::Init { team, path } => {
@@ -4391,9 +4401,6 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
-        Commands::Mcp => {
-            falcon::mcp::server::run_mcp_server()?;
-        }
         Commands::PrComment {
             path,
             owner,
@@ -4429,9 +4436,6 @@ fn run(cli: Cli) -> Result<()> {
             }
 
             falcon::ci::pr_comment::write_github_step_summary(&report, &path)?;
-        }
-        Commands::Api { host, port } => {
-            falcon::api::server::start_api_server(&host, port)?;
         }
         Commands::AiScore {
             path,
@@ -4845,6 +4849,14 @@ fn run(cli: Cli) -> Result<()> {
                 }
                 XAction::Community { action } => {
                     run_community(action)?;
+                    return Ok(());
+                }
+                XAction::Mcp => {
+                    run_mcp()?;
+                    return Ok(());
+                }
+                XAction::Api { host, port } => {
+                    run_api(host, port)?;
                     return Ok(());
                 }
                 XAction::Cloud { action } => {

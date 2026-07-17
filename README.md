@@ -78,7 +78,7 @@ $ falcon score .
 | **Test Generation** | `falcon test-gen` | Generate test stubs from code analysis |
 | **Refactoring Sim** | `falcon refactor-sim` | "What if we migrate to Riverpod?" impact |
 | **Enterprise** | `falcon x enterprise` | Policies, audit logs, compliance |
-| **HTTP API** | `falcon api` | REST API for integrations |
+| **HTTP API** | `falcon x api` | REST API for integrations |
 
 [See all 80+ commands →](docs/cli-reference.md)
 

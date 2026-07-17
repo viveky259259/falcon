@@ -205,7 +205,7 @@
                     <tr><td><code>x marketplace</code></td><td>Browse marketplace items</td><td><code>[query]</code></td></tr>
                     <tr><td><code>x certify</code></td><td>Certify project for standards</td><td><code>[path]</code></td></tr>
                     <tr><td><code>x partners</code></td><td>Partner integrations</td><td><code>no flags</code></td></tr>
-                    <tr><td><code>api</code></td><td>API key and endpoint management</td><td><code>--key</code>, <code>--endpoint</code></td></tr>
+                    <tr><td><code>x api</code></td><td>API key and endpoint management</td><td><code>--key</code>, <code>--endpoint</code></td></tr>
                 </tbody>
             </table>
 
@@ -215,8 +215,8 @@
                     <tr><th>Command</th><th>Description</th><th>Key Flags</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>mcp</code></td><td>Start MCP (Model Context Protocol) server</td><td><code>--port</code>, <code>--stdio</code></td></tr>
-                    <tr><td><code>api</code></td><td>Start REST API server</td><td><code>--port</code>, <code>--host</code></td></tr>
+                    <tr><td><code>x mcp</code></td><td>Start MCP (Model Context Protocol) server</td><td><code>--port</code>, <code>--stdio</code></td></tr>
+                    <tr><td><code>x api</code></td><td>Start REST API server</td><td><code>--port</code>, <code>--host</code></td></tr>
                 </tbody>
             </table>
 
@@ -289,7 +289,7 @@
             <h3 id="mcp">mcp</h3>
             <p>Start the Model Context Protocol (MCP) server. Enables AI assistants like Cursor to query your codebase via Falcon.</p>
             <p><strong>Full syntax:</strong></p>
-            <pre><code>falcon mcp [OPTIONS]</code></pre>
+            <pre><code>falcon x mcp [OPTIONS]</code></pre>
             <p><strong>Flags:</strong></p>
             <table>
                 <thead><tr><th>Flag</th><th>Description</th></tr></thead>
@@ -300,7 +300,7 @@
                 </tbody>
             </table>
             <p><strong>Example:</strong></p>
-            <pre><code><span class="cmd">$</span> falcon mcp --stdio --project .
+            <pre><code><span class="cmd">$</span> falcon x mcp --stdio --project .
 <span class="str">MCP server listening on stdio</span>
 <span class="str">Ready for connections</span></code></pre>
 

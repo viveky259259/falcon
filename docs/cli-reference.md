@@ -320,8 +320,8 @@ The bundled GitHub Action can do the same upload for full-project analysis:
 
 | Command | Description |
 |---|---|
-| `falcon mcp` | Start MCP server (stdio) for AI tool integration |
-| `falcon api --port 8090` | Start HTTP API server |
+| `falcon x mcp` | Start MCP server (stdio) for AI tool integration |
+| `falcon x api --port 8090` | Start HTTP API server |
 | `falcon init` | Generate default falcon.yaml |
 | `falcon x explain <rule>` | Explain a rule with examples |
 | `falcon x validate` | Validate falcon.yaml config |

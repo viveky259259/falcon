@@ -74,6 +74,8 @@ Falcon is moving to a compact top-level CLI before 1.0:
 | `falcon feature-gap` | `falcon x feature-gap` |
 | `falcon showcase .` | `falcon x showcase .` |
 | `falcon community contributed` | `falcon x community contributed` |
+| `falcon mcp` | `falcon x mcp` |
+| `falcon api --port 8090` | `falcon x api --port 8090` |
 | `falcon cloud dashboard` | `falcon x cloud dashboard` |
 | `falcon enterprise check .` | `falcon x enterprise check .` |
 | `falcon marketplace` | `falcon x marketplace` |

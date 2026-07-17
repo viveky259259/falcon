@@ -76,7 +76,7 @@ Hi Copilot team,
 I built **Falcon**, an open-source Rust-powered static analysis engine for Flutter/Dart. We've found that AI-generated Flutter code (including Copilot-generated) has consistent quality gaps — particularly around resource management, error handling, and security.
 
 **What Falcon offers**:
-- **HTTP API** (`falcon api`) — `POST /analyze` for programmatic analysis
+- **HTTP API** (`falcon x api`) — `POST /analyze` for programmatic analysis
 - **SDK** (`falcon::sdk`) — embeddable Rust library for integration
 - **MCP Server** — compatible with VS Code MCP extensions
 - **AI Code Score** — single 0-100 number for production-readiness

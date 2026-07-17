@@ -364,6 +364,21 @@ fn legacy_ecosystem_ops_commands_warn_and_show_help() {
 }
 
 #[test]
+fn legacy_integration_server_commands_warn_and_show_help() {
+    let cases = [("mcp", "x mcp"), ("api", "x api")];
+
+    for (old, new) in cases {
+        let output = falcon_cmd()
+            .args([old, "--help"])
+            .output()
+            .expect("run falcon legacy integration server command help");
+
+        assert_success(&output);
+        assert_deprecation_warning(&output, old, new);
+    }
+}
+
+#[test]
 fn legacy_docs_command_warns_and_still_runs() {
     let temp = tempfile::tempdir().unwrap();
     let output_dir = temp.path().join("docs");
@@ -854,6 +869,21 @@ fn x_ecosystem_ops_commands_do_not_warn_on_help() {
             .args(["x", command, "--help"])
             .output()
             .expect("run falcon x ecosystem ops command help");
+
+        assert_success(&output);
+        assert_no_deprecation_warning(&output);
+    }
+}
+
+#[test]
+fn x_integration_server_commands_do_not_warn_on_help() {
+    let cases = ["mcp", "api"];
+
+    for command in cases {
+        let output = falcon_cmd()
+            .args(["x", command, "--help"])
+            .output()
+            .expect("run falcon x integration server command help");
 
         assert_success(&output);
         assert_no_deprecation_warning(&output);

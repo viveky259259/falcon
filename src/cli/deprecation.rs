@@ -80,6 +80,8 @@ pub fn aliased_target(command: &str) -> Option<&'static str> {
         "feature-gap" => Some("x feature-gap"),
         "showcase" => Some("x showcase"),
         "community" => Some("x community"),
+        "mcp" => Some("x mcp"),
+        "api" => Some("x api"),
         "cloud" => Some("x cloud"),
         "enterprise" => Some("x enterprise"),
         "marketplace" => Some("x marketplace"),
@@ -169,6 +171,7 @@ mod tests {
     fn aliased_target_maps_moved_x_commands() {
         assert_eq!(aliased_target("ai-profile"), Some("x ai-profile"));
         assert_eq!(aliased_target("ai-report"), Some("x ai-report"));
+        assert_eq!(aliased_target("api"), Some("x api"));
         assert_eq!(aliased_target("asset-audit"), Some("x asset-audit"));
         assert_eq!(aliased_target("baseline"), Some("x baseline"));
         assert_eq!(aliased_target("benchmark"), Some("x benchmark"));
@@ -238,6 +241,7 @@ mod tests {
         assert_eq!(aliased_target("live"), Some("x live"));
         assert_eq!(aliased_target("manage"), Some("x manage"));
         assert_eq!(aliased_target("marketplace"), Some("x marketplace"));
+        assert_eq!(aliased_target("mcp"), Some("x mcp"));
         assert_eq!(aliased_target("metrics"), Some("x metrics"));
         assert_eq!(
             aliased_target("migrate-from-dcm"),
