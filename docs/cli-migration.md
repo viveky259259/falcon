@@ -28,6 +28,13 @@ Falcon is moving to a compact top-level CLI before 1.0:
 | `falcon check-widgets .` | `falcon x check-widgets .` |
 | `falcon check-async .` | `falcon x check-async .` |
 | `falcon codebase-intel .` | `falcon x codebase-intel .` |
+| `falcon ai-report .` | `falcon x ai-report .` |
+| `falcon provenance .` | `falcon x provenance .` |
+| `falcon ai-profile .` | `falcon x ai-profile .` |
+| `falcon discover-rules .` | `falcon x discover-rules .` |
+| `falcon predict .` | `falcon x predict .` |
+| `falcon drift .` | `falcon x drift .` |
+| `falcon conventions .` | `falcon x conventions .` |
 | `falcon asset-audit .` | `falcon x asset-audit .` |
 | `falcon theme-audit .` | `falcon x theme-audit .` |
 | `falcon l10n-coverage .` | `falcon x l10n-coverage .` |

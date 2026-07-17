@@ -13,7 +13,7 @@ mapping. The full historical help remains available for one release with
 | `falcon x smells [path]` | Categorized dead code, code smell, and security smell report |
 | `falcon x metrics [path]` | Calculate code metrics only |
 | `falcon score [path]` | AI Code Quality Score (0-100) with 6-dimension breakdown |
-| `falcon ai-report [path]` | Full "State of AI-Generated Flutter Code" report |
+| `falcon x ai-report [path]` | Full "State of AI-Generated Flutter Code" report |
 
 ### falcon check
 
@@ -161,11 +161,11 @@ The update mechanism downloads pre-built binaries from GitHub releases. If no bi
 
 | Command | Description |
 |---|---|
-| `falcon provenance [path]` | Detect AI-generated vs human-written files |
-| `falcon conventions [path]` | Auto-detect team naming/architecture patterns |
-| `falcon drift [path]` | Detect convention drift in new code |
-| `falcon predict [path]` | Predict production risks from code patterns |
-| `falcon discover-rules [path]` | Propose new rules from observed patterns |
+| `falcon x provenance [path]` | Detect AI-generated vs human-written files |
+| `falcon x conventions [path]` | Auto-detect team naming/architecture patterns |
+| `falcon x drift [path]` | Detect convention drift in new code |
+| `falcon x predict [path]` | Predict production risks from code patterns |
+| `falcon x discover-rules [path]` | Propose new rules from observed patterns |
 | `falcon ai triage [path] --format text\|json` | Embedded AI false-positive triage entry point |
 | `falcon x refactor-sim --scenario <s>` | Simulate refactoring impact |
 | `falcon x test-gen [path]` | Generate test stubs from code analysis |

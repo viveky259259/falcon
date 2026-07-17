@@ -36,6 +36,13 @@ fn default_help_lists_only_cutover_verbs() {
         "check-widgets",
         "check-async",
         "codebase-intel",
+        "ai-report",
+        "provenance",
+        "ai-profile",
+        "discover-rules",
+        "predict",
+        "drift",
+        "conventions",
         "smells",
         "metrics",
         "asset-audit",
@@ -182,6 +189,31 @@ fn x_help_lists_specialized_code_checks() {
         "check-widgets",
         "check-async",
         "codebase-intel",
+    ] {
+        assert!(
+            stdout.contains(command),
+            "missing x {command} command in help:\n{stdout}"
+        );
+    }
+}
+
+#[test]
+fn x_help_lists_ai_insight_commands() {
+    let output = falcon_cmd()
+        .args(["x", "--help"])
+        .output()
+        .expect("run falcon x --help");
+
+    assert_success(&output);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for command in [
+        "ai-report",
+        "provenance",
+        "ai-profile",
+        "discover-rules",
+        "predict",
+        "drift",
+        "conventions",
     ] {
         assert!(
             stdout.contains(command),

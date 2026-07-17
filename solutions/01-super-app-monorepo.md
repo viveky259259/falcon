@@ -357,7 +357,7 @@ Team Platform    → packages/* + apps/shell/ + tools/
 falcon analyze modules/payments/ --fail-on error
 falcon manage arch modules/payments/  # No cross-module imports
 falcon x check-layers modules/payments/ # Clean Architecture enforced
-falcon drift modules/payments/ --since main  # Convention adherence
+falcon x drift modules/payments/ --since main  # Convention adherence
 ```
 
 ### 8. Performance: Deferred Loading

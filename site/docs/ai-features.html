@@ -131,7 +131,7 @@
             </ul>
 
             <h3>Example output</h3>
-            <pre><code><span class="cmd">$</span> falcon provenance . --verbose
+            <pre><code><span class="cmd">$</span> falcon x provenance . --verbose
 <span class="str">Provenance analysis:</span>
 
   lib/main.dart           human-written
@@ -169,7 +169,7 @@
             </ul>
 
             <h3>Example output</h3>
-            <pre><code><span class="cmd">$</span> falcon conventions .
+            <pre><code><span class="cmd">$</span> falcon x conventions .
 <span class="str">Detected conventions:</span>
 
   Architecture:  Feature-First (lib/features/*)
@@ -189,7 +189,7 @@
             </ul>
 
             <h3>Example output</h3>
-            <pre><code><span class="cmd">$</span> falcon drift . --since HEAD~1
+            <pre><code><span class="cmd">$</span> falcon x drift . --since HEAD~1
 <span class="str">Drift analysis (since HEAD~1):</span>
 
   lib/features/auth/login_bloc.dart
@@ -216,7 +216,7 @@
             <p>Each risk shows probability, timeframe, and evidence.</p>
 
             <h3>Example output</h3>
-            <pre><code><span class="cmd">$</span> falcon predict .
+            <pre><code><span class="cmd">$</span> falcon x predict .
 <span class="str">Risk prediction:</span>
 
   MemoryLeak (72%)
@@ -238,7 +238,7 @@
             <p>Falcon analyzes your project for recurring patterns and anti-patterns, then proposes custom rules you can add to your configuration. Each rule includes a confidence score.</p>
 
             <h3>Example output</h3>
-            <pre><code><span class="cmd">$</span> falcon discover-rules .
+            <pre><code><span class="cmd">$</span> falcon x discover-rules .
 <span class="str">Discovered rules:</span>
 
   1. prefer_const_constructors_in_widgets (confidence: 0.92)

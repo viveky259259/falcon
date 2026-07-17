@@ -60,8 +60,9 @@ SEMANTIC COMMAND GROUPS:
                     x check-codegen, x check-perf, x check-unused-confidence,
                     x check-async, x check-widgets, x check-layers, x check-imports
   Comparison        compare-branches, compare-reports, compare, history
-  AI Intelligence   score, ai-report, provenance, conventions, drift, predict,
-                    discover-rules, refactor-sim, test-gen, vuln-scan
+  AI Intelligence   score, ai, x ai-report, x provenance, x conventions,
+                    x drift, x predict, x discover-rules, x ai-profile,
+                    x refactor-sim, x test-gen, x vuln-scan
   CI/CD             pr-comment, webhook, export, fix
   Tracking          trends, history, benchmark, score-track, perf-track, fix-track
   Configuration     init, validate, explain, preset, suppress, baseline, self-tune
@@ -652,34 +653,6 @@ enum Commands {
         format: Option<String>,
     },
 
-    /// Generate a State of AI-Generated Flutter Code report
-    #[command(name = "ai-report", display_order = 4)]
-    AiReport {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Output format (console or markdown)
-        #[arg(long, default_value = "console")]
-        format: DocFormat,
-
-        /// Output file for markdown format
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-    },
-
-    /// Analyze code provenance — detect AI-generated vs human-written code
-    #[command(display_order = 4)]
-    Provenance {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Show per-file details
-        #[arg(long)]
-        verbose: bool,
-    },
-
     /// Manage Flutter app — health, deps, architecture, maintenance, build
     #[command(display_order = 8)]
     Manage {
@@ -751,22 +724,6 @@ enum Commands {
         summary: bool,
     },
 
-    /// Profile AI tools based on benchmark data
-    #[command(name = "ai-profile", display_order = 4)]
-    AiProfile {
-        /// Path to project (reads benchmark-db)
-        #[arg(default_value = ".")]
-        path: PathBuf,
-    },
-
-    /// Discover patterns that could become new rules
-    #[command(name = "discover-rules", display_order = 4)]
-    DiscoverRules {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-    },
-
     /// Track fix acceptance/rejection effectiveness
     #[command(name = "fix-track", display_order = 6)]
     FixTrack {
@@ -805,18 +762,6 @@ enum Commands {
         /// Show insights instead of recording
         #[arg(long)]
         insights: bool,
-    },
-
-    /// Predict production risks based on code patterns
-    #[command(name = "predict", display_order = 4)]
-    Predict {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Output as JSON
-        #[arg(long)]
-        json: bool,
     },
 
     /// Falcon Cloud — team dashboards and multi-project tracking
@@ -865,22 +810,6 @@ enum Commands {
         port: u16,
     },
 
-    /// Detect convention drift in new or changed code
-    #[command(name = "drift", display_order = 4)]
-    Drift {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Only analyze files changed since this git ref (e.g. HEAD~1, main)
-        #[arg(long)]
-        since: Option<String>,
-
-        /// Output as JSON
-        #[arg(long)]
-        json: bool,
-    },
-
     /// Self-tune rules based on usage patterns and suppression history
     #[command(name = "self-tune", display_order = 7)]
     SelfTune {
@@ -903,18 +832,6 @@ enum Commands {
         /// Number of recent entries to show
         #[arg(long, default_value = "20")]
         last: usize,
-    },
-
-    /// Auto-detect team conventions (naming, architecture, state management)
-    #[command(display_order = 4)]
-    Conventions {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Output as JSON
-        #[arg(long)]
-        json: bool,
     },
 
     /// Experimental / extended commands (see council roadmap)
@@ -1153,6 +1070,90 @@ enum XAction {
         /// Path to analyze
         #[arg(default_value = ".")]
         path: PathBuf,
+    },
+
+    /// Generate a State of AI-Generated Flutter Code report
+    #[command(name = "ai-report")]
+    AiReport {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output format (console or markdown)
+        #[arg(long, default_value = "console")]
+        format: DocFormat,
+
+        /// Output file for markdown format
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Analyze code provenance — detect AI-generated vs human-written code
+    #[command(name = "provenance")]
+    Provenance {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Show per-file details
+        #[arg(long)]
+        verbose: bool,
+    },
+
+    /// Profile AI tools based on benchmark data
+    #[command(name = "ai-profile")]
+    AiProfile {
+        /// Path to project (reads benchmark-db)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Discover patterns that could become new rules
+    #[command(name = "discover-rules")]
+    DiscoverRules {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Predict production risks based on code patterns
+    #[command(name = "predict")]
+    Predict {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Detect convention drift in new or changed code
+    #[command(name = "drift")]
+    Drift {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Only analyze files changed since this git ref (e.g. HEAD~1, main)
+        #[arg(long)]
+        since: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Auto-detect team conventions (naming, architecture, state management)
+    #[command(name = "conventions")]
+    Conventions {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Categorized smells report: Dead Code, Code Smells, Security Smells.
@@ -2488,6 +2489,105 @@ fn run_codebase_intel(path: PathBuf) -> Result<()> {
     let config = FalconConfig::load(&path)?;
     let report = falcon::review::codebase_intel::analyze_codebase(&path, &config)?;
     falcon::review::codebase_intel::print_codebase_report(&report, &path);
+    Ok(())
+}
+
+fn run_ai_report(path: PathBuf, format: DocFormat, output: Option<PathBuf>) -> Result<()> {
+    let report = falcon::ai_score::report::generate_ai_report(&path)?;
+    match format {
+        DocFormat::Console => falcon::ai_score::report::print_ai_report(&report),
+        DocFormat::Markdown => {
+            let md = falcon::ai_score::report::generate_markdown_report(&report);
+            match output {
+                Some(out) => {
+                    std::fs::write(&out, &md)?;
+                    println!(
+                        "  {} AI report written to {}",
+                        "✓".green().bold(),
+                        out.display()
+                    );
+                }
+                None => print!("{}", md),
+            }
+        }
+    }
+    Ok(())
+}
+
+fn run_provenance(path: PathBuf, verbose: bool) -> Result<()> {
+    let results = falcon::ai_score::provenance::analyze_project_provenance(&path)?;
+    let summary = falcon::ai_score::provenance::summarize_provenance(&results);
+    falcon::ai_score::provenance::print_provenance_summary(&summary);
+
+    if verbose {
+        let ai_files: Vec<_> = results
+            .iter()
+            .filter(|r| r.origin == falcon::ai_score::provenance::CodeOrigin::LikelyAiGenerated)
+            .collect();
+        if !ai_files.is_empty() {
+            println!("  Files with AI-generation signals:");
+            for f in &ai_files {
+                let rel = std::path::Path::new(&f.file)
+                    .strip_prefix(&path)
+                    .unwrap_or(std::path::Path::new(&f.file));
+                println!(
+                    "    {} {} ({:.0}% confidence)",
+                    "→".bright_yellow(),
+                    rel.display(),
+                    f.confidence * 100.0
+                );
+                for signal in &f.signals {
+                    println!("      · {}", signal);
+                }
+            }
+            println!();
+        }
+    }
+    Ok(())
+}
+
+fn run_ai_profile(path: PathBuf) -> Result<()> {
+    let db = falcon::ai_score::benchmark_db::load_benchmark_db(&path)?;
+    let profiles = falcon::ai_score::ai_profiling::build_tool_profiles(&db);
+    falcon::ai_score::ai_profiling::print_tool_profiles(&profiles);
+    Ok(())
+}
+
+fn run_discover_rules(path: PathBuf) {
+    let rules = falcon::ai_score::auto_rules::discover_patterns(&path);
+    falcon::ai_score::auto_rules::print_proposed_rules(&rules);
+}
+
+fn run_predict(path: PathBuf, json: bool) -> Result<()> {
+    let predictions = falcon::ai_score::regression_predict::predict_risks(&path)?;
+    if json {
+        let j = serde_json::to_string_pretty(&predictions)?;
+        println!("{}", j);
+    } else {
+        falcon::ai_score::regression_predict::print_risk_predictions(&predictions);
+    }
+    Ok(())
+}
+
+fn run_drift(path: PathBuf, since: Option<String>, json: bool) -> Result<()> {
+    let report = falcon::ai_score::drift::detect_drift(&path, since.as_deref())?;
+    if json {
+        let j = serde_json::to_string_pretty(&report)?;
+        println!("{}", j);
+    } else {
+        falcon::ai_score::drift::print_drift_report(&report);
+    }
+    Ok(())
+}
+
+fn run_conventions(path: PathBuf, json: bool) -> Result<()> {
+    let report = falcon::ai_score::convention::detect_conventions(&path)?;
+    if json {
+        let j = serde_json::to_string_pretty(&report)?;
+        println!("{}", j);
+    } else {
+        falcon::ai_score::convention::print_convention_report(&report);
+    }
     Ok(())
 }
 
@@ -4007,15 +4107,6 @@ fn run(cli: Cli) -> Result<()> {
                 process::exit(1);
             }
         }
-        Commands::AiProfile { path } => {
-            let db = falcon::ai_score::benchmark_db::load_benchmark_db(&path)?;
-            let profiles = falcon::ai_score::ai_profiling::build_tool_profiles(&db);
-            falcon::ai_score::ai_profiling::print_tool_profiles(&profiles);
-        }
-        Commands::DiscoverRules { path } => {
-            let rules = falcon::ai_score::auto_rules::discover_patterns(&path);
-            falcon::ai_score::auto_rules::print_proposed_rules(&rules);
-        }
         Commands::FixTrack {
             path,
             rule,
@@ -4073,15 +4164,6 @@ fn run(cli: Cli) -> Result<()> {
                         .ai_score
                         .map_or("N/A".to_string(), |s| format!("{}/100", s))
                 );
-            }
-        }
-        Commands::Predict { path, json } => {
-            let predictions = falcon::ai_score::regression_predict::predict_risks(&path)?;
-            if json {
-                let j = serde_json::to_string_pretty(&predictions)?;
-                println!("{}", j);
-            } else {
-                falcon::ai_score::regression_predict::print_risk_predictions(&predictions);
             }
         }
         Commands::Cloud { action } => match action {
@@ -4197,15 +4279,6 @@ fn run(cli: Cli) -> Result<()> {
         Commands::Api { host, port } => {
             falcon::api::server::start_api_server(&host, port)?;
         }
-        Commands::Drift { path, since, json } => {
-            let report = falcon::ai_score::drift::detect_drift(&path, since.as_deref())?;
-            if json {
-                let j = serde_json::to_string_pretty(&report)?;
-                println!("{}", j);
-            } else {
-                falcon::ai_score::drift::print_drift_report(&report);
-            }
-        }
         Commands::SelfTune { path } => {
             let history = falcon::ai_score::self_tune::record_analysis(&path)?;
             let recs = falcon::ai_score::self_tune::generate_recommendations(&history);
@@ -4264,71 +4337,6 @@ fn run(cli: Cli) -> Result<()> {
             }
             if badge {
                 println!("{}", falcon::ai_score::score::generate_badge(&score));
-            }
-        }
-        Commands::AiReport {
-            path,
-            format,
-            output,
-        } => {
-            let report = falcon::ai_score::report::generate_ai_report(&path)?;
-            match format {
-                DocFormat::Console => falcon::ai_score::report::print_ai_report(&report),
-                DocFormat::Markdown => {
-                    let md = falcon::ai_score::report::generate_markdown_report(&report);
-                    match output {
-                        Some(out) => {
-                            std::fs::write(&out, &md)?;
-                            println!(
-                                "  {} AI report written to {}",
-                                "✓".green().bold(),
-                                out.display()
-                            );
-                        }
-                        None => print!("{}", md),
-                    }
-                }
-            }
-        }
-        Commands::Provenance { path, verbose } => {
-            let results = falcon::ai_score::provenance::analyze_project_provenance(&path)?;
-            let summary = falcon::ai_score::provenance::summarize_provenance(&results);
-            falcon::ai_score::provenance::print_provenance_summary(&summary);
-
-            if verbose {
-                let ai_files: Vec<_> = results
-                    .iter()
-                    .filter(|r| {
-                        r.origin == falcon::ai_score::provenance::CodeOrigin::LikelyAiGenerated
-                    })
-                    .collect();
-                if !ai_files.is_empty() {
-                    println!("  Files with AI-generation signals:");
-                    for f in &ai_files {
-                        let rel = std::path::Path::new(&f.file)
-                            .strip_prefix(&path)
-                            .unwrap_or(std::path::Path::new(&f.file));
-                        println!(
-                            "    {} {} ({:.0}% confidence)",
-                            "→".bright_yellow(),
-                            rel.display(),
-                            f.confidence * 100.0
-                        );
-                        for signal in &f.signals {
-                            println!("      · {}", signal);
-                        }
-                    }
-                    println!();
-                }
-            }
-        }
-        Commands::Conventions { path, json } => {
-            let report = falcon::ai_score::convention::detect_conventions(&path)?;
-            if json {
-                let j = serde_json::to_string_pretty(&report)?;
-                println!("{}", j);
-            } else {
-                falcon::ai_score::convention::print_convention_report(&report);
             }
         }
         Commands::Community { action } => match action {
@@ -4494,6 +4502,38 @@ fn run(cli: Cli) -> Result<()> {
                 }
                 XAction::CodebaseIntel { path } => {
                     run_codebase_intel(path)?;
+                    return Ok(());
+                }
+                XAction::AiReport {
+                    path,
+                    format,
+                    output,
+                } => {
+                    run_ai_report(path, format, output)?;
+                    return Ok(());
+                }
+                XAction::Provenance { path, verbose } => {
+                    run_provenance(path, verbose)?;
+                    return Ok(());
+                }
+                XAction::AiProfile { path } => {
+                    run_ai_profile(path)?;
+                    return Ok(());
+                }
+                XAction::DiscoverRules { path } => {
+                    run_discover_rules(path);
+                    return Ok(());
+                }
+                XAction::Predict { path, json } => {
+                    run_predict(path, json)?;
+                    return Ok(());
+                }
+                XAction::Drift { path, since, json } => {
+                    run_drift(path, since, json)?;
+                    return Ok(());
+                }
+                XAction::Conventions { path, json } => {
+                    run_conventions(path, json)?;
                     return Ok(());
                 }
                 XAction::Smells {

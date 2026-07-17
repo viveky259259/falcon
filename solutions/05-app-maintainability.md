@@ -49,7 +49,7 @@ falcon manage maint .
 falcon vuln-scan .
 
 # 6. Production risk prediction
-falcon predict .
+falcon x predict .
 
 # 7. Flutter upgrade compatibility
 falcon x upgrade-check .
@@ -74,7 +74,7 @@ falcon score-track .
 falcon learn .
 
 # Generate comprehensive report
-falcon ai-report . --format markdown --output maintenance-baseline.md
+falcon x ai-report . --format markdown --output maintenance-baseline.md
 ```
 
 **Create the maintenance dashboard:**
@@ -234,7 +234,7 @@ falcon analyze . --since HEAD~7
 falcon perf-track .
 
 # 5. Convention drift
-falcon drift . --since HEAD~7
+falcon x drift . --since HEAD~7
 
 echo "=== Done ==="
 ```
@@ -249,7 +249,7 @@ echo "=== Monthly Maintenance ==="
 
 # 1. Full health report
 falcon manage all .
-falcon ai-report . --format markdown --output "reports/monthly-$(date +%Y-%m).md"
+falcon x ai-report . --format markdown --output "reports/monthly-$(date +%Y-%m).md"
 
 # 2. Dependency updates
 flutter pub outdated
@@ -284,11 +284,11 @@ falcon manage deps .
 
 # 3. Architecture review
 falcon manage arch .
-falcon discover-rules .
+falcon x discover-rules .
 
 # 4. Performance deep-dive
 falcon x check-perf .
-falcon predict .
+falcon x predict .
 
 # 5. Test gap analysis
 falcon test-gen .  # Review, then --write if tests are useful
@@ -364,7 +364,7 @@ falcon test-gen . --write
 2. Write a failing test
 3. Fix the bug
 4. Run: falcon analyze . --since HEAD~1
-5. Run: falcon predict .  (did we introduce new risks?)
+5. Run: falcon x predict .  (did we introduce new risks?)
 6. Commit with: git commit -m "fix: <description>"
 7. CI runs: falcon pr-comment posts analysis on PR
 ```
@@ -400,17 +400,17 @@ falcon analyze . --since HEAD~1     # What changed today
 
 # === Weekly ===
 falcon score-track .                # Record score
-falcon drift . --since HEAD~7      # Convention drift
+falcon x drift . --since HEAD~7    # Convention drift
 falcon manage deps .               # Dependency health
 
 # === Monthly ===
 falcon manage all .                 # Full audit
-falcon ai-report . --format markdown --output report.md
+falcon x ai-report . --format markdown --output report.md
 falcon enterprise compliance --output compliance.md
 
 # === On Bug Fix ===
 falcon analyze . --fail-on error    # Check fix doesn't introduce issues
-falcon predict .                   # Risk assessment
+falcon x predict .                 # Risk assessment
 
 # === On Dependency Update ===
 falcon x upgrade-check .           # Deprecated APIs

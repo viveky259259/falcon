@@ -36,6 +36,13 @@ pub fn aliased_target(command: &str) -> Option<&'static str> {
         "check-widgets" => Some("x check-widgets"),
         "check-async" => Some("x check-async"),
         "codebase-intel" => Some("x codebase-intel"),
+        "ai-report" => Some("x ai-report"),
+        "provenance" => Some("x provenance"),
+        "ai-profile" => Some("x ai-profile"),
+        "discover-rules" => Some("x discover-rules"),
+        "predict" => Some("x predict"),
+        "drift" => Some("x drift"),
+        "conventions" => Some("x conventions"),
         "smells" => Some("x smells"),
         "metrics" => Some("x metrics"),
         "asset-audit" => Some("x asset-audit"),
@@ -118,6 +125,8 @@ mod tests {
 
     #[test]
     fn aliased_target_maps_moved_x_commands() {
+        assert_eq!(aliased_target("ai-profile"), Some("x ai-profile"));
+        assert_eq!(aliased_target("ai-report"), Some("x ai-report"));
         assert_eq!(aliased_target("asset-audit"), Some("x asset-audit"));
         assert_eq!(aliased_target("check-cycles"), Some("x check-cycles"));
         assert_eq!(aliased_target("check-dead-code"), Some("x check-dead-code"));
@@ -149,12 +158,17 @@ mod tests {
         );
         assert_eq!(aliased_target("check-widgets"), Some("x check-widgets"));
         assert_eq!(aliased_target("codebase-intel"), Some("x codebase-intel"));
+        assert_eq!(aliased_target("conventions"), Some("x conventions"));
         assert_eq!(
             aliased_target("cognitive-complexity"),
             Some("x cognitive-complexity")
         );
+        assert_eq!(aliased_target("discover-rules"), Some("x discover-rules"));
         assert_eq!(aliased_target("docs"), Some("x docs"));
+        assert_eq!(aliased_target("drift"), Some("x drift"));
         assert_eq!(aliased_target("metrics"), Some("x metrics"));
+        assert_eq!(aliased_target("predict"), Some("x predict"));
+        assert_eq!(aliased_target("provenance"), Some("x provenance"));
         assert_eq!(aliased_target("smells"), Some("x smells"));
         assert_eq!(aliased_target("test-gen"), Some("x test-gen"));
         assert_eq!(aliased_target("upgrade-check"), Some("x upgrade-check"));

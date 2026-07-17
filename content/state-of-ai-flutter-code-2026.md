@@ -31,10 +31,10 @@ cargo install --git https://github.com/viveky259259/falcon
 falcon ai-score /path/to/your/flutter/app
 
 # Full report with provenance
-falcon ai-report /path/to/your/flutter/app
+falcon x ai-report /path/to/your/flutter/app
 
 # Detect AI-generated files
-falcon provenance /path/to/your/flutter/app --verbose
+falcon x provenance /path/to/your/flutter/app --verbose
 ```
 
 ---

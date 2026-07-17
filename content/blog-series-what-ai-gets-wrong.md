@@ -49,7 +49,7 @@
 ### Outline
 
 1. **Hook**: Data-driven analysis of real Cursor-generated Flutter projects
-2. **Methodology**: How we used `falcon ai-score` and `falcon provenance`
+2. **Methodology**: How we used `falcon ai-score` and `falcon x provenance`
 3. **The Numbers**: Average score, top violations, worst files
 4. **The Pattern**: What Cursor consistently gets right vs. wrong
 5. **The Fix**: How to add Falcon to your Cursor workflow (MCP integration)
@@ -66,7 +66,7 @@
 1. **Hook**: Timer showing memory growing until crash
 2. **Root cause**: Undisposed controllers = objects that never get garbage collected
 3. **The math**: Each TextEditingController leaks ~2KB. 50 screens × 3 controllers = 300KB/navigation
-4. **The proof**: Run `falcon x check-perf` and `falcon predict` on a real app
+4. **The proof**: Run `falcon x check-perf` and `falcon x predict` on a real app
 5. **The fix**: `falcon analyze --preset ai-generated` + CI enforcement
 6. **CTA**: "Add one line to your CI pipeline. Never ship a memory leak again."
 

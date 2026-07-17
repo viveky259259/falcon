@@ -74,7 +74,7 @@ $ falcon score .
 | **MCP Server** | `falcon-mcp` | AI tools call Falcon during code generation |
 | **PR Comments** | `falcon review --format gh` | Generate GitHub-ready PR review markdown |
 | **Vulnerability** | `falcon vuln-scan` | Security radar with CWE classification |
-| **Risk Prediction** | `falcon predict` | Predict production issues from patterns |
+| **Risk Prediction** | `falcon x predict` | Predict production issues from patterns |
 | **Test Generation** | `falcon test-gen` | Generate test stubs from code analysis |
 | **Refactoring Sim** | `falcon refactor-sim` | "What if we migrate to Riverpod?" impact |
 | **Enterprise** | `falcon enterprise` | Policies, audit logs, compliance |

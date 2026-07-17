@@ -48,7 +48,7 @@
 - Start an AI-generated app
 - Navigate between screens 20 times
 - Show memory graph climbing
-- `falcon predict` shows "Memory Leak — 80% probability"
+- `falcon x predict` shows "Memory Leak — 80% probability"
 
 **Slide 8**: "Why does AI make these specific mistakes?"
 - No runtime context — AI doesn't know about widget lifecycle

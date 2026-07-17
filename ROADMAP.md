@@ -678,20 +678,20 @@ Prometheus export produces valid scrape-ready metrics.
 - [x] `--json` flag for CI/CD pipeline integration and machine-readable output
 
 ### AI Report Generator ✅
-- [x] `falcon ai-report` — comprehensive "State of AI-Generated Flutter Code" report
+- [x] `falcon x ai-report` — comprehensive "State of AI-Generated Flutter Code" report
 - [x] Combines AI score + provenance analysis + top issues + actionable recommendations
 - [x] `--format markdown` for publishable reports with tables and structured output
 - [x] Automated recommendations based on dimension scores and provenance data
 
 ### Provenance Tagging ✅
-- [x] `falcon provenance` — detect AI-generated vs human-written vs code-generated files
+- [x] `falcon x provenance` — detect AI-generated vs human-written vs code-generated files
 - [x] Heuristic signals: AI comments, TODO density, empty catches, UnimplementedError patterns, comment ratio
 - [x] Code-gen detection: `.g.dart`, `.freezed.dart`, GENERATED CODE markers
 - [x] Per-file confidence scores with signal explanations (`--verbose`)
 - [x] Summary with percentages by origin category
 
 ### Convention Engine ✅
-- [x] `falcon conventions` — auto-detect team conventions without manual configuration
+- [x] `falcon x conventions` — auto-detect team conventions without manual configuration
 - [x] Naming conventions: file naming (snake_case/mixed), class naming (PascalCase/mixed)
 - [x] Architecture detection: Clean Architecture, Feature-First, MVC/MVVM, Flat/Custom
 - [x] Layer detection: domain, data, presentation, models, services, repositories, features, etc.
@@ -771,7 +771,7 @@ v1.x Architecture:                    v2.0 Architecture:
 - [x] Preset support in `falcon_analyze` for AI-generated code presets
 
 ### Drift Detector ✅
-- [x] `falcon drift` — detect convention drift in new or changed code
+- [x] `falcon x drift` — detect convention drift in new or changed code
 - [x] `--since` flag for analyzing only files changed since a git ref
 - [x] 4 drift categories: Naming, Architecture, ErrorHandling, StateManagement
 - [x] Drift score (0-100%) measuring convention adherence
@@ -875,10 +875,10 @@ AI Code Quality Score: 72/100
 > Falcon better for every other project.
 
 - [x] **Cross-Project Learning** — `falcon learn` records projects, `--insights` derives cross-project patterns and recommendations ✅
-- [x] **AI-Tool Profiling** — `falcon ai-profile` builds per-tool error profiles from benchmark database ✅
-- [x] **Auto-Rule Generation** — `falcon discover-rules` proposes new rules from observed code patterns ✅
+- [x] **AI-Tool Profiling** — `falcon x ai-profile` builds per-tool error profiles from benchmark database ✅
+- [x] **Auto-Rule Generation** — `falcon x discover-rules` proposes new rules from observed code patterns ✅
 - [x] **Fix Effectiveness Tracking** — `falcon fix-track` records accept/reject outcomes per rule ✅
-- [x] **Regression Prediction** — `falcon predict` forecasts production risks with probability, timeframe, evidence, and recommendations ✅
+- [x] **Regression Prediction** — `falcon x predict` forecasts production risks with probability, timeframe, evidence, and recommendations ✅
 
 ### v2.x Success Metrics
 

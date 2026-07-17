@@ -138,6 +138,32 @@ fn legacy_specialized_code_checks_warn_and_still_run() {
 }
 
 #[test]
+fn legacy_ai_insight_commands_warn_and_still_run() {
+    let temp = tempfile::tempdir().unwrap();
+    write_dart_project(temp.path());
+    let root = temp.path().to_str().unwrap();
+    let cases = [
+        ("ai-report", "x ai-report"),
+        ("provenance", "x provenance"),
+        ("ai-profile", "x ai-profile"),
+        ("discover-rules", "x discover-rules"),
+        ("predict", "x predict"),
+        ("drift", "x drift"),
+        ("conventions", "x conventions"),
+    ];
+
+    for (old, new) in cases {
+        let output = falcon_cmd()
+            .args([old, root])
+            .output()
+            .expect("run falcon legacy AI insight command");
+
+        assert_success(&output);
+        assert_deprecation_warning(&output, old, new);
+    }
+}
+
+#[test]
 fn legacy_docs_command_warns_and_still_runs() {
     let temp = tempfile::tempdir().unwrap();
     let output_dir = temp.path().join("docs");
@@ -432,6 +458,32 @@ fn x_specialized_code_checks_do_not_warn() {
             .args(["x", command, root])
             .output()
             .expect("run falcon x specialized code check");
+
+        assert_success(&output);
+        assert_no_deprecation_warning(&output);
+    }
+}
+
+#[test]
+fn x_ai_insight_commands_do_not_warn() {
+    let temp = tempfile::tempdir().unwrap();
+    write_dart_project(temp.path());
+    let root = temp.path().to_str().unwrap();
+    let cases = [
+        "ai-report",
+        "provenance",
+        "ai-profile",
+        "discover-rules",
+        "predict",
+        "drift",
+        "conventions",
+    ];
+
+    for command in cases {
+        let output = falcon_cmd()
+            .args(["x", command, root])
+            .output()
+            .expect("run falcon x AI insight command");
 
         assert_success(&output);
         assert_no_deprecation_warning(&output);
