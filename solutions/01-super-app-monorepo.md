@@ -356,7 +356,7 @@ Team Platform    → packages/* + apps/shell/ + tools/
 # Each team runs Falcon on their module
 falcon analyze modules/payments/ --fail-on error
 falcon manage arch modules/payments/  # No cross-module imports
-falcon check-layers modules/payments/ # Clean Architecture enforced
+falcon x check-layers modules/payments/ # Clean Architecture enforced
 falcon drift modules/payments/ --since main  # Convention adherence
 ```
 
@@ -411,7 +411,7 @@ for module in modules/*/; do
   echo "=== Analyzing $module ==="
   falcon ai-score "$module"
   falcon manage deps "$module"
-  falcon check-layers "$module"
+  falcon x check-layers "$module"
 done
 
 # Full app health
@@ -429,7 +429,7 @@ falcon manage all apps/shell
 | Shared mutable state | Race conditions, unpredictable behavior | Use Riverpod/BLoC for state isolation |
 | God packages (one package with everything) | Defeats the purpose of modularity | Split by domain, max 50 files per package |
 | Direct database access from UI | Violates Clean Architecture | Repository pattern + DI |
-| Skipping module boundaries for "quick fix" | Tech debt snowball | Falcon `check-layers` in CI blocks violations |
+| Skipping module boundaries for "quick fix" | Tech debt snowball | Falcon `x check-layers` in CI blocks violations |
 
 ---
 
@@ -441,7 +441,7 @@ falcon manage all apps/shell
 - [ ] GetIt DI is layered (core → auth → features)
 - [ ] Inter-module communication via EventBus or contracts
 - [ ] CI runs module-specific tests (only changed modules)
-- [ ] Falcon `check-layers` enforced in CI
+- [ ] Falcon `x check-layers` enforced in CI
 - [ ] Deferred loading for large modules
 - [ ] Code ownership (CODEOWNERS file) per module
 - [ ] Module creation template/generator script

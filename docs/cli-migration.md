@@ -21,6 +21,13 @@ Falcon is moving to a compact top-level CLI before 1.0:
 | `falcon check-platform .` | `falcon x check-platform .` |
 | `falcon check-codegen .` | `falcon x check-codegen .` |
 | `falcon check-perf .` | `falcon x check-perf .` |
+| `falcon check-unused-confidence .` | `falcon x check-unused-confidence .` |
+| `falcon check-layers .` | `falcon x check-layers .` |
+| `falcon check-imports .` | `falcon x check-imports .` |
+| `falcon cognitive-complexity .` | `falcon x cognitive-complexity .` |
+| `falcon check-widgets .` | `falcon x check-widgets .` |
+| `falcon check-async .` | `falcon x check-async .` |
+| `falcon codebase-intel .` | `falcon x codebase-intel .` |
 | `falcon asset-audit .` | `falcon x asset-audit .` |
 | `falcon theme-audit .` | `falcon x theme-audit .` |
 | `falcon l10n-coverage .` | `falcon x l10n-coverage .` |

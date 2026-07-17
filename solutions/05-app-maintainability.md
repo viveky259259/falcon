@@ -169,7 +169,7 @@ falcon analyze --preset ai-generated .
 
 ```bash
 # Find dispose lifecycle issues
-falcon check-widgets .
+falcon x check-widgets .
 
 # Critical fixes:
 # 1. Add dispose() for all controllers
@@ -419,7 +419,7 @@ falcon manage deps .               # Unused deps check
 # === On Refactoring ===
 falcon refactor-sim --scenario <x>  # Impact analysis
 falcon manage arch .               # Architecture compliance
-falcon check-layers .              # Layer violations
+falcon x check-layers .            # Layer violations
 ```
 
 ---

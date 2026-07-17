@@ -160,7 +160,7 @@ falcon compare-reports . --run1 1 --run2 3 --output delta.html
 Get a bird's-eye view of your project:
 
 ```bash
-falcon codebase-intel .
+falcon x codebase-intel .
 ```
 
 Shows health score, god files, complexity hotspots, and tech debt estimate.

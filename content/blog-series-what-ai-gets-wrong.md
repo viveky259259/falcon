@@ -16,7 +16,7 @@
    - AI never calls `dispose()` on TextEditingController, FocusNode, AnimationController
    - Show before/after code
    - Memory leak graph showing app degradation over time
-   - `falcon check-widgets` catches this instantly
+   - `falcon x check-widgets` catches this instantly
 
 3. **Bug #2: Empty Catch Blocks**
    - AI generates `catch (e) {}` to "handle" errors

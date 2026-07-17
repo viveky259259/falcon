@@ -112,6 +112,32 @@ fn legacy_platform_diagnostics_warn_and_still_run() {
 }
 
 #[test]
+fn legacy_specialized_code_checks_warn_and_still_run() {
+    let temp = tempfile::tempdir().unwrap();
+    write_dart_project(temp.path());
+    let root = temp.path().to_str().unwrap();
+    let cases = [
+        ("check-unused-confidence", "x check-unused-confidence"),
+        ("check-layers", "x check-layers"),
+        ("check-imports", "x check-imports"),
+        ("cognitive-complexity", "x cognitive-complexity"),
+        ("check-widgets", "x check-widgets"),
+        ("check-async", "x check-async"),
+        ("codebase-intel", "x codebase-intel"),
+    ];
+
+    for (old, new) in cases {
+        let output = falcon_cmd()
+            .args([old, root])
+            .output()
+            .expect("run falcon legacy specialized code check");
+
+        assert_success(&output);
+        assert_deprecation_warning(&output, old, new);
+    }
+}
+
+#[test]
 fn legacy_docs_command_warns_and_still_runs() {
     let temp = tempfile::tempdir().unwrap();
     let output_dir = temp.path().join("docs");
@@ -380,6 +406,32 @@ fn x_platform_diagnostics_do_not_warn() {
             .args(["x", command, root])
             .output()
             .expect("run falcon x platform diagnostic");
+
+        assert_success(&output);
+        assert_no_deprecation_warning(&output);
+    }
+}
+
+#[test]
+fn x_specialized_code_checks_do_not_warn() {
+    let temp = tempfile::tempdir().unwrap();
+    write_dart_project(temp.path());
+    let root = temp.path().to_str().unwrap();
+    let cases = [
+        "check-unused-confidence",
+        "check-layers",
+        "check-imports",
+        "cognitive-complexity",
+        "check-widgets",
+        "check-async",
+        "codebase-intel",
+    ];
+
+    for command in cases {
+        let output = falcon_cmd()
+            .args(["x", command, root])
+            .output()
+            .expect("run falcon x specialized code check");
 
         assert_success(&output);
         assert_no_deprecation_warning(&output);

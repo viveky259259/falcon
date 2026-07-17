@@ -124,7 +124,7 @@ navigateToNextScreen(); // Missing await!
 
 1. **Always run `falcon ai-score` after an AI coding session** — catch the patterns AI consistently misses
 2. **Use `falcon analyze --preset ai-generated`** — the preset targets the 20 most common AI code issues
-3. **Check dispose lifecycle** — run `falcon check-widgets` after generating StatefulWidgets
+3. **Check dispose lifecycle** — run `falcon x check-widgets` after generating StatefulWidgets
 4. **Never trust empty catch blocks** — search for `catch (e) {}` in AI-generated code
 
 ### For AI tool builders

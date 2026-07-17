@@ -29,6 +29,13 @@ fn default_help_lists_only_cutover_verbs() {
         "check-platform",
         "check-codegen",
         "check-perf",
+        "check-unused-confidence",
+        "check-layers",
+        "check-imports",
+        "cognitive-complexity",
+        "check-widgets",
+        "check-async",
+        "codebase-intel",
         "smells",
         "metrics",
         "asset-audit",
@@ -150,6 +157,31 @@ fn x_help_lists_platform_diagnostics() {
         "check-platform",
         "check-codegen",
         "check-perf",
+    ] {
+        assert!(
+            stdout.contains(command),
+            "missing x {command} command in help:\n{stdout}"
+        );
+    }
+}
+
+#[test]
+fn x_help_lists_specialized_code_checks() {
+    let output = falcon_cmd()
+        .args(["x", "--help"])
+        .output()
+        .expect("run falcon x --help");
+
+    assert_success(&output);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for command in [
+        "check-unused-confidence",
+        "check-layers",
+        "check-imports",
+        "cognitive-complexity",
+        "check-widgets",
+        "check-async",
+        "codebase-intel",
     ] {
         assert!(
             stdout.contains(command),

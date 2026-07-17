@@ -74,15 +74,16 @@ falcon score . --badge --json
 | `falcon x check-dead-code` | Unreachable code after return/throw |
 | `falcon x check-unused-l10n` | Unused localization keys |
 | `falcon x check-promoted-deps` | Over/under-promoted dependencies |
-| `falcon check-layers` | Clean architecture layer enforcement |
-| `falcon check-imports` | Import restriction rules |
-| `falcon check-widgets` | Widget rebuild issues and build method complexity |
-| `falcon check-async` | Async/await anti-patterns (async void, unawaited futures) |
 | `falcon x check-platform` | Kotlin/Swift platform channel issues |
 | `falcon x check-codegen` | Code generation quality (.g.dart, .freezed.dart) |
 | `falcon x check-perf` | DevTools-style performance analysis |
-| `falcon cognitive-complexity` | Function cognitive complexity |
-| `falcon codebase-intel` | Health score, god files, hotspots, tech debt estimate |
+| `falcon x check-unused-confidence` | Score unused code findings by confidence |
+| `falcon x check-layers` | Clean architecture layer enforcement |
+| `falcon x check-imports` | Import restriction rules |
+| `falcon x check-widgets` | Widget rebuild issues and build method complexity |
+| `falcon x check-async` | Async/await anti-patterns (async void, unawaited futures) |
+| `falcon x cognitive-complexity` | Function cognitive complexity |
+| `falcon x codebase-intel` | Health score, god files, hotspots, tech debt estimate |
 
 ## Comparison & History (v0.2.0)
 

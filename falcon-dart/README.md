@@ -32,7 +32,7 @@ falcon compare-branches . --base main --branch feature/my-feature
 falcon history .
 
 # Codebase intelligence
-falcon codebase-intel .
+falcon x codebase-intel .
 
 # Self-update
 falcon update
@@ -94,7 +94,7 @@ falcon compare-reports . --run1 1 --run2 3    # Compare any two
 | Category | Commands |
 |----------|----------|
 | **Analysis** | `analyze`, `metrics`, `ai-score`, `ai-report` |
-| **Checks** | `check-unused-code`, `check-cycles`, `check-widgets`, `check-async`, `cognitive-complexity`, `codebase-intel` |
+| **Checks** | `x check-unused-code`, `x check-cycles`, `x check-widgets`, `x check-async`, `x cognitive-complexity`, `x codebase-intel` |
 | **Comparison** | `compare-branches`, `compare-reports`, `history` |
 | **AI** | `provenance`, `conventions`, `drift`, `predict`, `vuln-scan` |
 | **CI/CD** | `pr-comment`, `webhook`, `fix`, `benchmark` |
