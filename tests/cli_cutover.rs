@@ -73,6 +73,13 @@ fn default_help_lists_only_cutover_verbs() {
         "live",
         "devtools",
         "manage",
+        "plugin",
+        "export",
+        "webhook",
+        "migrate-from-dcm",
+        "feature-gap",
+        "showcase",
+        "community",
         "cloud",
         "enterprise",
         "marketplace",
@@ -351,6 +358,31 @@ fn x_help_lists_app_runtime_sdk_commands() {
         "live",
         "devtools",
         "manage",
+    ] {
+        assert!(
+            stdout.contains(command),
+            "missing x {command} command in help:\n{stdout}"
+        );
+    }
+}
+
+#[test]
+fn x_help_lists_ecosystem_ops_commands() {
+    let output = falcon_cmd()
+        .args(["x", "--help"])
+        .output()
+        .expect("run falcon x --help");
+
+    assert_success(&output);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for command in [
+        "plugin",
+        "export",
+        "webhook",
+        "migrate-from-dcm",
+        "feature-gap",
+        "showcase",
+        "community",
     ] {
         assert!(
             stdout.contains(command),

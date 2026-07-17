@@ -67,6 +67,13 @@ Falcon is moving to a compact top-level CLI before 1.0:
 | `falcon live .` | `falcon x live .` |
 | `falcon devtools memory .` | `falcon x devtools memory .` |
 | `falcon manage health .` | `falcon x manage health .` |
+| `falcon plugin list` | `falcon x plugin list` |
+| `falcon export . --format json` | `falcon x export . --format json` |
+| `falcon webhook . --url https://hooks.example.com` | `falcon x webhook . --url https://hooks.example.com` |
+| `falcon migrate-from-dcm analysis_options.yaml` | `falcon x migrate-from-dcm analysis_options.yaml` |
+| `falcon feature-gap` | `falcon x feature-gap` |
+| `falcon showcase .` | `falcon x showcase .` |
+| `falcon community contributed` | `falcon x community contributed` |
 | `falcon cloud dashboard` | `falcon x cloud dashboard` |
 | `falcon enterprise check .` | `falcon x enterprise check .` |
 | `falcon marketplace` | `falcon x marketplace` |

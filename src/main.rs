@@ -63,7 +63,7 @@ SEMANTIC COMMAND GROUPS:
   AI Intelligence   score, ai, x ai-report, x provenance, x conventions,
                     x drift, x predict, x discover-rules, x ai-profile,
                     x refactor-sim, x test-gen, x vuln-scan
-  CI/CD             pr-comment, webhook, export, fix
+  CI/CD             pr-comment, x webhook, x export, fix
   Tracking          x dashboard, x trends, x rule-impact, x benchmark,
                     x benchmark-db, x score-track, x perf-track, x fix-track,
                     x self-tune, x learn
@@ -71,9 +71,10 @@ SEMANTIC COMMAND GROUPS:
                     x baseline, x rule-docs, x stability-contract,
                     x deprecation-status
   App Management    x manage, review, x watch, x runtime-check, x live, x devtools, x workspace
-  Flutter Quality   asset-audit, theme-audit, l10n-coverage, deeplink-validate,
-                    animation-audit, golden-gen
+  Flutter Quality   x asset-audit, x theme-audit, x l10n-coverage, x deeplink-validate,
+                    x animation-audit, x golden-gen
   Integration       mcp, api
+  Ecosystem         x plugin, x migrate-from-dcm, x feature-gap, x showcase, x community
   Flutter SDK       x flutter (passthrough — every flutter subcommand: run, build, test, pub, doctor, …)
   Enterprise        x cloud, x enterprise, x certify, x marketplace, x partners
   Setup             init, update
@@ -245,49 +246,6 @@ enum Commands {
         update_baseline: Option<PathBuf>,
     },
 
-    /// Plugin management
-    #[command(display_order = 12)]
-    Plugin {
-        #[command(subcommand)]
-        action: PluginAction,
-    },
-
-    /// Export metrics (prometheus, json, webhook)
-    #[command(display_order = 5)]
-    Export {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Export format
-        #[arg(long, default_value = "json")]
-        format: ExportFormat,
-
-        /// Output file (optional, prints to stdout if not specified)
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-
-        /// Webhook URL (for webhook format)
-        #[arg(long)]
-        webhook_url: Option<String>,
-    },
-
-    /// Migrate from DCM (Dart Code Metrics) to Falcon
-    #[command(name = "migrate-from-dcm", display_order = 11)]
-    MigrateFromDcm {
-        /// Path to DCM analysis_options.yaml
-        #[arg(default_value = "analysis_options.yaml")]
-        config_path: PathBuf,
-
-        /// Output path for falcon.yaml
-        #[arg(long, default_value = ".")]
-        output: PathBuf,
-    },
-
-    /// Show DCM to Falcon feature gap report
-    #[command(name = "feature-gap", display_order = 11)]
-    FeatureGap,
-
     /// Update Falcon to the latest or a specific version
     #[command(display_order = 11)]
     Update {
@@ -298,28 +256,6 @@ enum Commands {
         /// List all available versions
         #[arg(long)]
         list: bool,
-    },
-
-    /// Analyze projects for a showcase report
-    #[command(display_order = 12)]
-    Showcase {
-        /// Paths to projects to analyze
-        paths: Vec<PathBuf>,
-
-        /// Output format (console or markdown)
-        #[arg(long, default_value = "console")]
-        format: DocFormat,
-
-        /// Output file for markdown format
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-    },
-
-    /// Community features — rule requests, voting, contributed rules
-    #[command(display_order = 10)]
-    Community {
-        #[command(subcommand)]
-        action: CommunityAction,
     },
 
     /// Calculate AI Code Quality Score (0-100) with 6-dimension breakdown
@@ -372,22 +308,6 @@ enum Commands {
         /// Path to falcon.yaml config
         #[arg(short, long)]
         config: Option<PathBuf>,
-    },
-
-    /// Send webhook notification with analysis results
-    #[command(display_order = 5)]
-    Webhook {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Webhook URL
-        #[arg(long)]
-        url: String,
-
-        /// Event type (analysis, score, drift)
-        #[arg(long, default_value = "analysis")]
-        event: String,
     },
 
     /// Start the Falcon HTTP API server
@@ -1122,6 +1042,87 @@ enum XAction {
     Manage {
         #[command(subcommand)]
         action: ManageAction,
+    },
+
+    /// Plugin management
+    #[command(name = "plugin")]
+    Plugin {
+        #[command(subcommand)]
+        action: PluginAction,
+    },
+
+    /// Export metrics (prometheus, json, webhook)
+    #[command(name = "export")]
+    Export {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Export format
+        #[arg(long, default_value = "json")]
+        format: ExportFormat,
+
+        /// Output file (optional, prints to stdout if not specified)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Webhook URL (for webhook format)
+        #[arg(long)]
+        webhook_url: Option<String>,
+    },
+
+    /// Send webhook notification with analysis results
+    #[command(name = "webhook")]
+    Webhook {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Webhook URL
+        #[arg(long)]
+        url: String,
+
+        /// Event type (analysis, score, drift)
+        #[arg(long, default_value = "analysis")]
+        event: String,
+    },
+
+    /// Migrate from DCM (Dart Code Metrics) to Falcon
+    #[command(name = "migrate-from-dcm")]
+    MigrateFromDcm {
+        /// Path to DCM analysis_options.yaml
+        #[arg(default_value = "analysis_options.yaml")]
+        config_path: PathBuf,
+
+        /// Output path for falcon.yaml
+        #[arg(long, default_value = ".")]
+        output: PathBuf,
+    },
+
+    /// Show DCM to Falcon feature gap report
+    #[command(name = "feature-gap")]
+    FeatureGap,
+
+    /// Analyze projects for a showcase report
+    #[command(name = "showcase")]
+    Showcase {
+        /// Paths to projects to analyze
+        paths: Vec<PathBuf>,
+
+        /// Output format (console or markdown)
+        #[arg(long, default_value = "console")]
+        format: DocFormat,
+
+        /// Output file for markdown format
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Community features — rule requests, voting, contributed rules
+    #[command(name = "community")]
+    Community {
+        #[command(subcommand)]
+        action: CommunityAction,
     },
 
     /// Falcon Cloud — team dashboards and multi-project tracking
@@ -3482,6 +3483,279 @@ fn run_manage(action: ManageAction) -> Result<()> {
     Ok(())
 }
 
+fn run_plugin(action: PluginAction) -> Result<()> {
+    match action {
+        PluginAction::Create { name, r#type, dir } => {
+            let plugin_type = match r#type.as_str() {
+                "wasm" => falcon::plugins::manifest::PluginType::Wasm,
+                "native" => falcon::plugins::manifest::PluginType::Native,
+                "preset" => falcon::plugins::manifest::PluginType::Preset,
+                _ => {
+                    eprintln!(
+                        "Invalid plugin type '{}'. Use: wasm, native, preset",
+                        r#type
+                    );
+                    process::exit(1);
+                }
+            };
+            falcon::plugins::scaffold::create_plugin(&name, &dir, plugin_type)?;
+        }
+        PluginAction::List => {
+            let plugin_dir = get_plugin_dir();
+            let plugins = falcon::plugins::scaffold::list_plugins(&plugin_dir)?;
+            falcon::plugins::scaffold::print_plugins(&plugins);
+        }
+        PluginAction::Install { path } => {
+            let plugin_dir = get_plugin_dir();
+            std::fs::create_dir_all(&plugin_dir)?;
+            let name = falcon::plugins::scaffold::install_plugin(&path, &plugin_dir)?;
+            println!(
+                "  {} Installed plugin '{}'",
+                "✓".green().bold(),
+                name.bright_cyan()
+            );
+        }
+        PluginAction::Search { query } => {
+            let results = falcon::plugins::registry::search_registry(&query);
+            falcon::plugins::registry::print_search_results(&results, &query);
+        }
+        PluginAction::Test { path } => {
+            let manifest = falcon::plugins::manifest::PluginManifest::load(&path)?;
+            println!(
+                "  {} Plugin '{}' v{} — manifest valid, {} rule(s) defined",
+                "✓".green().bold(),
+                manifest.name.bright_cyan(),
+                manifest.version,
+                manifest.rules.len()
+            );
+
+            let rules_path = path.join("rules/rules.yaml");
+            if rules_path.exists() {
+                let rules = falcon::plugins::wasm_runtime::load_wasm_rules(&rules_path)?;
+                println!(
+                    "  {} Loaded {} rule definition(s) from rules.yaml",
+                    "✓".green().bold(),
+                    rules.len()
+                );
+            }
+
+            let test_path = path.join("test/test_cases.yaml");
+            if test_path.exists() {
+                println!(
+                    "  {} Test cases file found at test/test_cases.yaml",
+                    "✓".green().bold()
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn run_export(
+    path: PathBuf,
+    format: ExportFormat,
+    output: Option<PathBuf>,
+    webhook_url: Option<String>,
+) -> Result<()> {
+    let config = FalconConfig::load(&path)?;
+    let falcon_inst = Falcon::new(config)?;
+    let report = falcon_inst.analyze(&path)?;
+    let snapshot = falcon::dashboard::snapshot::AnalysisSnapshot::capture(&report, &path);
+
+    match format {
+        ExportFormat::Prometheus => {
+            let metrics = falcon::dashboard::exports::export_prometheus(&snapshot);
+            match output {
+                Some(out) => {
+                    std::fs::write(&out, &metrics)?;
+                    println!(
+                        "  {} Prometheus metrics saved to {}",
+                        "✓".green().bold(),
+                        out.display()
+                    );
+                }
+                None => print!("{}", metrics),
+            }
+        }
+        ExportFormat::Json => {
+            let json = falcon::dashboard::exports::export_json(&snapshot)?;
+            match output {
+                Some(out) => {
+                    std::fs::write(&out, &json)?;
+                    println!(
+                        "  {} JSON export saved to {}",
+                        "✓".green().bold(),
+                        out.display()
+                    );
+                }
+                None => println!("{}", json),
+            }
+        }
+        ExportFormat::Webhook => {
+            let url = webhook_url
+                .as_deref()
+                .unwrap_or("http://localhost:9000/webhook");
+            let project = path
+                .file_name()
+                .and_then(|f| f.to_str())
+                .unwrap_or("project");
+            let payload =
+                falcon::dashboard::exports::WebhookPayload::from_snapshot(&snapshot, project);
+            let json = payload.to_json()?;
+            println!("{}", json);
+            println!("  Webhook payload generated for {}", url.bright_blue());
+        }
+    }
+
+    Ok(())
+}
+
+fn run_webhook(path: PathBuf, url: String, event: String) -> Result<()> {
+    let config = FalconConfig::load(&path)?;
+    let falcon_inst = Falcon::new(config)?;
+    let report = falcon_inst.analyze(&path)?;
+    let project = path
+        .file_name()
+        .and_then(|f| f.to_str())
+        .unwrap_or("project");
+
+    match event.as_str() {
+        "analysis" => {
+            falcon::ci::webhook::send_analysis_webhook(&url, project, &report)?;
+            println!("  {} Sent analysis webhook to {}", "✓".green().bold(), url);
+        }
+        "score" => {
+            let score = falcon::ai_score::score::score_from_report(&report)?;
+            falcon::ci::webhook::send_score_webhook(&url, project, &score, None)?;
+            println!(
+                "  {} Sent score webhook ({}/100) to {}",
+                "✓".green().bold(),
+                score.overall,
+                url
+            );
+        }
+        "drift" => {
+            let drift = falcon::ai_score::drift::detect_drift(&path, None)?;
+            falcon::ci::webhook::send_drift_webhook(&url, project, &drift)?;
+            println!(
+                "  {} Sent drift webhook ({:.0}% adherence) to {}",
+                "✓".green().bold(),
+                drift.drift_score,
+                url
+            );
+        }
+        other => {
+            eprintln!("Unknown event '{}'. Use: analysis, score, drift", other);
+            process::exit(1);
+        }
+    }
+
+    Ok(())
+}
+
+fn run_migrate_from_dcm(config_path: PathBuf, output: PathBuf) -> Result<()> {
+    let result = falcon::migration::dcm::migrate_from_dcm(&config_path)?;
+    falcon::migration::dcm::print_migration_result(&result);
+
+    let output_path = output.join("falcon.yaml");
+    std::fs::write(&output_path, &result.falcon_yaml_content)?;
+    println!(
+        "  {} falcon.yaml written to {}",
+        "✓".green().bold(),
+        output_path.display()
+    );
+    Ok(())
+}
+
+fn run_feature_gap() {
+    let report = falcon::migration::dcm::feature_gap_report();
+    println!("{}", report);
+}
+
+fn run_showcase(paths: Vec<PathBuf>, format: DocFormat, output: Option<PathBuf>) -> Result<()> {
+    if paths.is_empty() {
+        eprintln!("Provide at least one project path to analyze.");
+        process::exit(1);
+    }
+
+    let mut analyses = Vec::new();
+    for path in &paths {
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| path.display().to_string());
+        match falcon::showcase::analyze_local_project(path, &name) {
+            Ok(analysis) => analyses.push(analysis),
+            Err(e) => eprintln!(
+                "  {} Failed to analyze {}: {}",
+                "✗".red(),
+                path.display(),
+                e
+            ),
+        }
+    }
+
+    let report = falcon::showcase::generate_showcase_report(analyses);
+    match format {
+        DocFormat::Console => falcon::showcase::print_showcase_report(&report),
+        DocFormat::Markdown => {
+            let md = falcon::showcase::generate_markdown_report(&report);
+            match output {
+                Some(out) => {
+                    std::fs::write(&out, &md)?;
+                    println!(
+                        "  {} Showcase report written to {}",
+                        "✓".green().bold(),
+                        out.display()
+                    );
+                }
+                None => print!("{}", md),
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn run_community(action: CommunityAction) -> Result<()> {
+    match action {
+        CommunityAction::Request {
+            name,
+            desc,
+            category,
+            path,
+        } => {
+            let id = falcon::community::submit_rule_request(&path, &name, &desc, &category)?;
+            println!(
+                "  {} Rule request submitted: {} ({})",
+                "✓".green().bold(),
+                name,
+                id
+            );
+        }
+        CommunityAction::Vote { id, path } => {
+            let votes = falcon::community::vote_rule_request(&path, &id)?;
+            println!(
+                "  {} Voted on {}. Total votes: {}",
+                "✓".green().bold(),
+                id,
+                votes
+            );
+        }
+        CommunityAction::Requests { path } => {
+            let data = falcon::community::load_community(&path)?;
+            falcon::community::print_rule_requests(&data.rule_requests);
+        }
+        CommunityAction::Contributed => {
+            let rules = falcon::community::sample_contributed_rules();
+            falcon::community::print_contributed_rules(&rules);
+        }
+    }
+
+    Ok(())
+}
+
 fn run_cloud(action: CloudAction) -> Result<()> {
     match action {
         CloudAction::Init { team, path } => {
@@ -4104,146 +4378,6 @@ fn run(cli: Cli) -> Result<()> {
                 process::exit(1);
             }
         }
-        Commands::Plugin { action } => match action {
-            PluginAction::Create { name, r#type, dir } => {
-                let plugin_type = match r#type.as_str() {
-                    "wasm" => falcon::plugins::manifest::PluginType::Wasm,
-                    "native" => falcon::plugins::manifest::PluginType::Native,
-                    "preset" => falcon::plugins::manifest::PluginType::Preset,
-                    _ => {
-                        eprintln!(
-                            "Invalid plugin type '{}'. Use: wasm, native, preset",
-                            r#type
-                        );
-                        process::exit(1);
-                    }
-                };
-                falcon::plugins::scaffold::create_plugin(&name, &dir, plugin_type)?;
-            }
-            PluginAction::List => {
-                let plugin_dir = get_plugin_dir();
-                let plugins = falcon::plugins::scaffold::list_plugins(&plugin_dir)?;
-                falcon::plugins::scaffold::print_plugins(&plugins);
-            }
-            PluginAction::Install { path } => {
-                let plugin_dir = get_plugin_dir();
-                std::fs::create_dir_all(&plugin_dir)?;
-                let name = falcon::plugins::scaffold::install_plugin(&path, &plugin_dir)?;
-                println!(
-                    "  {} Installed plugin '{}'",
-                    "✓".green().bold(),
-                    name.bright_cyan()
-                );
-            }
-            PluginAction::Search { query } => {
-                let results = falcon::plugins::registry::search_registry(&query);
-                falcon::plugins::registry::print_search_results(&results, &query);
-            }
-            PluginAction::Test { path } => {
-                let manifest = falcon::plugins::manifest::PluginManifest::load(&path)?;
-                println!(
-                    "  {} Plugin '{}' v{} — manifest valid, {} rule(s) defined",
-                    "✓".green().bold(),
-                    manifest.name.bright_cyan(),
-                    manifest.version,
-                    manifest.rules.len()
-                );
-
-                let rules_path = path.join("rules/rules.yaml");
-                if rules_path.exists() {
-                    let rules = falcon::plugins::wasm_runtime::load_wasm_rules(&rules_path)?;
-                    println!(
-                        "  {} Loaded {} rule definition(s) from rules.yaml",
-                        "✓".green().bold(),
-                        rules.len()
-                    );
-                }
-
-                let test_path = path.join("test/test_cases.yaml");
-                if test_path.exists() {
-                    println!(
-                        "  {} Test cases file found at test/test_cases.yaml",
-                        "✓".green().bold()
-                    );
-                }
-            }
-        },
-        Commands::Export {
-            path,
-            format,
-            output,
-            webhook_url,
-        } => {
-            let config = FalconConfig::load(&path)?;
-            let falcon_inst = Falcon::new(config)?;
-            let report = falcon_inst.analyze(&path)?;
-            let snapshot = falcon::dashboard::snapshot::AnalysisSnapshot::capture(&report, &path);
-
-            match format {
-                ExportFormat::Prometheus => {
-                    let metrics = falcon::dashboard::exports::export_prometheus(&snapshot);
-                    match output {
-                        Some(out) => {
-                            std::fs::write(&out, &metrics)?;
-                            println!(
-                                "  {} Prometheus metrics saved to {}",
-                                "✓".green().bold(),
-                                out.display()
-                            );
-                        }
-                        None => print!("{}", metrics),
-                    }
-                }
-                ExportFormat::Json => {
-                    let json = falcon::dashboard::exports::export_json(&snapshot)?;
-                    match output {
-                        Some(out) => {
-                            std::fs::write(&out, &json)?;
-                            println!(
-                                "  {} JSON export saved to {}",
-                                "✓".green().bold(),
-                                out.display()
-                            );
-                        }
-                        None => println!("{}", json),
-                    }
-                }
-                ExportFormat::Webhook => {
-                    let url = webhook_url
-                        .as_deref()
-                        .unwrap_or("http://localhost:9000/webhook");
-                    let project = path
-                        .file_name()
-                        .and_then(|f| f.to_str())
-                        .unwrap_or("project");
-                    let payload = falcon::dashboard::exports::WebhookPayload::from_snapshot(
-                        &snapshot, project,
-                    );
-                    let json = payload.to_json()?;
-                    println!("{}", json);
-                    println!("  Webhook payload generated for {}", url.bright_blue());
-                }
-            }
-        }
-        Commands::MigrateFromDcm {
-            config_path,
-            output,
-        } => {
-            let result = falcon::migration::dcm::migrate_from_dcm(&config_path)?;
-            falcon::migration::dcm::print_migration_result(&result);
-
-            let output_path = output.join("falcon.yaml");
-            std::fs::write(&output_path, &result.falcon_yaml_content)?;
-            println!(
-                "  {} falcon.yaml written to {}",
-                "✓".green().bold(),
-                output_path.display()
-            );
-        }
-        Commands::FeatureGap => {
-            let report = falcon::migration::dcm::feature_gap_report();
-            println!("{}", report);
-        }
         Commands::Update { version, list } => {
             if list {
                 falcon::self_update::print_version_info();
@@ -4254,53 +4388,6 @@ fn run(cli: Cli) -> Result<()> {
                 if let Err(e) = falcon::self_update::run_update(version.as_deref()) {
                     eprintln!("  ❌ {} {}", "error:".bright_red(), e);
                     process::exit(1);
-                }
-            }
-        }
-        Commands::Showcase {
-            paths,
-            format,
-            output,
-        } => {
-            if paths.is_empty() {
-                eprintln!("Provide at least one project path to analyze.");
-                process::exit(1);
-            }
-
-            let mut analyses = Vec::new();
-            for path in &paths {
-                let name = path
-                    .file_name()
-                    .map(|n| n.to_string_lossy().to_string())
-                    .unwrap_or_else(|| path.display().to_string());
-                match falcon::showcase::analyze_local_project(path, &name) {
-                    Ok(analysis) => analyses.push(analysis),
-                    Err(e) => eprintln!(
-                        "  {} Failed to analyze {}: {}",
-                        "✗".red(),
-                        path.display(),
-                        e
-                    ),
-                }
-            }
-
-            let report = falcon::showcase::generate_showcase_report(analyses);
-
-            match format {
-                DocFormat::Console => falcon::showcase::print_showcase_report(&report),
-                DocFormat::Markdown => {
-                    let md = falcon::showcase::generate_markdown_report(&report);
-                    match output {
-                        Some(out) => {
-                            std::fs::write(&out, &md)?;
-                            println!(
-                                "  {} Showcase report written to {}",
-                                "✓".green().bold(),
-                                out.display()
-                            );
-                        }
-                        None => print!("{}", md),
-                    }
                 }
             }
         }
@@ -4343,46 +4430,6 @@ fn run(cli: Cli) -> Result<()> {
 
             falcon::ci::pr_comment::write_github_step_summary(&report, &path)?;
         }
-        Commands::Webhook { path, url, event } => {
-            let config = FalconConfig::load(&path)?;
-            let falcon_inst = Falcon::new(config)?;
-            let report = falcon_inst.analyze(&path)?;
-            let project = path
-                .file_name()
-                .and_then(|f| f.to_str())
-                .unwrap_or("project");
-
-            match event.as_str() {
-                "analysis" => {
-                    falcon::ci::webhook::send_analysis_webhook(&url, project, &report)?;
-                    println!("  {} Sent analysis webhook to {}", "✓".green().bold(), url);
-                }
-                "score" => {
-                    let score = falcon::ai_score::score::score_from_report(&report)?;
-                    falcon::ci::webhook::send_score_webhook(&url, project, &score, None)?;
-                    println!(
-                        "  {} Sent score webhook ({}/100) to {}",
-                        "✓".green().bold(),
-                        score.overall,
-                        url
-                    );
-                }
-                "drift" => {
-                    let drift = falcon::ai_score::drift::detect_drift(&path, None)?;
-                    falcon::ci::webhook::send_drift_webhook(&url, project, &drift)?;
-                    println!(
-                        "  {} Sent drift webhook ({:.0}% adherence) to {}",
-                        "✓".green().bold(),
-                        drift.drift_score,
-                        url
-                    );
-                }
-                other => {
-                    eprintln!("Unknown event '{}'. Use: analysis, score, drift", other);
-                    process::exit(1);
-                }
-            }
-        }
         Commands::Api { host, port } => {
             falcon::api::server::start_api_server(&host, port)?;
         }
@@ -4403,39 +4450,6 @@ fn run(cli: Cli) -> Result<()> {
                 println!("{}", falcon::ai_score::score::generate_badge(&score));
             }
         }
-        Commands::Community { action } => match action {
-            CommunityAction::Request {
-                name,
-                desc,
-                category,
-                path,
-            } => {
-                let id = falcon::community::submit_rule_request(&path, &name, &desc, &category)?;
-                println!(
-                    "  {} Rule request submitted: {} ({})",
-                    "✓".green().bold(),
-                    name,
-                    id
-                );
-            }
-            CommunityAction::Vote { id, path } => {
-                let votes = falcon::community::vote_rule_request(&path, &id)?;
-                println!(
-                    "  {} Voted on {}. Total votes: {}",
-                    "✓".green().bold(),
-                    id,
-                    votes
-                );
-            }
-            CommunityAction::Requests { path } => {
-                let data = falcon::community::load_community(&path)?;
-                falcon::community::print_rule_requests(&data.rule_requests);
-            }
-            CommunityAction::Contributed => {
-                let rules = falcon::community::sample_contributed_rules();
-                falcon::community::print_contributed_rules(&rules);
-            }
-        },
         Commands::X { action } => {
             // Legacy warnings are emitted before clap parsing so
             // `falcon x ...` stays quiet.
@@ -4791,6 +4805,46 @@ fn run(cli: Cli) -> Result<()> {
                 }
                 XAction::Manage { action } => {
                     run_manage(action)?;
+                    return Ok(());
+                }
+                XAction::Plugin { action } => {
+                    run_plugin(action)?;
+                    return Ok(());
+                }
+                XAction::Export {
+                    path,
+                    format,
+                    output,
+                    webhook_url,
+                } => {
+                    run_export(path, format, output, webhook_url)?;
+                    return Ok(());
+                }
+                XAction::Webhook { path, url, event } => {
+                    run_webhook(path, url, event)?;
+                    return Ok(());
+                }
+                XAction::MigrateFromDcm {
+                    config_path,
+                    output,
+                } => {
+                    run_migrate_from_dcm(config_path, output)?;
+                    return Ok(());
+                }
+                XAction::FeatureGap => {
+                    run_feature_gap();
+                    return Ok(());
+                }
+                XAction::Showcase {
+                    paths,
+                    format,
+                    output,
+                } => {
+                    run_showcase(paths, format, output)?;
+                    return Ok(());
+                }
+                XAction::Community { action } => {
+                    run_community(action)?;
                     return Ok(());
                 }
                 XAction::Cloud { action } => {

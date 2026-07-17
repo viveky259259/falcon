@@ -341,6 +341,29 @@ fn legacy_sdk_passthrough_commands_warn_and_forward() {
 }
 
 #[test]
+fn legacy_ecosystem_ops_commands_warn_and_show_help() {
+    let cases = [
+        ("plugin", "x plugin"),
+        ("export", "x export"),
+        ("webhook", "x webhook"),
+        ("migrate-from-dcm", "x migrate-from-dcm"),
+        ("feature-gap", "x feature-gap"),
+        ("showcase", "x showcase"),
+        ("community", "x community"),
+    ];
+
+    for (old, new) in cases {
+        let output = falcon_cmd()
+            .args([old, "--help"])
+            .output()
+            .expect("run falcon legacy ecosystem ops command help");
+
+        assert_success(&output);
+        assert_deprecation_warning(&output, old, new);
+    }
+}
+
+#[test]
 fn legacy_docs_command_warns_and_still_runs() {
     let temp = tempfile::tempdir().unwrap();
     let output_dir = temp.path().join("docs");
@@ -811,6 +834,29 @@ fn x_sdk_passthrough_commands_do_not_warn_and_forward() {
         assert_success(&output);
         assert_no_deprecation_warning(&output);
         assert_forwarded_args(&log, forwarded_args);
+    }
+}
+
+#[test]
+fn x_ecosystem_ops_commands_do_not_warn_on_help() {
+    let cases = [
+        "plugin",
+        "export",
+        "webhook",
+        "migrate-from-dcm",
+        "feature-gap",
+        "showcase",
+        "community",
+    ];
+
+    for command in cases {
+        let output = falcon_cmd()
+            .args(["x", command, "--help"])
+            .output()
+            .expect("run falcon x ecosystem ops command help");
+
+        assert_success(&output);
+        assert_no_deprecation_warning(&output);
     }
 }
 

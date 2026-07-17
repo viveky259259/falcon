@@ -73,6 +73,13 @@ pub fn aliased_target(command: &str) -> Option<&'static str> {
         "live" => Some("x live"),
         "devtools" => Some("x devtools"),
         "manage" => Some("x manage"),
+        "plugin" => Some("x plugin"),
+        "export" => Some("x export"),
+        "webhook" => Some("x webhook"),
+        "migrate-from-dcm" => Some("x migrate-from-dcm"),
+        "feature-gap" => Some("x feature-gap"),
+        "showcase" => Some("x showcase"),
+        "community" => Some("x community"),
         "cloud" => Some("x cloud"),
         "enterprise" => Some("x enterprise"),
         "marketplace" => Some("x marketplace"),
@@ -204,6 +211,7 @@ mod tests {
             Some("x compare-branches")
         );
         assert_eq!(aliased_target("compare-reports"), Some("x compare-reports"));
+        assert_eq!(aliased_target("community"), Some("x community"));
         assert_eq!(aliased_target("conventions"), Some("x conventions"));
         assert_eq!(
             aliased_target("cognitive-complexity"),
@@ -220,6 +228,8 @@ mod tests {
         assert_eq!(aliased_target("drift"), Some("x drift"));
         assert_eq!(aliased_target("enterprise"), Some("x enterprise"));
         assert_eq!(aliased_target("explain"), Some("x explain"));
+        assert_eq!(aliased_target("export"), Some("x export"));
+        assert_eq!(aliased_target("feature-gap"), Some("x feature-gap"));
         assert_eq!(aliased_target("fix-track"), Some("x fix-track"));
         assert_eq!(aliased_target("flutter"), Some("x flutter"));
         assert_eq!(aliased_target("fvm"), Some("x fvm"));
@@ -229,8 +239,13 @@ mod tests {
         assert_eq!(aliased_target("manage"), Some("x manage"));
         assert_eq!(aliased_target("marketplace"), Some("x marketplace"));
         assert_eq!(aliased_target("metrics"), Some("x metrics"));
+        assert_eq!(
+            aliased_target("migrate-from-dcm"),
+            Some("x migrate-from-dcm")
+        );
         assert_eq!(aliased_target("partners"), Some("x partners"));
         assert_eq!(aliased_target("perf-track"), Some("x perf-track"));
+        assert_eq!(aliased_target("plugin"), Some("x plugin"));
         assert_eq!(aliased_target("predict"), Some("x predict"));
         assert_eq!(aliased_target("preset"), Some("x preset"));
         assert_eq!(aliased_target("provenance"), Some("x provenance"));
@@ -240,6 +255,7 @@ mod tests {
         assert_eq!(aliased_target("runtime-check"), Some("x runtime-check"));
         assert_eq!(aliased_target("score-track"), Some("x score-track"));
         assert_eq!(aliased_target("self-tune"), Some("x self-tune"));
+        assert_eq!(aliased_target("showcase"), Some("x showcase"));
         assert_eq!(
             aliased_target("stability-contract"),
             Some("x stability-contract")
@@ -251,6 +267,7 @@ mod tests {
         assert_eq!(aliased_target("upgrade-check"), Some("x upgrade-check"));
         assert_eq!(aliased_target("validate"), Some("x validate"));
         assert_eq!(aliased_target("watch"), Some("x watch"));
+        assert_eq!(aliased_target("webhook"), Some("x webhook"));
     }
 
     #[test]
