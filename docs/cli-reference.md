@@ -10,7 +10,7 @@ mapping. The full historical help remains available for one release with
 | Command | Description |
 |---|---|
 | `falcon check [path]` | Full analysis (metrics + rules + unused detection) |
-| `falcon metrics [path]` | Calculate code metrics only |
+| `falcon x metrics [path]` | Calculate code metrics only |
 | `falcon score [path]` | AI Code Quality Score (0-100) with 6-dimension breakdown |
 | `falcon ai-report [path]` | Full "State of AI-Generated Flutter Code" report |
 

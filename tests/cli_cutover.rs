@@ -44,7 +44,7 @@ fn legacy_help_lists_historical_commands() {
 
     assert_success(&output);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    for command in ["analyze", "metrics"] {
+    for command in ["analyze"] {
         assert!(
             stdout.contains(command),
             "missing legacy command {command} in legacy help:\n{stdout}"
@@ -74,6 +74,21 @@ fn x_help_lists_flutter_quality_commands() {
             "missing x command {command} in help:\n{stdout}"
         );
     }
+}
+
+#[test]
+fn x_help_lists_metrics_command() {
+    let output = falcon_cmd()
+        .args(["x", "--help"])
+        .output()
+        .expect("run falcon x --help");
+
+    assert_success(&output);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("metrics"),
+        "missing x metrics command in help:\n{stdout}"
+    );
 }
 
 #[test]

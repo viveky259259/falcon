@@ -36,6 +36,19 @@ fn legacy_pr_comment_command_warns_and_still_runs() {
 }
 
 #[test]
+fn legacy_metrics_command_warns_and_still_runs() {
+    let temp = tempfile::tempdir().unwrap();
+    write_dart_project(temp.path());
+    let output = falcon_cmd()
+        .args(["metrics", temp.path().to_str().unwrap()])
+        .output()
+        .expect("run falcon metrics");
+
+    assert_success(&output);
+    assert_deprecation_warning(&output, "metrics", "x metrics");
+}
+
+#[test]
 fn legacy_docs_command_warns_and_still_runs() {
     let temp = tempfile::tempdir().unwrap();
     let output_dir = temp.path().join("docs");
@@ -232,6 +245,19 @@ fn x_analysis_tools_do_not_warn() {
         assert_success(&output);
         assert_no_deprecation_warning(&output);
     }
+}
+
+#[test]
+fn x_metrics_command_does_not_warn() {
+    let temp = tempfile::tempdir().unwrap();
+    write_dart_project(temp.path());
+    let output = falcon_cmd()
+        .args(["x", "metrics", temp.path().to_str().unwrap()])
+        .output()
+        .expect("run falcon x metrics");
+
+    assert_success(&output);
+    assert_no_deprecation_warning(&output);
 }
 
 #[test]

@@ -53,7 +53,7 @@ Run `falcon <command> --help` for command-specific options.
 const GROUPED_HELP: &str = r#"
 SEMANTIC COMMAND GROUPS:
 
-  Analysis          analyze, metrics, score, cognitive-complexity, codebase-intel
+  Analysis          analyze, x metrics, score, cognitive-complexity, codebase-intel
   Code Checks       check-unused-code, check-unused-files, check-cycles, check-async,
                     check-widgets, check-dead-code, check-layers, check-imports,
                     check-platform, check-codegen, check-perf, check-unused-params,
@@ -187,26 +187,6 @@ enum Commands {
         /// Maximum issues to print per category in console output
         #[arg(long, default_value_t = 20)]
         limit: usize,
-    },
-
-    /// Calculate code metrics only
-    #[command(display_order = 1)]
-    Metrics {
-        /// Path to analyze
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Output format
-        #[arg(short, long, default_value = "console")]
-        format: OutputFormat,
-
-        /// Output file path (for file-based formats)
-        #[arg(short, long, default_value = "falcon-report.html")]
-        output: PathBuf,
-
-        /// Path to falcon.yaml config
-        #[arg(short, long)]
-        config: Option<PathBuf>,
     },
 
     /// Check for unused code declarations
@@ -1194,12 +1174,30 @@ enum Commands {
 
 /// Subcommands exposed under the `falcon x` namespace.
 ///
-/// These all re-dispatch to existing top-level commands without changing
-/// behavior or argument shapes. Landing this enum now lets the Sept 1
-/// cutover to the 4-verb story (`review`, `check`, `fix`, `score`) flip
-/// only the default help surface — no command bodies move.
+/// Extended commands live here while the top-level CLI converges on the
+/// 4-verb story (`review`, `check`, `fix`, `score`).
 #[derive(Subcommand)]
 enum XAction {
+    /// Calculate code metrics only
+    #[command(name = "metrics")]
+    Metrics {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output format
+        #[arg(short, long, default_value = "console")]
+        format: OutputFormat,
+
+        /// Output file path (for file-based formats)
+        #[arg(short, long, default_value = "falcon-report.html")]
+        output: PathBuf,
+
+        /// Path to falcon.yaml config
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+    },
+
     /// Audit Flutter project assets — find unused, oversized, and WebP-convertible files
     #[command(name = "asset-audit")]
     AssetAudit {
@@ -2077,6 +2075,21 @@ fn run_dep_graph(path: PathBuf, file: Option<PathBuf>) -> Result<()> {
     Ok(())
 }
 
+fn run_metrics(
+    path: PathBuf,
+    format: OutputFormat,
+    output: PathBuf,
+    config: Option<PathBuf>,
+) -> Result<()> {
+    let config_path = config.as_deref().unwrap_or(&path);
+    let falcon_config = FalconConfig::load(config_path)?;
+    let falcon = Falcon::new(falcon_config)?;
+    let metrics = falcon.calculate_metrics(&path)?;
+
+    get_reporter(&format, &output).report_metrics(&metrics);
+    Ok(())
+}
+
 fn run_refactor_sim(
     path: PathBuf,
     scenario: falcon::analysis::refactor_sim::RefactorScenario,
@@ -2378,19 +2391,6 @@ fn run(cli: Cli) -> Result<()> {
             if !summary.security_smells.is_empty() {
                 process::exit(1);
             }
-        }
-        Commands::Metrics {
-            path,
-            format,
-            output,
-            config,
-        } => {
-            let config_path = config.as_deref().unwrap_or(&path);
-            let falcon_config = FalconConfig::load(config_path)?;
-            let falcon = Falcon::new(falcon_config)?;
-            let metrics = falcon.calculate_metrics(&path)?;
-
-            get_reporter(&format, &output).report_metrics(&metrics);
         }
         Commands::CheckUnusedCode {
             path,
@@ -4408,6 +4408,15 @@ fn run(cli: Cli) -> Result<()> {
             // Legacy warnings are emitted before clap parsing so
             // `falcon x ...` stays quiet.
             match action {
+                XAction::Metrics {
+                    path,
+                    format,
+                    output,
+                    config,
+                } => {
+                    run_metrics(path, format, output, config)?;
+                    return Ok(());
+                }
                 XAction::AssetAudit {
                     path,
                     output,
