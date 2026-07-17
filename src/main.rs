@@ -860,7 +860,7 @@ enum Commands {
     },
 
     /// Calculate AI Code Quality Score (0-100) with 6-dimension breakdown
-    #[command(name = "score", alias = "ai-score", display_order = 1)]
+    #[command(name = "score", display_order = 1)]
     AiScore {
         /// Path to project
         #[arg(default_value = ".")]
