@@ -184,6 +184,43 @@ fn legacy_comparison_history_commands_warn_and_show_help() {
 }
 
 #[test]
+fn legacy_dashboard_analytics_commands_warn_and_show_help() {
+    let cases = [
+        (
+            vec!["dashboard", "snapshot", "--help"],
+            "dashboard",
+            "x dashboard",
+        ),
+        (
+            vec!["dashboard", "history", "--help"],
+            "dashboard",
+            "x dashboard",
+        ),
+        (
+            vec!["dashboard", "serve", "--help"],
+            "dashboard",
+            "x dashboard",
+        ),
+        (vec!["trends", "--help"], "trends", "x trends"),
+        (
+            vec!["rule-impact", "--help"],
+            "rule-impact",
+            "x rule-impact",
+        ),
+    ];
+
+    for (args, old, new) in cases {
+        let output = falcon_cmd()
+            .args(args)
+            .output()
+            .expect("run falcon legacy dashboard analytics help");
+
+        assert_success(&output);
+        assert_deprecation_warning(&output, old, new);
+    }
+}
+
+#[test]
 fn legacy_docs_command_warns_and_still_runs() {
     let temp = tempfile::tempdir().unwrap();
     let output_dir = temp.path().join("docs");
@@ -519,6 +556,27 @@ fn x_comparison_history_commands_do_not_warn_on_help() {
             .args(["x", command, "--help"])
             .output()
             .expect("run falcon x comparison command help");
+
+        assert_success(&output);
+        assert_no_deprecation_warning(&output);
+    }
+}
+
+#[test]
+fn x_dashboard_analytics_commands_do_not_warn_on_help() {
+    let cases = [
+        vec!["x", "dashboard", "snapshot", "--help"],
+        vec!["x", "dashboard", "history", "--help"],
+        vec!["x", "dashboard", "serve", "--help"],
+        vec!["x", "trends", "--help"],
+        vec!["x", "rule-impact", "--help"],
+    ];
+
+    for args in cases {
+        let output = falcon_cmd()
+            .args(args)
+            .output()
+            .expect("run falcon x dashboard analytics help");
 
         assert_success(&output);
         assert_no_deprecation_warning(&output);

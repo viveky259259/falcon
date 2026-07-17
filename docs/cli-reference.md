@@ -299,11 +299,11 @@ The bundled GitHub Action can do the same upload for full-project analysis:
 
 | Command | Description |
 |---|---|
-| `falcon dashboard snapshot` | Capture and save analysis snapshot |
-| `falcon dashboard history` | View snapshot history |
-| `falcon dashboard serve` | Start web dashboard server |
-| `falcon trends [--last N]` | Show quality trends from history |
-| `falcon rule-impact` | Analyze rule impact and auto-tune |
+| `falcon x dashboard snapshot` | Capture and save analysis snapshot |
+| `falcon x dashboard history` | View snapshot history |
+| `falcon x dashboard serve` | Start web dashboard server |
+| `falcon x trends [--last N]` | Show quality trends from history |
+| `falcon x rule-impact` | Analyze rule impact and auto-tune |
 
 ## Platform
 

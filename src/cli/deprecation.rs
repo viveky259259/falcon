@@ -47,6 +47,9 @@ pub fn aliased_target(command: &str) -> Option<&'static str> {
         "compare-reports" => Some("x compare-reports"),
         "compare-branches" => Some("x compare-branches"),
         "history" => Some("x history"),
+        "dashboard" => Some("x dashboard"),
+        "trends" => Some("x trends"),
+        "rule-impact" => Some("x rule-impact"),
         "smells" => Some("x smells"),
         "metrics" => Some("x metrics"),
         "asset-audit" => Some("x asset-audit"),
@@ -173,6 +176,7 @@ mod tests {
             aliased_target("cognitive-complexity"),
             Some("x cognitive-complexity")
         );
+        assert_eq!(aliased_target("dashboard"), Some("x dashboard"));
         assert_eq!(aliased_target("discover-rules"), Some("x discover-rules"));
         assert_eq!(aliased_target("docs"), Some("x docs"));
         assert_eq!(aliased_target("drift"), Some("x drift"));
@@ -180,8 +184,10 @@ mod tests {
         assert_eq!(aliased_target("metrics"), Some("x metrics"));
         assert_eq!(aliased_target("predict"), Some("x predict"));
         assert_eq!(aliased_target("provenance"), Some("x provenance"));
+        assert_eq!(aliased_target("rule-impact"), Some("x rule-impact"));
         assert_eq!(aliased_target("smells"), Some("x smells"));
         assert_eq!(aliased_target("test-gen"), Some("x test-gen"));
+        assert_eq!(aliased_target("trends"), Some("x trends"));
         assert_eq!(aliased_target("upgrade-check"), Some("x upgrade-check"));
     }
 

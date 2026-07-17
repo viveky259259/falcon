@@ -47,6 +47,9 @@ fn default_help_lists_only_cutover_verbs() {
         "compare-reports",
         "compare-branches",
         "history",
+        "dashboard",
+        "trends",
+        "rule-impact",
         "smells",
         "metrics",
         "asset-audit",
@@ -236,6 +239,23 @@ fn x_help_lists_comparison_history_commands() {
     assert_success(&output);
     let stdout = String::from_utf8_lossy(&output.stdout);
     for command in ["compare", "compare-reports", "compare-branches", "history"] {
+        assert!(
+            stdout.contains(command),
+            "missing x {command} command in help:\n{stdout}"
+        );
+    }
+}
+
+#[test]
+fn x_help_lists_dashboard_analytics_commands() {
+    let output = falcon_cmd()
+        .args(["x", "--help"])
+        .output()
+        .expect("run falcon x --help");
+
+    assert_success(&output);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for command in ["dashboard", "trends", "rule-impact"] {
         assert!(
             stdout.contains(command),
             "missing x {command} command in help:\n{stdout}"

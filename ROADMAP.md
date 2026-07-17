@@ -499,9 +499,9 @@ All 6 presets apply cleanly to falcon.yaml. Registry search returns relevant res
 |---|---|
 | Analysis snapshot capture (per-commit, with git info) | ✅ |
 | Snapshot history storage (.falcon-data/history.json) | ✅ |
-| `falcon dashboard snapshot` — capture current state | ✅ |
-| `falcon dashboard history` — view past snapshots | ✅ |
-| `falcon dashboard serve` — local web dashboard (Chart.js) | ✅ |
+| `falcon x dashboard snapshot` — capture current state | ✅ |
+| `falcon x dashboard history` — view past snapshots | ✅ |
+| `falcon x dashboard serve` — local web dashboard (Chart.js) | ✅ |
 | Health score over time chart | ✅ |
 | Issues over time chart | ✅ |
 | Avg complexity over time chart | ✅ |
@@ -513,8 +513,8 @@ All 6 presets apply cleanly to falcon.yaml. Registry search returns relevant res
 
 | Deliverable | Status |
 |---|---|
-| `falcon trends` — quality trend analysis (improving/stable/declining) | ✅ |
-| `falcon rule-impact` — rule impact measurement per rule | ✅ |
+| `falcon x trends` — quality trend analysis (improving/stable/declining) | ✅ |
+| `falcon x rule-impact` — rule impact measurement per rule | ✅ |
 | Signal-to-noise scoring (0-100%) per rule | ✅ |
 | Auto-tune recommendations (DISABLE, REDUCE, INCREASE severity) | ✅ |
 | Top improving/worsening rules detection | ✅ |

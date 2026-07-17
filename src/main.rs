@@ -64,7 +64,8 @@ SEMANTIC COMMAND GROUPS:
                     x drift, x predict, x discover-rules, x ai-profile,
                     x refactor-sim, x test-gen, x vuln-scan
   CI/CD             pr-comment, webhook, export, fix
-  Tracking          trends, benchmark, score-track, perf-track, fix-track
+  Tracking          x dashboard, x trends, x rule-impact, benchmark, score-track,
+                    perf-track, fix-track
   Configuration     init, validate, explain, preset, suppress, baseline, self-tune
   App Management    manage, review, watch, runtime-check, live, devtools, workspace
   Flutter Quality   asset-audit, theme-audit, l10n-coverage, deeplink-validate,
@@ -423,33 +424,6 @@ enum Commands {
     Preset {
         #[command(subcommand)]
         action: PresetAction,
-    },
-
-    /// Dashboard and analytics
-    #[command(display_order = 6)]
-    Dashboard {
-        #[command(subcommand)]
-        action: DashboardAction,
-    },
-
-    /// Show quality trends from analysis history
-    #[command(display_order = 6)]
-    Trends {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
-
-        /// Number of recent snapshots to compare
-        #[arg(long, default_value = "10")]
-        last: usize,
-    },
-
-    /// Analyze rule impact and get auto-tune recommendations
-    #[command(name = "rule-impact", display_order = 7)]
-    RuleImpact {
-        /// Path to project
-        #[arg(default_value = ".")]
-        path: PathBuf,
     },
 
     /// Export metrics (prometheus, json, webhook)
@@ -1151,6 +1125,33 @@ enum XAction {
     /// Show analysis run history
     #[command(name = "history")]
     History {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Dashboard and analytics
+    #[command(name = "dashboard")]
+    Dashboard {
+        #[command(subcommand)]
+        action: DashboardAction,
+    },
+
+    /// Show quality trends from analysis history
+    #[command(name = "trends")]
+    Trends {
+        /// Path to project
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Number of recent snapshots to compare
+        #[arg(long, default_value = "10")]
+        last: usize,
+    },
+
+    /// Analyze rule impact and get auto-tune recommendations
+    #[command(name = "rule-impact")]
+    RuleImpact {
         /// Path to project
         #[arg(default_value = ".")]
         path: PathBuf,
@@ -2683,6 +2684,84 @@ fn run_history(path: PathBuf) -> Result<()> {
     Ok(())
 }
 
+fn run_dashboard(action: DashboardAction) -> Result<()> {
+    match action {
+        DashboardAction::Snapshot { path } => {
+            let config = FalconConfig::load(&path)?;
+            let falcon = Falcon::new(config)?;
+            let report = falcon.analyze(&path)?;
+            let snapshot = falcon::dashboard::snapshot::AnalysisSnapshot::capture(&report, &path);
+            let saved = falcon::dashboard::snapshot::save_snapshot(&path, &snapshot)?;
+            println!(
+                "  {} Snapshot saved — health {:.0}/100, {} issues, {} files",
+                "✓".green().bold(),
+                snapshot.health_score,
+                snapshot.issues.total,
+                snapshot.file_count,
+            );
+            println!("    → {}", saved.display());
+        }
+        DashboardAction::Serve { path, port } => {
+            falcon::dashboard::server::start_dashboard(&path, port)?;
+        }
+        DashboardAction::History { path, last } => {
+            let history = falcon::dashboard::snapshot::load_history(&path)?;
+            if history.is_empty() {
+                println!("  No snapshots yet. Run: falcon x dashboard snapshot");
+            } else {
+                println!();
+                println!(
+                    "  {} Analysis History ({} total, showing last {})",
+                    "falcon".bright_cyan().bold(),
+                    history.len(),
+                    last,
+                );
+                println!();
+                for snap in history.iter().rev().take(last) {
+                    let commit = snap.commit_hash.as_deref().unwrap_or("—");
+                    println!(
+                        "  {} │ {} │ health {:.0} │ {} issues │ {} files",
+                        snap.timestamp,
+                        commit.bright_blue(),
+                        snap.health_score,
+                        snap.issues.total,
+                        snap.file_count,
+                    );
+                }
+                println!();
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn run_trends(path: PathBuf, last: usize) -> Result<()> {
+    let history = falcon::dashboard::snapshot::load_history(&path)?;
+    match falcon::dashboard::trends::analyze_trends(&history, last) {
+        Some(report) => falcon::dashboard::trends::print_trend_report(&report),
+        None => {
+            println!("  Need at least 2 snapshots for trends. Run: falcon x dashboard snapshot");
+        }
+    }
+
+    Ok(())
+}
+
+fn run_rule_impact(path: PathBuf) -> Result<()> {
+    let history = falcon::dashboard::snapshot::load_history(&path)?;
+    if history.is_empty() {
+        println!("  No snapshots yet. Run: falcon x dashboard snapshot");
+    } else {
+        let impacts = falcon::dashboard::rule_impact::measure_rule_impact(&history);
+        falcon::dashboard::rule_impact::print_rule_impact(&impacts);
+        let recs = falcon::dashboard::rule_impact::auto_tune_recommendations(&impacts);
+        falcon::dashboard::rule_impact::print_recommendations(&recs);
+    }
+
+    Ok(())
+}
+
 fn run_refactor_sim(
     path: PathBuf,
     scenario: falcon::analysis::refactor_sim::RefactorScenario,
@@ -3639,76 +3718,6 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         },
-        Commands::Dashboard { action } => match action {
-            DashboardAction::Snapshot { path } => {
-                let config = FalconConfig::load(&path)?;
-                let falcon = Falcon::new(config)?;
-                let report = falcon.analyze(&path)?;
-                let snapshot =
-                    falcon::dashboard::snapshot::AnalysisSnapshot::capture(&report, &path);
-                let saved = falcon::dashboard::snapshot::save_snapshot(&path, &snapshot)?;
-                println!(
-                    "  {} Snapshot saved — health {:.0}/100, {} issues, {} files",
-                    "✓".green().bold(),
-                    snapshot.health_score,
-                    snapshot.issues.total,
-                    snapshot.file_count,
-                );
-                println!("    → {}", saved.display());
-            }
-            DashboardAction::Serve { path, port } => {
-                falcon::dashboard::server::start_dashboard(&path, port)?;
-            }
-            DashboardAction::History { path, last } => {
-                let history = falcon::dashboard::snapshot::load_history(&path)?;
-                if history.is_empty() {
-                    println!("  No snapshots yet. Run: falcon dashboard snapshot");
-                } else {
-                    println!();
-                    println!(
-                        "  {} Analysis History ({} total, showing last {})",
-                        "falcon".bright_cyan().bold(),
-                        history.len(),
-                        last,
-                    );
-                    println!();
-                    for snap in history.iter().rev().take(last) {
-                        let commit = snap.commit_hash.as_deref().unwrap_or("—");
-                        println!(
-                            "  {} │ {} │ health {:.0} │ {} issues │ {} files",
-                            snap.timestamp,
-                            commit.bright_blue(),
-                            snap.health_score,
-                            snap.issues.total,
-                            snap.file_count,
-                        );
-                    }
-                    println!();
-                }
-            }
-        },
-        Commands::Trends { path, last } => {
-            let history = falcon::dashboard::snapshot::load_history(&path)?;
-            match falcon::dashboard::trends::analyze_trends(&history, last) {
-                Some(report) => falcon::dashboard::trends::print_trend_report(&report),
-                None => {
-                    println!(
-                        "  Need at least 2 snapshots for trends. Run: falcon dashboard snapshot"
-                    );
-                }
-            }
-        }
-        Commands::RuleImpact { path } => {
-            let history = falcon::dashboard::snapshot::load_history(&path)?;
-            if history.is_empty() {
-                println!("  No snapshots yet. Run: falcon dashboard snapshot");
-            } else {
-                let impacts = falcon::dashboard::rule_impact::measure_rule_impact(&history);
-                falcon::dashboard::rule_impact::print_rule_impact(&impacts);
-                let recs = falcon::dashboard::rule_impact::auto_tune_recommendations(&impacts);
-                falcon::dashboard::rule_impact::print_recommendations(&recs);
-            }
-        }
         Commands::Export {
             path,
             format,
@@ -4569,6 +4578,18 @@ fn run(cli: Cli) -> Result<()> {
                 }
                 XAction::History { path } => {
                     run_history(path)?;
+                    return Ok(());
+                }
+                XAction::Dashboard { action } => {
+                    run_dashboard(action)?;
+                    return Ok(());
+                }
+                XAction::Trends { path, last } => {
+                    run_trends(path, last)?;
+                    return Ok(());
+                }
+                XAction::RuleImpact { path } => {
+                    run_rule_impact(path)?;
                     return Ok(());
                 }
                 XAction::Smells {
