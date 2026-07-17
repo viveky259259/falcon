@@ -78,7 +78,7 @@ All notable changes to Falcon are documented in this file.
 - **Report History**: Auto-saves analysis snapshots after every `falcon analyze` run to `.falcon-data/history.json`
 - **History Viewer** (`falcon x history`): Lists all stored analysis runs with timestamp, branch, health score, and issue counts
 - **Report Comparison** (`falcon x compare-reports`): Compares any two stored runs with `--run1 N --run2 M` flags, supports HTML output
-- **Self-Update** (`falcon update`): Updates Falcon from GitHub releases, supports `--version X.Y.Z` for specific versions and `--list` for available versions
+- **Self-Update** (`falcon x update`): Updates Falcon from GitHub releases, supports `--version X.Y.Z` for specific versions and `--list` for available versions
 - **Rich Console Icons**: Icons throughout CLI output for branches, files, health, issues, errors, metrics, and more
 
 ### Fixed

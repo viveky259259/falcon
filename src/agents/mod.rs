@@ -14,7 +14,7 @@ pub mod render;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
-/// Top-level result of `falcon agents init`.
+/// Top-level result of `falcon x agents init`.
 #[derive(Debug, Default)]
 pub struct InitReport {
     pub root_written: Option<PathBuf>,

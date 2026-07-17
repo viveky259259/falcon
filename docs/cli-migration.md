@@ -76,6 +76,10 @@ Falcon is moving to a compact top-level CLI before 1.0:
 | `falcon community contributed` | `falcon x community contributed` |
 | `falcon mcp` | `falcon x mcp` |
 | `falcon api --port 8090` | `falcon x api --port 8090` |
+| `falcon init .` | `falcon x init .` |
+| `falcon agents init .` | `falcon x agents init .` |
+| `falcon ai status .` | `falcon x ai status .` |
+| `falcon update --list` | `falcon x update --list` |
 | `falcon cloud dashboard` | `falcon x cloud dashboard` |
 | `falcon enterprise check .` | `falcon x enterprise check .` |
 | `falcon marketplace` | `falcon x marketplace` |

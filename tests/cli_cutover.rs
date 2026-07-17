@@ -82,6 +82,10 @@ fn default_help_lists_only_cutover_verbs() {
         "community",
         "mcp",
         "api",
+        "init",
+        "agents",
+        "ai",
+        "update",
         "cloud",
         "enterprise",
         "marketplace",
@@ -403,6 +407,23 @@ fn x_help_lists_integration_server_commands() {
     assert_success(&output);
     let stdout = String::from_utf8_lossy(&output.stdout);
     for command in ["mcp", "api"] {
+        assert!(
+            stdout.contains(command),
+            "missing x {command} command in help:\n{stdout}"
+        );
+    }
+}
+
+#[test]
+fn x_help_lists_setup_ai_commands() {
+    let output = falcon_cmd()
+        .args(["x", "--help"])
+        .output()
+        .expect("run falcon x --help");
+
+    assert_success(&output);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for command in ["init", "agents", "ai", "update"] {
         assert!(
             stdout.contains(command),
             "missing x {command} command in help:\n{stdout}"

@@ -44,8 +44,8 @@ falcon --help
 ### Updating
 
 ```bash
-falcon update              # Update to latest release
-falcon update --version X  # Install specific version
+falcon x update              # Update to latest release
+falcon x update --version X  # Install specific version
 ```
 
 ## Quick Start
@@ -85,7 +85,7 @@ Get a 0-100 AI Code Quality Score with a 6-dimension breakdown.
 ### 4. Initialize config
 
 ```bash
-falcon init
+falcon x init
 ```
 
 Creates a `falcon.yaml` config file with default settings.

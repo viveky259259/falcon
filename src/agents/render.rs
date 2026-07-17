@@ -66,7 +66,7 @@ entry in `src/smells/mod.rs::classify` if the rule should be bucketed.
 ```
 falcon analyze .
 falcon x smells .
-falcon agents init           # regenerate this file
+falcon x agents init           # regenerate this file
 ```
 "#,
     )
@@ -132,10 +132,10 @@ A non-zero `security smells` count blocks merge. Code smells are advisory.
 
 ## Useful falcon commands
 ```
-falcon agents init .            # (re)generate this file and per-feature files
-falcon flutter <args>           # passthrough to flutter
-falcon fvm <args>               # passthrough to fvm
-falcon devtools memory --attach <ws://…>   # runtime memory snapshot
+falcon x agents init .            # (re)generate this file and per-feature files
+falcon x flutter <args>           # passthrough to flutter
+falcon x fvm <args>               # passthrough to fvm
+falcon x devtools memory --attach <ws://…>   # runtime memory snapshot
 ```
 "#,
         name = project_name

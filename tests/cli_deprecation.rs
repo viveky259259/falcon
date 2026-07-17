@@ -379,6 +379,66 @@ fn legacy_integration_server_commands_warn_and_show_help() {
 }
 
 #[test]
+fn legacy_setup_ai_commands_warn_and_show_help() {
+    let cases = [
+        ("init", "x init"),
+        ("agents", "x agents"),
+        ("ai", "x ai"),
+        ("update", "x update"),
+    ];
+
+    for (old, new) in cases {
+        let output = falcon_cmd()
+            .args([old, "--help"])
+            .output()
+            .expect("run falcon legacy setup ai command help");
+
+        assert_success(&output);
+        assert_deprecation_warning(&output, old, new);
+    }
+}
+
+#[test]
+fn legacy_setup_ai_commands_warn_and_still_run() {
+    let init_dir = tempfile::tempdir().unwrap();
+    let output = falcon_cmd()
+        .args(["init", init_dir.path().to_str().unwrap()])
+        .output()
+        .expect("run falcon legacy init");
+    assert_success(&output);
+    assert_deprecation_warning(&output, "init", "x init");
+    assert!(init_dir.path().join("falcon.yaml").is_file());
+
+    let agents_dir = tempfile::tempdir().unwrap();
+    let output = falcon_cmd()
+        .args(["agents", "init", agents_dir.path().to_str().unwrap()])
+        .output()
+        .expect("run falcon legacy agents init");
+    assert_success(&output);
+    assert_deprecation_warning(&output, "agents", "x agents");
+    assert!(agents_dir.path().join("AGENTS.md").is_file());
+
+    let ai_dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        ai_dir.path().join("falcon.yaml"),
+        "rules: []\nai:\n  enabled: true\n  provider: embedded\n",
+    )
+    .unwrap();
+    let output = falcon_cmd()
+        .args(["ai", "status", ai_dir.path().to_str().unwrap()])
+        .output()
+        .expect("run falcon legacy ai status");
+    assert_success(&output);
+    assert_deprecation_warning(&output, "ai", "x ai");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("AI Configuration Status"),
+        "stdout:\n{}",
+        stdout
+    );
+}
+
+#[test]
 fn legacy_docs_command_warns_and_still_runs() {
     let temp = tempfile::tempdir().unwrap();
     let output_dir = temp.path().join("docs");
@@ -884,6 +944,21 @@ fn x_integration_server_commands_do_not_warn_on_help() {
             .args(["x", command, "--help"])
             .output()
             .expect("run falcon x integration server command help");
+
+        assert_success(&output);
+        assert_no_deprecation_warning(&output);
+    }
+}
+
+#[test]
+fn x_setup_ai_commands_do_not_warn_on_help() {
+    let cases = ["init", "agents", "ai", "update"];
+
+    for command in cases {
+        let output = falcon_cmd()
+            .args(["x", command, "--help"])
+            .output()
+            .expect("run falcon x setup ai command help");
 
         assert_success(&output);
         assert_no_deprecation_warning(&output);

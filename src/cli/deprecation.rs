@@ -82,6 +82,10 @@ pub fn aliased_target(command: &str) -> Option<&'static str> {
         "community" => Some("x community"),
         "mcp" => Some("x mcp"),
         "api" => Some("x api"),
+        "init" => Some("x init"),
+        "agents" => Some("x agents"),
+        "ai" => Some("x ai"),
+        "update" => Some("x update"),
         "cloud" => Some("x cloud"),
         "enterprise" => Some("x enterprise"),
         "marketplace" => Some("x marketplace"),
@@ -171,6 +175,8 @@ mod tests {
     fn aliased_target_maps_moved_x_commands() {
         assert_eq!(aliased_target("ai-profile"), Some("x ai-profile"));
         assert_eq!(aliased_target("ai-report"), Some("x ai-report"));
+        assert_eq!(aliased_target("agents"), Some("x agents"));
+        assert_eq!(aliased_target("ai"), Some("x ai"));
         assert_eq!(aliased_target("api"), Some("x api"));
         assert_eq!(aliased_target("asset-audit"), Some("x asset-audit"));
         assert_eq!(aliased_target("baseline"), Some("x baseline"));
@@ -237,6 +243,7 @@ mod tests {
         assert_eq!(aliased_target("flutter"), Some("x flutter"));
         assert_eq!(aliased_target("fvm"), Some("x fvm"));
         assert_eq!(aliased_target("history"), Some("x history"));
+        assert_eq!(aliased_target("init"), Some("x init"));
         assert_eq!(aliased_target("learn"), Some("x learn"));
         assert_eq!(aliased_target("live"), Some("x live"));
         assert_eq!(aliased_target("manage"), Some("x manage"));
@@ -268,6 +275,7 @@ mod tests {
         assert_eq!(aliased_target("suppress"), Some("x suppress"));
         assert_eq!(aliased_target("test-gen"), Some("x test-gen"));
         assert_eq!(aliased_target("trends"), Some("x trends"));
+        assert_eq!(aliased_target("update"), Some("x update"));
         assert_eq!(aliased_target("upgrade-check"), Some("x upgrade-check"));
         assert_eq!(aliased_target("validate"), Some("x validate"));
         assert_eq!(aliased_target("watch"), Some("x watch"));

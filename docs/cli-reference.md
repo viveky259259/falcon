@@ -140,14 +140,14 @@ Both branch snapshots are saved to history for later re-comparison.
 
 ## Self-Update (v0.2.0)
 
-### falcon update
+### falcon x update
 
 Update Falcon to the latest or a specific version.
 
 ```bash
-falcon update                    # Update to latest
-falcon update --version 0.2.0   # Install specific version
-falcon update --list             # Show version info and available releases
+falcon x update                    # Update to latest
+falcon x update --version 0.2.0   # Install specific version
+falcon x update --list             # Show version info and available releases
 ```
 
 | Flag | Description |
@@ -166,21 +166,21 @@ The update mechanism downloads pre-built binaries from GitHub releases. If no bi
 | `falcon x drift [path]` | Detect convention drift in new code |
 | `falcon x predict [path]` | Predict production risks from code patterns |
 | `falcon x discover-rules [path]` | Propose new rules from observed patterns |
-| `falcon ai triage [path] --format text\|json` | Embedded AI false-positive triage entry point |
+| `falcon x ai triage [path] --format text\|json` | Embedded AI false-positive triage entry point |
 | `falcon x refactor-sim --scenario <s>` | Simulate refactoring impact |
 | `falcon x test-gen [path]` | Generate test stubs from code analysis |
 | `falcon x vuln-scan [path]` | Security vulnerability radar |
 | `falcon x upgrade-check [path]` | Flutter upgrade compatibility |
 
-### falcon ai triage
+### falcon x ai triage
 
 ```bash
-falcon ai triage . --format text
-falcon ai triage . --format json
-cargo run --features ai-local -- ai triage .
+falcon x ai triage . --format text
+falcon x ai triage . --format json
+cargo run --features ai-local -- x ai triage .
 ```
 
-`falcon ai triage` is the embedded AI false-positive review entry point. In
+`falcon x ai triage` is the embedded AI false-positive review entry point. In
 the default build it exits successfully and reports that embedded triage
 requires rebuilding with `--features ai-local`. With `ai-local` enabled, the
 command analyzes findings, loads the configured Qwen2.5 GGUF model once, and
@@ -322,7 +322,7 @@ The bundled GitHub Action can do the same upload for full-project analysis:
 |---|---|
 | `falcon x mcp` | Start MCP server (stdio) for AI tool integration |
 | `falcon x api --port 8090` | Start HTTP API server |
-| `falcon init` | Generate default falcon.yaml |
+| `falcon x init` | Generate default falcon.yaml |
 | `falcon x explain <rule>` | Explain a rule with examples |
 | `falcon x validate` | Validate falcon.yaml config |
 | `falcon x watch` | Watch for file changes and re-analyze |

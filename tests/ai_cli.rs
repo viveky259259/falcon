@@ -4,9 +4,9 @@ use std::process::Command;
 #[test]
 fn ai_help_lists_triage_subcommand() {
     let output = falcon_cmd()
-        .args(["ai", "--help"])
+        .args(["x", "ai", "--help"])
         .output()
-        .expect("run falcon ai --help");
+        .expect("run falcon x ai --help");
 
     assert!(
         output.status.success(),
@@ -38,9 +38,9 @@ ai:
     .expect("write falcon config");
 
     let output = falcon_cmd()
-        .args(["ai", "status", dir.path().to_str().unwrap()])
+        .args(["x", "ai", "status", dir.path().to_str().unwrap()])
         .output()
-        .expect("run falcon ai status");
+        .expect("run falcon x ai status");
 
     assert!(
         output.status.success(),
@@ -77,9 +77,9 @@ ai:
 #[cfg(not(feature = "ai-local"))]
 fn ai_triage_default_build_json_reports_unavailable() {
     let output = falcon_cmd()
-        .args(["ai", "triage", ".", "--format", "json"])
+        .args(["x", "ai", "triage", ".", "--format", "json"])
         .output()
-        .expect("run falcon ai triage");
+        .expect("run falcon x ai triage");
 
     assert!(
         output.status.success(),
@@ -119,7 +119,7 @@ fn ai_triage_ai_local_json_clean_project_skips_engine_load() {
             "json",
         ])
         .output()
-        .expect("run falcon ai triage");
+        .expect("run falcon x ai triage");
 
     assert!(
         output.status.success(),
@@ -174,7 +174,7 @@ ai:
             "json",
         ])
         .output()
-        .expect("run falcon ai triage");
+        .expect("run falcon x ai triage");
 
     assert!(
         output.status.success(),
@@ -219,7 +219,7 @@ fn ai_triage_ai_local_json_runs_with_embedded_engine() {
             "json",
         ])
         .output()
-        .expect("run falcon ai triage");
+        .expect("run falcon x ai triage");
 
     assert!(
         output.status.success(),

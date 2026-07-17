@@ -96,7 +96,7 @@ When the binary is built **without** `ai-local`, the `ai triage` command still e
 
 ## Data Flow
 
-1. User runs `falcon ai triage <path>` (feature-gated).
+1. User runs `falcon x ai triage <path>` (feature-gated).
 2. Falcon runs normal analysis → `Vec<Issue>`.
 3. Issues are capped at `max_issues` (configurable). **If truncated, a warning is printed** — no silent caps.
 4. `LocalEngine` is loaded once (downloading weights on first ever run).

@@ -60,14 +60,14 @@ SEMANTIC COMMAND GROUPS:
                     x check-codegen, x check-perf, x check-unused-confidence,
                     x check-async, x check-widgets, x check-layers, x check-imports
   Comparison        x compare-branches, x compare-reports, x compare, x history
-  AI Intelligence   score, ai, x ai-report, x provenance, x conventions,
+  AI Intelligence   score, x ai, x ai-report, x provenance, x conventions,
                     x drift, x predict, x discover-rules, x ai-profile,
                     x refactor-sim, x test-gen, x vuln-scan
   CI/CD             pr-comment, x webhook, x export, fix
   Tracking          x dashboard, x trends, x rule-impact, x benchmark,
                     x benchmark-db, x score-track, x perf-track, x fix-track,
                     x self-tune, x learn
-  Configuration     init, x validate, x explain, x preset, x suppress,
+  Configuration     x init, x validate, x explain, x preset, x suppress,
                     x baseline, x rule-docs, x stability-contract,
                     x deprecation-status
   App Management    x manage, review, x watch, x runtime-check, x live, x devtools, x workspace
@@ -77,7 +77,7 @@ SEMANTIC COMMAND GROUPS:
   Ecosystem         x plugin, x migrate-from-dcm, x feature-gap, x showcase, x community
   Flutter SDK       x flutter (passthrough — every flutter subcommand: run, build, test, pub, doctor, …)
   Enterprise        x cloud, x enterprise, x certify, x marketplace, x partners
-  Setup             init, update
+  Setup             x init, x update, x agents
 
 Use 'falcon <command> --help' for details on any command.
 "#;
@@ -172,28 +172,6 @@ enum Commands {
         no_defer_to_analyzer: bool,
     },
 
-    /// Generate a default falcon.yaml configuration file
-    #[command(display_order = 7)]
-    Init {
-        /// Path where to create falcon.yaml
-        #[arg(default_value = ".")]
-        path: PathBuf,
-    },
-
-    /// Generate AGENTS.md files (root + per-feature) so Codex/Cursor/Aider follow the same rules
-    #[command(display_order = 7)]
-    Agents {
-        #[command(subcommand)]
-        action: AgentsAction,
-    },
-
-    /// AI configuration and tools
-    #[command(name = "ai", display_order = 4)]
-    Ai {
-        #[command(subcommand)]
-        action: AiAction,
-    },
-
     /// Auto-fix lint issues
     #[command(display_order = 5)]
     Fix {
@@ -244,18 +222,6 @@ enum Commands {
         /// Rewrite the baseline file with the current findings
         #[arg(long, value_name = "FILE")]
         update_baseline: Option<PathBuf>,
-    },
-
-    /// Update Falcon to the latest or a specific version
-    #[command(display_order = 11)]
-    Update {
-        /// Target version (e.g. 0.2.0). Omit for latest.
-        #[arg(long)]
-        version: Option<String>,
-
-        /// List all available versions
-        #[arg(long)]
-        list: bool,
     },
 
     /// Calculate AI Code Quality Score (0-100) with 6-dimension breakdown
@@ -1123,6 +1089,40 @@ enum XAction {
         /// Port to listen on
         #[arg(long, default_value = "8090")]
         port: u16,
+    },
+
+    /// Generate a default falcon.yaml configuration file
+    #[command(name = "init")]
+    Init {
+        /// Path where to create falcon.yaml
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+
+    /// Generate AGENTS.md files (root + per-feature) so Codex/Cursor/Aider follow the same rules
+    #[command(name = "agents")]
+    Agents {
+        #[command(subcommand)]
+        action: AgentsAction,
+    },
+
+    /// AI configuration and tools
+    #[command(name = "ai")]
+    Ai {
+        #[command(subcommand)]
+        action: AiAction,
+    },
+
+    /// Update Falcon to the latest or a specific version
+    #[command(name = "update")]
+    Update {
+        /// Target version (e.g. 0.2.0). Omit for latest.
+        #[arg(long)]
+        version: Option<String>,
+
+        /// List all available versions
+        #[arg(long)]
+        list: bool,
     },
 
     /// Falcon Cloud — team dashboards and multi-project tracking
@@ -3766,6 +3766,157 @@ fn run_api(host: String, port: u16) -> Result<()> {
     Ok(())
 }
 
+fn run_init(path: PathBuf) -> Result<()> {
+    falcon::init_config(&path)?;
+    println!("Created falcon.yaml in {}", path.display());
+    Ok(())
+}
+
+fn run_agents(action: AgentsAction) -> Result<()> {
+    match action {
+        AgentsAction::Init { path, force } => {
+            let report = falcon::agents::run_init(&path, force)?;
+            println!();
+            println!("  {} Agents", "falcon".bright_cyan().bold());
+            println!();
+            if let Some(root) = &report.root_written {
+                println!("    {} {}", "✓".green(), root.display());
+            }
+            for f in &report.feature_files {
+                println!("    {} {}", "✓".green(), f.display());
+            }
+            for s in &report.skipped {
+                println!(
+                    "    {} {} (already exists — pass --force to overwrite)",
+                    "·".dimmed(),
+                    s.display()
+                );
+            }
+            println!();
+            println!(
+                "  {} root: {}, features: {}, skipped: {}",
+                "■".bright_white(),
+                if report.root_written.is_some() { 1 } else { 0 },
+                report.feature_files.len(),
+                report.skipped.len()
+            );
+            println!();
+        }
+    }
+
+    Ok(())
+}
+
+fn run_ai(action: AiAction) -> Result<()> {
+    match action {
+        AiAction::Setup { path } => {
+            falcon::ai::config::generate_ai_setup(&path)?;
+            println!(
+                "{} AI configuration added to falcon.yaml",
+                "✓".green().bold()
+            );
+            println!("  Edit falcon.yaml to set your provider and API key.");
+            println!("  Supported providers: openai, anthropic, gemini, local (Ollama), embedded");
+            println!("  Embedded builds run in-process triage with --features ai-local.");
+        }
+        AiAction::Status { path } => {
+            let config = FalconConfig::load(&path)?;
+            let ai = &config.ai;
+            println!();
+            println!(
+                "  {} AI Configuration Status",
+                "falcon".bright_cyan().bold()
+            );
+            println!();
+            println!(
+                "  Enabled:   {}",
+                if ai.enabled {
+                    "yes".green()
+                } else {
+                    "no".red()
+                }
+            );
+            println!("  Provider:  {:?}", ai.provider);
+            println!("  Model:     {}", ai.effective_model());
+            println!(
+                "  API Key:   {}",
+                if ai.resolve_api_key().is_some() {
+                    "configured".green()
+                } else {
+                    "not set".yellow()
+                }
+            );
+            println!(
+                "  Available: {}",
+                if ai.is_available() {
+                    "yes".green()
+                } else {
+                    "no".red()
+                }
+            );
+            println!();
+            println!("  Feature Toggles:");
+            println!(
+                "    Confidence scoring:      {}",
+                if ai.features.confidence_scoring {
+                    "on"
+                } else {
+                    "off"
+                }
+            );
+            println!(
+                "    Smart fixes:             {}",
+                if ai.features.smart_fixes { "on" } else { "off" }
+            );
+            println!(
+                "    Explanations:            {}",
+                if ai.features.explanations {
+                    "on"
+                } else {
+                    "off"
+                }
+            );
+            println!(
+                "    False positive reduction: {}",
+                if ai.features.false_positive_reduction {
+                    "on"
+                } else {
+                    "off"
+                }
+            );
+            if let Some(ref embedded) = ai.embedded {
+                println!();
+                println!("  Embedded model:");
+                println!("    Model id:   {}", embedded.model_id);
+                println!("    Model file: {}", embedded.model_file);
+                println!("    Max issues: {}", embedded.max_issues);
+                #[cfg(feature = "ai-local")]
+                println!("    Engine:     compiled in (ai-local)");
+                #[cfg(not(feature = "ai-local"))]
+                println!("    Engine:     NOT compiled (rebuild with --features ai-local)");
+            }
+            println!();
+        }
+        AiAction::Triage { path, format } => {
+            run_ai_triage(&path, format)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn run_update(version: Option<String>, list: bool) {
+    if list {
+        falcon::self_update::print_version_info();
+        if let Err(e) = falcon::self_update::print_available_versions() {
+            eprintln!("  ❌ {} {}", "error:".bright_red(), e);
+        }
+    } else if let Err(e) = falcon::self_update::run_update(version.as_deref()) {
+        eprintln!("  ❌ {} {}", "error:".bright_red(), e);
+        process::exit(1);
+    }
+}
+
 fn run_cloud(action: CloudAction) -> Result<()> {
     match action {
         CloudAction::Init { team, path } => {
@@ -4149,136 +4300,6 @@ fn run(cli: Cli) -> Result<()> {
                 no_defer_to_analyzer,
             })?;
         }
-        Commands::Init { path } => {
-            falcon::init_config(&path)?;
-            println!("Created falcon.yaml in {}", path.display());
-        }
-        Commands::Agents { action } => match action {
-            AgentsAction::Init { path, force } => {
-                let report = falcon::agents::run_init(&path, force)?;
-                println!();
-                println!("  {} Agents", "falcon".bright_cyan().bold());
-                println!();
-                if let Some(root) = &report.root_written {
-                    println!("    {} {}", "✓".green(), root.display());
-                }
-                for f in &report.feature_files {
-                    println!("    {} {}", "✓".green(), f.display());
-                }
-                for s in &report.skipped {
-                    println!(
-                        "    {} {} (already exists — pass --force to overwrite)",
-                        "·".dimmed(),
-                        s.display()
-                    );
-                }
-                println!();
-                println!(
-                    "  {} root: {}, features: {}, skipped: {}",
-                    "■".bright_white(),
-                    if report.root_written.is_some() { 1 } else { 0 },
-                    report.feature_files.len(),
-                    report.skipped.len()
-                );
-                println!();
-            }
-        },
-
-        Commands::Ai { action } => {
-            match action {
-                AiAction::Setup { path } => {
-                    falcon::ai::config::generate_ai_setup(&path)?;
-                    println!(
-                        "{} AI configuration added to falcon.yaml",
-                        "✓".green().bold()
-                    );
-                    println!("  Edit falcon.yaml to set your provider and API key.");
-                    println!("  Supported providers: openai, anthropic, gemini, local (Ollama), embedded");
-                    println!("  Embedded builds run in-process triage with --features ai-local.");
-                }
-                AiAction::Status { path } => {
-                    let config = FalconConfig::load(&path)?;
-                    let ai = &config.ai;
-                    println!();
-                    println!(
-                        "  {} AI Configuration Status",
-                        "falcon".bright_cyan().bold()
-                    );
-                    println!();
-                    println!(
-                        "  Enabled:   {}",
-                        if ai.enabled {
-                            "yes".green()
-                        } else {
-                            "no".red()
-                        }
-                    );
-                    println!("  Provider:  {:?}", ai.provider);
-                    println!("  Model:     {}", ai.effective_model());
-                    println!(
-                        "  API Key:   {}",
-                        if ai.resolve_api_key().is_some() {
-                            "configured".green()
-                        } else {
-                            "not set".yellow()
-                        }
-                    );
-                    println!(
-                        "  Available: {}",
-                        if ai.is_available() {
-                            "yes".green()
-                        } else {
-                            "no".red()
-                        }
-                    );
-                    println!();
-                    println!("  Feature Toggles:");
-                    println!(
-                        "    Confidence scoring:      {}",
-                        if ai.features.confidence_scoring {
-                            "on"
-                        } else {
-                            "off"
-                        }
-                    );
-                    println!(
-                        "    Smart fixes:             {}",
-                        if ai.features.smart_fixes { "on" } else { "off" }
-                    );
-                    println!(
-                        "    Explanations:            {}",
-                        if ai.features.explanations {
-                            "on"
-                        } else {
-                            "off"
-                        }
-                    );
-                    println!(
-                        "    False positive reduction: {}",
-                        if ai.features.false_positive_reduction {
-                            "on"
-                        } else {
-                            "off"
-                        }
-                    );
-                    if let Some(ref embedded) = ai.embedded {
-                        println!();
-                        println!("  Embedded model:");
-                        println!("    Model id:   {}", embedded.model_id);
-                        println!("    Model file: {}", embedded.model_file);
-                        println!("    Max issues: {}", embedded.max_issues);
-                        #[cfg(feature = "ai-local")]
-                        println!("    Engine:     compiled in (ai-local)");
-                        #[cfg(not(feature = "ai-local"))]
-                        println!("    Engine:     NOT compiled (rebuild with --features ai-local)");
-                    }
-                    println!();
-                }
-                AiAction::Triage { path, format } => {
-                    run_ai_triage(&path, format)?;
-                }
-            }
-        }
         Commands::Fix {
             path,
             preview,
@@ -4386,19 +4407,6 @@ fn run(cli: Cli) -> Result<()> {
 
             if report.has_errors() {
                 process::exit(1);
-            }
-        }
-        Commands::Update { version, list } => {
-            if list {
-                falcon::self_update::print_version_info();
-                if let Err(e) = falcon::self_update::print_available_versions() {
-                    eprintln!("  ❌ {} {}", "error:".bright_red(), e);
-                }
-            } else {
-                if let Err(e) = falcon::self_update::run_update(version.as_deref()) {
-                    eprintln!("  ❌ {} {}", "error:".bright_red(), e);
-                    process::exit(1);
-                }
             }
         }
         Commands::PrComment {
@@ -4857,6 +4865,22 @@ fn run(cli: Cli) -> Result<()> {
                 }
                 XAction::Api { host, port } => {
                     run_api(host, port)?;
+                    return Ok(());
+                }
+                XAction::Init { path } => {
+                    run_init(path)?;
+                    return Ok(());
+                }
+                XAction::Agents { action } => {
+                    run_agents(action)?;
+                    return Ok(());
+                }
+                XAction::Ai { action } => {
+                    run_ai(action)?;
+                    return Ok(());
+                }
+                XAction::Update { version, list } => {
+                    run_update(version, list);
                     return Ok(());
                 }
                 XAction::Cloud { action } => {
@@ -5448,7 +5472,7 @@ fn run_ai_triage(path: &Path, format: TriageOutputFormat) -> Result<()> {
     {
         match format {
             TriageOutputFormat::Text => {
-                println!("falcon ai triage requires a build compiled with --features ai-local.");
+                println!("falcon x ai triage requires a build compiled with --features ai-local.");
                 println!("Path: {}", path.display());
             }
             TriageOutputFormat::Json => {
