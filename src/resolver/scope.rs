@@ -75,12 +75,6 @@ impl Scope {
     }
 }
 
-impl Default for Scope {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     //! Tests for the in-memory scope primitive used by the (in-progress)
