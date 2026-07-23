@@ -7,11 +7,11 @@ Rust-powered static analysis CLI for Flutter/Dart, designed for AI-generated cod
 ```
 cargo build            # debug build
 cargo build --release  # release (LTO, stripped)
-cargo test             # 286 tests
+cargo test             # 719 tests
 cargo test <name>      # single test
 cargo run -- <args>    # run falcon CLI
-cargo build --features ai-local                      # build embedded SLM triage support
-cargo run --features ai-local -- x ai triage <path>    # triage findings with embedded Qwen2.5 GGUF inference
+cargo build --features ai-local                      # build with embedded SLM triage
+cargo run --features ai-local -- ai triage <path>    # triage findings (real vs false-positive)
 cargo fmt              # format
 cargo clippy           # lint
 ```
@@ -20,7 +20,8 @@ Binaries: `falcon` (CLI), `falcon-lsp` (LSP server), `falcon-mcp` (MCP server).
 
 ## Architecture
 
-- `src/main.rs` — CLI entry, command dispatch (large; refactor in progress)
+- `src/main.rs` — CLI entry + command dispatch (`run()`); next refactor target is splitting `run()` into per-group handlers
+- `src/cli_args.rs` — binary-local clap definitions (`Cli`, `Commands`, sub-action enums)
 - `src/lib.rs` — library root
 - `src/rules/` — lint rules (common/, flutter/, security/, ai/)
 - `src/analysis/` — multi-file analysis passes (vuln_radar, refactor_sim, etc.)

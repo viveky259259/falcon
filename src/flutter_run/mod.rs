@@ -102,6 +102,7 @@ impl FlutterRunReport {
 
 /// Launch `flutter run`, stream output line-by-line, collect errors, write
 /// markdown files, and notify on completion.
+// LCOV_EXCL_START — spawns `flutter` subprocess; integration-tested via `falcon run` smoke; not unit-testable.
 pub fn run_flutter_app(config: &FlutterRunConfig) -> Result<FlutterRunReport> {
     std::fs::create_dir_all(&config.output_dir)
         .context("Failed to create output directory for error reports")?;
@@ -225,6 +226,7 @@ pub fn run_flutter_app(config: &FlutterRunConfig) -> Result<FlutterRunReport> {
 
     Ok(report)
 }
+// LCOV_EXCL_STOP
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Line streaming + error detection
@@ -418,34 +420,41 @@ fn chrono_now() -> String {
 // Console summary
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub fn print_run_summary(report: &FlutterRunReport) {
-    eprintln!();
+/// Format the run summary as a string (pure helper; extracted for testability).
+pub fn format_run_summary(report: &FlutterRunReport) -> String {
+    let mut out = String::new();
+    out.push('\n');
     if report.errors.is_empty() {
-        eprintln!(
-            "  {} Flutter run completed with {} errors",
+        out.push_str(&format!(
+            "  {} Flutter run completed with {} errors\n",
             "✓".green().bold(),
             "no".green().bold()
-        );
+        ));
     } else {
-        eprintln!(
-            "  {} Flutter run completed with {} error{}",
+        out.push_str(&format!(
+            "  {} Flutter run completed with {} error{}\n",
             "✗".red().bold(),
             report.errors.len().to_string().red().bold(),
             if report.errors.len() == 1 { "" } else { "s" }
-        );
+        ));
         for err in &report.errors {
-            eprintln!(
-                "      {} {}",
+            out.push_str(&format!(
+                "      {} {}\n",
                 format!("[error_{}]", err.number).bright_yellow(),
                 err.title.trim()
-            );
-            eprintln!(
-                "         → {}",
+            ));
+            out.push_str(&format!(
+                "         → {}\n",
                 err.md_path.display().to_string().bright_white()
-            );
+            ));
         }
     }
-    eprintln!();
+    out.push('\n');
+    out
+}
+
+pub fn print_run_summary(report: &FlutterRunReport) {
+    eprint!("{}", format_run_summary(report));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -454,6 +463,7 @@ pub fn print_run_summary(report: &FlutterRunReport) {
 
 /// Send a native desktop notification. Tries macOS → Linux → Windows in order.
 /// Silently succeeds if no supported notifier is found.
+// LCOV_EXCL_START — invokes OS-specific notifier subprocess (osascript/notify-send/powershell).
 pub fn send_os_notification(title: &str, message: &str) {
     // macOS
     #[cfg(target_os = "macos")]
@@ -500,6 +510,7 @@ $template.GetElementsByTagName('text')[1].AppendChild($template.CreateTextNode('
             .status();
     }
 }
+// LCOV_EXCL_STOP
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Webhook notification
@@ -520,6 +531,7 @@ struct WebhookError<'a> {
     md_file: String,
 }
 
+// LCOV_EXCL_START — invokes curl subprocess; behavior verified manually.
 fn send_webhook(report: &FlutterRunReport, url: &str, project_path: &Path) -> Result<()> {
     let payload = WebhookPayload {
         event: "flutter_run_errors",
@@ -566,4 +578,472 @@ fn send_webhook(report: &FlutterRunReport, url: &str, project_path: &Path) -> Re
     }
 
     Ok(())
+}
+// LCOV_EXCL_STOP
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+    use std::sync::Once;
+    use tempfile::TempDir;
+
+    static INIT: Once = Once::new();
+    fn disable_colors() {
+        INIT.call_once(|| {
+            colored::control::set_override(false);
+        });
+    }
+
+    fn sample_error(number: usize, title: &str, md_path: PathBuf) -> FlutterError {
+        FlutterError {
+            number,
+            title: title.to_string(),
+            body: vec![title.to_string()],
+            md_path,
+        }
+    }
+
+    // ── is_error_start ────────────────────────────────────────────────────────
+
+    #[test]
+    fn is_error_start_error_prefix_returns_true() {
+        assert!(is_error_start("Error: something went wrong"));
+    }
+
+    #[test]
+    fn is_error_start_exception_caught_returns_true() {
+        assert!(is_error_start("EXCEPTION CAUGHT by framework"));
+    }
+
+    #[test]
+    fn is_error_start_flutter_error_returns_true() {
+        assert!(is_error_start("FlutterError(RenderBox was not laid out)"));
+    }
+
+    #[test]
+    fn is_error_start_error_tag_returns_true() {
+        assert!(is_error_start("[ERROR] some error message"));
+    }
+
+    #[test]
+    fn is_error_start_normal_line_returns_false() {
+        assert!(!is_error_start("I/flutter (12345): normal log output"));
+    }
+
+    #[test]
+    fn is_error_start_empty_line_returns_false() {
+        assert!(!is_error_start(""));
+    }
+
+    #[test]
+    fn is_error_start_whitespace_line_returns_false() {
+        assert!(!is_error_start("   "));
+    }
+
+    // ── is_error_end ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn is_error_end_long_bar_returns_true() {
+        assert!(is_error_end("═══════════════════════════════════"));
+    }
+
+    #[test]
+    fn is_error_end_medium_bar_returns_true() {
+        assert!(is_error_end("════════════════════════"));
+    }
+
+    #[test]
+    fn is_error_end_reloaded_returns_true() {
+        assert!(is_error_end("Reloaded 3 of 400 libraries in 450ms."));
+    }
+
+    #[test]
+    fn is_error_end_hot_reload_returns_true() {
+        assert!(is_error_end("Hot reload performed in 312ms."));
+    }
+
+    #[test]
+    fn is_error_end_starts_with_quad_bar_returns_true() {
+        assert!(is_error_end("════ Exception Details ════"));
+    }
+
+    #[test]
+    fn is_error_end_normal_line_returns_false() {
+        assert!(!is_error_end(
+            "The following assertion was thrown building MyWidget"
+        ));
+    }
+
+    #[test]
+    fn is_error_end_empty_line_returns_false() {
+        assert!(!is_error_end(""));
+    }
+
+    // ── render_error_md ───────────────────────────────────────────────────────
+
+    #[test]
+    fn render_error_md_title_appears_in_output() {
+        let body = vec!["Error: bad state".to_string()];
+        let md = render_error_md(1, "Error: bad state", &body);
+        assert!(md.contains("Error: bad state"), "title should appear in md");
+    }
+
+    #[test]
+    fn render_error_md_backtick_in_title_replaced_with_single_quote() {
+        let title = "Error: `foo` is null";
+        let body = vec![title.to_string()];
+        let md = render_error_md(1, title, &body);
+        // The blockquote line should use single quotes, not backticks
+        assert!(
+            md.contains("> **Error: 'foo' is null**"),
+            "backticks in title should be replaced with single quotes"
+        );
+    }
+
+    #[test]
+    fn render_error_md_body_inside_code_block() {
+        let body = vec![
+            "Error: something".to_string(),
+            "  at stack frame 1".to_string(),
+        ];
+        let md = render_error_md(1, "Error: something", &body);
+        assert!(md.contains("```\n"), "should have opening code fence");
+        assert!(
+            md.contains("  at stack frame 1\n"),
+            "body line should be present"
+        );
+        assert!(md.contains("```\n\n"), "should have closing code fence");
+    }
+
+    #[test]
+    fn render_error_md_footer_contains_falcon_link() {
+        let body = vec!["Error: x".to_string()];
+        let md = render_error_md(1, "Error: x", &body);
+        assert!(
+            md.contains("falcon-lint/falcon"),
+            "footer should link to falcon"
+        );
+    }
+
+    #[test]
+    fn render_error_md_header_contains_error_number() {
+        let body = vec!["Error: x".to_string()];
+        let md = render_error_md(3, "Error: x", &body);
+        assert!(
+            md.starts_with("# Error #3\n"),
+            "header should contain error number"
+        );
+    }
+
+    // ── chrono_now ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn chrono_now_returns_nonempty_string() {
+        let ts = chrono_now();
+        assert!(!ts.is_empty(), "timestamp should not be empty");
+    }
+
+    #[test]
+    fn chrono_now_ends_with_utc() {
+        let ts = chrono_now();
+        assert!(
+            ts.ends_with("UTC"),
+            "timestamp should end with UTC: got {}",
+            ts
+        );
+    }
+
+    #[test]
+    fn chrono_now_has_date_time_format() {
+        let ts = chrono_now();
+        // Expect format: "YYYY-MM-DD HH:MM:SS UTC"
+        // Check length is correct: 4+1+2+1+2+1+2+1+2+1+2+1+3 = 23
+        assert_eq!(ts.len(), 23, "timestamp length should be 23: got '{}'", ts);
+        // Check the separators are in the right positions
+        assert_eq!(&ts[4..5], "-", "year-month separator");
+        assert_eq!(&ts[7..8], "-", "month-day separator");
+        assert_eq!(&ts[10..11], " ", "date-time separator");
+        assert_eq!(&ts[13..14], ":", "hour-min separator");
+        assert_eq!(&ts[16..17], ":", "min-sec separator");
+        assert_eq!(&ts[19..], " UTC", "UTC suffix");
+    }
+
+    // ── FlutterRunConfig::new ─────────────────────────────────────────────────
+
+    #[test]
+    fn flutter_run_config_new_sets_output_dir_to_path() {
+        let cfg = FlutterRunConfig::new("/tmp/myproject");
+        assert_eq!(cfg.output_dir, PathBuf::from("/tmp/myproject"));
+    }
+
+    #[test]
+    fn flutter_run_config_new_sets_project_path_to_path() {
+        let cfg = FlutterRunConfig::new("/tmp/myproject");
+        assert_eq!(cfg.project_path, PathBuf::from("/tmp/myproject"));
+    }
+
+    #[test]
+    fn flutter_run_config_new_device_is_none() {
+        let cfg = FlutterRunConfig::new("/tmp/myproject");
+        assert!(cfg.device.is_none());
+    }
+
+    #[test]
+    fn flutter_run_config_new_flavor_is_none() {
+        let cfg = FlutterRunConfig::new("/tmp/myproject");
+        assert!(cfg.flavor.is_none());
+    }
+
+    #[test]
+    fn flutter_run_config_new_notify_is_false() {
+        let cfg = FlutterRunConfig::new("/tmp/myproject");
+        assert!(!cfg.notify);
+    }
+
+    #[test]
+    fn flutter_run_config_new_webhook_is_none() {
+        let cfg = FlutterRunConfig::new("/tmp/myproject");
+        assert!(cfg.webhook.is_none());
+    }
+
+    // ── FlutterRunReport::has_errors ──────────────────────────────────────────
+
+    #[test]
+    fn flutter_run_report_has_errors_empty_vec_returns_false() {
+        let report = FlutterRunReport {
+            errors: vec![],
+            exit_code: Some(0),
+        };
+        assert!(!report.has_errors());
+    }
+
+    #[test]
+    fn flutter_run_report_has_errors_nonempty_vec_returns_true() {
+        let dir = TempDir::new().unwrap();
+        let report = FlutterRunReport {
+            errors: vec![sample_error(
+                1,
+                "Error: test",
+                dir.path().join("error_1.md"),
+            )],
+            exit_code: Some(1),
+        };
+        assert!(report.has_errors());
+    }
+
+    // ── format_run_summary ────────────────────────────────────────────────────
+
+    #[test]
+    fn format_run_summary_no_errors_contains_completed_with_no_errors() {
+        disable_colors();
+        let report = FlutterRunReport {
+            errors: vec![],
+            exit_code: Some(0),
+        };
+        let summary = format_run_summary(&report);
+        assert!(
+            summary.contains("completed with"),
+            "should say 'completed with'"
+        );
+        assert!(summary.contains("no"), "should say 'no'");
+        assert!(summary.contains("errors"), "should say 'errors'");
+    }
+
+    #[test]
+    fn format_run_summary_one_error_contains_singular_error() {
+        disable_colors();
+        let dir = TempDir::new().unwrap();
+        let md_path = dir.path().join("error_1.md");
+        let report = FlutterRunReport {
+            errors: vec![sample_error(1, "Error: single failure", md_path)],
+            exit_code: Some(1),
+        };
+        let summary = format_run_summary(&report);
+        assert!(summary.contains("1 error"), "should say '1 error'");
+        assert!(
+            !summary.contains("1 errors"),
+            "should not say '1 errors' (bad plural)"
+        );
+        assert!(
+            summary.contains("Error: single failure"),
+            "should contain error title"
+        );
+        assert!(summary.contains("error_1.md"), "should contain md path");
+    }
+
+    #[test]
+    fn format_run_summary_three_errors_contains_plural_errors() {
+        disable_colors();
+        let dir = TempDir::new().unwrap();
+        let errors = vec![
+            sample_error(1, "Error: one", dir.path().join("error_1.md")),
+            sample_error(2, "Error: two", dir.path().join("error_2.md")),
+            sample_error(3, "Error: three", dir.path().join("error_3.md")),
+        ];
+        let report = FlutterRunReport {
+            errors,
+            exit_code: Some(1),
+        };
+        let summary = format_run_summary(&report);
+        assert!(summary.contains("3 errors"), "should say '3 errors'");
+    }
+
+    // ── stream_lines ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn stream_lines_single_error_block_collects_one_error() {
+        let dir = TempDir::new().unwrap();
+        let input = concat!(
+            "normal log line\n",
+            "══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞══\n",
+            "The following StateError was thrown:\n",
+            "Bad state: foo\n",
+            "═══════════════════════════════════\n",
+            "post-error log line\n",
+        );
+        let cursor = Cursor::new(input.as_bytes());
+        let errors: Arc<Mutex<Vec<FlutterError>>> = Arc::new(Mutex::new(Vec::new()));
+        stream_lines(cursor, &errors, dir.path(), "test", None);
+
+        let collected = errors.lock().unwrap();
+        assert_eq!(collected.len(), 1, "should collect exactly one error");
+        assert!(
+            dir.path().join("error_1.md").exists(),
+            "error_1.md should be written"
+        );
+    }
+
+    #[test]
+    fn stream_lines_two_error_blocks_collects_two_errors() {
+        let dir = TempDir::new().unwrap();
+        let input = concat!(
+            "log before first error\n",
+            "══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞══\n",
+            "First error details\n",
+            "═══════════════════════════════════\n",
+            "log between errors\n",
+            "Error: second problem occurred\n",
+            "at some stack frame\n",
+            "Reloaded 1 of 400 libraries in 200ms.\n",
+            "log after second error\n",
+        );
+        let cursor = Cursor::new(input.as_bytes());
+        let errors: Arc<Mutex<Vec<FlutterError>>> = Arc::new(Mutex::new(Vec::new()));
+        stream_lines(cursor, &errors, dir.path(), "test", None);
+
+        let collected = errors.lock().unwrap();
+        assert_eq!(collected.len(), 2, "should collect exactly two errors");
+        assert!(
+            dir.path().join("error_1.md").exists(),
+            "error_1.md should be written"
+        );
+        assert!(
+            dir.path().join("error_2.md").exists(),
+            "error_2.md should be written"
+        );
+    }
+
+    #[test]
+    fn stream_lines_unterminated_block_is_flushed_at_eof() {
+        let dir = TempDir::new().unwrap();
+        // No end marker before EOF
+        let input = concat!(
+            "normal line\n",
+            "Error: something broke\n",
+            "stack frame line\n",
+        );
+        let cursor = Cursor::new(input.as_bytes());
+        let errors: Arc<Mutex<Vec<FlutterError>>> = Arc::new(Mutex::new(Vec::new()));
+        stream_lines(cursor, &errors, dir.path(), "test", None);
+
+        let collected = errors.lock().unwrap();
+        assert_eq!(
+            collected.len(),
+            1,
+            "unterminated block should be flushed at EOF"
+        );
+        assert!(
+            dir.path().join("error_1.md").exists(),
+            "error_1.md should be written for unterminated block"
+        );
+    }
+
+    // ── flush_error_block ─────────────────────────────────────────────────────
+
+    #[test]
+    fn flush_error_block_title_is_first_nonempty_line() {
+        let dir = TempDir::new().unwrap();
+        let errors: Arc<Mutex<Vec<FlutterError>>> = Arc::new(Mutex::new(Vec::new()));
+        let block = vec![
+            "".to_string(),
+            "Error: the real title".to_string(),
+            "more details".to_string(),
+        ];
+        flush_error_block(&block, &errors, dir.path());
+
+        let collected = errors.lock().unwrap();
+        assert_eq!(collected[0].title, "Error: the real title");
+    }
+
+    #[test]
+    fn flush_error_block_md_path_points_into_tempdir() {
+        let dir = TempDir::new().unwrap();
+        let errors: Arc<Mutex<Vec<FlutterError>>> = Arc::new(Mutex::new(Vec::new()));
+        let block = vec!["Error: test".to_string()];
+        flush_error_block(&block, &errors, dir.path());
+
+        let collected = errors.lock().unwrap();
+        assert!(
+            collected[0].md_path.starts_with(dir.path()),
+            "md_path should be inside tempdir"
+        );
+    }
+
+    #[test]
+    fn flush_error_block_file_contents_contain_error_header() {
+        let dir = TempDir::new().unwrap();
+        let errors: Arc<Mutex<Vec<FlutterError>>> = Arc::new(Mutex::new(Vec::new()));
+        let block = vec!["Error: test flush".to_string()];
+        flush_error_block(&block, &errors, dir.path());
+
+        let collected = errors.lock().unwrap();
+        let contents = std::fs::read_to_string(&collected[0].md_path).unwrap();
+        assert!(
+            contents.starts_with("# Error #1\n"),
+            "file should start with markdown header"
+        );
+    }
+
+    #[test]
+    fn flush_error_block_sequential_calls_produce_incrementing_numbers() {
+        let dir = TempDir::new().unwrap();
+        let errors: Arc<Mutex<Vec<FlutterError>>> = Arc::new(Mutex::new(Vec::new()));
+
+        let block1 = vec!["Error: first".to_string()];
+        flush_error_block(&block1, &errors, dir.path());
+
+        let block2 = vec!["Error: second".to_string()];
+        flush_error_block(&block2, &errors, dir.path());
+
+        let collected = errors.lock().unwrap();
+        assert_eq!(collected.len(), 2);
+        assert_eq!(collected[0].number, 1, "first call should produce number=1");
+        assert_eq!(
+            collected[1].number, 2,
+            "second call should produce number=2"
+        );
+        assert!(
+            dir.path().join("error_1.md").exists(),
+            "error_1.md should exist"
+        );
+        assert!(
+            dir.path().join("error_2.md").exists(),
+            "error_2.md should exist"
+        );
+    }
 }

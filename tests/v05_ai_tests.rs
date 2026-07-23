@@ -19,15 +19,19 @@ fn test_ai_config_defaults() {
 
 #[test]
 fn test_ai_config_resolve_api_key() {
-    let mut config = AiConfig::default();
-    config.api_key = Some("sk-test123".to_string());
+    let config = AiConfig {
+        api_key: Some("sk-test123".to_string()),
+        ..Default::default()
+    };
     assert_eq!(config.resolve_api_key(), Some("sk-test123".to_string()));
 }
 
 #[test]
 fn test_ai_config_effective_model() {
-    let mut config = AiConfig::default();
-    config.provider = AiProvider::OpenAi;
+    let mut config = AiConfig {
+        provider: AiProvider::OpenAi,
+        ..Default::default()
+    };
     assert_eq!(config.effective_model(), "gpt-4o");
 
     config.provider = AiProvider::Anthropic;
@@ -72,9 +76,11 @@ fn test_embedded_ai_config_effective_model_and_availability() {
 
 #[test]
 fn test_ai_config_availability() {
-    let mut config = AiConfig::default();
-    config.enabled = true;
-    config.provider = AiProvider::OpenAi;
+    let mut config = AiConfig {
+        enabled: true,
+        provider: AiProvider::OpenAi,
+        ..Default::default()
+    };
     assert!(!config.is_available());
 
     config.api_key = Some("sk-test".to_string());

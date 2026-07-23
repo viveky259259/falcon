@@ -10,6 +10,7 @@ use walkdir::WalkDir;
 
 /// Polls for file changes and re-runs analysis on modified files.
 pub fn watch(root: &Path, config: FalconConfig) -> anyhow::Result<()> {
+    // LCOV_EXCL_START — infinite poll loop with no exit; behavior verified manually via `falcon watch` integration
     println!(
         "\n{} Watching {} for changes... (press Ctrl+C to stop)\n",
         "falcon".bright_cyan().bold(),
@@ -64,6 +65,7 @@ pub fn watch(root: &Path, config: FalconConfig) -> anyhow::Result<()> {
 
         file_times = current_times;
     }
+    // LCOV_EXCL_STOP
 }
 
 fn snapshot_times(root: &Path) -> HashMap<PathBuf, SystemTime> {
@@ -83,4 +85,81 @@ fn snapshot_times(root: &Path) -> HashMap<PathBuf, SystemTime> {
     }
 
     times
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn snapshot_times_empty_dir_returns_empty_map() {
+        let tmp = TempDir::new().unwrap();
+        let times = snapshot_times(tmp.path());
+        assert!(times.is_empty(), "expected empty map, got {:?}", times);
+    }
+
+    #[test]
+    fn snapshot_times_includes_dart_files() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::write(tmp.path().join("a.dart"), "void main() {}").unwrap();
+        std::fs::write(tmp.path().join("b.dart"), "class B {}").unwrap();
+        let times = snapshot_times(tmp.path());
+        assert_eq!(times.len(), 2);
+        assert!(times.contains_key(&tmp.path().join("a.dart")));
+        assert!(times.contains_key(&tmp.path().join("b.dart")));
+    }
+
+    #[test]
+    fn snapshot_times_excludes_non_dart_files() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::write(tmp.path().join("a.dart"), "void main() {}").unwrap();
+        std::fs::write(tmp.path().join("notes.txt"), "some notes").unwrap();
+        std::fs::write(tmp.path().join("script.py"), "print('hi')").unwrap();
+        let times = snapshot_times(tmp.path());
+        assert_eq!(times.len(), 1);
+        assert!(times.contains_key(&tmp.path().join("a.dart")));
+    }
+
+    #[test]
+    fn snapshot_times_walks_subdirectories() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::write(tmp.path().join("a.dart"), "void main() {}").unwrap();
+        let sub = tmp.path().join("sub");
+        std::fs::create_dir(&sub).unwrap();
+        std::fs::write(sub.join("b.dart"), "class B {}").unwrap();
+        let times = snapshot_times(tmp.path());
+        assert_eq!(times.len(), 2);
+        assert!(times.contains_key(&tmp.path().join("a.dart")));
+        assert!(times.contains_key(&sub.join("b.dart")));
+    }
+
+    #[test]
+    fn snapshot_times_no_extension_files_excluded() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::write(tmp.path().join("Makefile"), "all:\n\t@echo ok").unwrap();
+        let times = snapshot_times(tmp.path());
+        assert!(times.is_empty(), "expected empty map, got {:?}", times);
+    }
+
+    #[test]
+    fn snapshot_times_returns_modified_time_for_each_file() {
+        let tmp = TempDir::new().unwrap();
+        let dart_path = tmp.path().join("a.dart");
+        std::fs::write(&dart_path, "void main() {}").unwrap();
+        let times = snapshot_times(tmp.path());
+        assert_eq!(times.len(), 1);
+        let recorded_mtime = times[&dart_path];
+        let actual_mtime = std::fs::metadata(&dart_path).unwrap().modified().unwrap();
+        let diff = if recorded_mtime >= actual_mtime {
+            recorded_mtime.duration_since(actual_mtime).unwrap()
+        } else {
+            actual_mtime.duration_since(recorded_mtime).unwrap()
+        };
+        assert!(
+            diff <= Duration::from_secs(1),
+            "mtime diff too large: {:?}",
+            diff
+        );
+    }
 }

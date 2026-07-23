@@ -4,7 +4,7 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use colored::Colorize;
 use serde::Serialize;
 use serde_json::Value;
-use std::cmp::{Ordering, Reverse};
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::Duration;
@@ -225,6 +225,25 @@ pub struct ReloadToolReport {
     pub reassembled: bool,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct ScreenshotToolReport {
+    pub vm_service_uri: String,
+    pub isolate_id: String,
+    pub output_path: String,
+    pub byte_count: usize,
+    /// Which capture path produced the image: `rasterizer` (VM Service
+    /// `_flutter.screenshot`, works on mobile + desktop) or `device`
+    /// (the `flutter screenshot` CLI capturing the OS framebuffer).
+    pub method: String,
+}
+
+/// Decode a base64-encoded PNG returned by `_flutter.screenshot` into raw bytes.
+fn decode_screenshot(base64_png: &str) -> Result<Vec<u8>> {
+    STANDARD
+        .decode(base64_png.trim())
+        .map_err(|e| anyhow::anyhow!("Failed to decode base64 screenshot payload: {e}"))
+}
+
 pub async fn connect_client(
     project_path: &Path,
     attach_uri: Option<&str>,
@@ -236,6 +255,112 @@ pub async fn connect_client(
     let client = VmServiceClient::connect(&vm_uri).await?;
     client.enable_extensions().await?;
     Ok((vm_uri, client))
+}
+
+/// Capture a screenshot of the running app, writing a PNG to `output_path`.
+///
+/// Cross-platform strategy so every target Flutter supports is covered:
+///  1. **rasterizer** — VM Service `_flutter.screenshot` renders the layer tree
+///     to a PNG. Works on Android, iOS, macOS, Windows, and Linux.
+///  2. **device** — fall back to the `flutter screenshot` CLI, which captures the
+///     OS framebuffer (e.g. `adb screencap` on Android) when the rasterizer path
+///     is unavailable.
+///  3. **web** — neither path applies (Flutter web runs on DWDS, not the Dart VM
+///     rasterizer); the returned error explains this rather than crashing.
+pub async fn collect_screenshot(
+    client: &VmServiceClient,
+    vm_service_uri: &str,
+    output_path: &Path,
+    project_path: &Path,
+    device: Option<&str>,
+) -> Result<ScreenshotToolReport> {
+    let method = capture_screenshot_file(client, output_path, project_path, device).await?;
+    let byte_count = std::fs::metadata(output_path)
+        .map(|m| m.len() as usize)
+        .unwrap_or(0);
+
+    Ok(ScreenshotToolReport {
+        vm_service_uri: vm_service_uri.to_string(),
+        isolate_id: client.isolate_id.clone(),
+        output_path: output_path.display().to_string(),
+        byte_count,
+        method,
+    })
+}
+
+/// Capture a single PNG to `output_path` using the cross-platform strategy and
+/// return which method succeeded (`"rasterizer"` or `"device"`). Shared by the
+/// one-shot `screenshot` command and the `journey` recorder.
+pub async fn capture_screenshot_file(
+    client: &VmServiceClient,
+    output_path: &Path,
+    project_path: &Path,
+    device: Option<&str>,
+) -> Result<String> {
+    ensure_parent_dir(output_path);
+
+    // 1. Rasterizer RPC (mobile + desktop).
+    match client.capture_screenshot().await {
+        Ok(base64_png) => {
+            let bytes = decode_screenshot(&base64_png)?;
+            std::fs::write(output_path, &bytes).map_err(|e| {
+                anyhow::anyhow!(
+                    "Failed to write screenshot to {}: {e}",
+                    output_path.display()
+                )
+            })?;
+            Ok("rasterizer".to_string())
+        }
+        Err(rpc_err) => {
+            // 2. Device-native capture via the Flutter CLI.
+            capture_via_flutter_cli(output_path, project_path, device).map_err(|cli_err| {
+                anyhow::anyhow!(
+                    "Screenshot capture failed on all paths.\n  - rasterizer (VM Service): {rpc_err}\n  - device (flutter screenshot): {cli_err}\n\
+                     Note: Flutter web targets cannot be captured this way — run on a mobile or desktop device."
+                )
+            })?;
+            Ok("device".to_string())
+        }
+    }
+}
+
+fn ensure_parent_dir(output_path: &Path) {
+    if let Some(parent) = output_path.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent).ok();
+        }
+    }
+}
+
+/// Fall back to `flutter screenshot` for OS-level device capture.
+fn capture_via_flutter_cli(
+    output_path: &Path,
+    project_path: &Path,
+    device: Option<&str>,
+) -> Result<()> {
+    let mut command = std::process::Command::new("flutter");
+    command.arg("screenshot").current_dir(project_path);
+    command.arg(format!("--out={}", output_path.display()));
+    if let Some(device) = device {
+        command.arg("-d").arg(device);
+    }
+
+    let output = command.output().map_err(|e| {
+        anyhow::anyhow!("could not run `flutter screenshot` (is Flutter on PATH?): {e}")
+    })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!(
+            "`flutter screenshot` exited with {}: {}",
+            output.status,
+            stderr.trim()
+        );
+    }
+    if !output_path.exists() {
+        anyhow::bail!("`flutter screenshot` reported success but no file was written");
+    }
+    Ok(())
 }
 
 pub async fn collect_memory_report(
@@ -503,6 +628,22 @@ pub async fn collect_logging_report(
         stream_counts: logging_summary.stream_counts,
         entries: logging_summary.entries,
     })
+}
+
+pub fn print_screenshot_report(report: &ScreenshotToolReport) {
+    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
+    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
+    println!(
+        "{} {}",
+        "Saved screenshot:".bright_cyan(),
+        report.output_path.bright_white().bold()
+    );
+    println!(
+        "{} {:.1} KB",
+        "Size:".bright_cyan(),
+        report.byte_count as f64 / 1024.0
+    );
+    println!("{} {}", "Capture method:".bright_cyan(), report.method);
 }
 
 pub fn print_memory_report(report: &MemoryToolReport) {
@@ -837,6 +978,386 @@ pub fn print_logging_report(report: &LoggingToolReport) {
     }
 }
 
+// ── Route log ───────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RouteEvent {
+    pub timestamp_micros: Option<i64>,
+    pub kind: String,
+    pub route: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RouteLogToolReport {
+    pub vm_service_uri: String,
+    pub isolate_id: String,
+    pub duration_secs: u64,
+    pub total_events: usize,
+    pub events: Vec<RouteEvent>,
+}
+
+/// True when an `Extension` event kind reports a navigation/route change.
+/// Flutter emits `Flutter.Navigation`; other routers use similar names.
+pub fn is_navigation_kind(kind: &str) -> bool {
+    kind.contains("Navigation") || kind.contains("Route")
+}
+
+/// Parse a single VM Service `streamNotify` payload into a `RouteEvent` if it is
+/// a navigation extension event; otherwise `None`.
+pub fn parse_route_event(params: &Value) -> Option<RouteEvent> {
+    let event = &params["event"];
+    let kind = event["extensionKind"].as_str()?;
+    if !is_navigation_kind(kind) {
+        return None;
+    }
+    let data = &event["extensionData"];
+    let route = data["route"]["settings"]["name"]
+        .as_str()
+        .or_else(|| data["route"]["description"].as_str())
+        .or_else(|| data["routeName"].as_str())
+        .or_else(|| data["new"]["description"].as_str())
+        .map(ToString::to_string);
+    let timestamp_micros = event["timestamp"]
+        .as_i64()
+        .or_else(|| event["timestamp"].as_u64().map(|v| v as i64));
+    Some(RouteEvent {
+        timestamp_micros,
+        kind: kind.to_string(),
+        route,
+    })
+}
+
+pub async fn collect_route_log(
+    client: &VmServiceClient,
+    vm_service_uri: &str,
+    duration: Duration,
+) -> Result<RouteLogToolReport> {
+    let raw = client
+        .collect_stream_events(&["Extension"], duration, DEFAULT_LOG_EVENT_LIMIT)
+        .await?;
+
+    let mut events: Vec<RouteEvent> = raw.iter().filter_map(parse_route_event).collect();
+    events.sort_by_key(|e| e.timestamp_micros.unwrap_or_default());
+
+    Ok(RouteLogToolReport {
+        vm_service_uri: vm_service_uri.to_string(),
+        isolate_id: client.isolate_id.clone(),
+        duration_secs: duration.as_secs(),
+        total_events: events.len(),
+        events,
+    })
+}
+
+pub fn print_route_log(report: &RouteLogToolReport) {
+    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
+    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
+    println!("{} {}s", "Duration:".bright_cyan(), report.duration_secs);
+    println!(
+        "{} {}",
+        "Navigation events:".bright_cyan(),
+        report.total_events
+    );
+    if report.events.is_empty() {
+        println!(
+            "{}",
+            "  No navigation events captured. Drive the app during the window; \
+             route reporting requires the app to emit Flutter.Navigation events."
+                .yellow()
+        );
+        return;
+    }
+    println!();
+    println!("{}", "Route timeline".bright_white().bold());
+    for event in &report.events {
+        println!(
+            "  - [{}] {}",
+            event.kind,
+            event.route.as_deref().unwrap_or("<unnamed route>")
+        );
+    }
+}
+
+// ── Interaction trace (frames ↔ rebuilds) ───────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FrameTraceSummary {
+    pub total_frames: usize,
+    pub jank_frames: usize,
+    pub worst_frame_ms: f64,
+    pub avg_frame_ms: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TraceToolReport {
+    pub vm_service_uri: String,
+    pub isolate_id: String,
+    pub duration_secs: u64,
+    pub jank_threshold_ms: f64,
+    pub frames: FrameTraceSummary,
+    pub top_rebuilders: Vec<RebuildEntry>,
+}
+
+/// Summarize frame timing from a VM timeline. A frame is a `traceEvent` named
+/// `Frame` carrying a `dur` (microseconds); it is "jank" when its build time
+/// exceeds `jank_threshold_ms`.
+pub fn summarize_frame_timeline(timeline: &Value, jank_threshold_ms: f64) -> FrameTraceSummary {
+    let trace_events = timeline["traceEvents"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let mut durations_ms: Vec<f64> = Vec::new();
+    for event in &trace_events {
+        if event["name"].as_str() != Some("Frame") {
+            continue;
+        }
+        if let Some(dur) = event["dur"]
+            .as_i64()
+            .or_else(|| event["dur"].as_u64().map(|v| v as i64))
+        {
+            durations_ms.push(dur as f64 / 1000.0);
+        }
+    }
+
+    let total_frames = durations_ms.len();
+    let jank_frames = durations_ms
+        .iter()
+        .filter(|d| **d > jank_threshold_ms)
+        .count();
+    let worst_frame_ms = durations_ms.iter().cloned().fold(0.0f64, f64::max);
+    let avg_frame_ms = if total_frames == 0 {
+        0.0
+    } else {
+        durations_ms.iter().sum::<f64>() / total_frames as f64
+    };
+
+    FrameTraceSummary {
+        total_frames,
+        jank_frames,
+        worst_frame_ms,
+        avg_frame_ms,
+    }
+}
+
+pub async fn collect_trace_report(
+    client: &VmServiceClient,
+    vm_service_uri: &str,
+    duration: Duration,
+    jank_threshold_ms: f64,
+) -> Result<TraceToolReport> {
+    let _ = client
+        .set_vm_timeline_flags(&["Dart", "Embedder", "GC"])
+        .await;
+    let _ = client.clear_vm_timeline().await;
+    let _ = client
+        .set_flag("ext.flutter.profileWidgetBuilds", "true")
+        .await;
+    let start = client.get_vm_timeline_micros().await?;
+    tokio::time::sleep(duration).await;
+    let end = client.get_vm_timeline_micros().await?;
+
+    let timeline = client
+        .get_vm_timeline_range(start, end.saturating_sub(start))
+        .await
+        .unwrap_or(Value::Null);
+    let frames = summarize_frame_timeline(&timeline, jank_threshold_ms);
+
+    let rebuilds = client.get_rebuild_counts().await.unwrap_or(Value::Null);
+    let rebuild_summary = summarize_rebuilds(&rebuilds);
+
+    Ok(TraceToolReport {
+        vm_service_uri: vm_service_uri.to_string(),
+        isolate_id: client.isolate_id.clone(),
+        duration_secs: duration.as_secs(),
+        jank_threshold_ms,
+        frames,
+        top_rebuilders: rebuild_summary.top_widgets,
+    })
+}
+
+pub fn print_trace_report(report: &TraceToolReport) {
+    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
+    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
+    println!("{} {}s", "Window:".bright_cyan(), report.duration_secs);
+    println!(
+        "{} {} ({} janky > {:.0} ms)",
+        "Frames:".bright_cyan(),
+        report.frames.total_frames,
+        report.frames.jank_frames,
+        report.jank_threshold_ms
+    );
+    println!(
+        "{} avg {:.1} ms · worst {:.1} ms",
+        "Frame build:".bright_cyan(),
+        report.frames.avg_frame_ms,
+        report.frames.worst_frame_ms
+    );
+    if !report.top_rebuilders.is_empty() {
+        println!();
+        println!(
+            "{}",
+            "Likely jank contributors (hottest rebuilders)"
+                .bright_white()
+                .bold()
+        );
+        for entry in &report.top_rebuilders {
+            match &entry.location {
+                Some(loc) => println!("  - {} × {}  ({})", entry.widget, entry.count, loc),
+                None => println!("  - {} × {}", entry.widget, entry.count),
+            }
+        }
+    }
+}
+
+// ── Widget tree diff ─────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TreeDiffEntry {
+    pub signature: String,
+    pub count: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TreeDiffToolReport {
+    pub vm_service_uri: String,
+    pub isolate_id: String,
+    pub settle_secs: u64,
+    pub before_nodes: usize,
+    pub after_nodes: usize,
+    pub added: Vec<TreeDiffEntry>,
+    pub removed: Vec<TreeDiffEntry>,
+}
+
+/// Stable signature for a widget node: its type plus creation location when
+/// available (so identical widget types at different call sites diff
+/// independently).
+fn tree_node_signature(node: &Value) -> String {
+    let ty = node["type"]
+        .as_str()
+        .or_else(|| node["widgetRuntimeType"].as_str())
+        .or_else(|| node["description"].as_str())
+        .unwrap_or("<unknown>");
+    let loc = node["creationLocation"]["file"].as_str().map(|file| {
+        let line = node["creationLocation"]["line"].as_i64().unwrap_or(0);
+        format!("{file}:{line}")
+    });
+    match loc {
+        Some(loc) => format!("{ty} @ {loc}"),
+        None => ty.to_string(),
+    }
+}
+
+/// Walk a widget-tree summary and count each node signature.
+pub fn collect_tree_signatures(tree: &Value) -> std::collections::BTreeMap<String, i64> {
+    let root = if tree.get("type").is_some() || tree.get("children").is_some() {
+        tree
+    } else if let Some(result) = tree.get("result") {
+        result
+    } else {
+        tree
+    };
+    let mut counts = std::collections::BTreeMap::new();
+    walk_signatures(root, &mut counts);
+    counts
+}
+
+fn walk_signatures(node: &Value, counts: &mut std::collections::BTreeMap<String, i64>) {
+    if !node.is_object() {
+        return;
+    }
+    *counts.entry(tree_node_signature(node)).or_insert(0) += 1;
+    if let Some(children) = node["children"].as_array() {
+        for child in children {
+            walk_signatures(child, counts);
+        }
+    }
+}
+
+/// Diff two signature multisets into added / removed entries (sorted, descending
+/// by magnitude). `added` = present-more-after; `removed` = present-more-before.
+pub fn diff_tree_signatures(
+    before: &std::collections::BTreeMap<String, i64>,
+    after: &std::collections::BTreeMap<String, i64>,
+) -> (Vec<TreeDiffEntry>, Vec<TreeDiffEntry>) {
+    let mut added = Vec::new();
+    let mut removed = Vec::new();
+    let mut keys: Vec<&String> = before.keys().chain(after.keys()).collect();
+    keys.sort();
+    keys.dedup();
+    for key in keys {
+        let delta = after.get(key).copied().unwrap_or(0) - before.get(key).copied().unwrap_or(0);
+        if delta > 0 {
+            added.push(TreeDiffEntry {
+                signature: key.clone(),
+                count: delta,
+            });
+        } else if delta < 0 {
+            removed.push(TreeDiffEntry {
+                signature: key.clone(),
+                count: -delta,
+            });
+        }
+    }
+    added.sort_by_key(|e| std::cmp::Reverse(e.count));
+    removed.sort_by_key(|e| std::cmp::Reverse(e.count));
+    (added, removed)
+}
+
+pub async fn collect_tree_diff(
+    client: &VmServiceClient,
+    vm_service_uri: &str,
+    settle: Duration,
+) -> Result<TreeDiffToolReport> {
+    let before = client.get_root_widget_tree().await.unwrap_or(Value::Null);
+    let before_counts = collect_tree_signatures(&before);
+    tokio::time::sleep(settle).await;
+    let after = client.get_root_widget_tree().await.unwrap_or(Value::Null);
+    let after_counts = collect_tree_signatures(&after);
+
+    let before_nodes = before_counts.values().map(|v| *v as usize).sum();
+    let after_nodes = after_counts.values().map(|v| *v as usize).sum();
+    let (added, removed) = diff_tree_signatures(&before_counts, &after_counts);
+
+    Ok(TreeDiffToolReport {
+        vm_service_uri: vm_service_uri.to_string(),
+        isolate_id: client.isolate_id.clone(),
+        settle_secs: settle.as_secs(),
+        before_nodes,
+        after_nodes,
+        added,
+        removed,
+    })
+}
+
+pub fn print_tree_diff(report: &TreeDiffToolReport) {
+    println!("{} {}", "VM Service:".bright_cyan(), report.vm_service_uri);
+    println!("{} {}", "Isolate:".bright_cyan(), report.isolate_id);
+    println!("{} {}s", "Settle window:".bright_cyan(), report.settle_secs);
+    println!(
+        "{} {} → {}",
+        "Tree nodes:".bright_cyan(),
+        report.before_nodes,
+        report.after_nodes
+    );
+    if report.added.is_empty() && report.removed.is_empty() {
+        println!("{}", "  No structural change between snapshots.".dimmed());
+        return;
+    }
+    if !report.added.is_empty() {
+        println!();
+        println!("{}", "Added".green().bold());
+        for entry in &report.added {
+            println!("  + {} × {}", entry.signature, entry.count);
+        }
+    }
+    if !report.removed.is_empty() {
+        println!();
+        println!("{}", "Removed".red().bold());
+        for entry in &report.removed {
+            println!("  - {} × {}", entry.signature, entry.count);
+        }
+    }
+}
+
 #[derive(Debug)]
 struct NetworkSummaryData {
     total_requests: usize,
@@ -1051,7 +1572,7 @@ fn summarize_performance(timeline: &Value) -> PerformanceSummaryData {
         .into_iter()
         .map(|(name, count)| TimelineCount { name, count })
         .collect::<Vec<_>>();
-    top_event_counts.sort_by_key(|entry| Reverse(entry.count));
+    top_event_counts.sort_by_key(|e| std::cmp::Reverse(e.count));
     top_event_counts.truncate(DEFAULT_TOP_TIMELINE_COUNTS_LIMIT);
 
     durations.sort_by(|a, b| {
@@ -1102,7 +1623,7 @@ fn summarize_cpu_samples(cpu_samples: &Value) -> CpuSummaryData {
         .into_iter()
         .map(|(name, samples)| HotFunction { name, samples })
         .collect::<Vec<_>>();
-    hot_functions.sort_by_key(|entry| Reverse(entry.samples));
+    hot_functions.sort_by_key(|e| std::cmp::Reverse(e.samples));
     hot_functions.truncate(DEFAULT_TOP_HOT_FUNCTIONS_LIMIT);
 
     CpuSummaryData {
@@ -1188,7 +1709,7 @@ fn summarize_logging(events: &[Value]) -> LoggingSummaryData {
         .into_iter()
         .map(|(name, count)| TimelineCount { name, count })
         .collect::<Vec<_>>();
-    stream_counts.sort_by_key(|entry| Reverse(entry.count));
+    stream_counts.sort_by_key(|e| std::cmp::Reverse(e.count));
 
     LoggingSummaryData {
         total_events: events.len(),
@@ -1334,7 +1855,7 @@ fn summarize_rebuilds(raw: &Value) -> RebuildSummary {
         }
     }
 
-    entries.sort_by_key(|entry| Reverse(entry.count));
+    entries.sort_by_key(|e| std::cmp::Reverse(e.count));
     let total_widgets = entries.len();
     entries.truncate(DEFAULT_TOP_HOT_FUNCTIONS_LIMIT);
 
@@ -1432,6 +1953,122 @@ fn summarize_inspector_node(node: &Value) -> Option<InspectorNode> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn collect_tree_signatures_counts_nodes_with_locations() {
+        let tree = json!({
+            "type": "Column",
+            "children": [
+                { "type": "Text", "creationLocation": { "file": "a.dart", "line": 10 } },
+                { "type": "Text", "creationLocation": { "file": "a.dart", "line": 10 } },
+                { "type": "Text", "creationLocation": { "file": "b.dart", "line": 3 } }
+            ]
+        });
+        let counts = collect_tree_signatures(&tree);
+        assert_eq!(counts.get("Column").copied(), Some(1));
+        assert_eq!(counts.get("Text @ a.dart:10").copied(), Some(2));
+        assert_eq!(counts.get("Text @ b.dart:3").copied(), Some(1));
+    }
+
+    #[test]
+    fn diff_tree_signatures_reports_added_and_removed() {
+        let before = collect_tree_signatures(&json!({
+            "type": "Scaffold",
+            "children": [ { "type": "Spinner" } ]
+        }));
+        let after = collect_tree_signatures(&json!({
+            "type": "Scaffold",
+            "children": [ { "type": "ListView" }, { "type": "ListView" } ]
+        }));
+        let (added, removed) = diff_tree_signatures(&before, &after);
+        assert!(added
+            .iter()
+            .any(|e| e.signature == "ListView" && e.count == 2));
+        assert!(removed
+            .iter()
+            .any(|e| e.signature == "Spinner" && e.count == 1));
+    }
+
+    #[test]
+    fn summarize_frame_timeline_counts_jank_and_extremes() {
+        let timeline = json!({
+            "traceEvents": [
+                { "name": "Frame", "dur": 8000 },   // 8 ms
+                { "name": "Frame", "dur": 24000 },  // 24 ms (jank)
+                { "name": "Frame", "dur": 40000 },  // 40 ms (jank, worst)
+                { "name": "Other", "dur": 99000 }   // ignored
+            ]
+        });
+        let s = summarize_frame_timeline(&timeline, 16.0);
+        assert_eq!(s.total_frames, 3);
+        assert_eq!(s.jank_frames, 2);
+        assert_eq!(s.worst_frame_ms, 40.0);
+        assert!((s.avg_frame_ms - 24.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn summarize_frame_timeline_handles_no_frames() {
+        let s = summarize_frame_timeline(&json!({ "traceEvents": [] }), 16.0);
+        assert_eq!(s.total_frames, 0);
+        assert_eq!(s.jank_frames, 0);
+        assert_eq!(s.worst_frame_ms, 0.0);
+        assert_eq!(s.avg_frame_ms, 0.0);
+    }
+
+    #[test]
+    fn is_navigation_kind_matches_flutter_navigation() {
+        assert!(is_navigation_kind("Flutter.Navigation"));
+        assert!(is_navigation_kind("MyRouteChanged"));
+        assert!(!is_navigation_kind("Flutter.Frame"));
+    }
+
+    #[test]
+    fn parse_route_event_extracts_named_route_and_skips_non_nav() {
+        let nav = json!({
+            "streamId": "Extension",
+            "event": {
+                "extensionKind": "Flutter.Navigation",
+                "timestamp": 1234,
+                "extensionData": { "route": { "settings": { "name": "/detail" } } }
+            }
+        });
+        let parsed = parse_route_event(&nav).unwrap();
+        assert_eq!(parsed.kind, "Flutter.Navigation");
+        assert_eq!(parsed.route.as_deref(), Some("/detail"));
+        assert_eq!(parsed.timestamp_micros, Some(1234));
+
+        let frame = json!({
+            "streamId": "Extension",
+            "event": { "extensionKind": "Flutter.Frame", "extensionData": {} }
+        });
+        assert!(parse_route_event(&frame).is_none());
+    }
+
+    #[test]
+    fn parse_route_event_falls_back_to_description() {
+        let nav = json!({
+            "event": {
+                "extensionKind": "Flutter.Navigation",
+                "extensionData": { "route": { "description": "MaterialPageRoute<dynamic>" } }
+            }
+        });
+        let parsed = parse_route_event(&nav).unwrap();
+        assert_eq!(parsed.route.as_deref(), Some("MaterialPageRoute<dynamic>"));
+    }
+
+    #[test]
+    fn decode_screenshot_roundtrips_png_bytes() {
+        // 8-byte PNG magic header, base64-encoded, with surrounding whitespace.
+        let png_magic = [0x89u8, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+        let encoded = format!("  {}\n", STANDARD.encode(png_magic));
+        let decoded = decode_screenshot(&encoded).unwrap();
+        assert_eq!(decoded, png_magic);
+    }
+
+    #[test]
+    fn decode_screenshot_rejects_invalid_base64() {
+        assert!(decode_screenshot("not valid base64!!!").is_err());
+    }
 
     #[test]
     fn extract_process_buckets_sorts_and_truncates() {

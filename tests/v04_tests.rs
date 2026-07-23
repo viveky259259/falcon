@@ -359,13 +359,13 @@ fn test_cache_detects_changed_files() {
     let mut cache = AnalysisCache::load(dir.path());
     cache.update_entry(&file, 0, false);
 
-    let changed = cache.changed_files(&[file.clone()]);
+    let changed = cache.changed_files(std::slice::from_ref(&file));
     assert!(changed.is_empty(), "File hasn't changed");
 
     std::thread::sleep(std::time::Duration::from_secs(2));
     std::fs::write(&file, "void main() { print('hi'); }").unwrap();
 
-    let changed = cache.changed_files(&[file.clone()]);
+    let changed = cache.changed_files(std::slice::from_ref(&file));
     assert_eq!(changed.len(), 1, "File should be detected as changed");
 }
 

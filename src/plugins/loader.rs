@@ -92,6 +92,12 @@ pub struct PluginLoader {
     loaded: Vec<LoadedPlugin>,
 }
 
+impl Default for PluginLoader {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PluginLoader {
     pub fn new() -> Self {
         Self {
@@ -194,12 +200,6 @@ impl PluginLoader {
             all_issues.extend(plugin.check(source, file));
         }
         all_issues
-    }
-}
-
-impl Default for PluginLoader {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

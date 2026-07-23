@@ -276,7 +276,7 @@ pub fn migrate_from_dcm(dcm_config_path: &Path) -> anyhow::Result<MigrationResul
         } else {
             excludes.clone()
         },
-        ..crate::config::FalconConfig::default()
+        ..Default::default()
     };
 
     let yaml = serde_yaml::to_string(&falcon_config)?;

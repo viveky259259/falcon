@@ -11,7 +11,7 @@
 //!
 //! # Example
 //!
-//! ```text
+//! ```ignore
 //! let report = analyze_l10n_coverage(Path::new("."))?;
 //! print_l10n_report(&report);
 //! write_l10n_html_report(&report, Path::new("l10n_coverage.html"))?;
@@ -49,6 +49,14 @@ impl L10nSeverity {
             L10nSeverity::Info => "ℹ",
             L10nSeverity::Warning => "⚠",
             L10nSeverity::Error => "✕",
+        }
+    }
+
+    fn color_name(&self) -> &'static str {
+        match self {
+            L10nSeverity::Info => "cyan",
+            L10nSeverity::Warning => "yellow",
+            L10nSeverity::Error => "red",
         }
     }
 }
@@ -131,7 +139,11 @@ fn parse_arb_file(path: &Path) -> Result<ArbFile> {
     // Extract locale from filename (e.g., "app_en.arb" -> "en")
     let filename = path.file_stem().unwrap_or_default().to_string_lossy();
     let locale = if filename.contains('_') {
-        filename.rsplit('_').next().unwrap_or("unknown").to_string()
+        filename
+            .split('_')
+            .next_back()
+            .unwrap_or("unknown")
+            .to_string()
     } else {
         "base".to_string()
     };
@@ -1129,7 +1141,7 @@ mod tests {
         let mut used_keys = HashSet::new();
         find_keys_in_content(content, &mut used_keys);
 
-        assert!(used_keys.len() > 0);
+        assert!(!used_keys.is_empty());
     }
 
     #[test]
@@ -1197,5 +1209,698 @@ mod tests {
         assert!(html.contains("80.0%"));
         assert!(html.contains("85/100"));
         assert!(html.contains("app_fr.arb"));
+    }
+
+    // ─── L10nSeverity impl methods ───────────────────────────────────────────
+
+    #[test]
+    fn l10n_severity_symbol_returns_correct_icons() {
+        assert_eq!(L10nSeverity::Info.symbol(), "ℹ");
+        assert_eq!(L10nSeverity::Warning.symbol(), "⚠");
+        assert_eq!(L10nSeverity::Error.symbol(), "✕");
+    }
+
+    #[test]
+    fn l10n_severity_color_name_returns_correct_colors() {
+        assert_eq!(L10nSeverity::Info.color_name(), "cyan");
+        assert_eq!(L10nSeverity::Warning.color_name(), "yellow");
+        assert_eq!(L10nSeverity::Error.color_name(), "red");
+    }
+
+    #[test]
+    fn l10n_severity_ordering_info_lt_warning_lt_error() {
+        assert!(L10nSeverity::Info < L10nSeverity::Warning);
+        assert!(L10nSeverity::Warning < L10nSeverity::Error);
+        assert!(L10nSeverity::Info < L10nSeverity::Error);
+    }
+
+    // ─── find_arb_files ───────────────────────────────────────────────────────
+
+    #[test]
+    fn find_arb_files_returns_only_arb_files() -> Result<()> {
+        let dir = TempDir::new()?;
+        fs::write(dir.path().join("app_en.arb"), r#"{"hello": "Hello"}"#)?;
+        fs::write(dir.path().join("app_fr.arb"), r#"{"hello": "Bonjour"}"#)?;
+        fs::write(dir.path().join("strings.json"), r#"{}"#)?;
+        fs::write(dir.path().join("readme.txt"), "ignore me")?;
+
+        let files = find_arb_files(dir.path())?;
+        assert_eq!(files.len(), 2);
+        assert!(files.iter().all(|p| p.extension().unwrap() == "arb"));
+        Ok(())
+    }
+
+    #[test]
+    fn find_arb_files_empty_dir_returns_empty_vec() -> Result<()> {
+        let dir = TempDir::new()?;
+        let files = find_arb_files(dir.path())?;
+        assert!(files.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn find_arb_files_nested_subdirs_are_found() -> Result<()> {
+        let dir = TempDir::new()?;
+        let sub = dir.path().join("lib").join("l10n");
+        fs::create_dir_all(&sub)?;
+        fs::write(sub.join("app_en.arb"), r#"{"k": "v"}"#)?;
+        let files = find_arb_files(dir.path())?;
+        assert_eq!(files.len(), 1);
+        Ok(())
+    }
+
+    // ─── parse_arb_file ───────────────────────────────────────────────────────
+
+    #[test]
+    fn parse_arb_file_skips_metadata_at_keys() -> Result<()> {
+        let dir = TempDir::new()?;
+        let path = dir.path().join("app_en.arb");
+        fs::write(
+            &path,
+            r#"{"title": "My App", "@title": {"description": "App title"}}"#,
+        )?;
+        let arb = parse_arb_file(&path)?;
+        assert!(arb.keys.contains_key("title"));
+        assert!(!arb.keys.contains_key("@title"));
+        assert_eq!(arb.keys.len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_arb_file_no_underscore_filename_yields_base_locale() -> Result<()> {
+        let dir = TempDir::new()?;
+        let path = dir.path().join("strings.arb");
+        fs::write(&path, r#"{"key": "value"}"#)?;
+        let arb = parse_arb_file(&path)?;
+        assert_eq!(arb.locale, "base");
+        Ok(())
+    }
+
+    #[test]
+    fn parse_arb_file_invalid_json_returns_error() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("bad.arb");
+        fs::write(&path, "not valid json {{{{").unwrap();
+        assert!(parse_arb_file(&path).is_err());
+    }
+
+    #[test]
+    fn parse_arb_file_skips_non_string_values() -> Result<()> {
+        let dir = TempDir::new()?;
+        let path = dir.path().join("app_de.arb");
+        // "count" is a number — should be skipped; only "label" kept
+        fs::write(&path, r#"{"label": "Etikett", "count": 42}"#)?;
+        let arb = parse_arb_file(&path)?;
+        assert!(arb.keys.contains_key("label"));
+        assert!(!arb.keys.contains_key("count"));
+        Ok(())
+    }
+
+    #[test]
+    fn parse_arb_file_extracts_locale_from_last_segment() -> Result<()> {
+        let dir = TempDir::new()?;
+        let path = dir.path().join("my_app_messages_zh.arb");
+        fs::write(&path, r#"{"hi": "你好"}"#)?;
+        let arb = parse_arb_file(&path)?;
+        assert_eq!(arb.locale, "zh");
+        Ok(())
+    }
+
+    // ─── extract_placeholders ─────────────────────────────────────────────────
+
+    #[test]
+    fn extract_placeholders_single_returns_one() {
+        let placeholders = extract_placeholders("Hello {world}");
+        assert_eq!(placeholders, vec!["world".to_string()]);
+    }
+
+    #[test]
+    fn extract_placeholders_empty_braces_ignored() {
+        // "{}" has no content — should not add an empty string
+        let placeholders = extract_placeholders("Value: {}");
+        assert!(!placeholders.contains(&"".to_string()));
+    }
+
+    #[test]
+    fn extract_placeholders_unclosed_brace_ignored() {
+        let placeholders = extract_placeholders("Hello {name");
+        assert!(placeholders.is_empty());
+    }
+
+    #[test]
+    fn extract_placeholders_plural_style_captured() {
+        // The inner-loop reads until the FIRST '}', so "{count, plural, one{item} other{items}}"
+        // yields ["count, plural, one{item", "items"] — the outer nesting is not special-cased.
+        let text = "{count, plural, one{item} other{items}}";
+        let placeholders = extract_placeholders(text);
+        assert!(!placeholders.is_empty());
+        // The first element starts with "count"
+        assert!(placeholders[0].starts_with("count"));
+    }
+
+    // ─── find_dart_files ─────────────────────────────────────────────────────
+
+    #[test]
+    fn find_dart_files_returns_only_dart_files() -> Result<()> {
+        let dir = TempDir::new()?;
+        fs::write(dir.path().join("main.dart"), "void main() {}")?;
+        fs::write(dir.path().join("widget.dart"), "class W {}")?;
+        fs::write(dir.path().join("config.yaml"), "key: val")?;
+        fs::write(dir.path().join("README.md"), "# readme")?;
+
+        let files = find_dart_files(dir.path())?;
+        assert_eq!(files.len(), 2);
+        assert!(files.iter().all(|p| p.extension().unwrap() == "dart"));
+        Ok(())
+    }
+
+    #[test]
+    fn find_dart_files_empty_dir_returns_empty_vec() -> Result<()> {
+        let dir = TempDir::new()?;
+        let files = find_dart_files(dir.path())?;
+        assert!(files.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn find_dart_files_nested_dirs_discovered() -> Result<()> {
+        let dir = TempDir::new()?;
+        let nested = dir.path().join("lib").join("src");
+        fs::create_dir_all(&nested)?;
+        fs::write(nested.join("home.dart"), "class Home {}")?;
+        let files = find_dart_files(dir.path())?;
+        assert_eq!(files.len(), 1);
+        Ok(())
+    }
+
+    // ─── find_keys_in_content / find_used_keys ───────────────────────────────
+
+    #[test]
+    fn find_keys_in_content_finds_specific_l10n_keys() {
+        // The matcher triggers when the char BEFORE '.' is '.', '?', or ')'.
+        // "AppLocalizations.of(context)?.welcomeMessage" — the '?' before '.' matches.
+        let content = "AppLocalizations.of(context)?.welcomeMessage;";
+        let mut used = HashSet::new();
+        find_keys_in_content(content, &mut used);
+        assert!(
+            used.contains("welcomeMessage"),
+            "expected welcomeMessage, got: {:?}",
+            used
+        );
+    }
+
+    #[test]
+    fn find_keys_in_content_excludes_l10n_and_of_keywords() {
+        let content = "AppLocalizations.of(context)?.greetUser;";
+        let mut used = HashSet::new();
+        find_keys_in_content(content, &mut used);
+        assert!(!used.contains("l10n"), "l10n should be filtered");
+        assert!(!used.contains("of"), "of should be filtered");
+    }
+
+    #[test]
+    fn find_keys_in_content_empty_string_no_keys() {
+        let mut used = HashSet::new();
+        find_keys_in_content("", &mut used);
+        assert!(used.is_empty());
+    }
+
+    #[test]
+    fn find_used_keys_reads_dart_files_and_returns_keys() -> Result<()> {
+        let dir = TempDir::new()?;
+        let dart = dir.path().join("screen.dart");
+        // Use "?.pageTitle" pattern so the '?' precedes the '.', triggering the matcher.
+        fs::write(&dart, "AppLocalizations.of(context)?.pageTitle;")?;
+        let paths = vec![dart];
+        let keys = find_used_keys(&paths)?;
+        assert!(
+            keys.contains("pageTitle"),
+            "expected pageTitle, got: {:?}",
+            keys
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn find_used_keys_unreadable_file_is_skipped() -> Result<()> {
+        // Passing a path that doesn't exist; find_used_keys continues silently
+        let paths = vec![PathBuf::from("/nonexistent/ghost.dart")];
+        let keys = find_used_keys(&paths)?;
+        assert!(keys.is_empty());
+        Ok(())
+    }
+
+    // ─── identify_template_file ───────────────────────────────────────────────
+
+    #[test]
+    fn identify_template_file_picks_en_locale() -> Result<()> {
+        let dir = TempDir::new()?;
+        let en_path = dir.path().join("app_en.arb");
+        let fr_path = dir.path().join("app_fr.arb");
+        fs::write(&en_path, r#"{"k": "v"}"#)?;
+        fs::write(&fr_path, r#"{"k": "w"}"#)?;
+
+        let arbs = vec![parse_arb_file(&fr_path)?, parse_arb_file(&en_path)?];
+        let template = identify_template_file(&arbs).expect("should find template");
+        assert_eq!(template.locale, "en");
+        Ok(())
+    }
+
+    #[test]
+    fn identify_template_file_falls_back_to_first_when_no_en() -> Result<()> {
+        let dir = TempDir::new()?;
+        let de_path = dir.path().join("app_de.arb");
+        let fr_path = dir.path().join("app_fr.arb");
+        fs::write(&de_path, r#"{"k": "v"}"#)?;
+        fs::write(&fr_path, r#"{"k": "w"}"#)?;
+
+        let arbs = vec![parse_arb_file(&de_path)?, parse_arb_file(&fr_path)?];
+        let template = identify_template_file(&arbs).expect("should find template");
+        assert_eq!(template.locale, "de");
+        Ok(())
+    }
+
+    #[test]
+    fn identify_template_file_empty_list_returns_none() {
+        let arbs: Vec<ArbFile> = vec![];
+        assert!(identify_template_file(&arbs).is_none());
+    }
+
+    #[test]
+    fn identify_template_file_base_locale_is_accepted() -> Result<()> {
+        let dir = TempDir::new()?;
+        let base_path = dir.path().join("strings.arb"); // no underscore → "base"
+        fs::write(&base_path, r#"{"k": "v"}"#)?;
+        let arbs = vec![parse_arb_file(&base_path)?];
+        let template = identify_template_file(&arbs).expect("should find template");
+        assert_eq!(template.locale, "base");
+        Ok(())
+    }
+
+    // ─── analyze_l10n_coverage ────────────────────────────────────────────────
+
+    #[test]
+    fn analyze_l10n_coverage_no_arb_files_returns_error() {
+        let dir = TempDir::new().unwrap();
+        let result = analyze_l10n_coverage(dir.path());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("No ARB files"));
+    }
+
+    #[test]
+    fn analyze_l10n_coverage_only_unparseable_arbs_returns_error() {
+        let dir = TempDir::new().unwrap();
+        fs::write(dir.path().join("app_en.arb"), "not json").unwrap();
+        let result = analyze_l10n_coverage(dir.path());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn analyze_l10n_coverage_single_template_no_locales() -> Result<()> {
+        let dir = TempDir::new()?;
+        let l10n_dir = dir.path().join("lib").join("l10n");
+        fs::create_dir_all(&l10n_dir)?;
+        fs::write(
+            l10n_dir.join("app_en.arb"),
+            r#"{"hello": "Hello", "bye": "Bye"}"#,
+        )?;
+
+        let report = analyze_l10n_coverage(dir.path())?;
+        assert_eq!(report.template_locale, "en");
+        assert_eq!(report.template_key_count, 2);
+        assert!(report.locales.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn analyze_l10n_coverage_detects_missing_keys() -> Result<()> {
+        let dir = TempDir::new()?;
+        let l10n_dir = dir.path().join("lib").join("l10n");
+        fs::create_dir_all(&l10n_dir)?;
+
+        // Template with 3 keys
+        fs::write(
+            l10n_dir.join("app_en.arb"),
+            r#"{"greeting": "Hello", "farewell": "Bye", "title": "App"}"#,
+        )?;
+        // French is missing "title"
+        fs::write(
+            l10n_dir.join("app_fr.arb"),
+            r#"{"greeting": "Bonjour", "farewell": "Au revoir"}"#,
+        )?;
+
+        let report = analyze_l10n_coverage(dir.path())?;
+        let fr = report.locales.iter().find(|l| l.locale == "fr").unwrap();
+        assert!(fr.missing_keys.contains(&"title".to_string()));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.category == "Missing" && i.locale == "fr"));
+        Ok(())
+    }
+
+    #[test]
+    fn analyze_l10n_coverage_detects_extra_keys() -> Result<()> {
+        let dir = TempDir::new()?;
+        let l10n_dir = dir.path().join("lib").join("l10n");
+        fs::create_dir_all(&l10n_dir)?;
+
+        fs::write(l10n_dir.join("app_en.arb"), r#"{"greeting": "Hello"}"#)?;
+        // German has an extra key not in template
+        fs::write(
+            l10n_dir.join("app_de.arb"),
+            r#"{"greeting": "Hallo", "extra_key": "Zusatz"}"#,
+        )?;
+
+        let report = analyze_l10n_coverage(dir.path())?;
+        let de = report.locales.iter().find(|l| l.locale == "de").unwrap();
+        assert!(de.extra_keys.contains(&"extra_key".to_string()));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.category == "Extra" && i.locale == "de"));
+        Ok(())
+    }
+
+    #[test]
+    fn analyze_l10n_coverage_detects_empty_translations() -> Result<()> {
+        let dir = TempDir::new()?;
+        let l10n_dir = dir.path().join("lib").join("l10n");
+        fs::create_dir_all(&l10n_dir)?;
+
+        fs::write(l10n_dir.join("app_en.arb"), r#"{"greeting": "Hello"}"#)?;
+        fs::write(l10n_dir.join("app_es.arb"), r#"{"greeting": ""}"#)?;
+
+        let report = analyze_l10n_coverage(dir.path())?;
+        let es = report.locales.iter().find(|l| l.locale == "es").unwrap();
+        assert!(es.empty_values.contains(&"greeting".to_string()));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.category == "Empty" && i.locale == "es"));
+        Ok(())
+    }
+
+    #[test]
+    fn analyze_l10n_coverage_detects_placeholder_mismatches() -> Result<()> {
+        let dir = TempDir::new()?;
+        let l10n_dir = dir.path().join("lib").join("l10n");
+        fs::create_dir_all(&l10n_dir)?;
+
+        // Template has {name} placeholder
+        fs::write(
+            l10n_dir.join("app_en.arb"),
+            r#"{"greeting": "Hello {name}"}"#,
+        )?;
+        // Japanese translation lacks the placeholder
+        fs::write(l10n_dir.join("app_ja.arb"), r#"{"greeting": "こんにちは"}"#)?;
+
+        let report = analyze_l10n_coverage(dir.path())?;
+        let ja = report.locales.iter().find(|l| l.locale == "ja").unwrap();
+        assert!(ja.placeholder_mismatches.contains(&"greeting".to_string()));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.category == "Placeholder" && i.locale == "ja"));
+        Ok(())
+    }
+
+    #[test]
+    fn analyze_l10n_coverage_detects_unused_keys() -> Result<()> {
+        let dir = TempDir::new()?;
+        let l10n_dir = dir.path().join("lib").join("l10n");
+        fs::create_dir_all(&l10n_dir)?;
+
+        fs::write(
+            l10n_dir.join("app_en.arb"),
+            r#"{"usedKey": "Used", "neverUsed": "Ghost"}"#,
+        )?;
+        fs::write(
+            l10n_dir.join("app_fr.arb"),
+            r#"{"usedKey": "Utilisé", "neverUsed": "Fantôme"}"#,
+        )?;
+
+        // Dart file only references usedKey
+        let lib_dir = dir.path().join("lib");
+        fs::write(lib_dir.join("main.dart"), "context.l10n.usedKey;")?;
+
+        let report = analyze_l10n_coverage(dir.path())?;
+        assert!(report.unused_keys.contains(&"neverUsed".to_string()));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.category == "Unused" && i.key == "neverUsed"));
+        Ok(())
+    }
+
+    #[test]
+    fn analyze_l10n_coverage_score_decreases_with_issues() -> Result<()> {
+        let dir = TempDir::new()?;
+        let l10n_dir = dir.path().join("lib").join("l10n");
+        fs::create_dir_all(&l10n_dir)?;
+
+        // Template with several keys
+        fs::write(
+            l10n_dir.join("app_en.arb"),
+            r#"{"k1":"v1","k2":"v2","k3":"v3","k4":"v4","k5":"v5"}"#,
+        )?;
+        // French is missing all 5 keys → 5 Errors × 10 = 50 deductions
+        fs::write(l10n_dir.join("app_fr.arb"), r#"{}"#)?;
+
+        let report = analyze_l10n_coverage(dir.path())?;
+        assert!(
+            report.score < 100,
+            "score should drop below 100 when there are errors"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn analyze_l10n_coverage_overall_coverage_pct_computed() -> Result<()> {
+        let dir = TempDir::new()?;
+        let l10n_dir = dir.path().join("lib").join("l10n");
+        fs::create_dir_all(&l10n_dir)?;
+
+        fs::write(
+            l10n_dir.join("app_en.arb"),
+            r#"{"a":"1","b":"2","c":"3","d":"4"}"#,
+        )?;
+        // Spanish has 2 of 4 keys
+        fs::write(l10n_dir.join("app_es.arb"), r#"{"a":"uno","b":"dos"}"#)?;
+
+        let report = analyze_l10n_coverage(dir.path())?;
+        assert!(report.overall_coverage_pct > 0.0);
+        assert!(report.overall_coverage_pct <= 100.0);
+        Ok(())
+    }
+
+    // ─── write_l10n_html_report ───────────────────────────────────────────────
+
+    #[test]
+    fn write_l10n_html_report_creates_file_with_html_content() -> Result<()> {
+        let dir = TempDir::new()?;
+        let out_path = dir.path().join("report.html");
+
+        let report = L10nCoverageReport {
+            template_locale: "en".to_string(),
+            template_key_count: 5,
+            locales: vec![],
+            unused_keys: vec![],
+            overall_coverage_pct: 100.0,
+            score: 100,
+            issues: vec![],
+        };
+
+        write_l10n_html_report(&report, &out_path)?;
+
+        assert!(out_path.exists(), "HTML file should be created");
+        let content = fs::read_to_string(&out_path)?;
+        assert!(content.contains("<!DOCTYPE html>"));
+        assert!(content.contains("Localization Coverage Report"));
+        Ok(())
+    }
+
+    #[test]
+    fn write_l10n_html_report_returns_error_for_invalid_path() {
+        let report = L10nCoverageReport {
+            template_locale: "en".to_string(),
+            template_key_count: 0,
+            locales: vec![],
+            unused_keys: vec![],
+            overall_coverage_pct: 0.0,
+            score: 100,
+            issues: vec![],
+        };
+        let bad_path = PathBuf::from("/nonexistent_dir/sub/report.html");
+        assert!(write_l10n_html_report(&report, &bad_path).is_err());
+    }
+
+    // ─── generate_html_report (edge cases) ───────────────────────────────────
+
+    #[test]
+    fn generate_html_report_excellent_coverage_class() {
+        let report = L10nCoverageReport {
+            template_locale: "en".to_string(),
+            template_key_count: 10,
+            locales: vec![LocaleReport {
+                locale: "de".to_string(),
+                file: PathBuf::from("app_de.arb"),
+                total_keys: 10,
+                missing_keys: vec![],
+                extra_keys: vec![],
+                empty_values: vec![],
+                placeholder_mismatches: vec![],
+                coverage_pct: 100.0,
+            }],
+            unused_keys: vec![],
+            overall_coverage_pct: 100.0,
+            score: 100,
+            issues: vec![],
+        };
+        let html = generate_html_report(&report);
+        assert!(html.contains("progress-excellent"));
+        assert!(html.contains("100.0%"));
+    }
+
+    #[test]
+    fn generate_html_report_poor_coverage_class() {
+        let report = L10nCoverageReport {
+            template_locale: "en".to_string(),
+            template_key_count: 10,
+            locales: vec![LocaleReport {
+                locale: "zh".to_string(),
+                file: PathBuf::from("app_zh.arb"),
+                total_keys: 3,
+                missing_keys: vec!["a".to_string(), "b".to_string()],
+                extra_keys: vec![],
+                empty_values: vec![],
+                placeholder_mismatches: vec![],
+                coverage_pct: 30.0,
+            }],
+            unused_keys: vec![],
+            overall_coverage_pct: 30.0,
+            score: 60,
+            issues: vec![],
+        };
+        let html = generate_html_report(&report);
+        assert!(html.contains("progress-poor"));
+        assert!(html.contains("30.0%"));
+    }
+
+    #[test]
+    fn generate_html_report_good_coverage_class() {
+        let report = L10nCoverageReport {
+            template_locale: "en".to_string(),
+            template_key_count: 10,
+            locales: vec![LocaleReport {
+                locale: "pt".to_string(),
+                file: PathBuf::from("app_pt.arb"),
+                total_keys: 9,
+                missing_keys: vec!["one".to_string()],
+                extra_keys: vec![],
+                empty_values: vec![],
+                placeholder_mismatches: vec![],
+                coverage_pct: 90.0,
+            }],
+            unused_keys: vec![],
+            overall_coverage_pct: 90.0,
+            score: 90,
+            issues: vec![],
+        };
+        let html = generate_html_report(&report);
+        assert!(html.contains("progress-good"));
+    }
+
+    #[test]
+    fn generate_html_report_includes_issues_section() {
+        let report = L10nCoverageReport {
+            template_locale: "en".to_string(),
+            template_key_count: 2,
+            locales: vec![],
+            unused_keys: vec![],
+            overall_coverage_pct: 0.0,
+            score: 90,
+            issues: vec![L10nIssue {
+                severity: L10nSeverity::Error,
+                category: "Missing".to_string(),
+                locale: "fr".to_string(),
+                key: "someKey".to_string(),
+                detail: "Key is missing in fr".to_string(),
+                suggestion: "Add the translation".to_string(),
+            }],
+        };
+        let html = generate_html_report(&report);
+        assert!(html.contains("Issues"));
+        assert!(html.contains("someKey"));
+        assert!(html.contains("Missing"));
+    }
+
+    #[test]
+    fn generate_html_report_includes_unused_keys_section() {
+        let mut unused: Vec<String> = (0..25).map(|i| format!("unusedKey{}", i)).collect();
+        let report = L10nCoverageReport {
+            template_locale: "en".to_string(),
+            template_key_count: 30,
+            locales: vec![],
+            unused_keys: unused.clone(),
+            overall_coverage_pct: 0.0,
+            score: 50,
+            issues: vec![],
+        };
+        let html = generate_html_report(&report);
+        assert!(html.contains("Unused Keys"));
+        // Shows first 20; more than 20 triggers the "... and X more" line
+        assert!(html.contains("more unused keys"));
+        let _ = unused; // suppress unused warning
+    }
+
+    #[test]
+    fn generate_html_report_issues_more_than_ten_shows_overflow() {
+        let issues: Vec<L10nIssue> = (0..12)
+            .map(|i| L10nIssue {
+                severity: L10nSeverity::Warning,
+                category: "Extra".to_string(),
+                locale: "fr".to_string(),
+                key: format!("key{}", i),
+                detail: "extra key".to_string(),
+                suggestion: "remove it".to_string(),
+            })
+            .collect();
+
+        let report = L10nCoverageReport {
+            template_locale: "en".to_string(),
+            template_key_count: 5,
+            locales: vec![],
+            unused_keys: vec![],
+            overall_coverage_pct: 0.0,
+            score: 40,
+            issues,
+        };
+        let html = generate_html_report(&report);
+        assert!(html.contains("more issues"));
+    }
+
+    #[test]
+    fn generate_html_report_score_quality_excellent() {
+        let report = L10nCoverageReport {
+            template_locale: "en".to_string(),
+            template_key_count: 5,
+            locales: vec![LocaleReport {
+                locale: "fr".to_string(),
+                file: PathBuf::from("app_fr.arb"),
+                total_keys: 5,
+                missing_keys: vec![],
+                extra_keys: vec![],
+                empty_values: vec![],
+                placeholder_mismatches: vec![],
+                coverage_pct: 97.0,
+            }],
+            unused_keys: vec![],
+            overall_coverage_pct: 97.0,
+            score: 100,
+            issues: vec![],
+        };
+        let html = generate_html_report(&report);
+        assert!(html.contains("excellent"));
     }
 }

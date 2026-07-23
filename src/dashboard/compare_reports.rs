@@ -2,7 +2,6 @@ use super::snapshot::AnalysisSnapshot;
 use crate::config::FalconConfig;
 use crate::Falcon;
 use colored::Colorize;
-use std::cmp::Reverse;
 use std::path::Path;
 
 pub struct ComparisonResult {
@@ -73,9 +72,9 @@ pub fn compare_snapshots(run1: &AnalysisSnapshot, run2: &AnalysisSnapshot) -> Co
         }
     }
 
-    rules_changed.sort_by_key(|(_, count)| Reverse(count.abs()));
-    rules_added.sort_by_key(|(_, count)| Reverse(*count));
-    rules_removed.sort_by_key(|(_, count)| Reverse(*count));
+    rules_changed.sort_by_key(|e| std::cmp::Reverse(e.1.abs()));
+    rules_added.sort_by_key(|e| std::cmp::Reverse(e.1));
+    rules_removed.sort_by_key(|e| std::cmp::Reverse(e.1));
 
     ComparisonResult {
         run1: run1.clone(),
@@ -641,7 +640,7 @@ pub fn list_history(root: &Path) -> anyhow::Result<()> {
     if history.is_empty() {
         println!(
             "  📭 No analysis history found. Run {} to start recording.",
-            "falcon check".bright_blue()
+            "falcon analyze".bright_blue()
         );
         return Ok(());
     }
@@ -697,12 +696,12 @@ pub fn list_history(root: &Path) -> anyhow::Result<()> {
     println!(
         "  💡 {} Use {} to compare two runs.",
         "tip:".dimmed(),
-        "falcon x compare-reports <path> --run1 N --run2 M".bright_blue()
+        "falcon compare-reports <path> --run1 N --run2 M".bright_blue()
     );
     println!(
         "     {} Use {} to compare branches.",
         "   ".dimmed(),
-        "falcon x compare-branches <path> --base main --branch dev".bright_blue()
+        "falcon compare-branches <path> --base main --branch dev".bright_blue()
     );
     println!();
     Ok(())
@@ -785,11 +784,11 @@ pub fn compare_branches(
 
     // Analyze base branch
     println!("  🌿 Checking out base branch: {}", base.bright_cyan());
-    checkout(root, base).inspect_err(|_| {
+    checkout(root, base).inspect_err(|_e| {
         restore(root, &original_branch, had_stash);
     })?;
     println!("  🔬 Analyzing {}...", base.bright_cyan());
-    let snap_base = analyze_current(root, config).inspect_err(|_| {
+    let snap_base = analyze_current(root, config).inspect_err(|_e| {
         restore(root, &original_branch, had_stash);
     })?;
     println!(
@@ -807,11 +806,11 @@ pub fn compare_branches(
 
     // Analyze target branch
     println!("  🌿 Checking out branch: {}", branch.bright_cyan());
-    checkout(root, branch).inspect_err(|_| {
+    checkout(root, branch).inspect_err(|_e| {
         restore(root, &original_branch, had_stash);
     })?;
     println!("  🔬 Analyzing {}...", branch.bright_cyan());
-    let snap_branch = analyze_current(root, config).inspect_err(|_| {
+    let snap_branch = analyze_current(root, config).inspect_err(|_e| {
         restore(root, &original_branch, had_stash);
     })?;
     println!(
