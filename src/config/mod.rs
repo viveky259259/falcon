@@ -236,7 +236,7 @@ pub struct AnalyzeConfig {
 }
 
 /// Tuning for the analyze-rollup of pre-flight checks.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AnalyzePreflightConfig {
     /// Whether to run the four pre-flight checks during `falcon analyze`.
     /// Default: false (soft-rollout default in v0.5; will flip to true in v0.6).
@@ -246,15 +246,6 @@ pub struct AnalyzePreflightConfig {
     /// "check-pods", "check-platform-deps".
     #[serde(default)]
     pub skip: Vec<String>,
-}
-
-impl Default for AnalyzePreflightConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false, // soft-rollout default; will flip to true in next major
-            skip: Vec::new(),
-        }
-    }
 }
 
 fn bool_true() -> bool {

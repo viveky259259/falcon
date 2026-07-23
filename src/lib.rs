@@ -1,3 +1,7 @@
+#![allow(dead_code)]
+#![allow(clippy::items_after_test_module)]
+#![allow(clippy::too_many_arguments)]
+
 pub mod agents;
 pub mod ai;
 pub mod ai_score;

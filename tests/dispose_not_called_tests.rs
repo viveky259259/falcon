@@ -30,8 +30,10 @@ class _ScreenState extends BaseState {
 "#,
     );
 
-    let mut config = FalconConfig::default();
-    config.rules = vec![RuleConfig::Simple("dispose-not-called".to_string())];
+    let mut config = FalconConfig {
+        rules: vec![RuleConfig::Simple("dispose-not-called".to_string())],
+        ..Default::default()
+    };
     config.unused.enabled = false;
     let falcon = Falcon::new(config).unwrap();
     let report = falcon.analyze(root).unwrap();
@@ -77,8 +79,10 @@ class _ScreenState extends BaseState {
 "#,
     );
 
-    let mut config = FalconConfig::default();
-    config.rules = vec![RuleConfig::Simple("dispose-not-called".to_string())];
+    let mut config = FalconConfig {
+        rules: vec![RuleConfig::Simple("dispose-not-called".to_string())],
+        ..Default::default()
+    };
     config.unused.enabled = false;
     let falcon = Falcon::new(config).unwrap();
     let report = falcon.analyze(root).unwrap();

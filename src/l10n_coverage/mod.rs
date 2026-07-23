@@ -1837,7 +1837,7 @@ mod tests {
 
     #[test]
     fn generate_html_report_includes_unused_keys_section() {
-        let mut unused: Vec<String> = (0..25).map(|i| format!("unusedKey{}", i)).collect();
+        let unused: Vec<String> = (0..25).map(|i| format!("unusedKey{}", i)).collect();
         let report = L10nCoverageReport {
             template_locale: "en".to_string(),
             template_key_count: 30,

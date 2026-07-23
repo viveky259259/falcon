@@ -653,7 +653,6 @@ fn html_escape(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
     use tempfile::TempDir;
 
     // -------------------------------------------------------------------------
@@ -966,7 +965,7 @@ controller.addListener(() {
     }
 
     #[test]
-    fn test_setstate_in_listener_setState_far_away() {
+    fn test_setstate_in_listener_set_state_far_away() {
         // setState appears more than 5 lines after addListener — should NOT flag
         let content = "controller.addListener(() {\n  doA();\n  doB();\n  doC();\n  doD();\n  doE();\n  setState(() {});\n});\n";
         let lines: Vec<&str> = content.lines().collect();

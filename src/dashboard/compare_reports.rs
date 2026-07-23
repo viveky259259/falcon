@@ -684,7 +684,7 @@ pub fn list_history(root: &Path) -> anyhow::Result<()> {
         println!(
             "  {:<4} {:<22}  {:<12} {:>7} {:>7} {:>8} {:>8}",
             format!("#{}", i + 1).dimmed(),
-            &snap.timestamp,
+            snap.timestamp,
             branch_display,
             snap.file_count,
             health_colored,
