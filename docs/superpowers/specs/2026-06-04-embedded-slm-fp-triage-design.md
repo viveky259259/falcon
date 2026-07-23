@@ -96,7 +96,7 @@ When the binary is built **without** `ai-local`, the `ai triage` command still e
 
 ## Data Flow
 
-1. User runs `falcon ai triage <path>` (feature-gated).
+1. User runs `falcon x ai triage <path>` (feature-gated).
 2. Falcon runs normal analysis → `Vec<Issue>`.
 3. Issues are capped at `max_issues` (configurable). **If truncated, a warning is printed** — no silent caps.
 4. `LocalEngine` is loaded once (downloading weights on first ever run).
@@ -147,7 +147,7 @@ Default build pulls none of these — compile time and binary size unchanged unl
 - `crate::reporters::Issue { rule, message, severity, file, line, column }` — input to triage.
 - `src/ai/confidence.rs` — heuristic scorer stays; triage is a parallel, additive surface.
 - `src/ai/mod.rs` — add `#[cfg(feature = "ai-local")] pub mod local;`.
-- `src/main.rs` — register `ai triage` subcommand (with cfg-gated stub for the feature-off build); mirror the dispatch style of the existing `check-unused-confidence` command.
+- `src/main.rs` — register `ai triage` subcommand (with cfg-gated stub for the feature-off build); mirror the dispatch style of the existing `x check-unused-confidence` command.
 - `src/ai/config.rs` — `AiProvider::Embedded` + `EmbeddedModelConfig`.
 
 ## Future Slices (not this spec)

@@ -337,7 +337,7 @@ pub fn print_policy_results(results: &[PolicyCheckResult]) {
     println!();
 
     if results.is_empty() {
-        println!("  No policies configured. Run: falcon enterprise init");
+        println!("  No policies configured. Run: falcon x enterprise init");
         println!();
         return;
     }

@@ -84,7 +84,7 @@ pub fn list_all_rules() {
     println!();
     println!(
         "  {} {} rules with explanations",
-        "falcon explain".bright_cyan().bold(),
+        "falcon x explain".bright_cyan().bold(),
         rules.len()
     );
     println!();

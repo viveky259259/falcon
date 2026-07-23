@@ -10,7 +10,7 @@ pub fn start_dashboard(root: &Path, port: u16) -> anyhow::Result<()> {
 
     if history.is_empty() {
         anyhow::bail!(
-            "No analysis history found. Run 'falcon dashboard snapshot' first to capture data."
+            "No analysis history found. Run 'falcon x dashboard snapshot' first to capture data."
         );
     }
 

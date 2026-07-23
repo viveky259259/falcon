@@ -45,7 +45,7 @@ A custom Falcon plugin.
 ## Installation
 
 ```bash
-falcon plugin install ./{}
+falcon x plugin install ./{}
 ```
 
 ## Rules
@@ -57,8 +57,8 @@ falcon plugin install ./{}
 ## Development
 
 1. Edit `rules/rules.yaml` to define your rules
-2. Test with `falcon plugin test ./{}`
-3. Publish with `falcon plugin publish`
+2. Test with `falcon x plugin test ./{}`
+3. Publish with `falcon x plugin publish`
 "#,
         name, name, name, name
     );
@@ -109,8 +109,8 @@ falcon plugin install ./{}
     println!();
     println!("  Next steps:");
     println!("    1. Edit rules/rules.yaml to define your rules");
-    println!("    2. Run: falcon plugin test ./{}", name);
-    println!("    3. Install: falcon plugin install ./{}", name);
+    println!("    2. Run: falcon x plugin test ./{}", name);
+    println!("    3. Install: falcon x plugin install ./{}", name);
     println!();
 
     Ok(())
@@ -182,7 +182,7 @@ pub fn print_plugins(plugins: &[PluginManifest]) {
     if plugins.is_empty() {
         println!();
         println!("  No plugins installed.");
-        println!("  Create one with: falcon plugin create <name>");
+        println!("  Create one with: falcon x plugin create <name>");
         println!();
         return;
     }

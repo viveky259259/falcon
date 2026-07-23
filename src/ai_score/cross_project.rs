@@ -236,7 +236,7 @@ pub fn print_insights(insights: &CrossProjectInsights) {
     println!();
 
     if insights.total_projects == 0 {
-        println!("  No project data yet. Record with: falcon learn --project /path/to/project");
+        println!("  No project data yet. Record with: falcon x learn /path/to/project");
         println!();
         return;
     }

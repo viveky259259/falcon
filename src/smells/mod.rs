@@ -1,6 +1,6 @@
 //! Smell categorization: bucket falcon issues into Dead Code, Code Smells, Security Smells.
 //!
-//! Used by the `falcon smells` command to give users a SonarQube-style classified view
+//! Used by the `falcon x smells` command to give users a SonarQube-style classified view
 //! instead of a flat severity-only list.
 
 pub mod dead_folders;

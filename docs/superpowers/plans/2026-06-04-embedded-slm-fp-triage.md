@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add an in-process small language model (candle) that triages each rule finding as real-issue vs. false-positive, emitting `{is_real, confidence, rationale}`, exposed as `falcon ai triage <path>`.
+**Goal:** Add an in-process small language model (candle) that triages each rule finding as real-issue vs. false-positive, emitting `{is_real, confidence, rationale}`, exposed as `falcon x ai triage <path>`.
 
 **Architecture:** A `Completer` trait is the seam between orchestration and inference. All pure logic (prompt building, verdict parsing, code-window extraction, cache-path resolution, triage orchestration) compiles in the **default build** and is unit-tested with a fake `Completer` — no model download. Only the candle-backed `LocalEngine` and the `hf-hub` weight download are gated behind the `ai-local` Cargo feature. The CLI command exists in both builds; without `ai-local` it prints a "rebuild with `--features ai-local`" message.
 
@@ -1178,14 +1178,14 @@ Expected: both PASS.
 
 - [ ] **Step 6: Verify the feature-off command prints the rebuild hint**
 
-Run: `cargo run -- ai triage .`
+Run: `cargo run -- x ai triage .`
 Expected: prints "embedded AI is not compiled in" + the rebuild command.
 
 - [ ] **Step 7: Commit**
 
 ```bash
 git add src/main.rs src/ai/local/triage.rs
-git commit -m "feat(ai): wire `falcon ai triage` command (cfg-gated engine)"
+git commit -m "feat(ai): wire `falcon x ai triage` command (cfg-gated engine)"
 ```
 
 ---
@@ -1227,7 +1227,7 @@ In `CLAUDE.md`, under `## Build & Test`, add after the `cargo run -- <args>` lin
 
 ```
 cargo build --features ai-local                      # build with embedded SLM triage
-cargo run --features ai-local -- ai triage <path>    # triage findings (real vs false-positive)
+cargo run --features ai-local -- x ai triage <path>    # triage findings (real vs false-positive)
 ```
 
 - [ ] **Step 4: Verify**

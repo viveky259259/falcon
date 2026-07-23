@@ -53,10 +53,10 @@
 
         <main class="main">
             <h1>HTML Reports</h1>
-            <p><strong>v0.2.0</strong> — Falcon can emit a self-contained HTML dashboard from <code>falcon analyze</code>, ideal for sharing results, archiving runs, and CI artifacts.</p>
+            <p><strong>v0.2.0</strong> — Falcon can emit a self-contained HTML dashboard from <code>falcon check</code>, ideal for sharing results, archiving runs, and CI artifacts.</p>
 
             <h2>Generate a report</h2>
-            <pre><code><span class="cmd">$</span> falcon analyze . --format html --output report.html</code></pre>
+            <pre><code><span class="cmd">$</span> falcon check . --format html --output report.html</code></pre>
             <p>Default output path when omitted is <code>falcon-report.html</code>. See <a href="cli-reference.html">CLI Reference</a> for <code>--config</code>, <code>--since</code>, <code>--baseline</code>, and <code>--fail-on</code>.</p>
 
             <h2>What’s in the report</h2>
@@ -71,7 +71,7 @@
                 <li>Dark / light theme toggle in the generated page</li>
             </ul>
 
-            <p>Each successful <code>falcon analyze</code> also stores a snapshot under your project for history and comparison commands described on <a href="comparison.html">Branch Comparison</a>.</p>
+            <p>Each successful <code>falcon check</code> also stores a snapshot under your project for history and comparison commands described on <a href="comparison.html">Branch Comparison</a>.</p>
         </main>
     </div>
 </body>

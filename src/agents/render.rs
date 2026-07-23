@@ -65,8 +65,8 @@ entry in `src/smells/mod.rs::classify` if the rule should be bucketed.
 ## Useful falcon-on-falcon commands
 ```
 falcon analyze .
-falcon smells .
-falcon agents init           # regenerate this file
+falcon x smells .
+falcon x agents init           # regenerate this file
 ```
 "#,
     )
@@ -100,9 +100,9 @@ This project uses **falcon** for AI-aware static analysis on top of
 `flutter analyze`. Run before submitting:
 ```
 falcon analyze .
-falcon smells .                 # categorized: dead code / code smells / security smells
-falcon check-unused-files .
-falcon check-dead-code .
+falcon x smells .               # categorized: dead code / code smells / security smells
+falcon x check-unused-files .
+falcon x check-dead-code .
 ```
 A non-zero `security smells` count blocks merge. Code smells are advisory.
 
@@ -132,10 +132,10 @@ A non-zero `security smells` count blocks merge. Code smells are advisory.
 
 ## Useful falcon commands
 ```
-falcon agents init .            # (re)generate this file and per-feature files
-falcon flutter <args>           # passthrough to flutter
-falcon fvm <args>               # passthrough to fvm
-falcon devtools memory --attach <ws://…>   # runtime memory snapshot
+falcon x agents init .            # (re)generate this file and per-feature files
+falcon x flutter <args>           # passthrough to flutter
+falcon x fvm <args>               # passthrough to fvm
+falcon x devtools memory --attach <ws://…>   # runtime memory snapshot
 ```
 "#,
         name = project_name
@@ -181,7 +181,7 @@ Top-level files in this feature:
 {entry_files}
 
 ## How to work here
-- Run `falcon smells {dir}` after changes — it reports dead code, code smells,
+- Run `falcon x smells {dir}` after changes — it reports dead code, code smells,
   and security smells scoped to this folder.
 - Run `flutter test test/{name}/` if a matching test folder exists.
 - New widgets: prefer `StatelessWidget` + `const` constructors; falcon flags
@@ -206,7 +206,7 @@ Top-level files in this feature:
 
 ## Quick checks before submitting
 ```
-falcon smells {dir}
+falcon x smells {dir}
 flutter analyze {dir}
 flutter test
 ```

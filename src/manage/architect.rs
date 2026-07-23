@@ -126,7 +126,7 @@ pub fn analyze_architecture(root: &Path) -> anyhow::Result<ArchReport> {
     }
     if violations.len() > 10 {
         suggestions.push(
-            "Many architecture violations — enforce with falcon check-layers in CI".to_string(),
+            "Many architecture violations — enforce with falcon x check-layers in CI".to_string(),
         );
     }
 

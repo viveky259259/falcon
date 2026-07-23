@@ -141,7 +141,7 @@ pub fn print_fix_effectiveness(effectiveness: &[FixEffectiveness]) {
     println!();
 
     if effectiveness.is_empty() {
-        println!("  No fix history yet. Record with: falcon fix-track --rule <rule> --outcome accepted|rejected");
+        println!("  No fix history yet. Record with: falcon x fix-track --rule <rule> --outcome accepted|rejected");
         println!();
         return;
     }

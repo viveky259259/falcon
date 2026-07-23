@@ -44,8 +44,8 @@ falcon --help
 ### Updating
 
 ```bash
-falcon update              # Update to latest release
-falcon update --version X  # Install specific version
+falcon x update              # Update to latest release
+falcon x update --version X  # Install specific version
 ```
 
 ## Quick Start
@@ -85,7 +85,7 @@ Get a 0-100 AI Code Quality Score with a 6-dimension breakdown.
 ### 4. Initialize config
 
 ```bash
-falcon init
+falcon x init
 ```
 
 Creates a `falcon.yaml` config file with default settings.
@@ -120,7 +120,7 @@ exclude:
 Compare code quality between two git branches:
 
 ```bash
-falcon compare-branches . --base main --branch feature/my-feature
+falcon x compare-branches . --base main --branch feature/my-feature
 ```
 
 This checks out each branch, runs analysis, and shows the delta:
@@ -146,13 +146,13 @@ Add `--output comparison.html` for an HTML comparison report.
 Every `falcon check` run is automatically saved. View your history:
 
 ```bash
-falcon history .
+falcon x history .
 ```
 
 Compare any two stored runs:
 
 ```bash
-falcon compare-reports . --run1 1 --run2 3 --output delta.html
+falcon x compare-reports . --run1 1 --run2 3 --output delta.html
 ```
 
 ## Codebase Intelligence
@@ -160,7 +160,7 @@ falcon compare-reports . --run1 1 --run2 3 --output delta.html
 Get a bird's-eye view of your project:
 
 ```bash
-falcon codebase-intel .
+falcon x codebase-intel .
 ```
 
 Shows health score, god files, complexity hotspots, and tech debt estimate.

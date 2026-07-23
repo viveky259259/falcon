@@ -158,12 +158,15 @@ pub fn triage_issues(
 pub fn print_triage_run(run: &TriageRun) {
     if let Some(total) = run.truncated_from {
         println!(
-            "falcon ai triage: triaged first {} of {} findings",
+            "falcon x ai triage: triaged first {} of {} findings",
             run.verdicts.len(),
             total
         );
     } else {
-        println!("falcon ai triage: triaged {} findings", run.verdicts.len());
+        println!(
+            "falcon x ai triage: triaged {} findings",
+            run.verdicts.len()
+        );
     }
 
     if run.verdicts.is_empty() {

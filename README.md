@@ -65,20 +65,20 @@ $ falcon score .
 
 | Feature | Command | Description |
 |---|---|---|
-| **App Manager** | `falcon manage health` | Unified 0-100 health score across 6 dimensions |
-| **Dep Manager** | `falcon manage deps` | Unused deps, version issues, path/git deps |
-| **Architect** | `falcon manage arch` | Architecture governance, layer violations, hotspots |
-| **Maintenance** | `falcon manage maint` | Tech debt score, cleanup tasks, auto-fix pipeline |
+| **App Manager** | `falcon x manage health` | Unified 0-100 health score across 6 dimensions |
+| **Dep Manager** | `falcon x manage deps` | Unused deps, version issues, path/git deps |
+| **Architect** | `falcon x manage arch` | Architecture governance, layer violations, hotspots |
+| **Maintenance** | `falcon x manage maint` | Tech debt score, cleanup tasks, auto-fix pipeline |
 | **AI Score** | `falcon score` | 0-100 AI Code Quality Score with 6-dimension breakdown |
 | **61+ Rules** | `falcon check` | Flutter, BLoC, Riverpod, accessibility rules |
 | **MCP Server** | `falcon-mcp` | AI tools call Falcon during code generation |
 | **PR Comments** | `falcon review --format gh` | Generate GitHub-ready PR review markdown |
-| **Vulnerability** | `falcon vuln-scan` | Security radar with CWE classification |
-| **Risk Prediction** | `falcon predict` | Predict production issues from patterns |
-| **Test Generation** | `falcon test-gen` | Generate test stubs from code analysis |
-| **Refactoring Sim** | `falcon refactor-sim` | "What if we migrate to Riverpod?" impact |
-| **Enterprise** | `falcon enterprise` | Policies, audit logs, compliance |
-| **HTTP API** | `falcon api` | REST API for integrations |
+| **Vulnerability** | `falcon x vuln-scan` | Security radar with CWE classification |
+| **Risk Prediction** | `falcon x predict` | Predict production issues from patterns |
+| **Test Generation** | `falcon x test-gen` | Generate test stubs from code analysis |
+| **Refactoring Sim** | `falcon x refactor-sim` | "What if we migrate to Riverpod?" impact |
+| **Enterprise** | `falcon x enterprise` | Policies, audit logs, compliance |
+| **HTTP API** | `falcon x api` | REST API for integrations |
 
 [See all 80+ commands →](docs/cli-reference.md)
 

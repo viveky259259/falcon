@@ -76,7 +76,7 @@ impl Baseline {
         let path = path.as_ref();
         if !path.exists() {
             anyhow::bail!(
-                "No baseline file found at {}. Run `falcon baseline create` or `falcon review --update-baseline` first.",
+                "No baseline file found at {}. Run `falcon x baseline create` or `falcon review --update-baseline` first.",
                 path.display()
             );
         }

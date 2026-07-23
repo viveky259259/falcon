@@ -57,7 +57,7 @@ pub fn print_tool_profiles(profiles: &[ToolProfile]) {
 
     if profiles.is_empty() {
         println!(
-            "  No benchmark data yet. Record benchmarks with: falcon benchmark-db --tool <name>"
+            "  No benchmark data yet. Record benchmarks with: falcon x benchmark-db --tool <name>"
         );
         println!();
         return;

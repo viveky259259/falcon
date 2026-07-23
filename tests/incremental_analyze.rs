@@ -4,7 +4,7 @@ use std::path::Path;
 use std::process::{Command, Output};
 
 #[test]
-fn analyze_since_uses_project_resolver_context() {
+fn check_since_uses_project_resolver_context() {
     let repo = temp_git_repo();
     write_initial_project(repo.path());
     fs::write(
@@ -39,7 +39,7 @@ class _ScreenState extends BaseState {
 
     let output = falcon_cmd()
         .args([
-            "analyze",
+            "check",
             repo.path().to_str().unwrap(),
             "--since",
             "HEAD~1",
@@ -47,7 +47,7 @@ class _ScreenState extends BaseState {
             "json",
         ])
         .output()
-        .expect("run falcon analyze --since");
+        .expect("run falcon check --since");
 
     assert_success_or_findings_failure(&output);
     let json = output_json(&output);

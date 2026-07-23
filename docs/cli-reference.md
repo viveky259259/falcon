@@ -10,9 +10,10 @@ mapping. The full historical help remains available for one release with
 | Command | Description |
 |---|---|
 | `falcon check [path]` | Full analysis (metrics + rules + unused detection) |
-| `falcon metrics [path]` | Calculate code metrics only |
+| `falcon x smells [path]` | Categorized dead code, code smell, and security smell report |
+| `falcon x metrics [path]` | Calculate code metrics only |
 | `falcon score [path]` | AI Code Quality Score (0-100) with 6-dimension breakdown |
-| `falcon ai-report [path]` | Full "State of AI-Generated Flutter Code" report |
+| `falcon x ai-report [path]` | Full "State of AI-Generated Flutter Code" report |
 
 ### falcon check
 
@@ -65,43 +66,44 @@ falcon score . --badge --json
 
 | Command | Description |
 |---|---|
-| `falcon check-unused-code` | Unused code declarations |
-| `falcon check-unused-files` | Unused Dart files |
-| `falcon check-dependencies` | Unused pubspec.yaml dependencies |
-| `falcon check-cycles` | Cyclic import dependencies |
-| `falcon check-unused-params` | Unused function parameters |
-| `falcon check-dead-code` | Unreachable code after return/throw |
-| `falcon check-unused-l10n` | Unused localization keys |
-| `falcon check-promoted-deps` | Over/under-promoted dependencies |
-| `falcon check-layers` | Clean architecture layer enforcement |
-| `falcon check-imports` | Import restriction rules |
-| `falcon check-widgets` | Widget rebuild issues and build method complexity |
-| `falcon check-async` | Async/await anti-patterns (async void, unawaited futures) |
-| `falcon check-platform` | Kotlin/Swift platform channel issues |
-| `falcon check-codegen` | Code generation quality (.g.dart, .freezed.dart) |
-| `falcon check-perf` | DevTools-style performance analysis |
-| `falcon cognitive-complexity` | Function cognitive complexity |
-| `falcon codebase-intel` | Health score, god files, hotspots, tech debt estimate |
+| `falcon x check-unused-code` | Unused code declarations |
+| `falcon x check-unused-files` | Unused Dart files |
+| `falcon x check-dependencies` | Unused pubspec.yaml dependencies |
+| `falcon x check-cycles` | Cyclic import dependencies |
+| `falcon x check-unused-params` | Unused function parameters |
+| `falcon x check-dead-code` | Unreachable code after return/throw |
+| `falcon x check-unused-l10n` | Unused localization keys |
+| `falcon x check-promoted-deps` | Over/under-promoted dependencies |
+| `falcon x check-platform` | Kotlin/Swift platform channel issues |
+| `falcon x check-codegen` | Code generation quality (.g.dart, .freezed.dart) |
+| `falcon x check-perf` | DevTools-style performance analysis |
+| `falcon x check-unused-confidence` | Score unused code findings by confidence |
+| `falcon x check-layers` | Clean architecture layer enforcement |
+| `falcon x check-imports` | Import restriction rules |
+| `falcon x check-widgets` | Widget rebuild issues and build method complexity |
+| `falcon x check-async` | Async/await anti-patterns (async void, unawaited futures) |
+| `falcon x cognitive-complexity` | Function cognitive complexity |
+| `falcon x codebase-intel` | Health score, god files, hotspots, tech debt estimate |
 
 ## Comparison & History (v0.2.0)
 
-### falcon history
+### falcon x history
 
 List all stored analysis runs for a project.
 
 ```bash
-falcon history /path/to/project
+falcon x history /path/to/project
 ```
 
-Shows a table with timestamp, branch, file count, health score, issue count, and commit hash. Snapshots are automatically saved after every `falcon check` and `falcon compare-branches` run.
+Shows a table with timestamp, branch, file count, health score, issue count, and commit hash. Snapshots are automatically saved after every `falcon check` and `falcon x compare-branches` run.
 
-### falcon compare-reports
+### falcon x compare-reports
 
 Compare two stored analysis runs from history.
 
 ```bash
-falcon compare-reports /path/to/project --run1 1 --run2 3
-falcon compare-reports /path/to/project --run1 1 --run2 3 --output comparison.html
+falcon x compare-reports /path/to/project --run1 1 --run2 3
+falcon x compare-reports /path/to/project --run1 1 --run2 3 --output comparison.html
 ```
 
 | Flag | Description | Default |
@@ -110,13 +112,13 @@ falcon compare-reports /path/to/project --run1 1 --run2 3 --output comparison.ht
 | `--run2` | Run number for comparison | latest |
 | `--output` | Generate HTML comparison report | none |
 
-### falcon compare-branches
+### falcon x compare-branches
 
 Compare analysis results between two git branches. Checks out each branch, runs full analysis, then shows the delta.
 
 ```bash
-falcon compare-branches /path/to/project --base main --branch feature/my-feature
-falcon compare-branches . --base main --branch dev --output comparison.html
+falcon x compare-branches /path/to/project --base main --branch feature/my-feature
+falcon x compare-branches . --base main --branch dev --output comparison.html
 ```
 
 | Flag | Description | Default |
@@ -138,14 +140,14 @@ Both branch snapshots are saved to history for later re-comparison.
 
 ## Self-Update (v0.2.0)
 
-### falcon update
+### falcon x update
 
 Update Falcon to the latest or a specific version.
 
 ```bash
-falcon update                    # Update to latest
-falcon update --version 0.2.0   # Install specific version
-falcon update --list             # Show version info and available releases
+falcon x update                    # Update to latest
+falcon x update --version 0.2.0   # Install specific version
+falcon x update --list             # Show version info and available releases
 ```
 
 | Flag | Description |
@@ -159,26 +161,26 @@ The update mechanism downloads pre-built binaries from GitHub releases. If no bi
 
 | Command | Description |
 |---|---|
-| `falcon provenance [path]` | Detect AI-generated vs human-written files |
-| `falcon conventions [path]` | Auto-detect team naming/architecture patterns |
-| `falcon drift [path]` | Detect convention drift in new code |
-| `falcon predict [path]` | Predict production risks from code patterns |
-| `falcon discover-rules [path]` | Propose new rules from observed patterns |
-| `falcon ai triage [path] --format text\|json` | Embedded AI false-positive triage entry point |
-| `falcon refactor-sim --scenario <s>` | Simulate refactoring impact |
-| `falcon test-gen [path]` | Generate test stubs from code analysis |
-| `falcon vuln-scan [path]` | Security vulnerability radar |
-| `falcon upgrade-check [path]` | Flutter upgrade compatibility |
+| `falcon x provenance [path]` | Detect AI-generated vs human-written files |
+| `falcon x conventions [path]` | Auto-detect team naming/architecture patterns |
+| `falcon x drift [path]` | Detect convention drift in new code |
+| `falcon x predict [path]` | Predict production risks from code patterns |
+| `falcon x discover-rules [path]` | Propose new rules from observed patterns |
+| `falcon x ai triage [path] --format text\|json` | Embedded AI false-positive triage entry point |
+| `falcon x refactor-sim --scenario <s>` | Simulate refactoring impact |
+| `falcon x test-gen [path]` | Generate test stubs from code analysis |
+| `falcon x vuln-scan [path]` | Security vulnerability radar |
+| `falcon x upgrade-check [path]` | Flutter upgrade compatibility |
 
-### falcon ai triage
+### falcon x ai triage
 
 ```bash
-falcon ai triage . --format text
-falcon ai triage . --format json
-cargo run --features ai-local -- ai triage .
+falcon x ai triage . --format text
+falcon x ai triage . --format json
+cargo run --features ai-local -- x ai triage .
 ```
 
-`falcon ai triage` is the embedded AI false-positive review entry point. In
+`falcon x ai triage` is the embedded AI false-positive review entry point. In
 the default build it exits successfully and reports that embedded triage
 requires rebuilding with `--features ai-local`. With `ai-local` enabled, the
 command analyzes findings, loads the configured Qwen2.5 GGUF model once, and
@@ -202,11 +204,10 @@ selected for other AI surfaces.
 | `falcon review [path] --format gh` | Print PR-ready markdown for changed Dart files |
 | `falcon review [path] --format json` | Print JSON findings for changed Dart files |
 | `falcon review [path] --format sarif` | Print SARIF findings for changed Dart files |
-| `falcon pr-comment [path]` | Post full-project analysis results as GitHub PR comment |
-| `falcon webhook --url <url>` | Send webhook notification |
+| `falcon x webhook --url <url>` | Send webhook notification |
 | `falcon fix [path]` | Auto-fix lint issues |
-| `falcon benchmark` | Run performance benchmark |
-| `falcon compare` | Compare Falcon vs dart analyze |
+| `falcon x benchmark` | Run performance benchmark |
+| `falcon x compare` | Compare Falcon vs dart analyze |
 
 `falcon review` defaults its base ref to `origin/main` and uses
 `git diff --name-only --diff-filter=ACMR <base-ref>...HEAD` to analyze only
@@ -297,32 +298,32 @@ The bundled GitHub Action can do the same upload for full-project analysis:
 
 | Command | Description |
 |---|---|
-| `falcon dashboard snapshot` | Capture and save analysis snapshot |
-| `falcon dashboard history` | View snapshot history |
-| `falcon dashboard serve` | Start web dashboard server |
-| `falcon trends [--last N]` | Show quality trends from history |
-| `falcon rule-impact` | Analyze rule impact and auto-tune |
+| `falcon x dashboard snapshot` | Capture and save analysis snapshot |
+| `falcon x dashboard history` | View snapshot history |
+| `falcon x dashboard serve` | Start web dashboard server |
+| `falcon x trends [--last N]` | Show quality trends from history |
+| `falcon x rule-impact` | Analyze rule impact and auto-tune |
 
 ## Platform
 
 | Command | Description |
 |---|---|
-| `falcon cloud init --team <name>` | Initialize team cloud config |
-| `falcon cloud dashboard` | Team dashboard |
-| `falcon enterprise init` | Initialize enterprise policies |
-| `falcon enterprise check` | Check policies |
-| `falcon enterprise compliance` | Generate compliance report |
-| `falcon certify [path]` | Evaluate for Falcon certification |
+| `falcon x cloud init --team <name>` | Initialize team cloud config |
+| `falcon x cloud dashboard` | Team dashboard |
+| `falcon x enterprise init` | Initialize enterprise policies |
+| `falcon x enterprise check` | Check policies |
+| `falcon x enterprise compliance` | Generate compliance report |
+| `falcon x certify [path]` | Evaluate for Falcon certification |
 
 ## Infrastructure
 
 | Command | Description |
 |---|---|
-| `falcon mcp` | Start MCP server (stdio) for AI tool integration |
-| `falcon api --port 8090` | Start HTTP API server |
-| `falcon init` | Generate default falcon.yaml |
-| `falcon explain <rule>` | Explain a rule with examples |
-| `falcon validate` | Validate falcon.yaml config |
-| `falcon watch` | Watch for file changes and re-analyze |
-| `falcon dep-graph` | Show file dependency graph |
-| `falcon workspace` | Analyze all packages in a monorepo |
+| `falcon x mcp` | Start MCP server (stdio) for AI tool integration |
+| `falcon x api --port 8090` | Start HTTP API server |
+| `falcon x init` | Generate default falcon.yaml |
+| `falcon x explain <rule>` | Explain a rule with examples |
+| `falcon x validate` | Validate falcon.yaml config |
+| `falcon x watch` | Watch for file changes and re-analyze |
+| `falcon x dep-graph` | Show file dependency graph |
+| `falcon x workspace` | Analyze all packages in a monorepo |

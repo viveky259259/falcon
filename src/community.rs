@@ -172,7 +172,9 @@ pub fn print_rule_requests(requests: &[RuleRequest]) {
 
     if requests.is_empty() {
         println!("  No rule requests yet.");
-        println!("  Submit one: falcon community request --name <rule-name> --desc <description>");
+        println!(
+            "  Submit one: falcon x community request --name <rule-name> --desc <description>"
+        );
         println!();
         return;
     }

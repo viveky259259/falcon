@@ -23,7 +23,7 @@
 - Audience reaction: "Impressive!"
 
 **Slide 3**: "But does it work in production?"
-- Run `falcon ai-score` on the generated code
+- Run `falcon score` on the generated code
 - Score: 38/100 (Grade: F)
 - Audience reaction: tension
 
@@ -48,7 +48,7 @@
 - Start an AI-generated app
 - Navigate between screens 20 times
 - Show memory graph climbing
-- `falcon predict` shows "Memory Leak — 80% probability"
+- `falcon x predict` shows "Memory Leak — 80% probability"
 
 **Slide 8**: "Why does AI make these specific mistakes?"
 - No runtime context — AI doesn't know about widget lifecycle
@@ -71,7 +71,7 @@
 
 **Slide 11**: The AI-Generated preset
 ```bash
-falcon analyze --preset ai-generated
+falcon check --preset ai-generated
 ```
 - Show the 20 rules targeting AI-specific patterns
 - Before/after issue counts
@@ -79,20 +79,20 @@ falcon analyze --preset ai-generated
 **Slide 12**: CI Integration
 ```yaml
 # .github/workflows/falcon.yml
-- run: falcon ai-score --json
-- run: falcon pr-comment
+- run: falcon score --json
+- run: falcon review --format gh
 ```
 - Show a PR comment with the full analysis
 
 **Slide 13**: Score tracking over time
-- `falcon score-track` chart showing improvement
+- `falcon x score-track` chart showing improvement
 - Team went from 35/100 to 78/100 in 3 months
 
 ### Part 4: Call to Action (5 min)
 
 **Slide 14**: "3 things you can do right now"
 1. `cargo install falcon` — takes 30 seconds
-2. `falcon ai-score .` — know your score today
+2. `falcon score .` — know your score today
 3. Add `falcon-mcp` to your AI tool — self-correction loop
 
 **Slide 15**: The mission
@@ -120,10 +120,10 @@ A: Traditional linters check syntax. Falcon understands that AI-generated code f
 A: The gap is structural. AI tools generate code without runtime context, lifecycle awareness, or project conventions. Even if AI quality doubles, you still need a safety net. And Falcon's AI-Tool Profiling tracks exactly how each tool improves over time.
 
 **Q: "How is this different from dart analyze?"**
-A: `dart analyze` checks Dart language rules. Falcon checks Flutter-specific patterns — dispose lifecycle, widget rebuilds, state management, architecture compliance, and AI-specific anti-patterns. Run `falcon compare` to see the difference.
+A: `dart analyze` checks Dart language rules. Falcon checks Flutter-specific patterns — dispose lifecycle, widget rebuilds, state management, architecture compliance, and AI-specific anti-patterns. Run `falcon x compare` to see the difference.
 
 **Q: "Is it really 10x faster?"**
-A: Yes. Rust + tree-sitter + rayon parallelism. We analyze 233 files in under 2 seconds. Try `falcon benchmark` on your project.
+A: Yes. Rust + tree-sitter + rayon parallelism. We analyze 233 files in under 2 seconds. Try `falcon x benchmark` on your project.
 
 ---
 
