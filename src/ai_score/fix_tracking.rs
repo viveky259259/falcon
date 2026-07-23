@@ -2,7 +2,6 @@
 
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
-use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -127,7 +126,7 @@ pub fn compute_effectiveness(history: &FixHistory) -> Vec<FixEffectiveness> {
         })
         .collect();
 
-    results.sort_by_key(|result| Reverse(result.total_fixes));
+    results.sort_by_key(|e| std::cmp::Reverse(e.total_fixes));
     results
 }
 
@@ -141,7 +140,7 @@ pub fn print_fix_effectiveness(effectiveness: &[FixEffectiveness]) {
     println!();
 
     if effectiveness.is_empty() {
-        println!("  No fix history yet. Record with: falcon x fix-track --rule <rule> --outcome accepted|rejected");
+        println!("  No fix history yet. Record with: falcon fix-track --rule <rule> --outcome accepted|rejected");
         println!();
         return;
     }

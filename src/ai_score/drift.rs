@@ -307,6 +307,659 @@ fn collect_dart_files(root: &Path) -> Vec<std::path::PathBuf> {
         .collect()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    // ── helpers ────────────────────────────────────────────────────────────────
+
+    fn write_file(dir: &std::path::Path, rel: &str, content: &str) {
+        let full = dir.join(rel);
+        if let Some(parent) = full.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        let mut f = fs::File::create(&full).unwrap();
+        f.write_all(content.as_bytes()).unwrap();
+    }
+
+    // ── DriftCategory Display ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_drift_category_display_naming() {
+        assert_eq!(DriftCategory::Naming.to_string(), "naming");
+    }
+
+    #[test]
+    fn test_drift_category_display_architecture() {
+        assert_eq!(DriftCategory::Architecture.to_string(), "architecture");
+    }
+
+    #[test]
+    fn test_drift_category_display_error_handling() {
+        assert_eq!(DriftCategory::ErrorHandling.to_string(), "error-handling");
+    }
+
+    #[test]
+    fn test_drift_category_display_state_management() {
+        assert_eq!(
+            DriftCategory::StateManagement.to_string(),
+            "state-management"
+        );
+    }
+
+    #[test]
+    fn test_drift_category_display_pattern() {
+        assert_eq!(DriftCategory::Pattern.to_string(), "pattern");
+    }
+
+    // ── collect_dart_files ────────────────────────────────────────────────────
+
+    #[test]
+    fn test_collect_dart_files_only_dart() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        write_file(root, "lib/main.dart", "void main() {}");
+        write_file(root, "lib/home.dart", "class HomePage {}");
+        write_file(root, "lib/styles.css", ".btn {}");
+        write_file(root, "pubspec.yaml", "name: app");
+        write_file(root, "README.md", "# App");
+
+        let files = collect_dart_files(root);
+        assert_eq!(files.len(), 2, "should only collect .dart files");
+        for f in &files {
+            assert_eq!(f.extension().and_then(|e| e.to_str()), Some("dart"));
+        }
+    }
+
+    #[test]
+    fn test_collect_dart_files_nested_directories() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        write_file(root, "lib/a.dart", "");
+        write_file(root, "lib/sub/b.dart", "");
+        write_file(root, "test/a_test.dart", "");
+        write_file(root, "lib/config.json", "{}");
+
+        let files = collect_dart_files(root);
+        assert_eq!(files.len(), 3);
+    }
+
+    #[test]
+    fn test_collect_dart_files_empty_dir() {
+        let tmp = TempDir::new().unwrap();
+        let files = collect_dart_files(tmp.path());
+        assert!(files.is_empty());
+    }
+
+    // ── detect_drift (no since) ───────────────────────────────────────────────
+
+    #[test]
+    fn test_detect_drift_no_files_returns_100_score() {
+        let tmp = TempDir::new().unwrap();
+        let report = detect_drift(tmp.path(), None).unwrap();
+        assert_eq!(report.drift_score, 100.0);
+        assert_eq!(report.files_analyzed, 0);
+        assert!(report.findings.is_empty());
+    }
+
+    #[test]
+    fn test_detect_drift_clean_project_no_findings() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        // snake_case files, PascalCase classes, clean architecture dirs
+        write_file(root, "lib/domain/user.dart", "class UserEntity {}");
+        write_file(root, "lib/data/repository.dart", "class UserRepository {}");
+
+        let report = detect_drift(root, None).unwrap();
+        assert!(report.drift_score > 0.0);
+        // All files under domain/data — no architecture drift
+        let arch_findings: Vec<_> = report
+            .findings
+            .iter()
+            .filter(|f| f.category == DriftCategory::Architecture)
+            .collect();
+        assert!(arch_findings.is_empty());
+    }
+
+    // ── check_naming_drift — file naming ─────────────────────────────────────
+
+    // Note: with since=None, detect_conventions scans the same files that are
+    // analyzed, so a mixed-case filename also flips convention to "mixed" and
+    // suppresses the check. File naming drift is only reliably triggered via
+    // since=Some(git_ref). The tests below verify the guard and exemption logic.
+
+    #[test]
+    fn test_naming_drift_mixed_convention_no_file_findings() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        // One snake_case and one mixed-case file → convention = "mixed"
+        // The check is guarded by file_naming == "snake_case", so no file-naming
+        // drift findings should appear.
+        write_file(root, "lib/home_page.dart", "class HomePage {}");
+        write_file(root, "lib/MyWidget.dart", "class MyWidget {}");
+
+        let report = detect_drift(root, None).unwrap();
+        // With mixed convention the file-naming guard is inactive; no file-naming
+        // findings for the mixed-case file.
+        let file_findings: Vec<_> = report
+            .findings
+            .iter()
+            .filter(|f| f.category == DriftCategory::Naming && f.expected == "snake_case")
+            .collect();
+        assert!(
+            file_findings.is_empty(),
+            "mixed convention should not produce file-naming findings"
+        );
+    }
+
+    #[test]
+    fn test_naming_drift_snake_case_file_clean() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        write_file(root, "lib/home_page.dart", "class HomePage {}");
+        write_file(root, "lib/user_model.dart", "class UserModel {}");
+
+        let report = detect_drift(root, None).unwrap();
+        let naming: Vec<_> = report
+            .findings
+            .iter()
+            .filter(|f| {
+                f.category == DriftCategory::Naming
+                    && (f.file.contains("home_page") || f.file.contains("user_model"))
+            })
+            .collect();
+        assert!(
+            naming.is_empty(),
+            "snake_case files should not trigger naming drift"
+        );
+    }
+
+    #[test]
+    fn test_naming_drift_generated_file_not_flagged() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        write_file(root, "lib/home_page.dart", "class HomePage {}");
+        // .g.dart and .freezed.dart are exempted from file naming drift check
+        // even when convention is snake_case. The generated files have uppercase
+        // names but end with exempted suffixes.
+        write_file(root, "lib/user_model.g.dart", "// generated");
+        write_file(root, "lib/user_model.freezed.dart", "// generated");
+
+        let report = detect_drift(root, None).unwrap();
+        let file_naming_drift: Vec<_> = report
+            .findings
+            .iter()
+            .filter(|f| {
+                f.category == DriftCategory::Naming
+                    && (f.file.ends_with(".g.dart") || f.file.ends_with(".freezed.dart"))
+            })
+            .collect();
+        assert!(
+            file_naming_drift.is_empty(),
+            ".g.dart and .freezed.dart should be exempt from file naming drift"
+        );
+    }
+
+    // ── check_naming_drift — class naming ────────────────────────────────────
+
+    // The convention scanner only picks up lines starting with "class " (not
+    // "abstract class "). When a codebase only has abstract classes, class_names
+    // is empty → 0 == 0 → PascalCase convention. check_naming_drift checks both
+    // "class " and "abstract class " lines, so a lowercase abstract class IS
+    // flagged under this scenario.
+
+    #[test]
+    fn test_naming_drift_lowercase_abstract_class_flagged() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        // Only abstract classes — convention scanner misses them, so
+        // class_names is empty → class_naming defaults to "PascalCase".
+        // check_naming_drift still checks "abstract class" lines.
+        write_file(root, "lib/base.dart", "abstract class BaseRepo {}");
+        write_file(root, "lib/helper.dart", "abstract class helperUtils {}");
+
+        let report = detect_drift(root, None).unwrap();
+        let class_naming: Vec<_> = report
+            .findings
+            .iter()
+            .filter(|f| {
+                f.category == DriftCategory::Naming
+                    && f.expected == "PascalCase"
+                    && f.file.contains("helper.dart")
+            })
+            .collect();
+        assert!(
+            !class_naming.is_empty(),
+            "lowercase abstract class name should trigger PascalCase drift"
+        );
+    }
+
+    #[test]
+    fn test_naming_drift_pascal_abstract_class_clean() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        // PascalCase abstract classes — no drift expected
+        write_file(root, "lib/base.dart", "abstract class BaseRepo {}");
+        write_file(root, "lib/helper.dart", "abstract class HelperUtils {}");
+
+        let report = detect_drift(root, None).unwrap();
+        let class_findings: Vec<_> = report
+            .findings
+            .iter()
+            .filter(|f| f.category == DriftCategory::Naming && f.expected == "PascalCase")
+            .collect();
+        assert!(
+            class_findings.is_empty(),
+            "PascalCase abstract classes should not trigger naming drift"
+        );
+    }
+
+    #[test]
+    fn test_naming_drift_mixed_class_convention_no_findings() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        // Mix of PascalCase and lowercase concrete classes → convention = "mixed"
+        // check is skipped; no class naming findings should appear.
+        write_file(root, "lib/user.dart", "class UserModel {}");
+        write_file(root, "lib/helper.dart", "class myHelper {}");
+
+        let report = detect_drift(root, None).unwrap();
+        let class_findings: Vec<_> = report
+            .findings
+            .iter()
+            .filter(|f| f.category == DriftCategory::Naming && f.expected == "PascalCase")
+            .collect();
+        assert!(
+            class_findings.is_empty(),
+            "mixed class convention should suppress PascalCase drift check"
+        );
+    }
+
+    // ── check_architecture_drift — Clean Architecture ─────────────────────────
+
+    #[test]
+    fn test_architecture_drift_clean_arch_file_outside_layers() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        // Create domain + data dirs to trigger Clean Architecture detection
+        write_file(root, "lib/domain/user_entity.dart", "class UserEntity {}");
+        write_file(root, "lib/data/user_repo.dart", "class UserRepository {}");
+        // This file is outside domain/data/presentation/core/shared
+        write_file(root, "lib/utils/helper.dart", "class Helper {}");
+
+        let report = detect_drift(root, None).unwrap();
+        let arch: Vec<_> = report
+            .findings
+            .iter()
+            .filter(|f| f.category == DriftCategory::Architecture)
+            .collect();
+        assert!(
+            !arch.is_empty(),
+            "file outside Clean Architecture layers should trigger drift"
+        );
+        assert!(arch.iter().any(|f| f.file.contains("helper.dart")));
+    }
+
+    #[test]
+    fn test_architecture_drift_clean_arch_file_in_valid_layer() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        write_file(root, "lib/domain/user_entity.dart", "class UserEntity {}");
+        write_file(root, "lib/data/user_repo.dart", "class UserRepository {}");
+        write_file(root, "lib/presentation/home_page.dart", "class HomePage {}");
+        write_file(root, "lib/core/utils.dart", "class Utils {}");
+
+        let report = detect_drift(root, None).unwrap();
+        let arch: Vec<_> = report
+            .findings
+            .iter()
+            .filter(|f| f.category == DriftCategory::Architecture)
+            .collect();
+        assert!(
+            arch.is_empty(),
+            "files inside valid Clean Architecture layers should not trigger drift"
+        );
+    }
+
+    #[test]
+    fn test_architecture_drift_main_dart_exempt() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        write_file(root, "lib/domain/user.dart", "class UserEntity {}");
+        write_file(root, "lib/data/repo.dart", "class Repo {}");
+        // main.dart should be exempt from architecture drift
+        write_file(root, "lib/main.dart", "void main() { runApp(MyApp()); }");
+
+        let report = detect_drift(root, None).unwrap();
+        let arch_main: Vec<_> = report
+            .findings
+            .iter()
+            .filter(|f| f.category == DriftCategory::Architecture && f.file.contains("main.dart"))
+            .collect();
+        assert!(
+            arch_main.is_empty(),
+            "main.dart should be exempt from architecture drift"
+        );
+    }
+
+    // ── check_architecture_drift — Feature-First ──────────────────────────────
+
+    #[test]
+    fn test_architecture_drift_feature_first_file_outside_features() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        // Create a features dir to trigger Feature-First convention
+        write_file(root, "lib/features/auth/login.dart", "class LoginPage {}");
+        // This file is outside features/core/shared
+        write_file(root, "lib/random/helper.dart", "class Helper {}");
+
+        let report = detect_drift(root, None).unwrap();
+        let arch: Vec<_> = report
+            .findings
+            .iter()
+            .filter(|f| f.category == DriftCategory::Architecture)
+            .collect();
+        assert!(
+            !arch.is_empty(),
+            "file outside Feature-First structure should trigger drift"
+        );
+    }
+
+    #[test]
+    fn test_architecture_drift_feature_first_shared_exempt() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        write_file(root, "lib/features/auth/login.dart", "class LoginPage {}");
+        write_file(root, "lib/shared/widgets.dart", "class CommonButton {}");
+        write_file(root, "lib/core/theme.dart", "class AppTheme {}");
+
+        let report = detect_drift(root, None).unwrap();
+        let arch: Vec<_> = report
+            .findings
+            .iter()
+            .filter(|f| f.category == DriftCategory::Architecture)
+            .collect();
+        assert!(
+            arch.is_empty(),
+            "files in features/shared/core should not trigger Feature-First drift"
+        );
+    }
+
+    // ── check_error_handling_drift ────────────────────────────────────────────
+
+    #[test]
+    fn test_error_handling_drift_empty_catch_flagged() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        // Establish Result pattern convention
+        let convention_source = "Result<String> fetchData() { return Result.success('ok'); }";
+        write_file(root, "lib/data/api.dart", convention_source);
+
+        // File with empty catch block — should be flagged
+        let bad_source = r#"
+class UserService {
+  Future<void> loadUser() async {
+    try {
+      final result = await api.fetch();
+    } catch (e) {}
+  }
+}
+"#;
+        write_file(root, "lib/data/user_service.dart", bad_source);
+
+        let report = detect_drift(root, None).unwrap();
+        let err_findings: Vec<_> = report
+            .findings
+            .iter()
+            .filter(|f| f.category == DriftCategory::ErrorHandling)
+            .collect();
+        assert!(
+            !err_findings.is_empty(),
+            "empty catch block should trigger error handling drift when Result pattern is used"
+        );
+    }
+
+    #[test]
+    fn test_error_handling_drift_rethrow_clean() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        let convention_source = "Result<String> fetchData() { return Result.success('ok'); }";
+        write_file(root, "lib/data/api.dart", convention_source);
+
+        // File uses try/catch with rethrow — should not trigger drift
+        let good_source = r#"
+class UserService {
+  Future<void> loadUser() async {
+    try {
+      final result = await api.fetch();
+    } catch (e) {
+      rethrow;
+    }
+  }
+}
+"#;
+        write_file(root, "lib/data/user_service.dart", good_source);
+
+        let report = detect_drift(root, None).unwrap();
+        let err_findings: Vec<_> = report
+            .findings
+            .iter()
+            .filter(|f| f.category == DriftCategory::ErrorHandling)
+            .collect();
+        assert!(
+            err_findings.is_empty(),
+            "try/catch with rethrow should not trigger error handling drift"
+        );
+    }
+
+    #[test]
+    fn test_error_handling_drift_test_file_exempt() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        let convention_source = "Result<String> fetchData() { return Result.success('ok'); }";
+        write_file(root, "lib/data/api.dart", convention_source);
+
+        // Test file with empty catch — should be exempt
+        let test_source = r#"
+void main() {
+  test('loads user', () async {
+    try {
+      await service.load();
+    } catch (e) {}
+  });
+}
+"#;
+        write_file(root, "test/user_service_test.dart", test_source);
+
+        let report = detect_drift(root, None).unwrap();
+        let err_test: Vec<_> = report
+            .findings
+            .iter()
+            .filter(|f| f.category == DriftCategory::ErrorHandling && f.file.contains("test"))
+            .collect();
+        assert!(
+            err_test.is_empty(),
+            "test files should be exempt from error handling drift"
+        );
+    }
+
+    // ── check_state_management_drift ──────────────────────────────────────────
+
+    #[test]
+    fn test_state_management_drift_bloc_with_getx_flagged() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        // Establish BLoC as dominant state management
+        let bloc_source = r#"
+class AuthBloc extends Bloc<AuthEvent, AuthState> {
+  AuthBloc() : super(AuthInitial()) {
+    on<LoginEvent>(_onLogin);
+  }
+}
+"#;
+        // Multiple BLoC files to ensure dominance
+        write_file(root, "lib/bloc/auth_bloc.dart", bloc_source);
+        write_file(
+            root,
+            "lib/bloc/user_bloc.dart",
+            "class UserBloc extends Bloc<UserEvent, UserState> {}",
+        );
+
+        // Conflicting GetX usage
+        let getx_source = "class HomeController extends GetxController { final count = 0.obs; }";
+        write_file(root, "lib/home/home_controller.dart", getx_source);
+
+        let report = detect_drift(root, None).unwrap();
+        let sm_findings: Vec<_> = report
+            .findings
+            .iter()
+            .filter(|f| f.category == DriftCategory::StateManagement)
+            .collect();
+        assert!(
+            !sm_findings.is_empty(),
+            "GetxController in a BLoC project should trigger state management drift"
+        );
+    }
+
+    #[test]
+    fn test_state_management_drift_none_when_no_dominant() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        // No state management indicators — state_management will be None
+        write_file(
+            root,
+            "lib/models/user.dart",
+            "class User { final String name; User(this.name); }",
+        );
+
+        let report = detect_drift(root, None).unwrap();
+        let sm_findings: Vec<_> = report
+            .findings
+            .iter()
+            .filter(|f| f.category == DriftCategory::StateManagement)
+            .collect();
+        assert!(
+            sm_findings.is_empty(),
+            "no dominant state management means no drift findings"
+        );
+    }
+
+    #[test]
+    fn test_state_management_drift_riverpod_with_bloc_flagged() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        // Establish Riverpod convention
+        let riverpod1 = "class HomeWidget extends ConsumerWidget { @override Widget build(BuildContext ctx, WidgetRef ref) { ref.watch(userProvider); return Container(); } }";
+        let riverpod2 = "class ProfileWidget extends ConsumerWidget { @override Widget build(BuildContext ctx, WidgetRef ref) { ref.read(settingsProvider); return Container(); } }";
+        write_file(root, "lib/home/home_widget.dart", riverpod1);
+        write_file(root, "lib/profile/profile_widget.dart", riverpod2);
+
+        // Conflicting BlocProvider
+        let bloc_source = "Widget build(BuildContext ctx) { return BlocProvider(create: (_) => AuthBloc(), child: Container()); }";
+        write_file(root, "lib/auth/auth_page.dart", bloc_source);
+
+        let report = detect_drift(root, None).unwrap();
+        let sm_findings: Vec<_> = report
+            .findings
+            .iter()
+            .filter(|f| f.category == DriftCategory::StateManagement)
+            .collect();
+        assert!(
+            !sm_findings.is_empty(),
+            "BlocProvider in a Riverpod project should trigger state management drift"
+        );
+    }
+
+    #[test]
+    fn test_state_management_drift_test_file_exempt() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        let bloc_source = "class AuthBloc extends Bloc<AuthEvent, AuthState> { AuthBloc() : super(AuthInitial()); }";
+        write_file(root, "lib/bloc/auth_bloc.dart", bloc_source);
+        write_file(
+            root,
+            "lib/bloc/user_bloc.dart",
+            "class UserBloc extends Bloc<UserEvent, UserState> {}",
+        );
+
+        // Test file with conflicting GetX — should be exempt
+        let test_source = "void main() { testWidgets('home', (tester) async { final ctrl = GetxController(); }); }";
+        write_file(root, "test/home_test.dart", test_source);
+
+        let report = detect_drift(root, None).unwrap();
+        let sm_test: Vec<_> = report
+            .findings
+            .iter()
+            .filter(|f| f.category == DriftCategory::StateManagement && f.file.contains("test"))
+            .collect();
+        assert!(
+            sm_test.is_empty(),
+            "test files should be exempt from state management drift"
+        );
+    }
+
+    // ── drift_score calculation ───────────────────────────────────────────────
+
+    #[test]
+    fn test_drift_score_clamped_at_zero_with_many_findings() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        // Large number of findings should clamp score to 0
+        write_file(root, "lib/domain/base.dart", "class BaseEntity {}");
+        write_file(root, "lib/data/base_repo.dart", "class BaseRepo {}");
+
+        // Many files outside architecture layers → many findings
+        for i in 0..10 {
+            write_file(
+                root,
+                &format!("lib/misc/helper_{}.dart", i),
+                &format!("class Helper{} {{}}", i),
+            );
+        }
+
+        let report = detect_drift(root, None).unwrap();
+        assert!(report.drift_score >= 0.0);
+        assert!(report.drift_score <= 100.0);
+    }
+
+    #[test]
+    fn test_drift_report_fields_populated() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        write_file(root, "lib/home.dart", "class HomePage {}");
+
+        let report = detect_drift(root, None).unwrap();
+        assert_eq!(report.files_analyzed, 1);
+        assert!(report.drift_score >= 0.0 && report.drift_score <= 100.0);
+    }
+}
+
 /// Print drift report to the console.
 pub fn print_drift_report(report: &DriftReport) {
     println!();

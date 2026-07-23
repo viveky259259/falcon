@@ -227,8 +227,10 @@ fn test_self_tune_load_empty() {
 #[test]
 fn test_self_tune_save_and_load() {
     let tmp = tempfile::tempdir().unwrap();
-    let mut history = falcon::ai_score::self_tune::TuneHistory::default();
-    history.snapshots = 3;
+    let mut history = falcon::ai_score::self_tune::TuneHistory {
+        snapshots: 3,
+        ..Default::default()
+    };
     history.records.insert(
         "avoid-dynamic".to_string(),
         falcon::ai_score::self_tune::RuleTuneRecord {

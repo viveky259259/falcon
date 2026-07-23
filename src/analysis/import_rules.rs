@@ -171,8 +171,8 @@ fn read_package_name(root: &Path) -> Option<String> {
     let content = std::fs::read_to_string(pubspec).ok()?;
     for line in content.lines() {
         let trimmed = line.trim();
-        if let Some(stripped) = trimmed.strip_prefix("name:") {
-            return Some(stripped.trim().to_string());
+        if let Some(rest) = trimmed.strip_prefix("name:") {
+            return Some(rest.trim().to_string());
         }
     }
     None

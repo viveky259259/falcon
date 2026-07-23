@@ -27,6 +27,12 @@ pub enum SymbolKind {
     Parameter,
 }
 
+impl Default for Scope {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Scope {
     pub fn new() -> Self {
         Self {
@@ -66,12 +72,6 @@ impl Scope {
         } else if let Some(ref mut parent) = self.parent {
             parent.mark_used(name);
         }
-    }
-}
-
-impl Default for Scope {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

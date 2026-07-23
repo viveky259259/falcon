@@ -3,7 +3,6 @@
 
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
-use std::cmp::Reverse;
 use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -148,7 +147,7 @@ fn analyze_assets(root: &Path) -> AssetAnalysis {
         }
     }
 
-    large.sort_by_key(|asset| Reverse(asset.1));
+    large.sort_by_key(|e| std::cmp::Reverse(e.1));
 
     AssetAnalysis {
         total_assets: total,

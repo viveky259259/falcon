@@ -64,6 +64,12 @@ pub struct SdkScore {
     pub complexity: u32,
 }
 
+impl Default for FalconSdk {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FalconSdk {
     /// Create a new Falcon SDK instance.
     pub fn new() -> Self {
@@ -253,12 +259,6 @@ impl FalconSdk {
     ) -> anyhow::Result<String> {
         let result = self.analyze_project(path, options)?;
         Ok(serde_json::to_string_pretty(&result)?)
-    }
-}
-
-impl Default for FalconSdk {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

@@ -3,7 +3,6 @@
 
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
-use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -112,7 +111,7 @@ pub fn record_project(db_root: &Path, project_root: &Path) -> anyhow::Result<Pro
         .iter()
         .map(|(k, v)| (k.clone(), *v))
         .collect();
-    top_violations.sort_by_key(|(_, count)| Reverse(*count));
+    top_violations.sort_by_key(|e| std::cmp::Reverse(e.1));
 
     let profile = ProjectProfile {
         project_id,
@@ -186,7 +185,7 @@ pub fn derive_insights(db: &LearningDatabase) -> CrossProjectInsights {
         .iter()
         .map(|(k, v)| (k.clone(), *v))
         .collect();
-    top_rules.sort_by_key(|(_, count)| Reverse(*count));
+    top_rules.sort_by_key(|e| std::cmp::Reverse(e.1));
     top_rules.truncate(10);
 
     let scores: Vec<f64> = db
@@ -236,7 +235,7 @@ pub fn print_insights(insights: &CrossProjectInsights) {
     println!();
 
     if insights.total_projects == 0 {
-        println!("  No project data yet. Record with: falcon x learn /path/to/project");
+        println!("  No project data yet. Record with: falcon learn --project /path/to/project");
         println!();
         return;
     }

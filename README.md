@@ -5,7 +5,7 @@
 ![Falcon AI Score](https://img.shields.io/badge/Falcon_AI_Score-72/100-yellow)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Rules](https://img.shields.io/badge/rules-61%2B-brightgreen)
-![Tests](https://img.shields.io/badge/tests-924-brightgreen)
+![Tests](https://img.shields.io/badge/tests-2435-brightgreen)
 
 Falcon is the only Flutter linter specifically designed to catch the bugs AI tools leave behind — missing dispose() calls, empty catch blocks, unawaited futures, hardcoded credentials, and 60 other rules. It's 10-100x faster than alternatives, scores your code 0-100, and integrates with AI tools via MCP for real-time self-correction.
 
@@ -80,7 +80,7 @@ $ falcon score .
 | **Enterprise** | `falcon x enterprise` | Policies, audit logs, compliance |
 | **HTTP API** | `falcon x api` | REST API for integrations |
 
-[See all 74 commands →](docs/cli-reference.md)
+[See all 90+ commands →](docs/cli-reference.md)
 
 ## AI Tool Integration (MCP)
 
@@ -121,7 +121,7 @@ falcon check --preset flutter         # Flutter best practices
 
 | Tier | Price | What You Get |
 |---|---|---|
-| **Core CLI** | **Free forever** | All 74 commands, MCP server, LSP, API |
+| **Core CLI** | **Free forever** | All 90+ commands, MCP server, LSP, API |
 | **Team** | $9/seat/month | GitHub App, team dashboard, score trends |
 | **Enterprise** | $29/seat/month | SSO, audit logs, policies, compliance |
 
@@ -142,7 +142,7 @@ Compare: `dart analyze` takes 30-70 seconds on the same projects.
 ## Documentation
 
 - [Getting Started](docs/getting-started.md)
-- [CLI Reference](docs/cli-reference.md) (all 74 commands)
+- [CLI Reference](docs/cli-reference.md) (all 90+ commands)
 - [Rule Catalog](docs/rule-catalog.md) (61+ rules)
 - [State of AI-Generated Flutter Code 2026](content/state-of-ai-flutter-code-2026.md)
 
@@ -153,7 +153,7 @@ Contributions welcome! Falcon is MIT-licensed.
 ```bash
 git clone https://github.com/viveky259259/falcon
 cd falcon
-cargo test    # 924 tests
+cargo test    # 2435 tests
 cargo build   # Fast build
 ```
 

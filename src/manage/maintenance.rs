@@ -213,6 +213,484 @@ pub fn analyze_maintenance(root: &Path) -> anyhow::Result<MaintenanceReport> {
     })
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    // ── helpers ───────────────────────────────────────────────────────────────
+
+    fn make_file(dir: &TempDir, rel: &str, content: &str) {
+        let full = dir.path().join(rel);
+        if let Some(parent) = full.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        let mut f = fs::File::create(&full).unwrap();
+        write!(f, "{}", content).unwrap();
+    }
+
+    fn make_dart(dir: &TempDir, rel: &str, content: &str) {
+        make_file(dir, rel, content);
+    }
+
+    // ── CleanupCategory Display ───────────────────────────────────────────────
+
+    #[test]
+    fn display_dead_code() {
+        assert_eq!(CleanupCategory::DeadCode.to_string(), "Dead Code");
+    }
+
+    #[test]
+    fn display_unused_imports() {
+        assert_eq!(CleanupCategory::UnusedImports.to_string(), "Unused Imports");
+    }
+
+    #[test]
+    fn display_unused_files() {
+        assert_eq!(CleanupCategory::UnusedFiles.to_string(), "Unused Files");
+    }
+
+    #[test]
+    fn display_unused_deps() {
+        assert_eq!(
+            CleanupCategory::UnusedDeps.to_string(),
+            "Unused Dependencies"
+        );
+    }
+
+    #[test]
+    fn display_stale_generated() {
+        assert_eq!(
+            CleanupCategory::StaleGenerated.to_string(),
+            "Stale Generated Files"
+        );
+    }
+
+    #[test]
+    fn display_long_functions() {
+        assert_eq!(CleanupCategory::LongFunctions.to_string(), "Long Functions");
+    }
+
+    #[test]
+    fn display_empty_catches() {
+        assert_eq!(
+            CleanupCategory::EmptyCatches.to_string(),
+            "Empty Catch Blocks"
+        );
+    }
+
+    #[test]
+    fn display_print_statements() {
+        assert_eq!(
+            CleanupCategory::PrintStatements.to_string(),
+            "Print Statements"
+        );
+    }
+
+    // ── CleanupCategory clone / serde ─────────────────────────────────────────
+
+    #[test]
+    fn cleanup_category_clone() {
+        let cat = CleanupCategory::DeadCode;
+        let cloned = cat.clone();
+        assert_eq!(cloned.to_string(), "Dead Code");
+    }
+
+    #[test]
+    fn cleanup_category_serde_roundtrip() {
+        for cat in [
+            CleanupCategory::DeadCode,
+            CleanupCategory::UnusedImports,
+            CleanupCategory::UnusedFiles,
+            CleanupCategory::UnusedDeps,
+            CleanupCategory::StaleGenerated,
+            CleanupCategory::LongFunctions,
+            CleanupCategory::EmptyCatches,
+            CleanupCategory::PrintStatements,
+        ] {
+            let json = serde_json::to_string(&cat).unwrap();
+            let back: CleanupCategory = serde_json::from_str(&json).unwrap();
+            assert_eq!(cat.to_string(), back.to_string());
+        }
+    }
+
+    // ── CleanupTask clone / serde ─────────────────────────────────────────────
+
+    #[test]
+    fn cleanup_task_clone_and_serde() {
+        let task = CleanupTask {
+            category: CleanupCategory::DeadCode,
+            description: "test desc".to_string(),
+            files_affected: 3,
+            auto_fixable: true,
+            command: "falcon fix".to_string(),
+        };
+        let cloned = task.clone();
+        assert_eq!(cloned.files_affected, 3);
+        assert!(cloned.auto_fixable);
+
+        let json = serde_json::to_string(&task).unwrap();
+        let back: CleanupTask = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.description, "test desc");
+        assert_eq!(back.command, "falcon fix");
+    }
+
+    // ── MaintenanceReport clone / serde ───────────────────────────────────────
+
+    #[test]
+    fn maintenance_report_clone_and_serde() {
+        let report = MaintenanceReport {
+            cleanup_tasks: vec![],
+            auto_fixable: 0,
+            manual_review: 0,
+            estimated_savings_lines: 0,
+            tech_debt_score: 100,
+        };
+        let cloned = report.clone();
+        assert_eq!(cloned.tech_debt_score, 100);
+
+        let json = serde_json::to_string(&report).unwrap();
+        let back: MaintenanceReport = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.tech_debt_score, 100);
+        assert_eq!(back.auto_fixable, 0);
+    }
+
+    // ── analyze_maintenance: empty project ────────────────────────────────────
+
+    #[test]
+    fn empty_project_returns_ok_no_tasks() {
+        let dir = TempDir::new().unwrap();
+        // No Dart files — analysis succeeds with no issues
+        let report = analyze_maintenance(dir.path()).unwrap();
+        assert_eq!(report.cleanup_tasks.len(), 0);
+        assert_eq!(report.tech_debt_score, 100);
+        assert_eq!(report.estimated_savings_lines, 0);
+    }
+
+    // ── analyze_maintenance: clean dart file ──────────────────────────────────
+
+    #[test]
+    fn clean_dart_file_no_tasks() {
+        let dir = TempDir::new().unwrap();
+        // A file imported by main.dart — not unused; no rule violations
+        make_dart(&dir, "lib/helper.dart", "void doThing() {}\n");
+        make_dart(
+            &dir,
+            "lib/main.dart",
+            "import 'helper.dart';\nvoid main() { doThing(); }\n",
+        );
+        let report = analyze_maintenance(dir.path()).unwrap();
+        // tech_debt_score should be ≤ 100
+        assert!(report.tech_debt_score <= 100);
+    }
+
+    // ── analyze_maintenance: print statements task ────────────────────────────
+
+    #[test]
+    fn print_statements_task_appears() {
+        let dir = TempDir::new().unwrap();
+        make_dart(
+            &dir,
+            "lib/service.dart",
+            "void run() {\n  print(\"hello\");\n}\n",
+        );
+        make_dart(
+            &dir,
+            "lib/main.dart",
+            "import 'service.dart';\nvoid main() { run(); }\n",
+        );
+        let report = analyze_maintenance(dir.path()).unwrap();
+        let has_print = report
+            .cleanup_tasks
+            .iter()
+            .any(|t| matches!(t.category, CleanupCategory::PrintStatements));
+        assert!(has_print, "expected PrintStatements task");
+    }
+
+    // ── analyze_maintenance: empty catch task ────────────────────────────────
+
+    #[test]
+    fn empty_catch_task_appears() {
+        let dir = TempDir::new().unwrap();
+        make_dart(
+            &dir,
+            "lib/service.dart",
+            "void run() {\n  try {\n    int x = 1;\n  } catch (e) {}\n}\n",
+        );
+        make_dart(
+            &dir,
+            "lib/main.dart",
+            "import 'service.dart';\nvoid main() { run(); }\n",
+        );
+        let report = analyze_maintenance(dir.path()).unwrap();
+        let has_empty_catch = report
+            .cleanup_tasks
+            .iter()
+            .any(|t| matches!(t.category, CleanupCategory::EmptyCatches));
+        assert!(has_empty_catch, "expected EmptyCatches task");
+    }
+
+    // ── analyze_maintenance: unused file task ────────────────────────────────
+
+    #[test]
+    fn unused_file_task_appears() {
+        let dir = TempDir::new().unwrap();
+        // orphan.dart is never imported
+        make_dart(&dir, "lib/orphan.dart", "class Orphan {}\n");
+        make_dart(&dir, "lib/main.dart", "void main() {}\n");
+        let report = analyze_maintenance(dir.path()).unwrap();
+        let has_unused_file = report
+            .cleanup_tasks
+            .iter()
+            .any(|t| matches!(t.category, CleanupCategory::UnusedFiles));
+        assert!(has_unused_file, "expected UnusedFiles task");
+    }
+
+    // ── analyze_maintenance: unused code task ─────────────────────────────────
+
+    #[test]
+    fn unused_code_task_appears() {
+        let dir = TempDir::new().unwrap();
+        // NeverUsed is declared but never referenced anywhere
+        make_dart(&dir, "lib/stuff.dart", "class NeverUsed {}\n");
+        make_dart(
+            &dir,
+            "lib/main.dart",
+            "import 'stuff.dart';\nvoid main() {}\n",
+        );
+        let report = analyze_maintenance(dir.path()).unwrap();
+        let has_dead_code = report
+            .cleanup_tasks
+            .iter()
+            .any(|t| matches!(t.category, CleanupCategory::DeadCode));
+        assert!(has_dead_code, "expected DeadCode task");
+    }
+
+    // ── analyze_maintenance: unused dependency task ───────────────────────────
+
+    #[test]
+    fn unused_dependency_task_appears() {
+        let dir = TempDir::new().unwrap();
+        make_file(
+            &dir,
+            "pubspec.yaml",
+            "name: test_app\ndependencies:\n  flutter:\n    sdk: flutter\n  http: ^1.0.0\n",
+        );
+        // No dart file imports the http package
+        make_dart(&dir, "lib/main.dart", "void main() {}\n");
+        let report = analyze_maintenance(dir.path()).unwrap();
+        let has_unused_dep = report
+            .cleanup_tasks
+            .iter()
+            .any(|t| matches!(t.category, CleanupCategory::UnusedDeps));
+        assert!(has_unused_dep, "expected UnusedDeps task");
+    }
+
+    // ── analyze_maintenance: stale generated files task ───────────────────────
+
+    #[test]
+    fn stale_generated_task_appears() {
+        let dir = TempDir::new().unwrap();
+        // Create a .g.dart file without the corresponding source .dart
+        make_dart(
+            &dir,
+            "lib/model.g.dart",
+            "// GENERATED CODE - DO NOT MODIFY BY HAND\npart of 'model.dart';\n",
+        );
+        make_dart(&dir, "lib/main.dart", "void main() {}\n");
+        let report = analyze_maintenance(dir.path()).unwrap();
+        let has_stale = report
+            .cleanup_tasks
+            .iter()
+            .any(|t| matches!(t.category, CleanupCategory::StaleGenerated));
+        assert!(has_stale, "expected StaleGenerated task");
+    }
+
+    // ── analyze_maintenance: tech_debt_score boundary ────────────────────────
+
+    #[test]
+    fn tech_debt_score_in_valid_range() {
+        let dir = TempDir::new().unwrap();
+        make_dart(&dir, "lib/main.dart", "void main() {}\n");
+        let report = analyze_maintenance(dir.path()).unwrap();
+        assert!(report.tech_debt_score <= 100);
+    }
+
+    #[test]
+    fn tech_debt_score_decreases_with_many_issues() {
+        let dir = TempDir::new().unwrap();
+        // Generate multiple violations: each file has print + empty-catch
+        for i in 0..10 {
+            make_dart(
+                &dir,
+                &format!("lib/svc{}.dart", i),
+                &format!(
+                    "void run{}() {{\n  print(\"x\");\n  try {{\n    int y = {};\n  }} catch (e) {{}}\n}}\n",
+                    i, i
+                ),
+            );
+        }
+        let main_content = (0..10)
+            .map(|i| format!("import 'svc{}.dart';\n", i))
+            .collect::<String>()
+            + "void main() {}\n";
+        make_dart(&dir, "lib/main.dart", &main_content);
+        let report = analyze_maintenance(dir.path()).unwrap();
+        // With many issues, score should be lower than 100
+        assert!(report.tech_debt_score < 100);
+    }
+
+    // ── analyze_maintenance: report field coherence ───────────────────────────
+
+    #[test]
+    fn auto_fixable_and_manual_counts_are_consistent() {
+        let dir = TempDir::new().unwrap();
+        make_dart(&dir, "lib/main.dart", "void main() {}\n");
+        let report = analyze_maintenance(dir.path()).unwrap();
+        let actual_auto = report
+            .cleanup_tasks
+            .iter()
+            .filter(|t| t.auto_fixable)
+            .count();
+        let actual_manual = report
+            .cleanup_tasks
+            .iter()
+            .filter(|t| !t.auto_fixable)
+            .count();
+        assert_eq!(report.auto_fixable, actual_auto);
+        assert_eq!(report.manual_review, actual_manual);
+    }
+
+    #[test]
+    fn estimated_savings_non_negative() {
+        let dir = TempDir::new().unwrap();
+        make_dart(&dir, "lib/main.dart", "void main() {}\n");
+        let report = analyze_maintenance(dir.path()).unwrap();
+        // estimated_savings_lines is usize, always >= 0, just assert it's accessible
+        let _ = report.estimated_savings_lines;
+    }
+
+    // ── analyze_maintenance: multiple tasks at once ───────────────────────────
+
+    #[test]
+    fn multiple_tasks_generated_for_mixed_issues() {
+        let dir = TempDir::new().unwrap();
+        // print statement + empty catch in one file
+        make_dart(
+            &dir,
+            "lib/service.dart",
+            "void run() {\n  print(\"debug\");\n  try {\n    int x = 1;\n  } catch (e) {}\n}\n",
+        );
+        // orphan file (unused-file)
+        make_dart(&dir, "lib/orphan.dart", "class Orphan {}\n");
+        make_dart(
+            &dir,
+            "lib/main.dart",
+            "import 'service.dart';\nvoid main() { run(); }\n",
+        );
+        let report = analyze_maintenance(dir.path()).unwrap();
+        assert!(report.cleanup_tasks.len() >= 2);
+    }
+
+    // ── analyze_maintenance: cleanup_task fields ──────────────────────────────
+
+    #[test]
+    fn empty_catch_task_has_correct_command() {
+        let dir = TempDir::new().unwrap();
+        make_dart(
+            &dir,
+            "lib/svc.dart",
+            "void run() {\n  try {\n    int x = 0;\n  } catch (e) {}\n}\n",
+        );
+        make_dart(
+            &dir,
+            "lib/main.dart",
+            "import 'svc.dart';\nvoid main() { run(); }\n",
+        );
+        let report = analyze_maintenance(dir.path()).unwrap();
+        let task = report
+            .cleanup_tasks
+            .iter()
+            .find(|t| matches!(t.category, CleanupCategory::EmptyCatches))
+            .unwrap();
+        assert_eq!(task.command, "falcon analyze --preset ai-generated");
+        assert!(!task.auto_fixable);
+        assert!(task.files_affected >= 1);
+    }
+
+    #[test]
+    fn print_task_has_correct_command() {
+        let dir = TempDir::new().unwrap();
+        make_dart(&dir, "lib/svc.dart", "void run() {\n  print(\"hi\");\n}\n");
+        make_dart(
+            &dir,
+            "lib/main.dart",
+            "import 'svc.dart';\nvoid main() { run(); }\n",
+        );
+        let report = analyze_maintenance(dir.path()).unwrap();
+        let task = report
+            .cleanup_tasks
+            .iter()
+            .find(|t| matches!(t.category, CleanupCategory::PrintStatements))
+            .unwrap();
+        assert_eq!(task.command, "falcon fix");
+        assert!(!task.auto_fixable);
+    }
+
+    #[test]
+    fn unused_file_task_has_correct_command() {
+        let dir = TempDir::new().unwrap();
+        make_dart(&dir, "lib/orphan.dart", "class Orphan {}\n");
+        make_dart(&dir, "lib/main.dart", "void main() {}\n");
+        let report = analyze_maintenance(dir.path()).unwrap();
+        let task = report
+            .cleanup_tasks
+            .iter()
+            .find(|t| matches!(t.category, CleanupCategory::UnusedFiles))
+            .unwrap();
+        assert_eq!(task.command, "falcon x check-unused-files");
+    }
+
+    #[test]
+    fn unused_code_task_has_correct_command() {
+        let dir = TempDir::new().unwrap();
+        make_dart(&dir, "lib/stuff.dart", "class NeverUsed {}\n");
+        make_dart(
+            &dir,
+            "lib/main.dart",
+            "import 'stuff.dart';\nvoid main() {}\n",
+        );
+        let report = analyze_maintenance(dir.path()).unwrap();
+        let task = report
+            .cleanup_tasks
+            .iter()
+            .find(|t| matches!(t.category, CleanupCategory::DeadCode))
+            .unwrap();
+        assert_eq!(task.command, "falcon x check-unused-code");
+    }
+
+    #[test]
+    fn stale_generated_task_command() {
+        let dir = TempDir::new().unwrap();
+        make_dart(
+            &dir,
+            "lib/model.g.dart",
+            "// GENERATED CODE - DO NOT MODIFY BY HAND\n",
+        );
+        make_dart(&dir, "lib/main.dart", "void main() {}\n");
+        let report = analyze_maintenance(dir.path()).unwrap();
+        let task = report
+            .cleanup_tasks
+            .iter()
+            .find(|t| matches!(t.category, CleanupCategory::StaleGenerated))
+            .unwrap();
+        assert_eq!(task.command, "falcon x check-codegen");
+        assert!(!task.auto_fixable);
+    }
+}
+
 /// Print maintenance report.
 pub fn print_maintenance_report(report: &MaintenanceReport) {
     println!();

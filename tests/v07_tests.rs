@@ -509,7 +509,7 @@ fn test_review_strictness_variants() {
 
 #[test]
 fn test_observation_categories() {
-    let categories = vec![
+    let categories = [
         falcon::review::pr_review::ObservationCategory::PatternConsistency,
         falcon::review::pr_review::ObservationCategory::NamingConvention,
         falcon::review::pr_review::ObservationCategory::ErrorHandling,

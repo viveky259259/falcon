@@ -2,7 +2,6 @@
 
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
-use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -17,8 +16,6 @@ pub struct ProposedRule {
     pub confidence: f64,
     pub category: String,
 }
-
-type PatternCheck = (&'static str, Box<dyn Fn(&str) -> bool>);
 
 /// Scan a project for repeated anti-patterns that could become new rules.
 pub fn discover_patterns(root: &Path) -> Vec<ProposedRule> {
@@ -48,9 +45,12 @@ pub fn discover_patterns(root: &Path) -> Vec<ProposedRule> {
         }
     }
 
-    proposed.sort_by_key(|rule| Reverse(rule.occurrences));
+    proposed.sort_by_key(|e| std::cmp::Reverse(e.occurrences));
     proposed
 }
+
+/// A named heuristic check: a label plus a predicate over a source line.
+type PatternCheck = (&'static str, Box<dyn Fn(&str) -> bool>);
 
 fn detect_patterns(source: &str, counts: &mut HashMap<String, (usize, usize)>) {
     let checks: Vec<PatternCheck> = vec![

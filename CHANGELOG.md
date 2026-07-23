@@ -14,9 +14,9 @@
 ### Stats
 
 - 61 lint rules
-- 924 test definitions
-- 74 CLI commands
-- 243 source files (55,289 lines of Rust)
+- 2,435 test definitions
+- 90+ CLI commands
+- 263 source files (78,413 lines of Rust)
 
 ## 0.4.0 (2026-05-05)
 

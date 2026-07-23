@@ -268,3 +268,366 @@ pub struct PackageReport {
     pub warnings: usize,
     pub infos: usize,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    // ── helpers ────────────────────────────────────────────────────────────────
+
+    fn write_file(dir: &Path, name: &str, contents: &str) {
+        fs::write(dir.join(name), contents).unwrap();
+    }
+
+    fn make_pubspec(dir: &Path, name: &str) {
+        write_file(dir, "pubspec.yaml", &format!("name: {}\n", name));
+    }
+
+    fn make_pubspec_with_workspace(dir: &Path, name: &str, workspace_dirs: &[&str]) {
+        let workspace_list = workspace_dirs
+            .iter()
+            .map(|d| format!("  - {}", d))
+            .collect::<Vec<_>>()
+            .join("\n");
+        write_file(
+            dir,
+            "pubspec.yaml",
+            &format!("name: {}\nworkspace:\n{}\n", name, workspace_list),
+        );
+    }
+
+    fn make_falcon_yaml(dir: &Path) {
+        // minimal valid falcon.yaml
+        write_file(dir, "falcon.yaml", "metrics:\n  cyclomatic_complexity: 5\n");
+    }
+
+    // ── extract_package_name ───────────────────────────────────────────────────
+
+    #[test]
+    fn extract_name_from_pubspec() {
+        let tmp = TempDir::new().unwrap();
+        make_pubspec(tmp.path(), "my_awesome_package");
+        let name = extract_package_name(tmp.path());
+        assert_eq!(name, "my_awesome_package");
+    }
+
+    #[test]
+    fn extract_name_falls_back_to_dirname_when_no_pubspec() {
+        let tmp = TempDir::new().unwrap();
+        // no pubspec.yaml present
+        let name = extract_package_name(tmp.path());
+        // tempfile dir names are random but non-empty; just ensure it's not "unknown"
+        // unless the OS can't resolve the last component (practically never)
+        assert!(!name.is_empty());
+    }
+
+    #[test]
+    fn extract_name_falls_back_to_dirname_on_invalid_pubspec() {
+        let tmp = TempDir::new().unwrap();
+        write_file(tmp.path(), "pubspec.yaml", "not: valid: yaml: [");
+        // directory name used as fallback
+        let name = extract_package_name(tmp.path());
+        assert!(!name.is_empty());
+    }
+
+    #[test]
+    fn extract_name_when_pubspec_has_no_name_field() {
+        let tmp = TempDir::new().unwrap();
+        write_file(tmp.path(), "pubspec.yaml", "version: 1.0.0\n");
+        // no "name:" key → directory name fallback
+        let name = extract_package_name(tmp.path());
+        assert!(!name.is_empty());
+    }
+
+    // ── load_with_inheritance ──────────────────────────────────────────────────
+
+    #[test]
+    fn load_with_inheritance_uses_root_when_no_pkg_config() {
+        let tmp = TempDir::new().unwrap();
+        let root_config = FalconConfig::default();
+        // no falcon.yaml in pkg_dir
+        let cfg = load_with_inheritance(tmp.path(), &root_config);
+        // should be the root config (default values match)
+        assert_eq!(
+            cfg.metrics.cyclomatic_complexity,
+            root_config.metrics.cyclomatic_complexity
+        );
+    }
+
+    #[test]
+    fn load_with_inheritance_uses_pkg_config_when_present() {
+        let tmp = TempDir::new().unwrap();
+        make_falcon_yaml(tmp.path());
+        let root_config = FalconConfig::default();
+        let cfg = load_with_inheritance(tmp.path(), &root_config);
+        // the pkg falcon.yaml overrides cyclomatic_complexity to 5
+        assert_eq!(cfg.metrics.cyclomatic_complexity, 5);
+    }
+
+    #[test]
+    fn load_with_inheritance_falls_back_to_root_on_bad_pkg_config() {
+        let tmp = TempDir::new().unwrap();
+        // Write an invalid falcon.yaml
+        write_file(tmp.path(), "falcon.yaml", "}{invalid yaml");
+        let root_config = FalconConfig::default();
+        let cfg = load_with_inheritance(tmp.path(), &root_config);
+        // falls back to root config
+        assert_eq!(
+            cfg.metrics.cyclomatic_complexity,
+            root_config.metrics.cyclomatic_complexity
+        );
+    }
+
+    // ── detect_melos ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn detect_melos_returns_none_when_no_melos_yaml() {
+        let tmp = TempDir::new().unwrap();
+        // no melos.yaml
+        let result = detect_melos(tmp.path());
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn detect_melos_returns_none_when_melos_yaml_has_no_packages() {
+        let tmp = TempDir::new().unwrap();
+        // melos.yaml exists but default glob "packages/**" matches nothing
+        write_file(tmp.path(), "melos.yaml", "name: my_workspace\n");
+        let result = detect_melos(tmp.path());
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn detect_melos_discovers_packages_via_glob() {
+        let tmp = TempDir::new().unwrap();
+
+        // Create packages/pkg_a and packages/pkg_b
+        let pkg_a = tmp.path().join("packages").join("pkg_a");
+        let pkg_b = tmp.path().join("packages").join("pkg_b");
+        fs::create_dir_all(&pkg_a).unwrap();
+        fs::create_dir_all(&pkg_b).unwrap();
+        make_pubspec(&pkg_a, "pkg_a");
+        make_pubspec(&pkg_b, "pkg_b");
+
+        write_file(
+            tmp.path(),
+            "melos.yaml",
+            "name: my_workspace\npackages:\n  - packages/**\n",
+        );
+
+        let result = detect_melos(tmp.path());
+        assert!(result.is_some());
+        let pkgs = result.unwrap();
+        assert_eq!(pkgs.len(), 2);
+        let names: Vec<&str> = pkgs.iter().map(|p| p.name.as_str()).collect();
+        assert!(names.contains(&"pkg_a"));
+        assert!(names.contains(&"pkg_b"));
+    }
+
+    #[test]
+    fn detect_melos_respects_custom_package_globs() {
+        let tmp = TempDir::new().unwrap();
+
+        let app = tmp.path().join("apps").join("my_app");
+        fs::create_dir_all(&app).unwrap();
+        make_pubspec(&app, "my_app");
+
+        write_file(
+            tmp.path(),
+            "melos.yaml",
+            "name: my_workspace\npackages:\n  - apps/**\n",
+        );
+
+        let result = detect_melos(tmp.path());
+        assert!(result.is_some());
+        let pkgs = result.unwrap();
+        assert_eq!(pkgs.len(), 1);
+        assert_eq!(pkgs[0].name, "my_app");
+    }
+
+    #[test]
+    fn detect_melos_package_inherits_pkg_config_over_root() {
+        let tmp = TempDir::new().unwrap();
+
+        let pkg = tmp.path().join("packages").join("override_pkg");
+        fs::create_dir_all(&pkg).unwrap();
+        make_pubspec(&pkg, "override_pkg");
+        // pkg-level falcon.yaml with custom threshold
+        write_file(
+            &pkg,
+            "falcon.yaml",
+            "metrics:\n  cyclomatic_complexity: 3\n",
+        );
+
+        write_file(
+            tmp.path(),
+            "melos.yaml",
+            "name: ws\npackages:\n  - packages/**\n",
+        );
+
+        let result = detect_melos(tmp.path());
+        assert!(result.is_some());
+        let pkgs = result.unwrap();
+        assert_eq!(pkgs.len(), 1);
+        assert_eq!(pkgs[0].config.metrics.cyclomatic_complexity, 3);
+    }
+
+    // ── detect_pub_workspace ──────────────────────────────────────────────────
+
+    #[test]
+    fn detect_pub_workspace_returns_none_when_no_pubspec() {
+        let tmp = TempDir::new().unwrap();
+        let result = detect_pub_workspace(tmp.path());
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn detect_pub_workspace_returns_none_when_no_workspace_key() {
+        let tmp = TempDir::new().unwrap();
+        make_pubspec(tmp.path(), "root_pkg");
+        // no workspace: key
+        let result = detect_pub_workspace(tmp.path());
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn detect_pub_workspace_returns_none_when_workspace_dirs_missing_pubspecs() {
+        let tmp = TempDir::new().unwrap();
+        // workspace lists a dir but that dir has no pubspec
+        let sub = tmp.path().join("sub");
+        fs::create_dir_all(&sub).unwrap();
+        // no pubspec in sub
+        make_pubspec_with_workspace(tmp.path(), "root", &["sub"]);
+        // only root counted → len <= 1 → None
+        let result = detect_pub_workspace(tmp.path());
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn detect_pub_workspace_discovers_packages() {
+        let tmp = TempDir::new().unwrap();
+
+        let pkg_a = tmp.path().join("packages").join("alpha");
+        let pkg_b = tmp.path().join("packages").join("beta");
+        fs::create_dir_all(&pkg_a).unwrap();
+        fs::create_dir_all(&pkg_b).unwrap();
+        make_pubspec(&pkg_a, "alpha");
+        make_pubspec(&pkg_b, "beta");
+
+        make_pubspec_with_workspace(tmp.path(), "root", &["packages/alpha", "packages/beta"]);
+
+        let result = detect_pub_workspace(tmp.path());
+        assert!(result.is_some());
+        let pkgs = result.unwrap();
+        // root + alpha + beta
+        assert_eq!(pkgs.len(), 3);
+        let names: Vec<&str> = pkgs.iter().map(|p| p.name.as_str()).collect();
+        assert!(names.contains(&"root"));
+        assert!(names.contains(&"alpha"));
+        assert!(names.contains(&"beta"));
+    }
+
+    #[test]
+    fn detect_pub_workspace_skips_missing_package_dirs() {
+        let tmp = TempDir::new().unwrap();
+
+        let pkg_a = tmp.path().join("packages").join("present");
+        fs::create_dir_all(&pkg_a).unwrap();
+        make_pubspec(&pkg_a, "present");
+
+        // "missing" dir does not exist
+        make_pubspec_with_workspace(
+            tmp.path(),
+            "root",
+            &["packages/present", "packages/missing"],
+        );
+
+        let result = detect_pub_workspace(tmp.path());
+        assert!(result.is_some());
+        let pkgs = result.unwrap();
+        // root + present only
+        assert_eq!(pkgs.len(), 2);
+    }
+
+    // ── detect_workspace ──────────────────────────────────────────────────────
+
+    #[test]
+    fn detect_workspace_prefers_melos_over_pub_workspace() {
+        let tmp = TempDir::new().unwrap();
+
+        // Set up both melos.yaml and pubspec.yaml with workspace:
+        let pkg = tmp.path().join("packages").join("melos_pkg");
+        fs::create_dir_all(&pkg).unwrap();
+        make_pubspec(&pkg, "melos_pkg");
+
+        write_file(
+            tmp.path(),
+            "melos.yaml",
+            "name: ws\npackages:\n  - packages/**\n",
+        );
+
+        let sub = tmp.path().join("sub");
+        fs::create_dir_all(&sub).unwrap();
+        make_pubspec(&sub, "sub_pkg");
+        make_pubspec_with_workspace(tmp.path(), "root", &["sub"]);
+
+        let (ws_type, pkgs) = detect_workspace(tmp.path());
+        assert!(matches!(ws_type, WorkspaceType::Melos));
+        assert_eq!(pkgs.len(), 1);
+        assert_eq!(pkgs[0].name, "melos_pkg");
+    }
+
+    #[test]
+    fn detect_workspace_falls_back_to_pub_workspace() {
+        let tmp = TempDir::new().unwrap();
+
+        let sub = tmp.path().join("sub");
+        fs::create_dir_all(&sub).unwrap();
+        make_pubspec(&sub, "sub_pkg");
+        make_pubspec_with_workspace(tmp.path(), "root", &["sub"]);
+
+        let (ws_type, pkgs) = detect_workspace(tmp.path());
+        assert!(matches!(ws_type, WorkspaceType::PubWorkspace));
+        assert_eq!(pkgs.len(), 2);
+    }
+
+    #[test]
+    fn detect_workspace_returns_single_package_when_no_workspace() {
+        let tmp = TempDir::new().unwrap();
+        make_pubspec(tmp.path(), "lone_pkg");
+
+        let (ws_type, pkgs) = detect_workspace(tmp.path());
+        assert!(matches!(ws_type, WorkspaceType::SinglePackage));
+        assert_eq!(pkgs.len(), 1);
+        assert_eq!(pkgs[0].name, "lone_pkg");
+    }
+
+    #[test]
+    fn detect_workspace_single_package_path_equals_root() {
+        let tmp = TempDir::new().unwrap();
+        make_pubspec(tmp.path(), "solo");
+
+        let (_, pkgs) = detect_workspace(tmp.path());
+        assert_eq!(pkgs[0].path, tmp.path());
+    }
+
+    #[test]
+    fn detect_workspace_melos_package_paths_are_absolute() {
+        let tmp = TempDir::new().unwrap();
+
+        let pkg_dir = tmp.path().join("packages").join("foo");
+        fs::create_dir_all(&pkg_dir).unwrap();
+        make_pubspec(&pkg_dir, "foo");
+
+        write_file(
+            tmp.path(),
+            "melos.yaml",
+            "name: ws\npackages:\n  - packages/**\n",
+        );
+
+        let (_, pkgs) = detect_workspace(tmp.path());
+        assert!(pkgs[0].path.is_absolute());
+    }
+}

@@ -165,8 +165,13 @@ fn extract_func_name(sig_node: Node, source: &str) -> String {
 
 fn find_function_body(node: Node) -> Option<Node> {
     let mut cursor = node.walk();
-    let body = node
-        .children(&mut cursor)
-        .find(|&child| child.kind() == "function_body" || child.kind() == "block");
-    body
+    // `.find()` cannot be used: the yielded `Node` borrows from `cursor`,
+    // so returning it from a closure outlives the cursor (E0597).
+    #[allow(clippy::manual_find)]
+    for child in node.children(&mut cursor) {
+        if child.kind() == "function_body" || child.kind() == "block" {
+            return Some(child);
+        }
+    }
+    None
 }

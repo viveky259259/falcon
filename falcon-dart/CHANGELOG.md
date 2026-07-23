@@ -2,7 +2,7 @@
 
 - Updated to Falcon 0.5.0
 - Added the Flutter navigation graph analysis API
-- 61 lint rules, 74 commands
+- 61 lint rules, 90+ commands
 
 ## 0.4.0
 
