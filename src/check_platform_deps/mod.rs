@@ -9,7 +9,9 @@ pub mod project_manifest;
 
 use crate::config::{FalconConfig, Severity};
 use crate::preflight::pub_cache::{iter_installed_plugins, locate_pub_cache, InstalledPlugin};
-use crate::preflight::{exit_code_for_issues, reporter, OutputFormat, PreflightIssue, TargetPlatform};
+use crate::preflight::{
+    exit_code_for_issues, reporter, OutputFormat, PreflightIssue, TargetPlatform,
+};
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
@@ -39,7 +41,8 @@ pub fn run(
     let cached = if refresh {
         None
     } else {
-        generated::read_cache(root).filter(|c| c.pubspec_lock_sha256 == lock_sha && !lock_sha.is_empty())
+        generated::read_cache(root)
+            .filter(|c| c.pubspec_lock_sha256 == lock_sha && !lock_sha.is_empty())
     };
 
     let doc = match cached {
@@ -55,8 +58,14 @@ pub fn run(
     let project_perms = project_manifest::read_project_android_manifest(root);
 
     let mut issues: Vec<PreflightIssue> = Vec::new();
-    let want_ios = matches!(platform, None | Some(TargetPlatform::Ios) | Some(TargetPlatform::Both));
-    let want_android = matches!(platform, None | Some(TargetPlatform::Android) | Some(TargetPlatform::Both));
+    let want_ios = matches!(
+        platform,
+        None | Some(TargetPlatform::Ios) | Some(TargetPlatform::Both)
+    );
+    let want_android = matches!(
+        platform,
+        None | Some(TargetPlatform::Android) | Some(TargetPlatform::Both)
+    );
 
     for (name, plugin) in &doc.plugins {
         if let Some(reason) = &plugin.skipped {
@@ -127,7 +136,11 @@ pub fn run(
     Ok(exit)
 }
 
-fn scan_all(installed: &[InstalledPlugin], _root: &Path, lock_sha: &str) -> generated::GeneratedRequirements {
+fn scan_all(
+    installed: &[InstalledPlugin],
+    _root: &Path,
+    lock_sha: &str,
+) -> generated::GeneratedRequirements {
     let mut doc = generated::GeneratedRequirements {
         schema_version: 1,
         generated_at: generated::now_iso8601_string(),
@@ -148,7 +161,9 @@ fn scan_all(installed: &[InstalledPlugin], _root: &Path, lock_sha: &str) -> gene
             );
             continue;
         }
-        let Some(plugin_root) = &plugin.root else { continue };
+        let Some(plugin_root) = &plugin.root else {
+            continue;
+        };
         let ios_reqs = ios_scan::scan_ios_sources(plugin_root);
         let ios = if ios_reqs.is_empty() {
             None
@@ -237,14 +252,19 @@ mod tests {
             write(&plugin_root.join("ios/Classes").join(filename), src);
         }
         if let Some(xml) = android_manifest_xml {
-            write(&plugin_root.join("android/src/main/AndroidManifest.xml"), xml);
+            write(
+                &plugin_root.join("android/src/main/AndroidManifest.xml"),
+                xml,
+            );
         }
     }
 
     fn write_lock(project: &Path, packages: &[(&str, &str, &str)]) {
         let mut lock = String::from("packages:\n");
         for (name, version, source) in packages {
-            lock.push_str(&format!("  {name}:\n    source: {source}\n    version: \"{version}\"\n"));
+            lock.push_str(&format!(
+                "  {name}:\n    source: {source}\n    version: \"{version}\"\n"
+            ));
         }
         write(&project.join("pubspec.lock"), &lock);
     }
@@ -252,7 +272,14 @@ mod tests {
     #[test]
     fn empty_project_exits_zero() {
         let (project, _cache, _guard) = fixture();
-        let code = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false, None).unwrap();
+        let code = run(
+            project.path(),
+            OutputFormat::Text,
+            &FalconConfig::default(),
+            false,
+            None,
+        )
+        .unwrap();
         assert_eq!(code, 0);
     }
 
@@ -264,10 +291,20 @@ mod tests {
             cache.path(),
             "location",
             "8.0.0",
-            Some(("Location.m", "[CLLocationManager.shared requestWhenInUseAuthorization];")),
+            Some((
+                "Location.m",
+                "[CLLocationManager.shared requestWhenInUseAuthorization];",
+            )),
             None,
         );
-        let code = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false, None).unwrap();
+        let code = run(
+            project.path(),
+            OutputFormat::Text,
+            &FalconConfig::default(),
+            false,
+            None,
+        )
+        .unwrap();
         assert_eq!(code, 2);
     }
 
@@ -279,7 +316,10 @@ mod tests {
             cache.path(),
             "location",
             "8.0.0",
-            Some(("Location.m", "[CLLocationManager.shared requestWhenInUseAuthorization];")),
+            Some((
+                "Location.m",
+                "[CLLocationManager.shared requestWhenInUseAuthorization];",
+            )),
             None,
         );
         write(
@@ -288,7 +328,14 @@ mod tests {
   <key>NSLocationWhenInUseUsageDescription</key><string>Y</string>
 </dict></plist>"#,
         );
-        let code = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false, None).unwrap();
+        let code = run(
+            project.path(),
+            OutputFormat::Text,
+            &FalconConfig::default(),
+            false,
+            None,
+        )
+        .unwrap();
         assert_eq!(code, 0);
     }
 
@@ -301,9 +348,18 @@ mod tests {
             "camera",
             "0.10.0",
             None,
-            Some(r#"<manifest><uses-permission android:name="android.permission.CAMERA"/></manifest>"#),
+            Some(
+                r#"<manifest><uses-permission android:name="android.permission.CAMERA"/></manifest>"#,
+            ),
         );
-        let code = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false, None).unwrap();
+        let code = run(
+            project.path(),
+            OutputFormat::Text,
+            &FalconConfig::default(),
+            false,
+            None,
+        )
+        .unwrap();
         assert_eq!(code, 2);
     }
 
@@ -316,13 +372,24 @@ mod tests {
             "camera",
             "0.10.0",
             None,
-            Some(r#"<manifest><uses-permission android:name="android.permission.CAMERA"/></manifest>"#),
+            Some(
+                r#"<manifest><uses-permission android:name="android.permission.CAMERA"/></manifest>"#,
+            ),
         );
         write(
-            &project.path().join("android/app/src/main/AndroidManifest.xml"),
+            &project
+                .path()
+                .join("android/app/src/main/AndroidManifest.xml"),
             r#"<manifest><uses-permission android:name="android.permission.CAMERA"/></manifest>"#,
         );
-        let code = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false, None).unwrap();
+        let code = run(
+            project.path(),
+            OutputFormat::Text,
+            &FalconConfig::default(),
+            false,
+            None,
+        )
+        .unwrap();
         assert_eq!(code, 0);
     }
 
@@ -330,7 +397,14 @@ mod tests {
     fn non_pub_dev_plugin_emits_info_only() {
         let (project, _cache, _guard) = fixture();
         write_lock(project.path(), &[("git_plugin", "0.0.0", "git")]);
-        let code = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false, None).unwrap();
+        let code = run(
+            project.path(),
+            OutputFormat::Text,
+            &FalconConfig::default(),
+            false,
+            None,
+        )
+        .unwrap();
         assert_eq!(code, 0);
     }
 
@@ -343,9 +417,18 @@ mod tests {
             "camera",
             "0.10.0",
             None,
-            Some(r#"<manifest><uses-permission android:name="android.permission.CAMERA"/></manifest>"#),
+            Some(
+                r#"<manifest><uses-permission android:name="android.permission.CAMERA"/></manifest>"#,
+            ),
         );
-        let code = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false, Some(TargetPlatform::Ios)).unwrap();
+        let code = run(
+            project.path(),
+            OutputFormat::Text,
+            &FalconConfig::default(),
+            false,
+            Some(TargetPlatform::Ios),
+        )
+        .unwrap();
         assert_eq!(code, 0);
     }
 
@@ -360,9 +443,19 @@ mod tests {
             Some(("Location.m", "no-api-here")),
             None,
         );
-        let _ = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false, None).unwrap();
+        let _ = run(
+            project.path(),
+            OutputFormat::Text,
+            &FalconConfig::default(),
+            false,
+            None,
+        )
+        .unwrap();
         let cache_file = project.path().join(".falcon/plugin-requirements.yaml");
-        assert!(cache_file.exists(), "expected .falcon/plugin-requirements.yaml");
+        assert!(
+            cache_file.exists(),
+            "expected .falcon/plugin-requirements.yaml"
+        );
     }
 
     #[test]
@@ -374,11 +467,21 @@ mod tests {
             cache.path(),
             "location",
             "8.0.0",
-            Some(("Location.m", "[CLLocationManager.shared requestWhenInUseAuthorization];")),
+            Some((
+                "Location.m",
+                "[CLLocationManager.shared requestWhenInUseAuthorization];",
+            )),
             None,
         );
         // First run: cache is built; exit 2 because the key is missing from Info.plist.
-        let code1 = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false, None).unwrap();
+        let code1 = run(
+            project.path(),
+            OutputFormat::Text,
+            &FalconConfig::default(),
+            false,
+            None,
+        )
+        .unwrap();
         assert_eq!(code1, 2, "first run should exit 2 (missing key)");
 
         // Replace the plugin source with a no-op file that would produce no issues if re-scanned.
@@ -390,7 +493,17 @@ mod tests {
             None,
         );
         // Second run without --refresh: cache must be reused → still exit 2.
-        let code2 = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false, None).unwrap();
-        assert_eq!(code2, 2, "second run should still exit 2 because cache was reused");
+        let code2 = run(
+            project.path(),
+            OutputFormat::Text,
+            &FalconConfig::default(),
+            false,
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            code2, 2,
+            "second run should still exit 2 because cache was reused"
+        );
     }
 }

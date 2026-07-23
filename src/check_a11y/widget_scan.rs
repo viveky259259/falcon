@@ -166,7 +166,12 @@ fn ancestor_node_contains_widget_call(ancestor: Node<'_>, source: &str) -> bool 
             if let Some(next) = children.get(i + 1) {
                 if next.kind() == "selector" {
                     // Heuristic: PascalCase → likely a widget constructor
-                    if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+                    if name
+                        .chars()
+                        .next()
+                        .map(|c| c.is_uppercase())
+                        .unwrap_or(false)
+                    {
                         return true;
                     }
                 }
@@ -224,7 +229,10 @@ class Foo extends StatelessWidget {
 }
 "#;
         let result = scan_widgets(src);
-        assert!(result.iter().any(|o| o.kind == "TextField"), "got: {result:?}");
+        assert!(
+            result.iter().any(|o| o.kind == "TextField"),
+            "got: {result:?}"
+        );
     }
 
     #[test]
@@ -241,7 +249,10 @@ class Foo extends StatelessWidget {
 }
 "#;
         let result = scan_widgets(src);
-        let tf = result.iter().find(|o| o.kind == "TextField").expect("TextField found");
+        let tf = result
+            .iter()
+            .find(|o| o.kind == "TextField")
+            .expect("TextField found");
         assert!(tf.wrapped, "expected wrapped TextField, got {tf:?}");
     }
 
@@ -259,8 +270,14 @@ class Foo extends StatelessWidget {
 }
 "#;
         let result = scan_widgets(src);
-        let tf = result.iter().find(|o| o.kind == "TextField").expect("TextField found");
-        assert!(!tf.wrapped, "expected unwrapped TextField (no identifier:), got {tf:?}");
+        let tf = result
+            .iter()
+            .find(|o| o.kind == "TextField")
+            .expect("TextField found");
+        assert!(
+            !tf.wrapped,
+            "expected unwrapped TextField (no identifier:), got {tf:?}"
+        );
     }
 
     #[test]
@@ -320,7 +337,10 @@ class Foo extends StatelessWidget {
     fn scan_widgets_reports_line_numbers() {
         let src = "class Foo extends StatelessWidget {\n  @override\n  Widget build(BuildContext context) {\n    return TextField(controller: c);\n  }\n}\n";
         let result = scan_widgets(src);
-        let tf = result.iter().find(|o| o.kind == "TextField").expect("TextField found");
+        let tf = result
+            .iter()
+            .find(|o| o.kind == "TextField")
+            .expect("TextField found");
         assert_eq!(tf.line, 4);
     }
 

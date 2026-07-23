@@ -379,10 +379,7 @@ mod tests {
         assert_eq!(status, "400 Bad Request");
         let v: serde_json::Value = serde_json::from_str(&body).unwrap();
         assert_eq!(v["success"], false);
-        assert!(v["error"]
-            .as_str()
-            .unwrap()
-            .contains("path"));
+        assert!(v["error"].as_str().unwrap().contains("path"));
     }
 
     // ── handle_analyze — source branch ───────────────────────────────────────

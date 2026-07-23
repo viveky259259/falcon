@@ -26,7 +26,9 @@ fn parse_platform(podfile: &str, kind: &str) -> PodfilePlatform {
             continue;
         }
         if let Some(version) = extract_first_quoted(trimmed) {
-            return PodfilePlatform { version: Some(version) };
+            return PodfilePlatform {
+                version: Some(version),
+            };
         }
     }
     PodfilePlatform { version: None }
@@ -54,7 +56,9 @@ pub(crate) fn extract_first_quoted(s: &str) -> Option<String> {
                 j += 1;
             }
             if j > start {
-                return std::str::from_utf8(&bytes[start..j]).ok().map(|s| s.to_string());
+                return std::str::from_utf8(&bytes[start..j])
+                    .ok()
+                    .map(|s| s.to_string());
             }
         }
         i += 1;

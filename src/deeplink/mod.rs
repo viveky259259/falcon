@@ -874,7 +874,10 @@ mod tests {
         extract_android_schemes("", &mut report, &PathBuf::from("test.xml"));
         assert!(report.android_schemes.is_empty());
         // Should push a "No Schemes Found" error
-        assert!(report.issues.iter().any(|i| i.category == "No Schemes Found"));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.category == "No Schemes Found"));
     }
 
     #[test]
@@ -902,7 +905,11 @@ mod tests {
         extract_android_schemes(content, &mut report, &PathBuf::from("test.xml"));
         assert!(report.android_schemes.is_empty());
         assert_eq!(
-            report.issues.iter().filter(|i| i.category == "No Schemes Found").count(),
+            report
+                .issues
+                .iter()
+                .filter(|i| i.category == "No Schemes Found")
+                .count(),
             1
         );
     }
@@ -958,7 +965,10 @@ mod tests {
         let mut report = make_report();
         extract_ios_schemes(content, &mut report, &PathBuf::from("test.plist"));
         assert!(report.ios_schemes.is_empty());
-        assert!(report.issues.iter().any(|i| i.category == "Empty URL Schemes"));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.category == "Empty URL Schemes"));
     }
 
     #[test]
@@ -1018,7 +1028,11 @@ mod tests {
     fn extract_flutter_routes_goroute_single_quotes_captured() {
         let tmp = TempDir::new().unwrap();
         let dart_path = tmp.path().join("routes.dart");
-        std::fs::write(&dart_path, "GoRoute(path: '/about', builder: (ctx, state) => AboutPage()),").unwrap();
+        std::fs::write(
+            &dart_path,
+            "GoRoute(path: '/about', builder: (ctx, state) => AboutPage()),",
+        )
+        .unwrap();
         let mut report = make_report();
         extract_flutter_routes(&dart_path, &mut report);
         assert!(report.flutter_routes.contains(&"/about".to_string()));
@@ -1028,7 +1042,11 @@ mod tests {
     fn extract_flutter_routes_goroute_double_quotes_captured() {
         let tmp = TempDir::new().unwrap();
         let dart_path = tmp.path().join("routes.dart");
-        std::fs::write(&dart_path, "GoRoute(path: \"/settings\", builder: (ctx, state) => SettingsPage()),").unwrap();
+        std::fs::write(
+            &dart_path,
+            "GoRoute(path: \"/settings\", builder: (ctx, state) => SettingsPage()),",
+        )
+        .unwrap();
         let mut report = make_report();
         extract_flutter_routes(&dart_path, &mut report);
         assert!(report.flutter_routes.contains(&"/settings".to_string()));
@@ -1061,10 +1079,18 @@ mod tests {
         std::fs::write(
             &dart_path,
             "GoRoute(path: '/home', builder: f),\nGoRoute(path: '/home', builder: g),",
-        ).unwrap();
+        )
+        .unwrap();
         let mut report = make_report();
         extract_flutter_routes(&dart_path, &mut report);
-        assert_eq!(report.flutter_routes.iter().filter(|r| r.as_str() == "/home").count(), 1);
+        assert_eq!(
+            report
+                .flutter_routes
+                .iter()
+                .filter(|r| r.as_str() == "/home")
+                .count(),
+            1
+        );
     }
 
     // --- validate_cross_platform_consistency tests ---
@@ -1075,7 +1101,10 @@ mod tests {
         report.android_schemes = vec!["myapp".to_string()];
         report.ios_schemes = vec!["myapp".to_string()];
         validate_cross_platform_consistency(&mut report);
-        assert!(!report.issues.iter().any(|i| i.category == "Scheme Mismatch"));
+        assert!(!report
+            .issues
+            .iter()
+            .any(|i| i.category == "Scheme Mismatch"));
     }
 
     #[test]
@@ -1084,7 +1113,10 @@ mod tests {
         report.android_schemes = vec!["android-only".to_string()];
         report.ios_schemes = vec!["ios-only".to_string()];
         validate_cross_platform_consistency(&mut report);
-        assert!(report.issues.iter().any(|i| i.category == "Scheme Mismatch"));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.category == "Scheme Mismatch"));
     }
 
     #[test]
@@ -1093,7 +1125,10 @@ mod tests {
         let mut report = make_report();
         report.android_schemes = vec!["myapp".to_string()];
         validate_cross_platform_consistency(&mut report);
-        assert!(!report.issues.iter().any(|i| i.category == "Scheme Mismatch"));
+        assert!(!report
+            .issues
+            .iter()
+            .any(|i| i.category == "Scheme Mismatch"));
     }
 
     #[test]
@@ -1103,9 +1138,14 @@ mod tests {
         report.ios_schemes = vec!["shared".to_string(), "ios-extra".to_string()];
         validate_cross_platform_consistency(&mut report);
         // No mismatch error (intersection is non-zero)
-        assert!(!report.issues.iter().any(|i| i.category == "Scheme Mismatch"));
+        assert!(!report
+            .issues
+            .iter()
+            .any(|i| i.category == "Scheme Mismatch"));
         // Platform-specific warnings should exist
-        let platform_specific: Vec<_> = report.issues.iter()
+        let platform_specific: Vec<_> = report
+            .issues
+            .iter()
             .filter(|i| i.category == "Platform-Specific Schemes")
             .collect();
         assert_eq!(platform_specific.len(), 2);
@@ -1119,7 +1159,10 @@ mod tests {
         report.android_schemes = vec!["myapp".to_string()];
         // flutter_routes is empty
         validate_route_handlers(&mut report);
-        assert!(report.issues.iter().any(|i| i.category == "Unhandled Deep Links"));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.category == "Unhandled Deep Links"));
     }
 
     #[test]
@@ -1128,7 +1171,10 @@ mod tests {
         report.android_schemes = vec!["myapp".to_string()];
         report.flutter_routes = vec!["/home".to_string()];
         validate_route_handlers(&mut report);
-        assert!(!report.issues.iter().any(|i| i.category == "Unhandled Deep Links"));
+        assert!(!report
+            .issues
+            .iter()
+            .any(|i| i.category == "Unhandled Deep Links"));
     }
 
     #[test]
@@ -1146,7 +1192,10 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let mut report = make_report();
         validate_android_manifest(tmp.path(), &mut report);
-        assert!(report.issues.iter().any(|i| i.category == "Missing File" && i.platform == "Android"));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.category == "Missing File" && i.platform == "Android"));
     }
 
     #[test]
@@ -1166,7 +1215,8 @@ mod tests {
     </intent-filter>
   </activity>
 </manifest>"#,
-        ).unwrap();
+        )
+        .unwrap();
         let mut report = make_report();
         validate_android_manifest(tmp.path(), &mut report);
         assert!(report.android_schemes.contains(&"myapp".to_string()));
@@ -1178,10 +1228,17 @@ mod tests {
         let android_dir = tmp.path().join("android/app/src/main");
         std::fs::create_dir_all(&android_dir).unwrap();
         let manifest_path = android_dir.join("AndroidManifest.xml");
-        std::fs::write(&manifest_path, "<manifest><application></application></manifest>").unwrap();
+        std::fs::write(
+            &manifest_path,
+            "<manifest><application></application></manifest>",
+        )
+        .unwrap();
         let mut report = make_report();
         validate_android_manifest(tmp.path(), &mut report);
-        assert!(report.issues.iter().any(|i| i.category == "Missing Intent Filter"));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.category == "Missing Intent Filter"));
     }
 
     #[test]
@@ -1196,7 +1253,10 @@ mod tests {
         ).unwrap();
         let mut report = make_report();
         validate_android_manifest(tmp.path(), &mut report);
-        assert!(report.issues.iter().any(|i| i.category == "Insecure Scheme"));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.category == "Insecure Scheme"));
     }
 
     // --- validate_ios_info_plist with TempDir ---
@@ -1206,7 +1266,10 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let mut report = make_report();
         validate_ios_info_plist(tmp.path(), &mut report);
-        assert!(report.issues.iter().any(|i| i.category == "Missing File" && i.platform == "iOS"));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.category == "Missing File" && i.platform == "iOS"));
     }
 
     #[test]
@@ -1233,7 +1296,8 @@ mod tests {
   <dict/>
 </dict>
 </plist>"#,
-        ).unwrap();
+        )
+        .unwrap();
         let mut report = make_report();
         validate_ios_info_plist(tmp.path(), &mut report);
         assert!(report.ios_schemes.contains(&"myapp".to_string()));
@@ -1248,7 +1312,10 @@ mod tests {
         std::fs::write(&plist_path, "<plist><dict></dict></plist>").unwrap();
         let mut report = make_report();
         validate_ios_info_plist(tmp.path(), &mut report);
-        assert!(report.issues.iter().any(|i| i.category == "Missing URL Types"));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.category == "Missing URL Types"));
     }
 
     // --- validate_flutter_routes with TempDir ---
@@ -1258,7 +1325,10 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let mut report = make_report();
         validate_flutter_routes(tmp.path(), &mut report);
-        assert!(report.issues.iter().any(|i| i.category == "Missing Directory"));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.category == "Missing Directory"));
     }
 
     #[test]
@@ -1278,7 +1348,8 @@ mod tests {
         std::fs::write(
             lib_dir.join("app.dart"),
             "GoRoute(path: '/home', builder: (c, s) => HomePage()),",
-        ).unwrap();
+        )
+        .unwrap();
         let mut report = make_report();
         validate_flutter_routes(tmp.path(), &mut report);
         assert!(report.flutter_routes.contains(&"/home".to_string()));
@@ -1289,10 +1360,17 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let lib_dir = tmp.path().join("lib");
         std::fs::create_dir_all(&lib_dir).unwrap();
-        std::fs::write(lib_dir.join("main.dart"), "void main() { runApp(MyApp()); }").unwrap();
+        std::fs::write(
+            lib_dir.join("main.dart"),
+            "void main() { runApp(MyApp()); }",
+        )
+        .unwrap();
         let mut report = make_report();
         validate_flutter_routes(tmp.path(), &mut report);
-        assert!(report.issues.iter().any(|i| i.category == "No Routes Found"));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.category == "No Routes Found"));
     }
 
     // --- write_deeplink_html_report tests ---

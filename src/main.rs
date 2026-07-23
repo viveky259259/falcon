@@ -14,6 +14,8 @@ use falcon::reporters::sarif::SarifReporter;
 use falcon::reporters::sonar::SonarReporter;
 use falcon::reporters::Reporter;
 use falcon::Falcon;
+use std::collections::HashMap;
+use std::env;
 use std::path::{Path, PathBuf};
 use std::process;
 
@@ -22,12 +24,238 @@ use cli_args::*;
 
 fn main() {
     env_logger::init();
-    let cli = Cli::parse();
+    let mut args: Vec<String> = env::args().collect();
+    if args.len() == 2 && matches!(args[1].as_str(), "--help" | "-h" | "help") {
+        print_compact_help();
+        return;
+    }
+    if args.len() == 2 && args[1] == "--legacy-help" {
+        let _ = <Cli as clap::CommandFactory>::command().print_help();
+        println!();
+        return;
+    }
+    if args.len() == 3 && args[1] == "x" && matches!(args[2].as_str(), "--help" | "-h") {
+        print_x_help();
+        return;
+    }
+    if args.len() > 2 && args[1] == "x" {
+        args.remove(1);
+    } else if let Some(command) = args.get(1).and_then(|arg| legacy_replacement(arg)) {
+        eprintln!(
+            "`falcon {}` is deprecated; use `falcon {}`. This legacy command will be removed in v1.0.",
+            args[1], command
+        );
+    }
+    let cli = Cli::parse_from(args);
 
     if let Err(e) = run(cli) {
         eprintln!("{}: {}", "error".red(), e);
         process::exit(1);
     }
+}
+
+fn legacy_replacement(command: &str) -> Option<&'static str> {
+    match command {
+        "check" | "fix" | "score" | "x" | "help" => None,
+        "analyze" => Some("check"),
+        "ai-score" => Some("score"),
+        "pr-comment" => Some("review --format gh"),
+        other => Some(match other {
+            "metrics" => "x metrics",
+            "smells" => "x smells",
+            "check-unused-code" => "x check-unused-code",
+            "check-unused-files" => "x check-unused-files",
+            "check-dependencies" => "x check-dependencies",
+            "check-cycles" => "x check-cycles",
+            "check-unused-params" => "x check-unused-params",
+            "check-dead-code" => "x check-dead-code",
+            "check-unused-l10n" => "x check-unused-l10n",
+            "check-promoted-deps" => "x check-promoted-deps",
+            "upgrade-check" => "x upgrade-check",
+            "check-platform" => "x check-platform",
+            "check-codegen" => "x check-codegen",
+            "check-perf" => "x check-perf",
+            "check-unused-confidence" => "x check-unused-confidence",
+            "check-layers" => "x check-layers",
+            "check-imports" => "x check-imports",
+            "cognitive-complexity" => "x cognitive-complexity",
+            "check-widgets" => "x check-widgets",
+            "check-async" => "x check-async",
+            "codebase-intel" => "x codebase-intel",
+            "ai-report" => "x ai-report",
+            "provenance" => "x provenance",
+            "ai-profile" => "x ai-profile",
+            "discover-rules" => "x discover-rules",
+            "predict" => "x predict",
+            "drift" => "x drift",
+            "conventions" => "x conventions",
+            "compare" => "x compare",
+            "compare-reports" => "x compare-reports",
+            "compare-branches" => "x compare-branches",
+            "history" => "x history",
+            "dashboard" => "x dashboard",
+            "trends" => "x trends",
+            "rule-impact" => "x rule-impact",
+            "benchmark" => "x benchmark",
+            "benchmark-db" => "x benchmark-db",
+            "score-track" => "x score-track",
+            "perf-track" => "x perf-track",
+            "fix-track" => "x fix-track",
+            "self-tune" => "x self-tune",
+            "learn" => "x learn",
+            "cloud" => "x cloud",
+            "enterprise" => "x enterprise",
+            "marketplace" => "x marketplace",
+            "certify" => "x certify",
+            "partners" => "x partners",
+            "watch" => "x watch",
+            "run" => "x run",
+            "flutter" => "x flutter",
+            "fvm" => "x fvm",
+            "runtime-check" => "x runtime-check",
+            "live" => "x live",
+            "devtools" => "x devtools",
+            "manage" => "x manage",
+            "plugin" => "x plugin",
+            "export" => "x export",
+            "webhook" => "x webhook",
+            "migrate-from-dcm" => "x migrate-from-dcm",
+            "feature-gap" => "x feature-gap",
+            "showcase" => "x showcase",
+            "community" => "x community",
+            "mcp" => "x mcp",
+            "api" => "x api",
+            "init" => "x init",
+            "agents" => "x agents",
+            "ai" => "x ai",
+            "update" => "x update",
+            "baseline" => "x baseline",
+            "validate" => "x validate",
+            "explain" => "x explain",
+            "preset" => "x preset",
+            "rule-docs" => "x rule-docs",
+            "stability-contract" => "x stability-contract",
+            "deprecation-status" => "x deprecation-status",
+            "suppress" => "x suppress",
+            "asset-audit" => "x asset-audit",
+            "theme-audit" => "x theme-audit",
+            "l10n-coverage" => "x l10n-coverage",
+            "deeplink-validate" => "x deeplink-validate",
+            "animation-audit" => "x animation-audit",
+            "golden-gen" => "x golden-gen",
+            "dep-graph" => "x dep-graph",
+            "workspace" => "x workspace",
+            "docs" => "x docs",
+            "vuln-scan" => "x vuln-scan",
+            "refactor-sim" => "x refactor-sim",
+            "test-gen" => "x test-gen",
+            _ => return None,
+        }),
+    }
+}
+
+fn print_compact_help() {
+    println!(
+        "Falcon — Rust-powered static analysis for Flutter/Dart\n\nUsage: falcon <COMMAND>\n\nCommands:\n  review  Review code changes\n  check   Run project checks and static analysis\n  fix     Auto-fix lint issues\n  score   AI Code Quality Score\n  x       Experimental / extended commands\n\nOptions:\n  -h, --help         Print help\n      --legacy-help  Print legacy command help\n  -V, --version      Print version"
+    );
+}
+
+fn print_x_help() {
+    const COMMANDS: &[&str] = &[
+        "metrics",
+        "smells",
+        "check-unused-code",
+        "check-unused-files",
+        "check-dependencies",
+        "check-cycles",
+        "check-unused-params",
+        "check-dead-code",
+        "check-unused-l10n",
+        "check-promoted-deps",
+        "upgrade-check",
+        "check-platform",
+        "check-codegen",
+        "check-perf",
+        "check-unused-confidence",
+        "check-layers",
+        "check-imports",
+        "cognitive-complexity",
+        "check-widgets",
+        "check-async",
+        "codebase-intel",
+        "ai-report",
+        "provenance",
+        "ai-profile",
+        "discover-rules",
+        "predict",
+        "drift",
+        "conventions",
+        "compare",
+        "compare-reports",
+        "compare-branches",
+        "history",
+        "dashboard",
+        "trends",
+        "rule-impact",
+        "benchmark",
+        "benchmark-db",
+        "score-track",
+        "perf-track",
+        "fix-track",
+        "self-tune",
+        "learn",
+        "cloud",
+        "enterprise",
+        "marketplace",
+        "certify",
+        "partners",
+        "watch",
+        "run",
+        "flutter",
+        "fvm",
+        "runtime-check",
+        "live",
+        "devtools",
+        "manage",
+        "plugin",
+        "export",
+        "webhook",
+        "migrate-from-dcm",
+        "feature-gap",
+        "showcase",
+        "community",
+        "mcp",
+        "api",
+        "init",
+        "agents",
+        "ai",
+        "update",
+        "baseline",
+        "validate",
+        "explain",
+        "preset",
+        "rule-docs",
+        "stability-contract",
+        "deprecation-status",
+        "suppress",
+        "asset-audit",
+        "theme-audit",
+        "l10n-coverage",
+        "deeplink-validate",
+        "animation-audit",
+        "golden-gen",
+        "dep-graph",
+        "workspace",
+        "docs",
+        "vuln-scan",
+        "refactor-sim",
+        "test-gen",
+    ];
+    println!("Experimental / extended commands\n\nUsage: falcon x <COMMAND>\n\nCommands:");
+    for command in COMMANDS {
+        println!("  {command}");
+    }
+    println!("\nOptions:\n  -h, --help  Print help");
 }
 
 fn run(cli: Cli) -> Result<()> {
@@ -39,11 +267,24 @@ fn run(cli: Cli) -> Result<()> {
             config,
             since,
             baseline,
+            update_baseline,
+            semantic,
+            no_defer_to_analyzer,
             fail_on,
             preset,
             exclude_public_api: _,
         } => handle_analyze(
-            path, format, output, config, since, baseline, fail_on, preset,
+            path,
+            format,
+            output,
+            config,
+            since,
+            baseline,
+            update_baseline,
+            semantic,
+            no_defer_to_analyzer,
+            fail_on,
+            preset,
         )?,
         Commands::Smells {
             path,
@@ -73,6 +314,19 @@ fn run(cli: Cli) -> Result<()> {
             format,
             output,
         } => handle_check_dependencies(path, format, output)?,
+        Commands::CheckAssets { path, format } => handle_check_assets_preflight(path, format)?,
+        Commands::CheckA11y { path, format } => handle_check_a11y(path, format)?,
+        Commands::CheckPods {
+            path,
+            format,
+            refresh,
+        } => handle_check_pods(path, format, refresh)?,
+        Commands::CheckPlatformDeps {
+            path,
+            format,
+            refresh,
+            platform,
+        } => handle_check_platform_deps(path, format, refresh, platform)?,
         Commands::Init { path } => handle_init(path)?,
         Commands::Watch { path, config } => handle_watch(path, config)?,
         Commands::Run {
@@ -227,8 +481,22 @@ fn run(cli: Cli) -> Result<()> {
         Commands::Review {
             path,
             diff,
+            format,
             strictness,
-        } => handle_review(path, diff, strictness)?,
+            baseline,
+            update_baseline,
+            semantic,
+            no_defer_to_analyzer,
+        } => handle_review(
+            path,
+            diff,
+            format,
+            strictness,
+            baseline,
+            update_baseline,
+            semantic,
+            no_defer_to_analyzer,
+        )?,
         Commands::CodebaseIntel { path } => handle_codebase_intel(path)?,
         Commands::Plugin { action } => handle_plugin(action)?,
         Commands::Preset { action } => handle_preset(action)?,
@@ -352,7 +620,16 @@ fn run(cli: Cli) -> Result<()> {
             history,
             last,
         } => handle_score_track(path, history, last)?,
-        Commands::AiScore { path, badge, json } => handle_ai_score(path, badge, json)?,
+        Commands::AiScore {
+            path,
+            badge,
+            json,
+            format,
+        } => handle_ai_score(
+            path,
+            badge,
+            json || matches!(format, Some(ScoreFormat::Json)),
+        )?,
         Commands::AiReport {
             path,
             format,
@@ -368,6 +645,7 @@ fn run(cli: Cli) -> Result<()> {
             // flips, the legacy variants will start calling
             // `falcon::cli::deprecation::warn_aliased` and eventually go away.
             let legacy = match action {
+                XAction::Ai { action } => Commands::Ai { action },
                 XAction::AssetAudit {
                     path,
                     output,
@@ -782,7 +1060,10 @@ fn handle_analyze(
     output: PathBuf,
     config: Option<PathBuf>,
     since: Option<String>,
-    baseline: bool,
+    baseline: Option<PathBuf>,
+    update_baseline: Option<PathBuf>,
+    semantic: bool,
+    no_defer_to_analyzer: bool,
     fail_on: FailLevel,
     preset: Option<String>,
 ) -> Result<()> {
@@ -820,9 +1101,27 @@ fn handle_analyze(
 
     let mut issues = report.issues;
 
-    if baseline {
-        let bl = Baseline::load(&path)?;
+    if semantic {
+        if let Some(analyzer_diagnostics) = falcon::analyzer_bridge::run_dart_analyze(&path)? {
+            let (filtered, _) = falcon::analyzer_bridge::defer_to_analyzer(
+                &issues,
+                &analyzer_diagnostics,
+                no_defer_to_analyzer,
+            );
+            issues = filtered;
+        }
+    }
+
+    let unfiltered_issues = issues.clone();
+
+    if let Some(ref baseline_path) = baseline {
+        let bl = Baseline::load_path(baseline_path)?;
         issues = bl.filter_new_issues(issues, &path);
+    }
+
+    if let Some(ref baseline_path) = update_baseline {
+        let path_written = Baseline::create_at_path(&unfiltered_issues, &path, baseline_path)?;
+        eprintln!("Baseline updated: {}", path_written.display());
     }
 
     let final_report = falcon::reporters::AnalysisReport {
@@ -846,10 +1145,65 @@ fn handle_analyze(
         log::debug!("Could not save snapshot: {}", e);
     }
 
-    if should_fail(&final_report, &fail_on) {
-        process::exit(1);
+    let mut exit_code = if should_fail(&final_report, &fail_on) {
+        1
+    } else {
+        0
+    };
+    let preflight_exit = run_analyze_preflight_rollup(&path, &falcon_config)?;
+    exit_code = exit_code.max(preflight_exit);
+
+    if exit_code != 0 {
+        process::exit(exit_code);
     }
     Ok(())
+}
+
+fn run_analyze_preflight_rollup(path: &Path, config: &FalconConfig) -> Result<i32> {
+    if !config.analyze.preflight.enabled {
+        return Ok(0);
+    }
+
+    let skip = &config.analyze.preflight.skip;
+    let mut exit_code = 0;
+
+    if !skip.iter().any(|s| s == "check-assets") {
+        println!("\n── pre-flight: check-assets ──");
+        exit_code = exit_code.max(falcon::check_assets::run(
+            path,
+            falcon::preflight::OutputFormat::Text,
+            config,
+        )?);
+    }
+    if !skip.iter().any(|s| s == "check-a11y") {
+        println!("\n── pre-flight: check-a11y ──");
+        exit_code = exit_code.max(falcon::check_a11y::run(
+            path,
+            falcon::preflight::OutputFormat::Text,
+            config,
+        )?);
+    }
+    if !skip.iter().any(|s| s == "check-pods") {
+        println!("\n── pre-flight: check-pods ──");
+        exit_code = exit_code.max(falcon::check_pods::run(
+            path,
+            falcon::preflight::OutputFormat::Text,
+            config,
+            false,
+        )?);
+    }
+    if !skip.iter().any(|s| s == "check-platform-deps") {
+        println!("\n── pre-flight: check-platform-deps ──");
+        exit_code = exit_code.max(falcon::check_platform_deps::run(
+            path,
+            falcon::preflight::OutputFormat::Text,
+            config,
+            false,
+            None,
+        )?);
+    }
+
+    Ok(exit_code)
 }
 
 fn handle_smells(
@@ -951,6 +1305,54 @@ fn handle_check_dependencies(path: PathBuf, format: OutputFormat, output: PathBu
     Ok(())
 }
 
+fn handle_check_assets_preflight(
+    path: PathBuf,
+    format: falcon::preflight::OutputFormat,
+) -> Result<()> {
+    let config = FalconConfig::load(&path)?;
+    let code = falcon::check_assets::run(&path, format, &config)?;
+    if code != 0 {
+        process::exit(code);
+    }
+    Ok(())
+}
+
+fn handle_check_a11y(path: PathBuf, format: falcon::preflight::OutputFormat) -> Result<()> {
+    let config = FalconConfig::load(&path)?;
+    let code = falcon::check_a11y::run(&path, format, &config)?;
+    if code != 0 {
+        process::exit(code);
+    }
+    Ok(())
+}
+
+fn handle_check_pods(
+    path: PathBuf,
+    format: falcon::preflight::OutputFormat,
+    refresh: bool,
+) -> Result<()> {
+    let config = FalconConfig::load(&path)?;
+    let code = falcon::check_pods::run(&path, format, &config, refresh)?;
+    if code != 0 {
+        process::exit(code);
+    }
+    Ok(())
+}
+
+fn handle_check_platform_deps(
+    path: PathBuf,
+    format: falcon::preflight::OutputFormat,
+    refresh: bool,
+    platform: Option<falcon::preflight::TargetPlatform>,
+) -> Result<()> {
+    let config = FalconConfig::load(&path)?;
+    let code = falcon::check_platform_deps::run(&path, format, &config, refresh, platform)?;
+    if code != 0 {
+        process::exit(code);
+    }
+    Ok(())
+}
+
 fn handle_init(path: PathBuf) -> Result<()> {
     falcon::init_config(&path)?;
     println!("Created falcon.yaml in {}", path.display());
@@ -979,14 +1381,12 @@ fn handle_run(
         output_dir
     };
 
-    let config = falcon::flutter_run::FlutterRunConfig {
-        project_path: path,
-        output_dir: resolved_output,
-        device,
-        flavor,
-        notify,
-        webhook,
-    };
+    let mut config = falcon::flutter_run::FlutterRunConfig::new(path);
+    config.output_dir = resolved_output;
+    config.device = device;
+    config.flavor = flavor;
+    config.notify = notify;
+    config.webhook = webhook;
 
     let report = falcon::flutter_run::run_flutter_app(&config)?;
 
@@ -1726,15 +2126,121 @@ fn handle_check_async(path: PathBuf) -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_review(
     path: PathBuf,
     diff: String,
+    format: ReviewFormat,
     strictness: falcon::review::pr_review::ReviewStrictness,
+    baseline: Option<PathBuf>,
+    update_baseline: Option<PathBuf>,
+    semantic: bool,
+    no_defer_to_analyzer: bool,
 ) -> Result<()> {
     let config = FalconConfig::load(&path)?;
-    let report = falcon::review::pr_review::review_diff(&path, &diff, &config, strictness)?;
-    falcon::review::pr_review::print_review(&report);
+    let falcon = Falcon::new(config)?;
+    let changed_files = falcon::review::pr_review::changed_dart_files(&path, &diff)?;
+    let mut report = falcon.analyze_files_with_project_context(&path, &changed_files)?;
+    report.file_count = changed_files.len();
+    report.project_path = Some(path.clone());
+
+    if matches!(
+        strictness,
+        falcon::review::pr_review::ReviewStrictness::Quick
+    ) {
+        report
+            .issues
+            .retain(|issue| issue.severity == Severity::Error);
+    }
+
+    let should_run_semantic = semantic || falcon::paths::has_package_config(&path);
+    if should_run_semantic {
+        if let Some(analyzer_diagnostics) = falcon::analyzer_bridge::run_dart_analyze(&path)? {
+            let (filtered, _) = falcon::analyzer_bridge::defer_to_analyzer(
+                &report.issues,
+                &analyzer_diagnostics,
+                no_defer_to_analyzer,
+            );
+            report.issues = filtered;
+        }
+    }
+
+    let unfiltered_issues = report.issues.clone();
+    if let Some(ref baseline_path) = update_baseline {
+        Baseline::create_at_path(&unfiltered_issues, &path, baseline_path)?;
+    }
+    if let Some(ref baseline_path) = baseline {
+        let bl = Baseline::load_path(baseline_path)?;
+        let aliases = review_baseline_file_aliases(&path, &diff)?;
+        report.issues = bl.filter_new_issues_with_file_aliases(report.issues, &path, &aliases);
+    }
+
+    render_review_report(&report, &path, format);
+    if !report.issues.is_empty() {
+        process::exit(1);
+    }
     Ok(())
+}
+
+fn review_baseline_file_aliases(path: &Path, diff: &str) -> Result<HashMap<String, Vec<String>>> {
+    let renames = falcon::review::pr_review::renamed_dart_files(path, diff)?;
+    let mut aliases: HashMap<String, Vec<String>> = HashMap::new();
+    for (new_path, old_path) in renames {
+        let new_rel = new_path
+            .strip_prefix(path)
+            .unwrap_or(&new_path)
+            .to_string_lossy()
+            .to_string();
+        let old_rel = old_path
+            .strip_prefix(path)
+            .unwrap_or(&old_path)
+            .to_string_lossy()
+            .to_string();
+        aliases.entry(new_rel).or_default().push(old_rel);
+    }
+    Ok(aliases)
+}
+
+fn render_review_report(
+    report: &falcon::reporters::AnalysisReport,
+    path: &Path,
+    format: ReviewFormat,
+) {
+    match format {
+        ReviewFormat::Gh => {
+            print!(
+                "{}",
+                falcon::ci::pr_comment::format_pr_comment(report, path)
+            );
+        }
+        ReviewFormat::Json => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "summary": {
+                        "files_analyzed": report.file_count,
+                        "errors": report.error_count(),
+                        "warnings": report.warning_count(),
+                        "info": report.info_count(),
+                    },
+                    "issues": report.issues.iter().map(|issue| {
+                        serde_json::json!({
+                            "rule": issue.rule,
+                            "message": issue.message,
+                            "severity": issue.severity.to_string(),
+                            "file": issue.file.strip_prefix(path).unwrap_or(&issue.file).to_string_lossy(),
+                            "line": issue.line,
+                            "column": issue.column,
+                        })
+                    }).collect::<Vec<_>>(),
+                }))
+                .unwrap_or_default()
+            );
+        }
+        ReviewFormat::Sarif => {
+            SarifReporter { output_path: None }.report_analysis(report);
+        }
+    }
 }
 
 fn handle_codebase_intel(path: PathBuf) -> Result<()> {
@@ -2612,6 +3118,7 @@ fn handle_ai(action: AiAction) -> Result<()> {
                 println!();
                 println!("  Embedded model:");
                 println!("    Model id:   {}", e.model_id);
+                println!("    Model file: {}", e.model_file);
                 println!("    Max issues: {}", e.max_issues);
                 #[cfg(feature = "ai-local")]
                 println!("    Engine:     compiled in (ai-local)");
@@ -2624,8 +3131,18 @@ fn handle_ai(action: AiAction) -> Result<()> {
             #[cfg(not(feature = "ai-local"))]
             {
                 let _ = (&path, &format);
-                println!("{} embedded AI is not compiled in.", "✗".red().bold());
-                println!("  Rebuild with: cargo build --release --features ai-local");
+                if format == "json" {
+                    println!(
+                        "{}",
+                        serde_json::json!({
+                            "available": false,
+                            "reason": "embedded AI is not compiled in; rebuild with --features ai-local"
+                        })
+                    );
+                } else {
+                    println!("{} embedded AI is not compiled in.", "✗".red().bold());
+                    println!("  Rebuild with: cargo build --release --features ai-local");
+                }
             }
             #[cfg(feature = "ai-local")]
             {
@@ -3109,7 +3626,7 @@ fn run_incremental(
     );
 
     let mut cache = AnalysisCache::load(path);
-    let report = falcon.analyze_files(&affected_vec)?;
+    let report = falcon.analyze_files_with_project_context(path, &affected_vec)?;
 
     for (file, _) in &report.metrics {
         let file_issues = report.issues.iter().filter(|i| i.file == *file).count();

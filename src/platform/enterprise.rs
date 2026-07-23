@@ -751,7 +751,11 @@ mod tests {
     fn test_default_policies_all_enabled() {
         let ps = default_policies();
         for p in &ps.policies {
-            assert!(p.enabled, "policy '{}' should be enabled by default", p.name);
+            assert!(
+                p.enabled,
+                "policy '{}' should be enabled by default",
+                p.name
+            );
         }
     }
 
@@ -882,7 +886,10 @@ mod tests {
 
         let results = check_policies(root).unwrap();
         assert_eq!(results.len(), 1);
-        assert!(results[0].passed, "MaxErrors(9999) should pass on empty project");
+        assert!(
+            results[0].passed,
+            "MaxErrors(9999) should pass on empty project"
+        );
     }
 
     #[test]

@@ -365,7 +365,8 @@ mod tests {
 
     #[test]
     fn swift_channel_naming_no_slash_or_dot_triggers() {
-        let src = r#"let channel = FlutterMethodChannel(name: "mychannel", binaryMessenger: messenger)"#;
+        let src =
+            r#"let channel = FlutterMethodChannel(name: "mychannel", binaryMessenger: messenger)"#;
         let issues = run_swift(src);
         assert_eq!(issues.len(), 1);
         assert_eq!(issues[0].rule, "platform-channel-naming");
@@ -596,7 +597,8 @@ mod tests {
 
     #[test]
     fn swift_line_numbers_reported_correctly() {
-        let src = "// first line\nlet ch = FlutterMethodChannel(name: \"badname\", binaryMessenger: m)\n";
+        let src =
+            "// first line\nlet ch = FlutterMethodChannel(name: \"badname\", binaryMessenger: m)\n";
         let issues = run_swift(src);
         assert_eq!(issues.len(), 1);
         assert_eq!(issues[0].line, 2);

@@ -799,7 +799,13 @@ mod tests {
 
     #[test]
     fn test_find_builder_start_found() {
-        let lines = vec!["AnimatedBuilder(", "  animation: ctrl,", "  builder: (ctx, child) {", "  },", ")"];
+        let lines = vec![
+            "AnimatedBuilder(",
+            "  animation: ctrl,",
+            "  builder: (ctx, child) {",
+            "  },",
+            ")",
+        ];
         assert_eq!(find_builder_start(&lines, 0), Some(2));
     }
 
@@ -811,7 +817,12 @@ mod tests {
 
     #[test]
     fn test_find_builder_end_simple() {
-        let lines = vec!["  builder: (ctx, child) {", "    return Container();", "  },", ")"];
+        let lines = vec![
+            "  builder: (ctx, child) {",
+            "    return Container();",
+            "  },",
+            ")",
+        ];
         assert_eq!(find_builder_end(&lines, 0), Some(0));
     }
 
@@ -832,11 +843,7 @@ mod tests {
     #[test]
     fn test_find_builder_end_unmatched_multiline() {
         // builder: ( spans multiple lines before closing )
-        let lines = vec![
-            "  builder: (ctx,",
-            "    child) =>",
-            "    Container(),",
-        ];
+        let lines = vec!["  builder: (ctx,", "    child) =>", "    Container(),"];
         // Line 0: one ( → count=1; line 1: one ) → count=0, found → Some(1)
         assert_eq!(find_builder_end(&lines, 0), Some(1));
     }
@@ -895,7 +902,10 @@ class MyAnimation extends State {
 "#;
         let lines: Vec<&str> = content.lines().collect();
         let issues = check_missing_disposal(Path::new("test.dart"), &lines);
-        assert!(issues.is_empty(), "Should not flag when dispose() is present");
+        assert!(
+            issues.is_empty(),
+            "Should not flag when dispose() is present"
+        );
     }
 
     #[test]
@@ -911,7 +921,10 @@ class BadAnim extends State {
 "#;
         let lines: Vec<&str> = content.lines().collect();
         let issues = check_missing_disposal(Path::new("test.dart"), &lines);
-        assert!(!issues.is_empty(), "Comment-only dispose reference should still flag");
+        assert!(
+            !issues.is_empty(),
+            "Comment-only dispose reference should still flag"
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -946,7 +959,10 @@ controller.addListener(() {
 "#;
         let lines: Vec<&str> = content.lines().collect();
         let issues = check_setstate_in_listener(Path::new("test.dart"), &lines);
-        assert!(issues.is_empty(), "Should not flag listener without setState");
+        assert!(
+            issues.is_empty(),
+            "Should not flag listener without setState"
+        );
     }
 
     #[test]
@@ -955,7 +971,10 @@ controller.addListener(() {
         let content = "controller.addListener(() {\n  doA();\n  doB();\n  doC();\n  doD();\n  doE();\n  setState(() {});\n});\n";
         let lines: Vec<&str> = content.lines().collect();
         let issues = check_setstate_in_listener(Path::new("test.dart"), &lines);
-        assert!(issues.is_empty(), "setState beyond 5-line window should not flag");
+        assert!(
+            issues.is_empty(),
+            "setState beyond 5-line window should not flag"
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -980,12 +999,15 @@ controller.addListener(() {
 
     #[test]
     fn test_future_delayed_in_listener() {
-        let content = "controller.addListener(() {\n  Future.delayed(Duration(ms: 100), doSomething);\n});\n";
+        let content =
+            "controller.addListener(() {\n  Future.delayed(Duration(ms: 100), doSomething);\n});\n";
         let lines: Vec<&str> = content.lines().collect();
         let issues = check_heavy_computation_in_callbacks(Path::new("test.dart"), &lines);
         assert!(!issues.is_empty());
         assert_eq!(issues[0].severity, AnimSeverity::Warning);
-        assert!(issues[0].category.contains("Heavy computation in animation callbacks"));
+        assert!(issues[0]
+            .category
+            .contains("Heavy computation in animation callbacks"));
     }
 
     #[test]
@@ -1159,10 +1181,14 @@ controller = AnimationController(
 
         let lines_str: Vec<&str> = lines_vec.iter().map(|s| s.as_str()).collect();
         let issues = check_large_animated_builder(Path::new("test.dart"), &lines_str);
-        assert!(!issues.is_empty(), "Large builder should flag (builder_size = {})", {
-            // builder_start = 2, builder_end = 25 → size = 23 > 20
-            23
-        });
+        assert!(
+            !issues.is_empty(),
+            "Large builder should flag (builder_size = {})",
+            {
+                // builder_start = 2, builder_end = 25 → size = 23 > 20
+                23
+            }
+        );
         assert_eq!(issues[0].severity, AnimSeverity::Warning);
     }
 
@@ -1299,8 +1325,10 @@ controller = AnimationController(
 
     #[test]
     fn test_html_escape_combined() {
-        assert_eq!(html_escape("<a href=\"x\">foo & bar</a>"),
-            "&lt;a href=&quot;x&quot;&gt;foo &amp; bar&lt;/a&gt;");
+        assert_eq!(
+            html_escape("<a href=\"x\">foo & bar</a>"),
+            "&lt;a href=&quot;x&quot;&gt;foo &amp; bar&lt;/a&gt;"
+        );
     }
 
     #[test]
@@ -1435,9 +1463,11 @@ controller = AnimationController(
         let dir = TempDir::new().unwrap();
         // .g.dart file should be skipped
         let gen_file = dir.path().join("foo.g.dart");
-        std::fs::write(&gen_file,
-            "class Foo { AnimationController(\n  duration: Duration(seconds: 1),\n); }\n"
-        ).unwrap();
+        std::fs::write(
+            &gen_file,
+            "class Foo { AnimationController(\n  duration: Duration(seconds: 1),\n); }\n",
+        )
+        .unwrap();
         let result = audit_animations(dir.path()).unwrap();
         assert_eq!(result.files_scanned, 0);
     }

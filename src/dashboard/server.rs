@@ -272,7 +272,10 @@ mod tests {
     #[test]
     fn empty_history_returns_html_doctype() {
         let html = generate_dashboard_html(&[]);
-        assert!(html.starts_with("<!DOCTYPE html>"), "Should start with DOCTYPE");
+        assert!(
+            html.starts_with("<!DOCTYPE html>"),
+            "Should start with DOCTYPE"
+        );
     }
 
     #[test]
@@ -284,7 +287,10 @@ mod tests {
     #[test]
     fn empty_history_shows_zero_snapshots() {
         let html = generate_dashboard_html(&[]);
-        assert!(html.contains("0 snapshots"), "Empty history should show 0 snapshots");
+        assert!(
+            html.contains("0 snapshots"),
+            "Empty history should show 0 snapshots"
+        );
     }
 
     #[test]
@@ -340,21 +346,30 @@ mod tests {
         let s = default_snapshot();
         let html = generate_dashboard_html(&[s]);
         // total issues = 2+10+5 = 17
-        assert!(html.contains(">17<"), "Total issue count should be rendered");
+        assert!(
+            html.contains(">17<"),
+            "Total issue count should be rendered"
+        );
     }
 
     #[test]
     fn single_snapshot_file_count_displayed() {
         let s = default_snapshot();
         let html = generate_dashboard_html(&[s]);
-        assert!(html.contains(">42<"), "File count should appear in files card");
+        assert!(
+            html.contains(">42<"),
+            "File count should appear in files card"
+        );
     }
 
     #[test]
     fn single_snapshot_total_lines_displayed() {
         let s = default_snapshot();
         let html = generate_dashboard_html(&[s]);
-        assert!(html.contains(">3000<"), "Total lines should appear in lines card");
+        assert!(
+            html.contains(">3000<"),
+            "Total lines should appear in lines card"
+        );
     }
 
     #[test]
@@ -392,8 +407,12 @@ mod tests {
             Some("aaa0001"),
             Some("main"),
             70.0,
-            1, 2, 3,
-            10, 1000, 2.0,
+            1,
+            2,
+            3,
+            10,
+            1000,
+            2.0,
             HashMap::new(),
         );
         let s2 = make_snapshot(
@@ -401,8 +420,12 @@ mod tests {
             Some("bbb0002"),
             Some("develop"),
             80.0,
-            0, 5, 2,
-            20, 2000, 3.5,
+            0,
+            5,
+            2,
+            20,
+            2000,
+            3.5,
             HashMap::new(),
         );
         let s3 = make_snapshot(
@@ -410,8 +433,12 @@ mod tests {
             Some("ccc0003"),
             Some("feature/x"),
             90.0,
-            0, 1, 0,
-            30, 3000, 1.5,
+            0,
+            1,
+            0,
+            30,
+            3000,
+            1.5,
             HashMap::new(),
         );
         let html = generate_dashboard_html(&[s1, s2, s3]);
@@ -427,8 +454,12 @@ mod tests {
             Some("old1234"),
             Some("main"),
             50.0,
-            5, 20, 10,
-            5, 500, 5.0,
+            5,
+            20,
+            10,
+            5,
+            500,
+            5.0,
             HashMap::new(),
         );
         let s2 = make_snapshot(
@@ -436,14 +467,24 @@ mod tests {
             Some("new5678"),
             Some("main"),
             95.0,
-            0, 1, 1,
-            100, 10000, 1.2,
+            0,
+            1,
+            1,
+            100,
+            10000,
+            1.2,
             HashMap::new(),
         );
         let html = generate_dashboard_html(&[s1, s2]);
         // Latest snapshot's health (95 → "95") and file count (100) should show
-        assert!(html.contains(">95<"), "Latest health score should be displayed");
-        assert!(html.contains(">100<"), "Latest file count should be displayed");
+        assert!(
+            html.contains(">95<"),
+            "Latest health score should be displayed"
+        );
+        assert!(
+            html.contains(">100<"),
+            "Latest file count should be displayed"
+        );
         // Oldest snapshot's file count (5) should NOT appear in the cards context
         // but may appear in chart data — just verify latest timestamp is shown
         assert!(html.contains("last updated 2024-01-11T00:00:00"));
@@ -452,15 +493,21 @@ mod tests {
     #[test]
     fn multiple_snapshots_snapshot_count_correct() {
         let snaps: Vec<AnalysisSnapshot> = (0..5)
-            .map(|i| make_snapshot(
-                &format!("2024-01-{:02}T00:00:00", i + 1),
-                Some(&format!("hash{:04}", i)),
-                Some("main"),
-                75.0 + i as f64,
-                0, i, 0,
-                10, 1000, 2.0,
-                HashMap::new(),
-            ))
+            .map(|i| {
+                make_snapshot(
+                    &format!("2024-01-{:02}T00:00:00", i + 1),
+                    Some(&format!("hash{:04}", i)),
+                    Some("main"),
+                    75.0 + i as f64,
+                    0,
+                    i,
+                    0,
+                    10,
+                    1000,
+                    2.0,
+                    HashMap::new(),
+                )
+            })
             .collect();
         let html = generate_dashboard_html(&snaps);
         assert!(html.contains("5 snapshots"));
@@ -475,8 +522,12 @@ mod tests {
             Some("deadbeef"),
             Some("main"),
             72.3,
-            0, 0, 0,
-            1, 100, 1.0,
+            0,
+            0,
+            0,
+            1,
+            100,
+            1.0,
             HashMap::new(),
         );
         let html = generate_dashboard_html(&[s]);
@@ -495,8 +546,12 @@ mod tests {
             Some("cafebabe"),
             Some("main"),
             60.0,
-            1, 4, 2,
-            5, 500, 2.5,
+            1,
+            4,
+            2,
+            5,
+            500,
+            2.5,
             rc,
         );
         let html = generate_dashboard_html(&[s]);
@@ -514,8 +569,12 @@ mod tests {
             Some("f00df00d"),
             Some("main"),
             80.0,
-            0, 0, 0,
-            10, 800, 4.7,
+            0,
+            0,
+            0,
+            10,
+            800,
+            4.7,
             HashMap::new(),
         );
         let html = generate_dashboard_html(&[s]);
@@ -546,8 +605,12 @@ mod tests {
             Some("1a2b3c4d"),
             Some("main"),
             70.0,
-            0, 10, 0,
-            5, 500, 2.0,
+            0,
+            10,
+            0,
+            5,
+            500,
+            2.0,
             rc,
         );
         let html = generate_dashboard_html(&[s]);
@@ -565,8 +628,12 @@ mod tests {
             Some("deadc0de"),
             Some("main"),
             80.0,
-            0, 5, 0,
-            5, 500, 2.0,
+            0,
+            5,
+            0,
+            5,
+            500,
+            2.0,
             rc,
         );
         let html = generate_dashboard_html(&[s]);
@@ -589,8 +656,12 @@ mod tests {
             None, // no commit hash
             None,
             60.0,
-            0, 0, 0,
-            1, 100, 1.0,
+            0,
+            0,
+            0,
+            1,
+            100,
+            1.0,
             HashMap::new(),
         );
         let html = generate_dashboard_html(&[s]);
@@ -610,12 +681,19 @@ mod tests {
             Some("perfect1"),
             Some("main"),
             100.0,
-            0, 0, 0,
-            1, 100, 1.0,
+            0,
+            0,
+            0,
+            1,
+            100,
+            1.0,
             HashMap::new(),
         );
         let html = generate_dashboard_html(&[s]);
-        assert!(html.contains(">100<"), "Perfect health score should display as 100");
+        assert!(
+            html.contains(">100<"),
+            "Perfect health score should display as 100"
+        );
     }
 
     #[test]
@@ -625,12 +703,19 @@ mod tests {
             Some("zero0000"),
             Some("main"),
             0.0,
-            100, 200, 50,
-            1, 100, 20.0,
+            100,
+            200,
+            50,
+            1,
+            100,
+            20.0,
             HashMap::new(),
         );
         let html = generate_dashboard_html(&[s]);
-        assert!(html.contains(">0<"), "Zero health score should display as 0");
+        assert!(
+            html.contains(">0<"),
+            "Zero health score should display as 0"
+        );
     }
 
     #[test]
@@ -640,8 +725,12 @@ mod tests {
             Some("bigcount"),
             Some("main"),
             10.0,
-            500, 1000, 250,
-            200, 50000, 15.0,
+            500,
+            1000,
+            250,
+            200,
+            50000,
+            15.0,
             HashMap::new(),
         );
         let html = generate_dashboard_html(&[s]);
@@ -654,6 +743,9 @@ mod tests {
     #[test]
     fn html_closes_body_and_html_tags() {
         let html = generate_dashboard_html(&[]);
-        assert!(html.contains("</body></html>"), "HTML should be properly closed");
+        assert!(
+            html.contains("</body></html>"),
+            "HTML should be properly closed"
+        );
     }
 }

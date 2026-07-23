@@ -67,7 +67,9 @@ pub fn pubspec_lock_sha256(project_root: &Path) -> String {
 }
 
 pub fn cache_path(project_root: &Path) -> PathBuf {
-    project_root.join(".falcon").join("plugin-requirements.yaml")
+    project_root
+        .join(".falcon")
+        .join("plugin-requirements.yaml")
 }
 
 pub fn read_cache(project_root: &Path) -> Option<GeneratedRequirements> {
@@ -191,7 +193,12 @@ mod tests {
         assert_eq!(round.pubspec_lock_sha256, "deadbeef");
         assert_eq!(round.plugins["location"].version, "8.0.0");
         assert_eq!(
-            round.plugins["location"].ios.as_ref().unwrap().info_plist_keys[0].key,
+            round.plugins["location"]
+                .ios
+                .as_ref()
+                .unwrap()
+                .info_plist_keys[0]
+                .key,
             "NSLocationWhenInUseUsageDescription"
         );
     }

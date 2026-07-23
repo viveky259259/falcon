@@ -477,8 +477,13 @@ mod tests {
     fn injection_raw_query_interpolation_triggers_sql() {
         let src = "db.rawQuery('SELECT * FROM users WHERE id = $userId');\n";
         let findings = run_check(src, check_injection_risks);
-        assert!(findings.iter().any(|f| f.issue.rule == "vuln-sql-injection"));
-        let sql = findings.iter().find(|f| f.issue.rule == "vuln-sql-injection").unwrap();
+        assert!(findings
+            .iter()
+            .any(|f| f.issue.rule == "vuln-sql-injection"));
+        let sql = findings
+            .iter()
+            .find(|f| f.issue.rule == "vuln-sql-injection")
+            .unwrap();
         assert_eq!(sql.risk_level, RiskLevel::Critical);
         assert_eq!(sql.cwe.as_deref(), Some("CWE-89"));
     }
@@ -487,22 +492,31 @@ mod tests {
     fn injection_execute_with_concat_triggers_sql() {
         let src = "db.execute('DELETE FROM ' + tableName);\n";
         let findings = run_check(src, check_injection_risks);
-        assert!(findings.iter().any(|f| f.issue.rule == "vuln-sql-injection"));
+        assert!(findings
+            .iter()
+            .any(|f| f.issue.rule == "vuln-sql-injection"));
     }
 
     #[test]
     fn injection_raw_query_no_interpolation_clean() {
         let src = "db.rawQuery('SELECT * FROM users WHERE id = ?', [userId]);\n";
         let findings = run_check(src, check_injection_risks);
-        assert!(!findings.iter().any(|f| f.issue.rule == "vuln-sql-injection"));
+        assert!(!findings
+            .iter()
+            .any(|f| f.issue.rule == "vuln-sql-injection"));
     }
 
     #[test]
     fn injection_uri_parse_interpolation_triggers_redirect() {
         let src = "Uri.parse('https://example.com/$userInput');\n";
         let findings = run_check(src, check_injection_risks);
-        assert!(findings.iter().any(|f| f.issue.rule == "vuln-open-redirect"));
-        let redirect = findings.iter().find(|f| f.issue.rule == "vuln-open-redirect").unwrap();
+        assert!(findings
+            .iter()
+            .any(|f| f.issue.rule == "vuln-open-redirect"));
+        let redirect = findings
+            .iter()
+            .find(|f| f.issue.rule == "vuln-open-redirect")
+            .unwrap();
         assert_eq!(redirect.risk_level, RiskLevel::Medium);
         assert_eq!(redirect.cwe.as_deref(), Some("CWE-601"));
     }
@@ -511,7 +525,9 @@ mod tests {
     fn injection_uri_parse_no_interpolation_clean() {
         let src = "Uri.parse('https://example.com/fixed/path');\n";
         let findings = run_check(src, check_injection_risks);
-        assert!(!findings.iter().any(|f| f.issue.rule == "vuln-open-redirect"));
+        assert!(!findings
+            .iter()
+            .any(|f| f.issue.rule == "vuln-open-redirect"));
     }
 
     // ── check_crypto_issues ───────────────────────────────────────────────────

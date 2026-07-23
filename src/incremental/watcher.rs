@@ -150,10 +150,7 @@ mod tests {
         let times = snapshot_times(tmp.path());
         assert_eq!(times.len(), 1);
         let recorded_mtime = times[&dart_path];
-        let actual_mtime = std::fs::metadata(&dart_path)
-            .unwrap()
-            .modified()
-            .unwrap();
+        let actual_mtime = std::fs::metadata(&dart_path).unwrap().modified().unwrap();
         let diff = if recorded_mtime >= actual_mtime {
             recorded_mtime.duration_since(actual_mtime).unwrap()
         } else {

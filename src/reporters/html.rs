@@ -2135,20 +2135,31 @@ mod tests {
     fn format_number_thousands_uses_k_suffix() {
         // Implementation uses K suffix (e.g. "1.2K"), not comma separators
         let result = format_number(1234);
-        assert!(result.contains('K') || result.contains(','),
-            "expected K or comma in '{}' for 1234", result);
+        assert!(
+            result.contains('K') || result.contains(','),
+            "expected K or comma in '{}' for 1234",
+            result
+        );
     }
 
     #[test]
     fn format_number_millions_uses_m_suffix() {
         let result = format_number(1_500_000);
-        assert!(result.contains('M'), "expected M suffix in '{}' for 1_500_000", result);
+        assert!(
+            result.contains('M'),
+            "expected M suffix in '{}' for 1_500_000",
+            result
+        );
     }
 
     #[test]
     fn format_number_exactly_one_thousand() {
         let result = format_number(1000);
-        assert!(result.contains('K'), "expected K suffix for 1000, got '{}'", result);
+        assert!(
+            result.contains('K'),
+            "expected K suffix for 1000, got '{}'",
+            result
+        );
     }
 
     // ── classify_concern ─────────────────────────────────────────────────────
@@ -2321,22 +2332,34 @@ mod tests {
 
     #[test]
     fn metric_class_inverted_at_noted_returns_noted() {
-        assert_eq!(metric_class_inverted(60.0, 20.0, 40.0, 60.0), "metric-noted");
+        assert_eq!(
+            metric_class_inverted(60.0, 20.0, 40.0, 60.0),
+            "metric-noted"
+        );
     }
 
     #[test]
     fn metric_class_inverted_at_warning_returns_warning() {
-        assert_eq!(metric_class_inverted(40.0, 20.0, 40.0, 60.0), "metric-warning");
+        assert_eq!(
+            metric_class_inverted(40.0, 20.0, 40.0, 60.0),
+            "metric-warning"
+        );
     }
 
     #[test]
     fn metric_class_inverted_at_alarm_returns_alarm() {
-        assert_eq!(metric_class_inverted(20.0, 20.0, 40.0, 60.0), "metric-alarm");
+        assert_eq!(
+            metric_class_inverted(20.0, 20.0, 40.0, 60.0),
+            "metric-alarm"
+        );
     }
 
     #[test]
     fn metric_class_inverted_low_value_returns_alarm() {
-        assert_eq!(metric_class_inverted(10.0, 20.0, 40.0, 60.0), "metric-alarm");
+        assert_eq!(
+            metric_class_inverted(10.0, 20.0, 40.0, 60.0),
+            "metric-alarm"
+        );
     }
 
     // ── html_escape ───────────────────────────────────────────────────────────
@@ -2357,8 +2380,11 @@ mod tests {
     #[test]
     fn html_escape_handles_double_quote() {
         let result = html_escape("a\"b");
-        assert!(result.contains("&quot;") || result.contains("a\"b"),
-            "unexpected result '{}'", result);
+        assert!(
+            result.contains("&quot;") || result.contains("a\"b"),
+            "unexpected result '{}'",
+            result
+        );
     }
 
     #[test]
@@ -2433,14 +2459,20 @@ mod tests {
     fn health_score_card_high_score_contains_score_and_excellent() {
         let html = health_score_card(95);
         assert!(html.contains("95"), "score 95 missing");
-        assert!(html.contains("Excellent"), "Excellent label missing for score 95");
+        assert!(
+            html.contains("Excellent"),
+            "Excellent label missing for score 95"
+        );
     }
 
     #[test]
     fn health_score_card_low_score_contains_score_and_critical() {
         let html = health_score_card(10);
         assert!(html.contains("10"), "score 10 missing");
-        assert!(html.contains("Critical"), "Critical label missing for score 10");
+        assert!(
+            html.contains("Critical"),
+            "Critical label missing for score 10"
+        );
     }
 
     #[test]
@@ -2504,8 +2536,10 @@ mod tests {
     #[test]
     fn severity_donut_zero_issues_shows_empty_state() {
         let html = severity_donut(0, 0, 0);
-        assert!(html.contains("No issues") || html.contains("empty"),
-            "expected empty-state marker");
+        assert!(
+            html.contains("No issues") || html.contains("empty"),
+            "expected empty-state marker"
+        );
     }
 
     #[test]
@@ -2548,7 +2582,10 @@ mod tests {
         let html = top_rules_chart(&issues);
         let pos_common = html.find("common-rule").unwrap_or(usize::MAX);
         let pos_rare = html.find("rare-rule").unwrap_or(usize::MAX);
-        assert!(pos_common < pos_rare, "common-rule should appear before rare-rule");
+        assert!(
+            pos_common < pos_rare,
+            "common-rule should appear before rare-rule"
+        );
     }
 
     // ── hotspots_section ──────────────────────────────────────────────────────
@@ -2556,7 +2593,10 @@ mod tests {
     #[test]
     fn hotspots_section_empty_metrics_renders_table() {
         let html = hotspots_section(&[]);
-        assert!(html.contains("Complexity Hotspots"), "section header missing");
+        assert!(
+            html.contains("Complexity Hotspots"),
+            "section header missing"
+        );
         assert!(html.contains("<table"), "table structure missing");
     }
 
@@ -2572,7 +2612,10 @@ mod tests {
         };
         let metrics = vec![(PathBuf::from("/project/lib/complex.dart"), metrics_result)];
         let html = hotspots_section(&metrics);
-        assert!(html.contains("complex.dart"), "file name missing from hotspots");
+        assert!(
+            html.contains("complex.dart"),
+            "file name missing from hotspots"
+        );
     }
 
     #[test]
@@ -2587,7 +2630,10 @@ mod tests {
         let metrics = vec![(PathBuf::from("/project/lib/simple.dart"), low_cc_metrics)];
         let html = hotspots_section(&metrics);
         // Should render table but without this file
-        assert!(!html.contains("simple.dart"), "low-CC file should not appear in hotspots");
+        assert!(
+            !html.contains("simple.dart"),
+            "low-CC file should not appear in hotspots"
+        );
     }
 
     // ── level_of_concern_section ──────────────────────────────────────────────
@@ -2695,18 +2741,21 @@ mod tests {
             sample_issue("info-rule", Severity::Info),
         ];
         let html = issues_section(&issues, 3);
-        assert!(html.contains("ERROR") || html.contains("error"), "ERROR label missing");
-        assert!(html.contains("WARN") || html.contains("warning"), "WARN label missing");
+        assert!(
+            html.contains("ERROR") || html.contains("error"),
+            "ERROR label missing"
+        );
+        assert!(
+            html.contains("WARN") || html.contains("warning"),
+            "WARN label missing"
+        );
     }
 
     // ── metrics_section ───────────────────────────────────────────────────────
 
     #[test]
     fn metrics_section_lists_function_and_class_names() {
-        let metrics = vec![(
-            PathBuf::from("src/my_file.dart"),
-            sample_metrics_results(),
-        )];
+        let metrics = vec![(PathBuf::from("src/my_file.dart"), sample_metrics_results())];
         let html = metrics_section(&metrics);
         assert!(html.contains("foo"), "function name 'foo' missing");
         assert!(html.contains("Bar"), "class name 'Bar' missing");
@@ -2715,8 +2764,14 @@ mod tests {
     #[test]
     fn metrics_section_contains_section_headers() {
         let html = metrics_section(&[]);
-        assert!(html.contains("Function Metrics"), "Function Metrics header missing");
-        assert!(html.contains("Class Metrics"), "Class Metrics header missing");
+        assert!(
+            html.contains("Function Metrics"),
+            "Function Metrics header missing"
+        );
+        assert!(
+            html.contains("Class Metrics"),
+            "Class Metrics header missing"
+        );
     }
 
     #[test]
@@ -2726,7 +2781,10 @@ mod tests {
             sample_metrics_results(),
         )];
         let html = metrics_section(&metrics);
-        assert!(html.contains("my_widget.dart"), "file name missing from metrics section");
+        assert!(
+            html.contains("my_widget.dart"),
+            "file name missing from metrics section"
+        );
     }
 
     // ── test_coverage_section ─────────────────────────────────────────────────
@@ -2736,7 +2794,11 @@ mod tests {
         // With no metrics, scan_test_coverage returns empty vec,
         // so test_coverage_section returns empty string
         let html = test_coverage_section(&[]);
-        assert!(html.is_empty(), "expected empty string for no metrics, got: '{}'", &html[..html.len().min(100)]);
+        assert!(
+            html.is_empty(),
+            "expected empty string for no metrics, got: '{}'",
+            &html[..html.len().min(100)]
+        );
     }
 
     #[test]
@@ -2757,8 +2819,10 @@ mod tests {
         // With no test/ dir, coverage should be 0% or empty
         // Either empty (no coverage items found) or shows 0% coverage
         if !html.is_empty() {
-            assert!(html.contains("Test Coverage") || html.contains("0%") || html.contains("Untested"),
-                "unexpected coverage html content");
+            assert!(
+                html.contains("Test Coverage") || html.contains("0%") || html.contains("Untested"),
+                "unexpected coverage html content"
+            );
         }
     }
 
@@ -2775,7 +2839,10 @@ mod tests {
     fn html_header_contains_html_tag() {
         let html = html_header("Test");
         assert!(html.contains("<html"), "html tag missing");
-        assert!(html.contains("<head>") || html.contains("<head"), "head tag missing");
+        assert!(
+            html.contains("<head>") || html.contains("<head"),
+            "head tag missing"
+        );
     }
 
     #[test]
@@ -2814,7 +2881,10 @@ mod tests {
     fn build_full_report_contains_major_sections() {
         let report = sample_report();
         let html = build_full_report(&report);
-        assert!(html.contains("Health Score"), "Health Score section missing");
+        assert!(
+            html.contains("Health Score"),
+            "Health Score section missing"
+        );
         assert!(html.contains("</html>"), "html closing tag missing");
     }
 
@@ -2824,7 +2894,10 @@ mod tests {
         report.issues = vec![sample_issue("my-special-rule", Severity::Error)];
         report.file_count = 1;
         let html = build_full_report(&report);
-        assert!(html.contains("my-special-rule"), "issue rule missing from full report");
+        assert!(
+            html.contains("my-special-rule"),
+            "issue rule missing from full report"
+        );
     }
 
     #[test]
@@ -2836,7 +2909,10 @@ mod tests {
         )];
         report.file_count = 1;
         let html = build_full_report(&report);
-        assert!(html.contains("foo"), "function name missing from full report");
+        assert!(
+            html.contains("foo"),
+            "function name missing from full report"
+        );
     }
 
     // ── build_metrics_report ──────────────────────────────────────────────────
@@ -2849,13 +2925,12 @@ mod tests {
 
     #[test]
     fn build_metrics_report_contains_metrics_section() {
-        let metrics = vec![(
-            PathBuf::from("lib/my_file.dart"),
-            sample_metrics_results(),
-        )];
+        let metrics = vec![(PathBuf::from("lib/my_file.dart"), sample_metrics_results())];
         let html = build_metrics_report(&metrics);
-        assert!(html.contains("Function Metrics") || html.contains("foo"),
-            "metrics content missing");
+        assert!(
+            html.contains("Function Metrics") || html.contains("foo"),
+            "metrics content missing"
+        );
     }
 
     #[test]
@@ -2880,7 +2955,10 @@ mod tests {
     fn build_issues_report_contains_issue_rule() {
         let issues = vec![sample_issue("some-lint-rule", Severity::Warning)];
         let html = build_issues_report(&issues);
-        assert!(html.contains("some-lint-rule"), "rule name missing from issues report");
+        assert!(
+            html.contains("some-lint-rule"),
+            "rule name missing from issues report"
+        );
     }
 
     // ── parse_pubspec (file-IO) ───────────────────────────────────────────────
@@ -2889,7 +2967,11 @@ mod tests {
     fn parse_pubspec_missing_file_returns_default() {
         let tmp = TempDir::new().unwrap();
         let info = parse_pubspec(tmp.path());
-        assert!(info.name.is_empty(), "expected empty name, got '{}'", info.name);
+        assert!(
+            info.name.is_empty(),
+            "expected empty name, got '{}'",
+            info.name
+        );
         assert!(info.version.is_empty(), "expected empty version");
     }
 
@@ -2897,7 +2979,11 @@ mod tests {
     fn parse_pubspec_reads_name_and_description() {
         let tmp = TempDir::new().unwrap();
         let pubspec = tmp.path().join("pubspec.yaml");
-        std::fs::write(&pubspec, "name: my_app\ndescription: An awesome app\nversion: 1.0.0\n").unwrap();
+        std::fs::write(
+            &pubspec,
+            "name: my_app\ndescription: An awesome app\nversion: 1.0.0\n",
+        )
+        .unwrap();
         let info = parse_pubspec(tmp.path());
         assert_eq!(info.name, "my_app");
         assert_eq!(info.description, "An awesome app");
@@ -2908,10 +2994,14 @@ mod tests {
     fn parse_pubspec_reads_dependencies() {
         let tmp = TempDir::new().unwrap();
         let pubspec = tmp.path().join("pubspec.yaml");
-        let content = "name: my_app\ndependencies:\n  flutter:\n    sdk: flutter\n  http: ^0.13.0\n";
+        let content =
+            "name: my_app\ndependencies:\n  flutter:\n    sdk: flutter\n  http: ^0.13.0\n";
         std::fs::write(&pubspec, content).unwrap();
         let info = parse_pubspec(tmp.path());
-        assert!(!info.dependencies.is_empty(), "expected at least one dependency");
+        assert!(
+            !info.dependencies.is_empty(),
+            "expected at least one dependency"
+        );
     }
 
     #[test]
@@ -2921,8 +3011,10 @@ mod tests {
         let content = "name: test\nenvironment:\n  sdk: '>=2.17.0 <4.0.0'\n";
         std::fs::write(&pubspec, content).unwrap();
         let info = parse_pubspec(tmp.path());
-        assert!(info.sdk_constraint.contains("2.17.0") || !info.sdk_constraint.is_empty(),
-            "sdk_constraint should be set");
+        assert!(
+            info.sdk_constraint.contains("2.17.0") || !info.sdk_constraint.is_empty(),
+            "sdk_constraint should be set"
+        );
     }
 
     // ── collect_dart_files (file-IO) ──────────────────────────────────────────
@@ -2942,8 +3034,17 @@ mod tests {
         let mut out = std::collections::HashSet::new();
         collect_dart_files(tmp.path(), &mut out);
 
-        assert_eq!(out.len(), 3, "expected 3 dart files, found {}: {:?}", out.len(), out);
-        assert!(!out.iter().any(|f| f.ends_with(".txt")), "txt file should not be collected");
+        assert_eq!(
+            out.len(),
+            3,
+            "expected 3 dart files, found {}: {:?}",
+            out.len(),
+            out
+        );
+        assert!(
+            !out.iter().any(|f| f.ends_with(".txt")),
+            "txt file should not be collected"
+        );
     }
 
     #[test]
@@ -2959,22 +3060,30 @@ mod tests {
     #[test]
     fn detect_project_root_finds_root_via_lib_prefix() {
         let metrics = vec![
-            (PathBuf::from("/home/user/myapp/lib/src/widget.dart"), sample_metrics_results()),
-            (PathBuf::from("/home/user/myapp/lib/main.dart"), sample_metrics_results()),
+            (
+                PathBuf::from("/home/user/myapp/lib/src/widget.dart"),
+                sample_metrics_results(),
+            ),
+            (
+                PathBuf::from("/home/user/myapp/lib/main.dart"),
+                sample_metrics_results(),
+            ),
         ];
         let root = detect_project_root(&metrics);
         assert!(root.is_some(), "expected Some root");
         let root = root.unwrap();
-        assert_eq!(root, PathBuf::from("/home/user/myapp"),
-            "unexpected root: {:?}", root);
+        assert_eq!(
+            root,
+            PathBuf::from("/home/user/myapp"),
+            "unexpected root: {:?}",
+            root
+        );
     }
 
     #[test]
     fn detect_project_root_falls_back_to_parent() {
         // Paths without /lib/ prefix
-        let metrics = vec![
-            (PathBuf::from("/some/path/a.dart"), sample_metrics_results()),
-        ];
+        let metrics = vec![(PathBuf::from("/some/path/a.dart"), sample_metrics_results())];
         let root = detect_project_root(&metrics);
         assert!(root.is_some());
         assert_eq!(root.unwrap(), PathBuf::from("/some/path"));
@@ -2995,13 +3104,13 @@ mod tests {
         std::fs::create_dir(&lib_dir).unwrap();
         std::fs::write(lib_dir.join("my_widget.dart"), "// code").unwrap();
 
-        let metrics = vec![(
-            lib_dir.join("my_widget.dart"),
-            sample_metrics_results(),
-        )];
+        let metrics = vec![(lib_dir.join("my_widget.dart"), sample_metrics_results())];
         let coverage = scan_test_coverage(&metrics);
         let has_any_tested = coverage.iter().any(|c| c.has_test);
-        assert!(!has_any_tested, "should have no tested files when no test/ dir exists");
+        assert!(
+            !has_any_tested,
+            "should have no tested files when no test/ dir exists"
+        );
     }
 
     #[test]
@@ -3014,15 +3123,15 @@ mod tests {
         std::fs::write(lib_dir.join("my_widget.dart"), "// code").unwrap();
         std::fs::write(test_dir.join("my_widget_test.dart"), "// test").unwrap();
 
-        let metrics = vec![(
-            lib_dir.join("my_widget.dart"),
-            sample_metrics_results(),
-        )];
+        let metrics = vec![(lib_dir.join("my_widget.dart"), sample_metrics_results())];
         let coverage = scan_test_coverage(&metrics);
         assert!(!coverage.is_empty(), "expected coverage entries");
         let entry = coverage.iter().find(|c| c.source_file == "my_widget.dart");
         assert!(entry.is_some(), "my_widget.dart entry not found");
-        assert!(entry.unwrap().has_test, "my_widget.dart should be marked as tested");
+        assert!(
+            entry.unwrap().has_test,
+            "my_widget.dart should be marked as tested"
+        );
     }
 
     // ── HtmlReporter trait methods (file-IO) ──────────────────────────────────
@@ -3031,18 +3140,25 @@ mod tests {
     fn html_reporter_report_analysis_writes_file() {
         let tmp = TempDir::new().unwrap();
         let out_path = tmp.path().join("out.html");
-        let reporter = HtmlReporter { output_path: out_path.clone() };
+        let reporter = HtmlReporter {
+            output_path: out_path.clone(),
+        };
         reporter.report_analysis(&sample_report());
         assert!(out_path.exists(), "output file not created");
         let content = std::fs::read_to_string(&out_path).unwrap();
-        assert!(content.contains("<!DOCTYPE"), "DOCTYPE missing in written file");
+        assert!(
+            content.contains("<!DOCTYPE"),
+            "DOCTYPE missing in written file"
+        );
     }
 
     #[test]
     fn html_reporter_report_metrics_writes_file() {
         let tmp = TempDir::new().unwrap();
         let out_path = tmp.path().join("metrics.html");
-        let reporter = HtmlReporter { output_path: out_path.clone() };
+        let reporter = HtmlReporter {
+            output_path: out_path.clone(),
+        };
         let metrics = vec![(PathBuf::from("a.dart"), sample_metrics_results())];
         reporter.report_metrics(&metrics);
         assert!(out_path.exists(), "output file not created");
@@ -3054,12 +3170,17 @@ mod tests {
     fn html_reporter_report_issues_writes_file() {
         let tmp = TempDir::new().unwrap();
         let out_path = tmp.path().join("issues.html");
-        let reporter = HtmlReporter { output_path: out_path.clone() };
+        let reporter = HtmlReporter {
+            output_path: out_path.clone(),
+        };
         let issues = vec![sample_issue("test-rule", Severity::Warning)];
         reporter.report_issues(&issues);
         assert!(out_path.exists(), "output file not created");
         let content = std::fs::read_to_string(&out_path).unwrap();
         assert!(content.contains("<!DOCTYPE"), "DOCTYPE missing");
-        assert!(content.contains("test-rule"), "issue rule missing from written file");
+        assert!(
+            content.contains("test-rule"),
+            "issue rule missing from written file"
+        );
     }
 }

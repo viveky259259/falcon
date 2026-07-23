@@ -300,11 +300,7 @@ mod tests {
 
     fn make_falcon_yaml(dir: &Path) {
         // minimal valid falcon.yaml
-        write_file(
-            dir,
-            "falcon.yaml",
-            "metrics:\n  cyclomatic_complexity: 5\n",
-        );
+        write_file(dir, "falcon.yaml", "metrics:\n  cyclomatic_complexity: 5\n");
     }
 
     // ── extract_package_name ───────────────────────────────────────────────────

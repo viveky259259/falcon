@@ -401,8 +401,15 @@ mod tests {
         write!(f, "{}", content).unwrap();
     }
 
-    fn simple_stats(path: &str, lines: usize, classes: usize, functions: usize,
-                    max_cc: u32, avg_cc: f64, mi: f64) -> FileStats {
+    fn simple_stats(
+        path: &str,
+        lines: usize,
+        classes: usize,
+        functions: usize,
+        max_cc: u32,
+        avg_cc: f64,
+        mi: f64,
+    ) -> FileStats {
         FileStats {
             path: PathBuf::from(path),
             lines,
@@ -523,28 +530,40 @@ mod tests {
         let stats = vec![simple_stats("a.dart", 100, 6, 5, 5, 2.0, 80.0)];
         let result = find_god_files(&stats, dummy_path());
         assert_eq!(result.len(), 1);
-        assert!(result[0].decomposition_suggestions.iter().any(|s| s.contains("classes")));
+        assert!(result[0]
+            .decomposition_suggestions
+            .iter()
+            .any(|s| s.contains("classes")));
     }
 
     #[test]
     fn find_god_files_suggestions_functions_over_20() {
         let stats = vec![simple_stats("a.dart", 100, 1, 31, 5, 2.0, 80.0)];
         let result = find_god_files(&stats, dummy_path());
-        assert!(result[0].decomposition_suggestions.iter().any(|s| s.contains("functions")));
+        assert!(result[0]
+            .decomposition_suggestions
+            .iter()
+            .any(|s| s.contains("functions")));
     }
 
     #[test]
     fn find_god_files_suggestions_lines_over_500() {
         let stats = vec![simple_stats("a.dart", 600, 1, 5, 5, 2.0, 80.0)];
         let result = find_god_files(&stats, dummy_path());
-        assert!(result[0].decomposition_suggestions.iter().any(|s| s.contains("files")));
+        assert!(result[0]
+            .decomposition_suggestions
+            .iter()
+            .any(|s| s.contains("files")));
     }
 
     #[test]
     fn find_god_files_suggestions_high_complexity() {
         let stats = vec![simple_stats("a.dart", 600, 1, 5, 16, 5.0, 80.0)];
         let result = find_god_files(&stats, dummy_path());
-        assert!(result[0].decomposition_suggestions.iter().any(|s| s.contains("Refactor")));
+        assert!(result[0]
+            .decomposition_suggestions
+            .iter()
+            .any(|s| s.contains("Refactor")));
     }
 
     // ── find_hotspots ─────────────────────────────────────────────────────────
@@ -701,7 +720,11 @@ mod tests {
     // ── generate_narrative ────────────────────────────────────────────────────
 
     fn empty_debt() -> TechDebt {
-        TechDebt { score: 100.0, effort_hours: 0.0, categories: HashMap::new() }
+        TechDebt {
+            score: 100.0,
+            effort_hours: 0.0,
+            categories: HashMap::new(),
+        }
     }
 
     #[test]

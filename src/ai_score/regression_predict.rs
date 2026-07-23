@@ -203,7 +203,10 @@ mod tests {
 
     #[test]
     fn test_risk_category_display_state_corruption() {
-        assert_eq!(RiskCategory::StateCorruption.to_string(), "State Corruption");
+        assert_eq!(
+            RiskCategory::StateCorruption.to_string(),
+            "State Corruption"
+        );
     }
 
     #[test]
@@ -256,7 +259,10 @@ mod tests {
         assert_eq!(decoded.category, RiskCategory::MemoryLeak);
         assert!((decoded.probability - 0.75).abs() < 1e-9);
         assert_eq!(decoded.impact, "App crash");
-        assert_eq!(decoded.evidence, vec!["3 undisposed controllers".to_string()]);
+        assert_eq!(
+            decoded.evidence,
+            vec!["3 undisposed controllers".to_string()]
+        );
         assert_eq!(decoded.recommendation, "Call dispose()");
         assert_eq!(decoded.timeframe, "2 weeks");
     }
@@ -355,7 +361,10 @@ class AppConfig {
             "hardcoded credentials should trigger SecurityBreach prediction"
         );
         let s = security.unwrap();
-        assert!((s.probability - 0.8).abs() < 1e-9, "SecurityBreach probability should be 0.8");
+        assert!(
+            (s.probability - 0.8).abs() < 1e-9,
+            "SecurityBreach probability should be 0.8"
+        );
     }
 
     #[test]
@@ -374,7 +383,11 @@ class AppConfig {
         assert!(!security.impact.is_empty());
         assert!(!security.recommendation.is_empty());
         assert!(!security.timeframe.is_empty());
-        assert_eq!(security.evidence.len(), 2, "SecurityBreach should have 2 evidence items");
+        assert_eq!(
+            security.evidence.len(),
+            2,
+            "SecurityBreach should have 2 evidence items"
+        );
     }
 
     // ── predict_risks: MemoryLeak (dispose+stream > 5) ────────────────────────
@@ -453,7 +466,12 @@ class Page{}State extends State<Page{}> {{
         let tmp = TempDir::new().unwrap();
         // Generate 22 functions using `dynamic` parameter type to exceed threshold > 20
         let fns: String = (0..22)
-            .map(|i| format!("  dynamic getValue{}(dynamic input{}) => input{};\n", i, i, i))
+            .map(|i| {
+                format!(
+                    "  dynamic getValue{}(dynamic input{}) => input{};\n",
+                    i, i, i
+                )
+            })
             .collect();
         let content = format!("class DynService {{\n{}}}\n", fns);
         write_file(tmp.path(), "lib/dyn_service.dart", &content);
@@ -526,7 +544,10 @@ class MyWidget{} extends StatelessWidget {{
     fn test_predict_risks_returns_ok_for_valid_dir() {
         let tmp = TempDir::new().unwrap();
         let result = predict_risks(tmp.path());
-        assert!(result.is_ok(), "predict_risks should return Ok for a valid dir");
+        assert!(
+            result.is_ok(),
+            "predict_risks should return Ok for a valid dir"
+        );
     }
 
     #[test]

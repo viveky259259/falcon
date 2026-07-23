@@ -68,7 +68,12 @@ fn check_platform_deps_exits_zero_when_key_present() {
         .arg(tmp.path())
         .output()
         .expect("failed to execute falcon");
-    assert_eq!(output.status.code(), Some(0), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
 
 #[test]

@@ -51,6 +51,14 @@ impl L10nSeverity {
             L10nSeverity::Error => "✕",
         }
     }
+
+    fn color_name(&self) -> &'static str {
+        match self {
+            L10nSeverity::Info => "cyan",
+            L10nSeverity::Warning => "yellow",
+            L10nSeverity::Error => "red",
+        }
+    }
 }
 
 /// Detailed issue with localization
@@ -1394,7 +1402,11 @@ mod tests {
         let content = "AppLocalizations.of(context)?.welcomeMessage;";
         let mut used = HashSet::new();
         find_keys_in_content(content, &mut used);
-        assert!(used.contains("welcomeMessage"), "expected welcomeMessage, got: {:?}", used);
+        assert!(
+            used.contains("welcomeMessage"),
+            "expected welcomeMessage, got: {:?}",
+            used
+        );
     }
 
     #[test]
@@ -1421,7 +1433,11 @@ mod tests {
         fs::write(&dart, "AppLocalizations.of(context)?.pageTitle;")?;
         let paths = vec![dart];
         let keys = find_used_keys(&paths)?;
-        assert!(keys.contains("pageTitle"), "expected pageTitle, got: {:?}", keys);
+        assert!(
+            keys.contains("pageTitle"),
+            "expected pageTitle, got: {:?}",
+            keys
+        );
         Ok(())
     }
 
@@ -1444,10 +1460,7 @@ mod tests {
         fs::write(&en_path, r#"{"k": "v"}"#)?;
         fs::write(&fr_path, r#"{"k": "w"}"#)?;
 
-        let arbs = vec![
-            parse_arb_file(&fr_path)?,
-            parse_arb_file(&en_path)?,
-        ];
+        let arbs = vec![parse_arb_file(&fr_path)?, parse_arb_file(&en_path)?];
         let template = identify_template_file(&arbs).expect("should find template");
         assert_eq!(template.locale, "en");
         Ok(())
@@ -1461,10 +1474,7 @@ mod tests {
         fs::write(&de_path, r#"{"k": "v"}"#)?;
         fs::write(&fr_path, r#"{"k": "w"}"#)?;
 
-        let arbs = vec![
-            parse_arb_file(&de_path)?,
-            parse_arb_file(&fr_path)?,
-        ];
+        let arbs = vec![parse_arb_file(&de_path)?, parse_arb_file(&fr_path)?];
         let template = identify_template_file(&arbs).expect("should find template");
         assert_eq!(template.locale, "de");
         Ok(())
@@ -1510,7 +1520,10 @@ mod tests {
         let dir = TempDir::new()?;
         let l10n_dir = dir.path().join("lib").join("l10n");
         fs::create_dir_all(&l10n_dir)?;
-        fs::write(l10n_dir.join("app_en.arb"), r#"{"hello": "Hello", "bye": "Bye"}"#)?;
+        fs::write(
+            l10n_dir.join("app_en.arb"),
+            r#"{"hello": "Hello", "bye": "Bye"}"#,
+        )?;
 
         let report = analyze_l10n_coverage(dir.path())?;
         assert_eq!(report.template_locale, "en");
@@ -1539,7 +1552,10 @@ mod tests {
         let report = analyze_l10n_coverage(dir.path())?;
         let fr = report.locales.iter().find(|l| l.locale == "fr").unwrap();
         assert!(fr.missing_keys.contains(&"title".to_string()));
-        assert!(report.issues.iter().any(|i| i.category == "Missing" && i.locale == "fr"));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.category == "Missing" && i.locale == "fr"));
         Ok(())
     }
 
@@ -1559,7 +1575,10 @@ mod tests {
         let report = analyze_l10n_coverage(dir.path())?;
         let de = report.locales.iter().find(|l| l.locale == "de").unwrap();
         assert!(de.extra_keys.contains(&"extra_key".to_string()));
-        assert!(report.issues.iter().any(|i| i.category == "Extra" && i.locale == "de"));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.category == "Extra" && i.locale == "de"));
         Ok(())
     }
 
@@ -1575,7 +1594,10 @@ mod tests {
         let report = analyze_l10n_coverage(dir.path())?;
         let es = report.locales.iter().find(|l| l.locale == "es").unwrap();
         assert!(es.empty_values.contains(&"greeting".to_string()));
-        assert!(report.issues.iter().any(|i| i.category == "Empty" && i.locale == "es"));
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.category == "Empty" && i.locale == "es"));
         Ok(())
     }
 
@@ -1586,7 +1608,10 @@ mod tests {
         fs::create_dir_all(&l10n_dir)?;
 
         // Template has {name} placeholder
-        fs::write(l10n_dir.join("app_en.arb"), r#"{"greeting": "Hello {name}"}"#)?;
+        fs::write(
+            l10n_dir.join("app_en.arb"),
+            r#"{"greeting": "Hello {name}"}"#,
+        )?;
         // Japanese translation lacks the placeholder
         fs::write(l10n_dir.join("app_ja.arb"), r#"{"greeting": "こんにちは"}"#)?;
 
@@ -1610,7 +1635,10 @@ mod tests {
             l10n_dir.join("app_en.arb"),
             r#"{"usedKey": "Used", "neverUsed": "Ghost"}"#,
         )?;
-        fs::write(l10n_dir.join("app_fr.arb"), r#"{"usedKey": "Utilisé", "neverUsed": "Fantôme"}"#)?;
+        fs::write(
+            l10n_dir.join("app_fr.arb"),
+            r#"{"usedKey": "Utilisé", "neverUsed": "Fantôme"}"#,
+        )?;
 
         // Dart file only references usedKey
         let lib_dir = dir.path().join("lib");
@@ -1640,7 +1668,10 @@ mod tests {
         fs::write(l10n_dir.join("app_fr.arb"), r#"{}"#)?;
 
         let report = analyze_l10n_coverage(dir.path())?;
-        assert!(report.score < 100, "score should drop below 100 when there are errors");
+        assert!(
+            report.score < 100,
+            "score should drop below 100 when there are errors"
+        );
         Ok(())
     }
 
@@ -1650,7 +1681,10 @@ mod tests {
         let l10n_dir = dir.path().join("lib").join("l10n");
         fs::create_dir_all(&l10n_dir)?;
 
-        fs::write(l10n_dir.join("app_en.arb"), r#"{"a":"1","b":"2","c":"3","d":"4"}"#)?;
+        fs::write(
+            l10n_dir.join("app_en.arb"),
+            r#"{"a":"1","b":"2","c":"3","d":"4"}"#,
+        )?;
         // Spanish has 2 of 4 keys
         fs::write(l10n_dir.join("app_es.arb"), r#"{"a":"uno","b":"dos"}"#)?;
 
@@ -1786,16 +1820,14 @@ mod tests {
             unused_keys: vec![],
             overall_coverage_pct: 0.0,
             score: 90,
-            issues: vec![
-                L10nIssue {
-                    severity: L10nSeverity::Error,
-                    category: "Missing".to_string(),
-                    locale: "fr".to_string(),
-                    key: "someKey".to_string(),
-                    detail: "Key is missing in fr".to_string(),
-                    suggestion: "Add the translation".to_string(),
-                },
-            ],
+            issues: vec![L10nIssue {
+                severity: L10nSeverity::Error,
+                category: "Missing".to_string(),
+                locale: "fr".to_string(),
+                key: "someKey".to_string(),
+                detail: "Key is missing in fr".to_string(),
+                suggestion: "Add the translation".to_string(),
+            }],
         };
         let html = generate_html_report(&report);
         assert!(html.contains("Issues"));

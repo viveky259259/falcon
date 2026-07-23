@@ -13,7 +13,7 @@ const RULE_ID_PODFILE_MISSING: &str = "pods/podfile-not-found";
 const RULE_ID_DEPLOYMENT_TARGET_LOW: &str = "pods/deployment-target-too-low";
 const RULE_ID_PLATFORM_NOT_SET: &str = "pods/platform-not-set";
 
-const DEFAULT_IOS_PODFILE_TARGET: &str = "9.0";  // CocoaPods default when no `platform :ios` is set.
+const DEFAULT_IOS_PODFILE_TARGET: &str = "9.0"; // CocoaPods default when no `platform :ios` is set.
 const DEFAULT_IOS_PODSPEC_TARGET: &str = "9.0";
 
 pub fn run(
@@ -60,7 +60,10 @@ pub fn run(
                 "No `platform :ios, 'X.Y'` directive found in ios/Podfile. \
 CocoaPods will default to {DEFAULT_IOS_PODFILE_TARGET}, which may be lower than your plugins need."
             ),
-            suggestion: Some("Add `platform :ios, '13.0'` (or a higher version) near the top of ios/Podfile.".into()),
+            suggestion: Some(
+                "Add `platform :ios, '13.0'` (or a higher version) near the top of ios/Podfile."
+                    .into(),
+            ),
         });
     }
 
@@ -78,7 +81,9 @@ CocoaPods will default to {DEFAULT_IOS_PODFILE_TARGET}, which may be lower than 
     let mut binding_plugins: Vec<(String, String)> = Vec::new();
 
     for plugin in &plugins {
-        let Some(plugin_root) = &plugin.root else { continue };
+        let Some(plugin_root) = &plugin.root else {
+            continue;
+        };
         if !plugin_root.is_dir() {
             continue;
         }
@@ -140,8 +145,8 @@ mod tests {
     use super::*;
     use crate::config::{PreflightConfig, PreflightSuppression};
     use crate::preflight::pub_cache::FALCON_ENV_MUTEX;
-    use tempfile::TempDir;
     use std::sync::MutexGuard;
+    use tempfile::TempDir;
 
     /// Acquire the process-wide env-var lock shared with check_platform_deps.
     /// Every test that sets FALCON_PUB_CACHE must hold this guard for its
@@ -174,12 +179,7 @@ mod tests {
         write(&project.join("ios/Podfile"), &body);
     }
 
-    fn write_plugin(
-        pub_cache: &Path,
-        name: &str,
-        version: &str,
-        ios_deployment: Option<&str>,
-    ) {
+    fn write_plugin(pub_cache: &Path, name: &str, version: &str, ios_deployment: Option<&str>) {
         let plugin_root = pub_cache
             .join("hosted/pub.dev")
             .join(format!("{name}-{version}"));
@@ -188,13 +188,19 @@ mod tests {
             Some(d) => format!("Pod::Spec.new do |s|\n  s.ios.deployment_target = '{d}'\nend\n"),
             None => "Pod::Spec.new do |s|\nend\n".to_string(),
         };
-        std::fs::write(plugin_root.join("ios").join(format!("{name}.podspec")), podspec).unwrap();
+        std::fs::write(
+            plugin_root.join("ios").join(format!("{name}.podspec")),
+            podspec,
+        )
+        .unwrap();
     }
 
     fn write_lock(project: &Path, packages: &[(&str, &str)]) {
         let mut lock = String::from("packages:\n");
         for (name, version) in packages {
-            lock.push_str(&format!("  {name}:\n    source: hosted\n    version: \"{version}\"\n"));
+            lock.push_str(&format!(
+                "  {name}:\n    source: hosted\n    version: \"{version}\"\n"
+            ));
         }
         write(&project.join("pubspec.lock"), &lock);
     }
@@ -202,7 +208,13 @@ mod tests {
     #[test]
     fn no_podfile_emits_info_exit_zero() {
         let (project, _cache, _guard) = fixture();
-        let code = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false).unwrap();
+        let code = run(
+            project.path(),
+            OutputFormat::Text,
+            &FalconConfig::default(),
+            false,
+        )
+        .unwrap();
         assert_eq!(code, 0);
     }
 
@@ -210,7 +222,13 @@ mod tests {
     fn missing_platform_directive_emits_warning() {
         let (project, _cache, _guard) = fixture();
         write_podfile(project.path(), None);
-        let code = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false).unwrap();
+        let code = run(
+            project.path(),
+            OutputFormat::Text,
+            &FalconConfig::default(),
+            false,
+        )
+        .unwrap();
         assert_eq!(code, 1);
     }
 
@@ -220,7 +238,13 @@ mod tests {
         write_podfile(project.path(), Some("12.0"));
         write_lock(project.path(), &[("location", "8.0.0")]);
         write_plugin(cache.path(), "location", "8.0.0", Some("13.0"));
-        let code = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false).unwrap();
+        let code = run(
+            project.path(),
+            OutputFormat::Text,
+            &FalconConfig::default(),
+            false,
+        )
+        .unwrap();
         assert_eq!(code, 2);
     }
 
@@ -230,7 +254,13 @@ mod tests {
         write_podfile(project.path(), Some("13.0"));
         write_lock(project.path(), &[("location", "8.0.0")]);
         write_plugin(cache.path(), "location", "8.0.0", Some("13.0"));
-        let code = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false).unwrap();
+        let code = run(
+            project.path(),
+            OutputFormat::Text,
+            &FalconConfig::default(),
+            false,
+        )
+        .unwrap();
         assert_eq!(code, 0);
     }
 
@@ -240,7 +270,13 @@ mod tests {
         write_podfile(project.path(), Some("14.0"));
         write_lock(project.path(), &[("location", "8.0.0")]);
         write_plugin(cache.path(), "location", "8.0.0", Some("11.0"));
-        let code = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false).unwrap();
+        let code = run(
+            project.path(),
+            OutputFormat::Text,
+            &FalconConfig::default(),
+            false,
+        )
+        .unwrap();
         assert_eq!(code, 0);
     }
 
@@ -248,11 +284,20 @@ mod tests {
     fn multiple_plugins_max_target_named_in_error() {
         let (project, cache, _guard) = fixture();
         write_podfile(project.path(), Some("12.0"));
-        write_lock(project.path(), &[("a", "1.0.0"), ("b", "2.0.0"), ("c", "3.0.0")]);
+        write_lock(
+            project.path(),
+            &[("a", "1.0.0"), ("b", "2.0.0"), ("c", "3.0.0")],
+        );
         write_plugin(cache.path(), "a", "1.0.0", Some("13.0"));
         write_plugin(cache.path(), "b", "2.0.0", Some("14.0"));
         write_plugin(cache.path(), "c", "3.0.0", Some("12.0"));
-        let code = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false).unwrap();
+        let code = run(
+            project.path(),
+            OutputFormat::Text,
+            &FalconConfig::default(),
+            false,
+        )
+        .unwrap();
         assert_eq!(code, 2);
     }
 
@@ -262,7 +307,13 @@ mod tests {
         write_podfile(project.path(), Some("10.0"));
         write_lock(project.path(), &[("x", "1.0.0")]);
         write_plugin(cache.path(), "x", "1.0.0", None);
-        let code = run(project.path(), OutputFormat::Text, &FalconConfig::default(), false).unwrap();
+        let code = run(
+            project.path(),
+            OutputFormat::Text,
+            &FalconConfig::default(),
+            false,
+        )
+        .unwrap();
         assert_eq!(code, 0);
     }
 

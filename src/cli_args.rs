@@ -46,8 +46,8 @@ Use 'falcon <command> --help' for details on any command.
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Run full analysis (metrics + rules + unused detection)
-    #[command(display_order = 1)]
+    /// Run project checks and static analysis
+    #[command(name = "check", alias = "analyze", display_order = 1)]
     Analyze {
         /// Path to analyze (defaults to current directory)
         #[arg(default_value = ".")]
@@ -69,9 +69,21 @@ pub enum Commands {
         #[arg(long)]
         since: Option<String>,
 
-        /// Use baseline — only report new violations
+        /// Only report findings not present in this baseline file
+        #[arg(long, value_name = "FILE")]
+        baseline: Option<PathBuf>,
+
+        /// Rewrite the baseline file with the current findings
+        #[arg(long, value_name = "FILE")]
+        update_baseline: Option<PathBuf>,
+
+        /// Run dart analyze as a semantic co-pilot and defer same-line Falcon findings
         #[arg(long)]
-        baseline: bool,
+        semantic: bool,
+
+        /// Keep Falcon findings even when dart analyze reports the same line
+        #[arg(long = "no-defer-to-analyzer", alias = "no-defer")]
+        no_defer_to_analyzer: bool,
 
         /// Minimum severity to fail on (error, warning, info)
         #[arg(long, default_value = "error")]
@@ -176,6 +188,66 @@ pub enum Commands {
         /// Output file path (for file-based formats)
         #[arg(short, long, default_value = "falcon-report.html")]
         output: PathBuf,
+    },
+
+    /// Verify declared Flutter assets exist
+    #[command(name = "check-assets", display_order = 2)]
+    CheckAssets {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output format
+        #[arg(long, value_enum, default_value = "text")]
+        format: falcon::preflight::OutputFormat,
+    },
+
+    /// Verify accessibility preflight requirements
+    #[command(name = "check-a11y", display_order = 2)]
+    CheckA11y {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output format
+        #[arg(long, value_enum, default_value = "text")]
+        format: falcon::preflight::OutputFormat,
+    },
+
+    /// Verify iOS Podfile and podspec deployment targets
+    #[command(name = "check-pods", display_order = 2)]
+    CheckPods {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output format
+        #[arg(long, value_enum, default_value = "text")]
+        format: falcon::preflight::OutputFormat,
+
+        /// Refresh cached plugin metadata
+        #[arg(long)]
+        refresh: bool,
+    },
+
+    /// Verify platform dependency declarations
+    #[command(name = "check-platform-deps", display_order = 2)]
+    CheckPlatformDeps {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output format
+        #[arg(long, value_enum, default_value = "text")]
+        format: falcon::preflight::OutputFormat,
+
+        /// Refresh cached plugin metadata
+        #[arg(long)]
+        refresh: bool,
+
+        /// Platform to check
+        #[arg(long, value_enum)]
+        platform: Option<falcon::preflight::TargetPlatform>,
     },
 
     /// Generate a default falcon.yaml configuration file
@@ -727,12 +799,32 @@ pub enum Commands {
         path: PathBuf,
 
         /// Git ref to diff against (e.g., HEAD~1, main, origin/main)
-        #[arg(long, default_value = "HEAD~1")]
+        #[arg(long, alias = "base-ref", default_value = "HEAD~1")]
         diff: String,
+
+        /// Output format
+        #[arg(long, default_value = "gh")]
+        format: ReviewFormat,
 
         /// Review strictness level
         #[arg(long, default_value = "standard")]
         strictness: falcon::review::pr_review::ReviewStrictness,
+
+        /// Only report findings not present in this baseline file
+        #[arg(long, value_name = "FILE")]
+        baseline: Option<PathBuf>,
+
+        /// Rewrite the baseline file with the current review findings
+        #[arg(long, value_name = "FILE")]
+        update_baseline: Option<PathBuf>,
+
+        /// Run dart analyze as a semantic co-pilot and defer same-line Falcon findings
+        #[arg(long)]
+        semantic: bool,
+
+        /// Keep Falcon findings even when dart analyze reports the same line
+        #[arg(long = "no-defer-to-analyzer", alias = "no-defer")]
+        no_defer_to_analyzer: bool,
     },
 
     /// Analyze codebase health, god files, tech debt, and hotspots
@@ -966,7 +1058,7 @@ pub enum Commands {
     },
 
     /// Calculate AI Code Quality Score (0-100) with 6-dimension breakdown
-    #[command(name = "ai-score", display_order = 1)]
+    #[command(name = "score", alias = "ai-score", display_order = 1)]
     AiScore {
         /// Path to project
         #[arg(default_value = ".")]
@@ -979,6 +1071,10 @@ pub enum Commands {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// Output format
+        #[arg(long, value_enum)]
+        format: Option<ScoreFormat>,
     },
 
     /// Generate a State of AI-Generated Flutter Code report
@@ -1334,6 +1430,13 @@ pub enum Commands {
 /// only the default help surface — no command bodies move.
 #[derive(Subcommand)]
 pub enum XAction {
+    /// AI configuration and tools
+    #[command(name = "ai")]
+    Ai {
+        #[command(subcommand)]
+        action: AiAction,
+    },
+
     /// Audit Flutter project assets — find unused, oversized, and WebP-convertible files
     #[command(name = "asset-audit")]
     AssetAudit {
@@ -1944,6 +2047,18 @@ pub enum OutputFormat {
     Checkstyle,
     Sonar,
     Gitlab,
+}
+
+#[derive(Clone, Debug, clap::ValueEnum)]
+pub enum ReviewFormat {
+    Gh,
+    Json,
+    Sarif,
+}
+
+#[derive(Clone, Debug, clap::ValueEnum)]
+pub enum ScoreFormat {
+    Json,
 }
 
 #[derive(Clone, Debug, clap::ValueEnum)]

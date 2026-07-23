@@ -383,7 +383,10 @@ mod tests {
     #[test]
     fn analyze_empty_deps() {
         let dir = TempDir::new().unwrap();
-        write_pubspec(&dir, "name: my_app\ndependencies:\n  flutter:\n    sdk: flutter\n");
+        write_pubspec(
+            &dir,
+            "name: my_app\ndependencies:\n  flutter:\n    sdk: flutter\n",
+        );
         let report = analyze_dependencies(dir.path()).unwrap();
         assert_eq!(report.total_deps, 0);
         assert!(report.direct_deps.is_empty());
@@ -393,13 +396,13 @@ mod tests {
     #[test]
     fn analyze_unused_dep_creates_issue() {
         let dir = TempDir::new().unwrap();
-        write_pubspec(
-            &dir,
-            "name: my_app\ndependencies:\n  provider: ^6.0.0\n",
-        );
+        write_pubspec(&dir, "name: my_app\ndependencies:\n  provider: ^6.0.0\n");
         let report = analyze_dependencies(dir.path()).unwrap();
-        let issue_types: Vec<String> =
-            report.issues.iter().map(|i| i.issue_type.to_string()).collect();
+        let issue_types: Vec<String> = report
+            .issues
+            .iter()
+            .map(|i| i.issue_type.to_string())
+            .collect();
         assert!(issue_types.contains(&"unused".to_string()));
     }
 
@@ -411,8 +414,11 @@ mod tests {
             "name: my_app\ndependencies:\n  my_pkg:\n    git:\n      url: https://github.com/foo/my_pkg.git\n",
         );
         let report = analyze_dependencies(dir.path()).unwrap();
-        let issue_types: Vec<String> =
-            report.issues.iter().map(|i| i.issue_type.to_string()).collect();
+        let issue_types: Vec<String> = report
+            .issues
+            .iter()
+            .map(|i| i.issue_type.to_string())
+            .collect();
         assert!(issue_types.contains(&"git-dep".to_string()));
     }
 
@@ -424,8 +430,11 @@ mod tests {
             "name: my_app\ndependencies:\n  local_pkg:\n    path: ../local_pkg\n",
         );
         let report = analyze_dependencies(dir.path()).unwrap();
-        let issue_types: Vec<String> =
-            report.issues.iter().map(|i| i.issue_type.to_string()).collect();
+        let issue_types: Vec<String> = report
+            .issues
+            .iter()
+            .map(|i| i.issue_type.to_string())
+            .collect();
         assert!(issue_types.contains(&"path-dep".to_string()));
     }
 
@@ -434,8 +443,11 @@ mod tests {
         let dir = TempDir::new().unwrap();
         write_pubspec(&dir, "name: my_app\ndependencies:\n  dio: any\n");
         let report = analyze_dependencies(dir.path()).unwrap();
-        let issue_types: Vec<String> =
-            report.issues.iter().map(|i| i.issue_type.to_string()).collect();
+        let issue_types: Vec<String> = report
+            .issues
+            .iter()
+            .map(|i| i.issue_type.to_string())
+            .collect();
         assert!(issue_types.contains(&"permissive".to_string()));
     }
 
@@ -447,8 +459,11 @@ mod tests {
             "name: my_app\ndependencies: {}\ndependency_overrides:\n  some_pkg: ^1.0.0\n",
         );
         let report = analyze_dependencies(dir.path()).unwrap();
-        let issue_types: Vec<String> =
-            report.issues.iter().map(|i| i.issue_type.to_string()).collect();
+        let issue_types: Vec<String> = report
+            .issues
+            .iter()
+            .map(|i| i.issue_type.to_string())
+            .collect();
         assert!(issue_types.contains(&"override".to_string()));
     }
 
@@ -488,7 +503,10 @@ mod tests {
             "name: my_app\ndependencies:\n  provider: ^6.0.0\ndev_dependencies:\n  build_runner: ^2.4.0\n",
         );
         let report = analyze_dependencies(dir.path()).unwrap();
-        assert_eq!(report.total_deps, report.direct_deps.len() + report.dev_deps.len());
+        assert_eq!(
+            report.total_deps,
+            report.direct_deps.len() + report.dev_deps.len()
+        );
     }
 }
 

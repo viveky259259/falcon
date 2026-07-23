@@ -49,7 +49,11 @@ pub fn run(root: &Path, format: OutputFormat, config: &FalconConfig) -> Result<i
     Ok(exit)
 }
 
-fn inspect_decl(root: &Path, decl: &pubspec::AssetDecl, warn_on_empty_dir: bool) -> Option<PreflightIssue> {
+fn inspect_decl(
+    root: &Path,
+    decl: &pubspec::AssetDecl,
+    warn_on_empty_dir: bool,
+) -> Option<PreflightIssue> {
     let pubspec_path = PathBuf::from("pubspec.yaml");
 
     // Reject glob patterns up front — Flutter's pubspec doesn't expand them.
@@ -90,8 +94,7 @@ fn inspect_decl(root: &Path, decl: &pubspec::AssetDecl, warn_on_empty_dir: bool)
                     decl.path
                 ),
                 suggestion: Some(
-                    "Create the directory and add files to it, or remove the declaration."
-                        .into(),
+                    "Create the directory and add files to it, or remove the declaration.".into(),
                 ),
             });
         }
@@ -242,7 +245,10 @@ mod tests {
         let yaml: serde_yaml::Value =
             serde_yaml::from_str("warn_on_empty_directory: false").unwrap();
         tunings.insert("check-assets".to_string(), yaml);
-        cfg.preflight = PreflightConfig { suppress: vec![], config: tunings };
+        cfg.preflight = PreflightConfig {
+            suppress: vec![],
+            config: tunings,
+        };
         let code = run(tmp.path(), OutputFormat::Text, &cfg).unwrap();
         assert_eq!(code, 0);
     }

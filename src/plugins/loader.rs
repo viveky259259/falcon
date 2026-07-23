@@ -203,12 +203,6 @@ impl PluginLoader {
     }
 }
 
-impl Default for PluginLoader {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 fn parse_severity(s: &str) -> Severity {
     match s.to_lowercase().as_str() {
         "error" => Severity::Error,

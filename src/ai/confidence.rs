@@ -466,7 +466,11 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let file = dir.path().join("widget.dart");
         std::fs::write(&file, "void foo() {}").unwrap();
-        let issues = vec![make_issue("unused-code", "widget appears unused", file.to_str().unwrap())];
+        let issues = vec![make_issue(
+            "unused-code",
+            "widget appears unused",
+            file.to_str().unwrap(),
+        )];
         let results = score_unused_issues(&issues, dir.path());
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].confidence, 95);
@@ -480,7 +484,11 @@ mod tests {
         let file = dir.path().join("widget.dart");
         std::fs::write(&file, "void foo() {}").unwrap();
         // "lint-error" is not an unused-* rule — should be filtered out
-        let issues = vec![make_issue("lint-error", "something", file.to_str().unwrap())];
+        let issues = vec![make_issue(
+            "lint-error",
+            "something",
+            file.to_str().unwrap(),
+        )];
         let results = score_unused_issues(&issues, dir.path());
         assert!(results.is_empty());
     }
@@ -493,7 +501,11 @@ mod tests {
         std::fs::write(&f1, "void a() {}").unwrap();
         std::fs::write(&f2, "void b() {}").unwrap();
         let issues = vec![
-            make_issue("unused-file", "a.dart appears to be unused", f1.to_str().unwrap()),
+            make_issue(
+                "unused-file",
+                "a.dart appears to be unused",
+                f1.to_str().unwrap(),
+            ),
             make_issue("unused-dependency", "dep unused", f2.to_str().unwrap()),
         ];
         let results = score_unused_issues(&issues, dir.path());
@@ -507,7 +519,11 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let file = dir.path().join("magic.dart");
         std::fs::write(&file, "import 'dart:mirrors';\nvoid foo() {}").unwrap();
-        let issues = vec![make_issue("unused-code", "foo appears unused", file.to_str().unwrap())];
+        let issues = vec![make_issue(
+            "unused-code",
+            "foo appears unused",
+            file.to_str().unwrap(),
+        )];
         let results = score_unused_issues(&issues, dir.path());
         assert_eq!(results[0].confidence, 70); // 95 - 25
         assert!(results[0].reducers.iter().any(|r| r.contains("reflection")));
@@ -518,7 +534,11 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let file = dir.path().join("ref.dart");
         std::fs::write(&file, "import 'reflectable';\nvoid foo() {}").unwrap();
-        let issues = vec![make_issue("unused-code", "foo appears unused", file.to_str().unwrap())];
+        let issues = vec![make_issue(
+            "unused-code",
+            "foo appears unused",
+            file.to_str().unwrap(),
+        )];
         let results = score_unused_issues(&issues, dir.path());
         assert!(results[0].confidence <= 70);
     }
@@ -528,7 +548,11 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let file = dir.path().join("proxy.dart");
         std::fs::write(&file, "dynamic noSuchMethod(i) => super.noSuchMethod(i);").unwrap();
-        let issues = vec![make_issue("unused-code", "proxy appears unused", file.to_str().unwrap())];
+        let issues = vec![make_issue(
+            "unused-code",
+            "proxy appears unused",
+            file.to_str().unwrap(),
+        )];
         let results = score_unused_issues(&issues, dir.path());
         assert!(results[0].confidence <= 70);
     }
@@ -542,7 +566,11 @@ mod tests {
         // need >= 3 occurrences of "dynamic "
         let content = "dynamic foo;\ndynamic bar;\ndynamic baz;\n";
         std::fs::write(&file, content).unwrap();
-        let issues = vec![make_issue("unused-code", "dyn appears unused", file.to_str().unwrap())];
+        let issues = vec![make_issue(
+            "unused-code",
+            "dyn appears unused",
+            file.to_str().unwrap(),
+        )];
         let results = score_unused_issues(&issues, dir.path());
         assert_eq!(results[0].confidence, 80); // 95 - 15
         assert!(results[0].reducers.iter().any(|r| r.contains("dynamic")));
@@ -572,7 +600,11 @@ mod tests {
         let widget = dir.path().join("widget.dart");
         std::fs::write(&widget, "class Widget {}").unwrap();
 
-        let issues = vec![make_issue("unused-code", "Widget unused", widget.to_str().unwrap())];
+        let issues = vec![make_issue(
+            "unused-code",
+            "Widget unused",
+            widget.to_str().unwrap(),
+        )];
         let results = score_unused_issues(&issues, dir.path());
         assert_eq!(results[0].confidence, 85); // 95 - 10
         assert!(results[0].reducers.iter().any(|r| r.contains("barrel")));
@@ -585,7 +617,11 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let file = dir.path().join("model.g.dart");
         std::fs::write(&file, "void g() {}").unwrap();
-        let issues = vec![make_issue("unused-code", "g appears unused", file.to_str().unwrap())];
+        let issues = vec![make_issue(
+            "unused-code",
+            "g appears unused",
+            file.to_str().unwrap(),
+        )];
         let results = score_unused_issues(&issues, dir.path());
         assert_eq!(results[0].confidence, 65); // 95 - 30
         assert!(results[0].reducers.iter().any(|r| r.contains("Generated")));
@@ -598,7 +634,11 @@ mod tests {
         std::fs::create_dir_all(&sub).unwrap();
         let file = sub.join("model.freezed.dart");
         std::fs::write(&file, "void f() {}").unwrap();
-        let issues = vec![make_issue("unused-code", "f appears unused", file.to_str().unwrap())];
+        let issues = vec![make_issue(
+            "unused-code",
+            "f appears unused",
+            file.to_str().unwrap(),
+        )];
         let results = score_unused_issues(&issues, dir.path());
         assert_eq!(results[0].confidence, 65); // 95 - 30
     }
@@ -610,7 +650,11 @@ mod tests {
         std::fs::create_dir_all(&gen_dir).unwrap();
         let file = gen_dir.join("api.dart");
         std::fs::write(&file, "void api() {}").unwrap();
-        let issues = vec![make_issue("unused-code", "api appears unused", file.to_str().unwrap())];
+        let issues = vec![make_issue(
+            "unused-code",
+            "api appears unused",
+            file.to_str().unwrap(),
+        )];
         let results = score_unused_issues(&issues, dir.path());
         assert_eq!(results[0].confidence, 65); // 95 - 30
     }
@@ -622,7 +666,11 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let file = dir.path().join("widget_test.dart");
         std::fs::write(&file, "void test_foo() {}").unwrap();
-        let issues = vec![make_issue("unused-code", "test_foo appears unused", file.to_str().unwrap())];
+        let issues = vec![make_issue(
+            "unused-code",
+            "test_foo appears unused",
+            file.to_str().unwrap(),
+        )];
         let results = score_unused_issues(&issues, dir.path());
         assert_eq!(results[0].confidence, 90); // 95 - 5
         assert!(results[0].reducers.iter().any(|r| r.contains("Test")));
@@ -635,7 +683,11 @@ mod tests {
         std::fs::create_dir_all(&test_dir).unwrap();
         let file = test_dir.join("helper.dart");
         std::fs::write(&file, "void helper() {}").unwrap();
-        let issues = vec![make_issue("unused-code", "helper appears unused", file.to_str().unwrap())];
+        let issues = vec![make_issue(
+            "unused-code",
+            "helper appears unused",
+            file.to_str().unwrap(),
+        )];
         let results = score_unused_issues(&issues, dir.path());
         assert_eq!(results[0].confidence, 90); // 95 - 5
     }
@@ -732,7 +784,8 @@ mod tests {
         std::fs::write(&barrel, "export 'multi.dart';\n").unwrap();
 
         let file = sub.join("multi.dart");
-        let content = "import 'dart:mirrors';\ndynamic a;\ndynamic b;\ndynamic c;\nclass MultiBase {}";
+        let content =
+            "import 'dart:mirrors';\ndynamic a;\ndynamic b;\ndynamic c;\nclass MultiBase {}";
         std::fs::write(&file, content).unwrap();
 
         let issues = vec![make_issue(
@@ -741,7 +794,11 @@ mod tests {
             file.to_str().unwrap(),
         )];
         let results = score_unused_issues(&issues, dir.path());
-        assert!(results[0].confidence >= 10, "confidence {} should be >= 10", results[0].confidence);
+        assert!(
+            results[0].confidence >= 10,
+            "confidence {} should be >= 10",
+            results[0].confidence
+        );
     }
 
     // ── find_reflection_patterns directly ────────────────────────────────────
@@ -780,7 +837,11 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let file = dir.path().join("dyn2.dart");
         // "dynamic>" + "dynamic," + "dynamic " = 3
-        std::fs::write(&file, "List<dynamic> a;\nMap<String, dynamic> b;\ndynamic c;").unwrap();
+        std::fs::write(
+            &file,
+            "List<dynamic> a;\nMap<String, dynamic> b;\ndynamic c;",
+        )
+        .unwrap();
         let result = find_dynamic_usage(dir.path());
         assert!(result.contains(&file.to_string_lossy().to_string()));
     }
@@ -791,10 +852,22 @@ mod tests {
     fn find_barrel_exports_returns_filenames() {
         let dir = TempDir::new().unwrap();
         let barrel = dir.path().join("exports.dart");
-        std::fs::write(&barrel, "export 'src/widgets/button.dart';\nexport 'src/models/user.dart';\n").unwrap();
+        std::fs::write(
+            &barrel,
+            "export 'src/widgets/button.dart';\nexport 'src/models/user.dart';\n",
+        )
+        .unwrap();
         let result = find_barrel_exports(dir.path());
-        assert!(result.contains("button.dart"), "expected button.dart in {:?}", result);
-        assert!(result.contains("user.dart"), "expected user.dart in {:?}", result);
+        assert!(
+            result.contains("button.dart"),
+            "expected button.dart in {:?}",
+            result
+        );
+        assert!(
+            result.contains("user.dart"),
+            "expected user.dart in {:?}",
+            result
+        );
     }
 
     #[test]
@@ -823,7 +896,11 @@ mod tests {
         // reflection alone = 1 reducer
         let file = dir.path().join("r.dart");
         std::fs::write(&file, "import 'dart:mirrors';").unwrap();
-        let issues = vec![make_issue("unused-code", "r appears unused", file.to_str().unwrap())];
+        let issues = vec![make_issue(
+            "unused-code",
+            "r appears unused",
+            file.to_str().unwrap(),
+        )];
         let results = score_unused_issues(&issues, dir.path());
         assert!(results[0].reason.contains("1 factor(s) reduce confidence"));
     }

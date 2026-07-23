@@ -9,7 +9,10 @@ fn looks_like_uses_permission_tag_start(rest: &str) -> bool {
     if !rest.starts_with("<uses-permission") {
         return false;
     }
-    matches!(rest.as_bytes().get(NEEDLE.len()), Some(b' ' | b'\t' | b'\n' | b'/' | b'>'))
+    matches!(
+        rest.as_bytes().get(NEEDLE.len()),
+        Some(b' ' | b'\t' | b'\n' | b'/' | b'>')
+    )
 }
 
 pub fn extract_uses_permissions(manifest_xml: &str) -> Vec<String> {

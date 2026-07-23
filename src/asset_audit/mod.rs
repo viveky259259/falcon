@@ -69,6 +69,14 @@ impl AssetSeverity {
             AssetSeverity::Error => "✕",
         }
     }
+
+    fn color_name(&self) -> &'static str {
+        match self {
+            AssetSeverity::Info => "blue",
+            AssetSeverity::Warning => "yellow",
+            AssetSeverity::Error => "red",
+        }
+    }
 }
 
 /// Detailed issue with an asset
@@ -1256,7 +1264,8 @@ mod tests {
     #[test]
     fn test_parse_pubspec_assets_with_assets() {
         let dir = TempDir::new().unwrap();
-        let pubspec = "name: myapp\nflutter:\n  assets:\n    - assets/logo.png\n    - assets/icon.png\n";
+        let pubspec =
+            "name: myapp\nflutter:\n  assets:\n    - assets/logo.png\n    - assets/icon.png\n";
         make_file(dir.path(), "pubspec.yaml", pubspec.as_bytes());
         let result = parse_pubspec_assets(dir.path()).unwrap();
         assert!(result.contains(&PathBuf::from("assets/logo.png")));
@@ -1275,8 +1284,7 @@ mod tests {
     #[test]
     fn test_parse_pubspec_assets_comment_lines_skipped() {
         let dir = TempDir::new().unwrap();
-        let pubspec =
-            "name: myapp\nflutter:\n  assets:\n    # a comment\n    - assets/real.png\n";
+        let pubspec = "name: myapp\nflutter:\n  assets:\n    # a comment\n    - assets/real.png\n";
         make_file(dir.path(), "pubspec.yaml", pubspec.as_bytes());
         let result = parse_pubspec_assets(dir.path()).unwrap();
         assert!(result.contains(&PathBuf::from("assets/real.png")));
@@ -1305,7 +1313,10 @@ mod tests {
         let cfg = AuditConfig::default();
         let assets = collect_assets(dir.path(), &cfg).unwrap();
         assert!(!assets.is_empty());
-        let names: Vec<_> = assets.iter().map(|(p, _)| p.to_string_lossy().to_string()).collect();
+        let names: Vec<_> = assets
+            .iter()
+            .map(|(p, _)| p.to_string_lossy().to_string())
+            .collect();
         assert!(names.iter().any(|n| n.contains("logo.png")));
     }
 
@@ -1373,11 +1384,7 @@ mod tests {
     fn test_find_referenced_assets_non_dart_files_ignored() {
         let dir = TempDir::new().unwrap();
         // A yaml file with an asset path should not contribute references
-        make_file(
-            dir.path(),
-            "config.yaml",
-            b"path: 'assets/background.png'",
-        );
+        make_file(dir.path(), "config.yaml", b"path: 'assets/background.png'");
         let referenced = find_referenced_assets(dir.path()).unwrap();
         assert!(referenced.is_empty());
     }
@@ -1581,8 +1588,7 @@ mod tests {
     fn test_audit_assets_unused_declared_asset() {
         let dir = TempDir::new().unwrap();
         // Declare asset in pubspec but do NOT create a Dart reference
-        let pubspec =
-            "name: app\nflutter:\n  assets:\n    - assets/unused.png\n";
+        let pubspec = "name: app\nflutter:\n  assets:\n    - assets/unused.png\n";
         make_file(dir.path(), "pubspec.yaml", pubspec.as_bytes());
         // Create the actual file so it is considered "exists"
         make_file(dir.path(), "assets/unused.png", b"\x89PNG");

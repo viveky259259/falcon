@@ -51,6 +51,14 @@ impl ThemeSeverity {
             ThemeSeverity::Error => "✕",
         }
     }
+
+    fn color_name(&self) -> &'static str {
+        match self {
+            ThemeSeverity::Info => "blue",
+            ThemeSeverity::Warning => "yellow",
+            ThemeSeverity::Error => "red",
+        }
+    }
 }
 
 /// Detailed issue with theme consistency
@@ -93,6 +101,8 @@ struct ThemePatterns {
     hardcoded_edge_insets: Regex,
     theme_reference: Regex,
     material_color_shade: Regex,
+    text_style_definition: Regex,
+    material_app_pattern: Regex,
 }
 
 impl ThemePatterns {
@@ -112,12 +122,17 @@ impl ThemePatterns {
             theme_reference: Regex::new(r"Theme\.of\s*\(\s*context\s*\)|context\.theme")?,
             // Match Colors.blue[700], Colors.red[500], etc.
             material_color_shade: Regex::new(r"Colors\.\w+\s*\[\s*\d+\s*\]")?,
+            // Match inline TextStyle constructors.
+            text_style_definition: Regex::new(r"\bTextStyle\s*\(")?,
+            // Match MaterialApp constructors.
+            material_app_pattern: Regex::new(r"\bMaterialApp\s*\(")?,
         })
     }
 }
 
 /// File analysis state
 struct FileAnalysis {
+    path: PathBuf,
     issues: Vec<ThemeIssue>,
     hardcoded_colors: usize,
     hardcoded_fonts: usize,
@@ -128,6 +143,7 @@ struct FileAnalysis {
 /// Parse file and detect theme issues
 fn analyze_file(path: &Path, content: &str, patterns: &ThemePatterns) -> Result<FileAnalysis> {
     let mut analysis = FileAnalysis {
+        path: path.to_path_buf(),
         issues: Vec::new(),
         hardcoded_colors: 0,
         hardcoded_fonts: 0,

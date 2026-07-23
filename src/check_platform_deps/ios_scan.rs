@@ -20,7 +20,7 @@ pub fn scan_ios_sources(plugin_root: &Path) -> Vec<RequiredInfoPlistKey> {
             continue;
         }
         for entry in walkdir::WalkDir::new(&dir)
-            .max_depth(10)               // plugins rarely nest deeper than this
+            .max_depth(10) // plugins rarely nest deeper than this
             .follow_links(false)
             .into_iter()
             .filter_map(|e| e.ok())
@@ -31,7 +31,9 @@ pub fn scan_ios_sources(plugin_root: &Path) -> Vec<RequiredInfoPlistKey> {
             if ext != "m" && ext != "swift" && ext != "mm" && ext != "h" {
                 continue;
             }
-            let Ok(text) = std::fs::read_to_string(path) else { continue };
+            let Ok(text) = std::fs::read_to_string(path) else {
+                continue;
+            };
             for api in find_apis_in_source(&text) {
                 if api.info_plist_key.is_empty() {
                     continue;
@@ -87,7 +89,10 @@ mod tests {
         let result = scan_ios_sources(tmp.path());
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].key, "NSLocationWhenInUseUsageDescription");
-        assert!(result[0].source_file.to_string_lossy().ends_with("LocationPlugin.m"));
+        assert!(result[0]
+            .source_file
+            .to_string_lossy()
+            .ends_with("LocationPlugin.m"));
     }
 
     #[test]
@@ -140,14 +145,20 @@ PHPhotoLibrary.requestAuthorization { _ in }
     #[test]
     fn scan_ios_sources_ignores_non_source_extensions() {
         let tmp = TempDir::new().unwrap();
-        write(&tmp.path().join("ios/README.md"), "AVCaptureDevice.requestAccess");
+        write(
+            &tmp.path().join("ios/README.md"),
+            "AVCaptureDevice.requestAccess",
+        );
         assert!(scan_ios_sources(tmp.path()).is_empty());
     }
 
     #[test]
     fn scan_ios_sources_picks_up_h_and_mm_files_too() {
         let tmp = TempDir::new().unwrap();
-        write(&tmp.path().join("ios/Classes/Cam.h"), "AVCaptureDevice.requestAccess");
+        write(
+            &tmp.path().join("ios/Classes/Cam.h"),
+            "AVCaptureDevice.requestAccess",
+        );
         write(
             &tmp.path().join("ios/Classes/Cam.mm"),
             "[CLLocationManager.shared requestWhenInUseAuthorization];",

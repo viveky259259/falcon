@@ -388,7 +388,10 @@ mod tests {
         let cfg = CloudConfig::default();
         assert_eq!(cfg.alerts[1].name, "Critical vulnerability");
         assert!(cfg.alerts[1].enabled);
-        matches!(cfg.alerts[1].condition, AlertCondition::CriticalVulnerability);
+        matches!(
+            cfg.alerts[1].condition,
+            AlertCondition::CriticalVulnerability
+        );
     }
 
     #[test]
@@ -561,7 +564,10 @@ mod tests {
 
         let result = register_project(tmp.path(), "app", "/other-path");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("already registered"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("already registered"));
     }
 
     #[test]
@@ -657,7 +663,11 @@ mod tests {
 
         let cfg = load_cloud_config(tmp_root.path()).unwrap();
         // After dashboard generation the last_score should be set for a real project
-        let entry = cfg.projects.iter().find(|p| p.name == "scored-app").unwrap();
+        let entry = cfg
+            .projects
+            .iter()
+            .find(|p| p.name == "scored-app")
+            .unwrap();
         assert!(entry.last_score.is_some());
     }
 

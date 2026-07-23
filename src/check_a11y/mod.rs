@@ -52,8 +52,7 @@ pub fn run(root: &Path, format: OutputFormat, config: &FalconConfig) -> Result<i
         let result = main_check::check_main_dart(&source);
         match result {
             main_check::MainCheckResult::Present => {}
-            main_check::MainCheckResult::Missing
-            | main_check::MainCheckResult::NoMainFunction => {
+            main_check::MainCheckResult::Missing | main_check::MainCheckResult::NoMainFunction => {
                 if let Some(severity) = ensure_semantics_severity(config) {
                     issues.push(PreflightIssue {
                         rule_id: RULE_ID_MISSING_ENSURE_SEMANTICS.into(),
@@ -86,7 +85,10 @@ WidgetsFlutterBinding.ensureInitialized() and before runApp() in main()."
                             "lib/main.dart contains a commented-out call to ensureSemantics(); \
 Maestro UI tests on iOS will see an empty accessibility tree."
                                 .into(),
-                        suggestion: Some("Uncomment the SemanticsBinding.instance.ensureSemantics() call.".into()),
+                        suggestion: Some(
+                            "Uncomment the SemanticsBinding.instance.ensureSemantics() call."
+                                .into(),
+                        ),
                     });
                 }
             }
@@ -99,7 +101,8 @@ Maestro UI tests on iOS will see an empty accessibility tree."
             file: Some(PathBuf::from("lib/main.dart")),
             line: None,
             plugin: None,
-            message: "Falcon could not find lib/main.dart to verify the ensureSemantics() call.".into(),
+            message: "Falcon could not find lib/main.dart to verify the ensureSemantics() call."
+                .into(),
             suggestion: None,
         });
     }
@@ -122,17 +125,16 @@ Maestro UI tests on iOS will see an empty accessibility tree."
             {
                 continue;
             }
-            let Ok(source) = std::fs::read_to_string(path) else { continue };
+            let Ok(source) = std::fs::read_to_string(path) else {
+                continue;
+            };
             let occurrences = widget_scan::scan_widgets(&source);
             for occ in &occurrences {
                 total += 1;
                 if occ.wrapped {
                     wrapped += 1;
                 } else {
-                    let rel = path
-                        .strip_prefix(root)
-                        .unwrap_or(path)
-                        .to_path_buf();
+                    let rel = path.strip_prefix(root).unwrap_or(path).to_path_buf();
                     issues.push(PreflightIssue {
                         rule_id: RULE_ID_UNWRAPPED_WIDGET.into(),
                         severity: Severity::Info,
@@ -313,7 +315,10 @@ class Page extends StatelessWidget {
         let yaml: serde_yaml::Value =
             serde_yaml::from_str("interactive_semantics_coverage:\n  threshold: 0.4").unwrap();
         tunings.insert("check-a11y".to_string(), yaml);
-        cfg.preflight = PreflightConfig { suppress: vec![], config: tunings };
+        cfg.preflight = PreflightConfig {
+            suppress: vec![],
+            config: tunings,
+        };
         let code = run(tmp.path(), OutputFormat::Text, &cfg).unwrap();
         assert_eq!(code, 0);
     }
@@ -356,7 +361,10 @@ class Page extends StatelessWidget {
         let yaml: serde_yaml::Value =
             serde_yaml::from_str("require_ensure_semantics: \"error\"").unwrap();
         tunings.insert("check-a11y".to_string(), yaml);
-        cfg.preflight = PreflightConfig { suppress: vec![], config: tunings };
+        cfg.preflight = PreflightConfig {
+            suppress: vec![],
+            config: tunings,
+        };
         let code = run(tmp.path(), OutputFormat::Text, &cfg).unwrap();
         assert_eq!(code, 2);
     }
@@ -370,7 +378,10 @@ class Page extends StatelessWidget {
         let yaml: serde_yaml::Value =
             serde_yaml::from_str("require_ensure_semantics: \"off\"").unwrap();
         tunings.insert("check-a11y".to_string(), yaml);
-        cfg.preflight = PreflightConfig { suppress: vec![], config: tunings };
+        cfg.preflight = PreflightConfig {
+            suppress: vec![],
+            config: tunings,
+        };
         let code = run(tmp.path(), OutputFormat::Text, &cfg).unwrap();
         assert_eq!(code, 0);
     }

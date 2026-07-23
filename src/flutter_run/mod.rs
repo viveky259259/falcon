@@ -674,7 +674,9 @@ mod tests {
 
     #[test]
     fn is_error_end_normal_line_returns_false() {
-        assert!(!is_error_end("The following assertion was thrown building MyWidget"));
+        assert!(!is_error_end(
+            "The following assertion was thrown building MyWidget"
+        ));
     }
 
     #[test]
@@ -711,7 +713,10 @@ mod tests {
         ];
         let md = render_error_md(1, "Error: something", &body);
         assert!(md.contains("```\n"), "should have opening code fence");
-        assert!(md.contains("  at stack frame 1\n"), "body line should be present");
+        assert!(
+            md.contains("  at stack frame 1\n"),
+            "body line should be present"
+        );
         assert!(md.contains("```\n\n"), "should have closing code fence");
     }
 
@@ -729,7 +734,10 @@ mod tests {
     fn render_error_md_header_contains_error_number() {
         let body = vec!["Error: x".to_string()];
         let md = render_error_md(3, "Error: x", &body);
-        assert!(md.starts_with("# Error #3\n"), "header should contain error number");
+        assert!(
+            md.starts_with("# Error #3\n"),
+            "header should contain error number"
+        );
     }
 
     // ── chrono_now ────────────────────────────────────────────────────────────
@@ -743,7 +751,11 @@ mod tests {
     #[test]
     fn chrono_now_ends_with_utc() {
         let ts = chrono_now();
-        assert!(ts.ends_with("UTC"), "timestamp should end with UTC: got {}", ts);
+        assert!(
+            ts.ends_with("UTC"),
+            "timestamp should end with UTC: got {}",
+            ts
+        );
     }
 
     #[test]
@@ -814,7 +826,11 @@ mod tests {
     fn flutter_run_report_has_errors_nonempty_vec_returns_true() {
         let dir = TempDir::new().unwrap();
         let report = FlutterRunReport {
-            errors: vec![sample_error(1, "Error: test", dir.path().join("error_1.md"))],
+            errors: vec![sample_error(
+                1,
+                "Error: test",
+                dir.path().join("error_1.md"),
+            )],
             exit_code: Some(1),
         };
         assert!(report.has_errors());
@@ -830,7 +846,10 @@ mod tests {
             exit_code: Some(0),
         };
         let summary = format_run_summary(&report);
-        assert!(summary.contains("completed with"), "should say 'completed with'");
+        assert!(
+            summary.contains("completed with"),
+            "should say 'completed with'"
+        );
         assert!(summary.contains("no"), "should say 'no'");
         assert!(summary.contains("errors"), "should say 'errors'");
     }
@@ -854,10 +873,7 @@ mod tests {
             summary.contains("Error: single failure"),
             "should contain error title"
         );
-        assert!(
-            summary.contains("error_1.md"),
-            "should contain md path"
-        );
+        assert!(summary.contains("error_1.md"), "should contain md path");
     }
 
     #[test]
@@ -892,7 +908,7 @@ mod tests {
         );
         let cursor = Cursor::new(input.as_bytes());
         let errors: Arc<Mutex<Vec<FlutterError>>> = Arc::new(Mutex::new(Vec::new()));
-        stream_lines(cursor, &errors, dir.path(), "test");
+        stream_lines(cursor, &errors, dir.path(), "test", None);
 
         let collected = errors.lock().unwrap();
         assert_eq!(collected.len(), 1, "should collect exactly one error");
@@ -918,7 +934,7 @@ mod tests {
         );
         let cursor = Cursor::new(input.as_bytes());
         let errors: Arc<Mutex<Vec<FlutterError>>> = Arc::new(Mutex::new(Vec::new()));
-        stream_lines(cursor, &errors, dir.path(), "test");
+        stream_lines(cursor, &errors, dir.path(), "test", None);
 
         let collected = errors.lock().unwrap();
         assert_eq!(collected.len(), 2, "should collect exactly two errors");
@@ -943,10 +959,14 @@ mod tests {
         );
         let cursor = Cursor::new(input.as_bytes());
         let errors: Arc<Mutex<Vec<FlutterError>>> = Arc::new(Mutex::new(Vec::new()));
-        stream_lines(cursor, &errors, dir.path(), "test");
+        stream_lines(cursor, &errors, dir.path(), "test", None);
 
         let collected = errors.lock().unwrap();
-        assert_eq!(collected.len(), 1, "unterminated block should be flushed at EOF");
+        assert_eq!(
+            collected.len(),
+            1,
+            "unterminated block should be flushed at EOF"
+        );
         assert!(
             dir.path().join("error_1.md").exists(),
             "error_1.md should be written for unterminated block"
@@ -1013,8 +1033,17 @@ mod tests {
         let collected = errors.lock().unwrap();
         assert_eq!(collected.len(), 2);
         assert_eq!(collected[0].number, 1, "first call should produce number=1");
-        assert_eq!(collected[1].number, 2, "second call should produce number=2");
-        assert!(dir.path().join("error_1.md").exists(), "error_1.md should exist");
-        assert!(dir.path().join("error_2.md").exists(), "error_2.md should exist");
+        assert_eq!(
+            collected[1].number, 2,
+            "second call should produce number=2"
+        );
+        assert!(
+            dir.path().join("error_1.md").exists(),
+            "error_1.md should exist"
+        );
+        assert!(
+            dir.path().join("error_2.md").exists(),
+            "error_2.md should exist"
+        );
     }
 }

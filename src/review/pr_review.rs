@@ -434,7 +434,11 @@ mod tests {
         ProjectPatterns::default()
     }
 
-    fn patterns_with(uses_try_catch: usize, uses_result_type: usize, uses_either: usize) -> ProjectPatterns {
+    fn patterns_with(
+        uses_try_catch: usize,
+        uses_result_type: usize,
+        uses_either: usize,
+    ) -> ProjectPatterns {
         ProjectPatterns {
             error_handling: ErrorHandlingPattern {
                 uses_try_catch,
@@ -488,8 +492,14 @@ mod tests {
         check_error_handling(&file, source, &mut observations);
         assert_eq!(observations.len(), 1);
         assert_eq!(observations[0].severity, ObservationSeverity::Critical);
-        assert!(matches!(observations[0].category, ObservationCategory::ErrorHandling));
-        assert!(observations[0].message.contains("Generic catch") || observations[0].message.contains("silently swallowed"));
+        assert!(matches!(
+            observations[0].category,
+            ObservationCategory::ErrorHandling
+        ));
+        assert!(
+            observations[0].message.contains("Generic catch")
+                || observations[0].message.contains("silently swallowed")
+        );
     }
 
     #[test]
@@ -566,7 +576,10 @@ mod tests {
         let mut observations = Vec::new();
         check_naming_consistency(&file, source, &patterns, &mut observations);
         assert_eq!(observations.len(), 1);
-        assert!(matches!(observations[0].category, ObservationCategory::NamingConvention));
+        assert!(matches!(
+            observations[0].category,
+            ObservationCategory::NamingConvention
+        ));
         assert_eq!(observations[0].severity, ObservationSeverity::Suggestion);
         assert!(observations[0].message.contains("UpperCamelCase"));
         let suggestion = observations[0].suggestion.as_deref().unwrap_or("");
@@ -622,7 +635,10 @@ mod tests {
         let mut observations = Vec::new();
         check_missing_tests(root, &file, source, &mut observations);
         assert_eq!(observations.len(), 1);
-        assert!(matches!(observations[0].category, ObservationCategory::MissingTest));
+        assert!(matches!(
+            observations[0].category,
+            ObservationCategory::MissingTest
+        ));
         assert!(observations[0].message.contains("my_feature_test.dart"));
     }
 
@@ -657,7 +673,8 @@ mod tests {
         let root = dir.path();
         let lib_dir = root.join("lib");
         std::fs::create_dir(&lib_dir).unwrap();
-        let content = "void foo() {\n  try { } catch (e) {}\n  Result<int, String> r = doSomething();\n}";
+        let content =
+            "void foo() {\n  try { } catch (e) {}\n  Result<int, String> r = doSomething();\n}";
         std::fs::write(lib_dir.join("a.dart"), content).unwrap();
         let patterns = collect_project_patterns(root, &[]);
         assert!(patterns.error_handling.uses_try_catch > 0);

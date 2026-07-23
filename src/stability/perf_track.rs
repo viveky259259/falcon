@@ -233,7 +233,11 @@ mod tests {
         }
         let history = load_perf_history(root).unwrap();
         assert_eq!(history.snapshots.len(), 5);
-        let times: Vec<u128> = history.snapshots.iter().map(|s| s.analysis_time_ms).collect();
+        let times: Vec<u128> = history
+            .snapshots
+            .iter()
+            .map(|s| s.analysis_time_ms)
+            .collect();
         assert_eq!(times, vec![10, 20, 30, 40, 50]);
     }
 
@@ -385,7 +389,7 @@ mod tests {
     #[test]
     fn test_check_regression_zero_previous_throughput_gives_zero_pct() {
         let mut h = PerfHistory::default();
-        h.snapshots.push(make_snapshot(100, 0.0));  // previous lines_per_second = 0
+        h.snapshots.push(make_snapshot(100, 0.0)); // previous lines_per_second = 0
         h.snapshots.push(make_snapshot(200, 1000.0));
         let result = check_regression(&h).unwrap();
         assert!((result.throughput_change_pct - 0.0).abs() < 1e-6);

@@ -116,9 +116,27 @@ flutter:
 "#;
         let result = parse_assets(yaml).unwrap();
         assert_eq!(result.len(), 3);
-        assert_eq!(result[0], AssetDecl { path: "assets/a.png".into(), line: 4 });
-        assert_eq!(result[1], AssetDecl { path: "assets/b.png".into(), line: 5 });
-        assert_eq!(result[2], AssetDecl { path: "assets/c.png".into(), line: 6 });
+        assert_eq!(
+            result[0],
+            AssetDecl {
+                path: "assets/a.png".into(),
+                line: 4
+            }
+        );
+        assert_eq!(
+            result[1],
+            AssetDecl {
+                path: "assets/b.png".into(),
+                line: 5
+            }
+        );
+        assert_eq!(
+            result[2],
+            AssetDecl {
+                path: "assets/c.png".into(),
+                line: 6
+            }
+        );
     }
 
     #[test]

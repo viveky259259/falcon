@@ -308,8 +308,11 @@ mod tests {
         let source = "setState(() {\n  Future.delayed(Duration.zero, () {});\n});\n";
         let mut issues = Vec::new();
         check_rebuild_issues(&dummy_path(), source, &mut issues);
-        assert!(issues.iter().any(|i| i.rule == "perf-async-set-state"),
-            "expected perf-async-set-state, got {:?}", issues);
+        assert!(
+            issues.iter().any(|i| i.rule == "perf-async-set-state"),
+            "expected perf-async-set-state, got {:?}",
+            issues
+        );
     }
 
     #[test]
@@ -344,8 +347,11 @@ mod tests {
             .collect();
         let mut issues = Vec::new();
         check_rebuild_issues(&dummy_path(), &lines, &mut issues);
-        assert!(issues.iter().any(|i| i.rule == "perf-repeated-media-query"),
-            "expected perf-repeated-media-query, got {:?}", issues);
+        assert!(
+            issues.iter().any(|i| i.rule == "perf-repeated-media-query"),
+            "expected perf-repeated-media-query, got {:?}",
+            issues
+        );
     }
 
     #[test]
@@ -364,8 +370,11 @@ mod tests {
             .collect();
         let mut issues = Vec::new();
         check_rebuild_issues(&dummy_path(), &lines, &mut issues);
-        assert!(issues.iter().any(|i| i.rule == "perf-repeated-theme-of"),
-            "expected perf-repeated-theme-of, got {:?}", issues);
+        assert!(
+            issues.iter().any(|i| i.rule == "perf-repeated-theme-of"),
+            "expected perf-repeated-theme-of, got {:?}",
+            issues
+        );
     }
 
     #[test]
@@ -390,8 +399,11 @@ mod tests {
         let source = "Image.network('https://example.com/img.png'),\n";
         let mut issues = Vec::new();
         check_memory_issues(&dummy_path(), source, &mut issues);
-        assert!(issues.iter().any(|i| i.rule == "perf-uncached-image-size"),
-            "expected perf-uncached-image-size, got {:?}", issues);
+        assert!(
+            issues.iter().any(|i| i.rule == "perf-uncached-image-size"),
+            "expected perf-uncached-image-size, got {:?}",
+            issues
+        );
     }
 
     #[test]
@@ -432,8 +444,11 @@ mod tests {
         let source = "ListView(\n  children: [\n    Text('a'),\n  ],\n)\n";
         let mut issues = Vec::new();
         check_render_issues(&dummy_path(), source, &mut issues);
-        assert!(issues.iter().any(|i| i.rule == "perf-unbounded-list"),
-            "expected perf-unbounded-list, got {:?}", issues);
+        assert!(
+            issues.iter().any(|i| i.rule == "perf-unbounded-list"),
+            "expected perf-unbounded-list, got {:?}",
+            issues
+        );
     }
 
     #[test]
@@ -457,8 +472,11 @@ mod tests {
         let source = "Opacity(\n  opacity: 0,\n  child: SomeWidget(),\n)\n";
         let mut issues = Vec::new();
         check_render_issues(&dummy_path(), source, &mut issues);
-        assert!(issues.iter().any(|i| i.rule == "perf-opacity-zero"),
-            "expected perf-opacity-zero, got {:?}", issues);
+        assert!(
+            issues.iter().any(|i| i.rule == "perf-opacity-zero"),
+            "expected perf-opacity-zero, got {:?}",
+            issues
+        );
     }
 
     #[test]
@@ -483,8 +501,11 @@ mod tests {
         let source = "Widget build(BuildContext context) {\n  http.get(url);\n}\n";
         let mut issues = Vec::new();
         check_network_issues(&dummy_path(), source, &mut issues);
-        assert!(issues.iter().any(|i| i.rule == "perf-network-in-build"),
-            "expected perf-network-in-build, got {:?}", issues);
+        assert!(
+            issues.iter().any(|i| i.rule == "perf-network-in-build"),
+            "expected perf-network-in-build, got {:?}",
+            issues
+        );
     }
 
     #[test]

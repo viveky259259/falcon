@@ -806,7 +806,10 @@ mod tests {
     fn find_dart_source_hint_package_uri_line_col() {
         let messages = vec!["at package:my_app/screens/home.dart:42:7".to_string()];
         let hint = find_dart_source_hint(&messages);
-        assert_eq!(hint.as_deref(), Some("package:my_app/screens/home.dart:42:7"));
+        assert_eq!(
+            hint.as_deref(),
+            Some("package:my_app/screens/home.dart:42:7")
+        );
     }
 
     #[test]
@@ -849,12 +852,18 @@ mod tests {
 
     #[test]
     fn normalize_source_hint_no_triple_slash_unchanged() {
-        assert_eq!(normalize_source_hint("/tmp/foo.dart:10"), "/tmp/foo.dart:10");
+        assert_eq!(
+            normalize_source_hint("/tmp/foo.dart:10"),
+            "/tmp/foo.dart:10"
+        );
     }
 
     #[test]
     fn normalize_source_hint_triple_slash_replaced() {
-        assert_eq!(normalize_source_hint("///tmp/foo.dart:10"), "/tmp/foo.dart:10");
+        assert_eq!(
+            normalize_source_hint("///tmp/foo.dart:10"),
+            "/tmp/foo.dart:10"
+        );
     }
 
     #[test]
@@ -869,7 +878,10 @@ mod tests {
 
     #[test]
     fn normalize_source_hint_double_slash_unchanged() {
-        assert_eq!(normalize_source_hint("//tmp/foo.dart:1"), "//tmp/foo.dart:1");
+        assert_eq!(
+            normalize_source_hint("//tmp/foo.dart:1"),
+            "//tmp/foo.dart:1"
+        );
     }
 
     // ── summarize_runtime_message ─────────────────────────────────────────────
@@ -888,7 +900,8 @@ mod tests {
 
     #[test]
     fn summarize_runtime_message_uses_rendered_error_text() {
-        let msg = r#"{"extensionData":{"renderedErrorText":"EXCEPTION CAUGHT BY widgets library"}}"#;
+        let msg =
+            r#"{"extensionData":{"renderedErrorText":"EXCEPTION CAUGHT BY widgets library"}}"#;
         assert_eq!(
             summarize_runtime_message(msg),
             "EXCEPTION CAUGHT BY widgets library"
@@ -897,7 +910,8 @@ mod tests {
 
     #[test]
     fn summarize_runtime_message_falls_back_to_description() {
-        let msg = r#"{"extensionData":{"description":"Another exception was thrown: FormatException"}}"#;
+        let msg =
+            r#"{"extensionData":{"description":"Another exception was thrown: FormatException"}}"#;
         let result = summarize_runtime_message(msg);
         assert_eq!(result, "Another exception was thrown: FormatException");
     }
@@ -940,7 +954,9 @@ mod tests {
     fn detect_layout_overflow_variant_renderflex_overflow_phrase() {
         let logging = sample_logging(&["RenderFlex overflow detected in Column"]);
         let issues = detect_layout_and_runtime_issues(&logging);
-        assert!(issues.iter().any(|i| i.category == LiveIssueCategory::Layout));
+        assert!(issues
+            .iter()
+            .any(|i| i.category == LiveIssueCategory::Layout));
     }
 
     #[test]
@@ -963,7 +979,9 @@ mod tests {
             r#"{"extensionData":{"renderedErrorText":"EXCEPTION CAUGHT BY widgets library"}}"#,
         ]);
         let issues = detect_layout_and_runtime_issues(&logging);
-        assert!(issues.iter().any(|i| i.category == LiveIssueCategory::Runtime));
+        assert!(issues
+            .iter()
+            .any(|i| i.category == LiveIssueCategory::Runtime));
     }
 
     #[test]
@@ -972,7 +990,9 @@ mod tests {
             r#"{"extensionData":{"description":"Another exception was thrown: StateError"}}"#,
         ]);
         let issues = detect_layout_and_runtime_issues(&logging);
-        assert!(issues.iter().any(|i| i.category == LiveIssueCategory::Runtime));
+        assert!(issues
+            .iter()
+            .any(|i| i.category == LiveIssueCategory::Runtime));
     }
 
     #[test]
@@ -981,7 +1001,10 @@ mod tests {
             r#"{"extensionData":{"renderedErrorText":"EXCEPTION CAUGHT BY rendering library"}}"#,
         ]);
         let issues = detect_layout_and_runtime_issues(&logging);
-        let runtime_issue = issues.iter().find(|i| i.category == LiveIssueCategory::Runtime).unwrap();
+        let runtime_issue = issues
+            .iter()
+            .find(|i| i.category == LiveIssueCategory::Runtime)
+            .unwrap();
         assert!(runtime_issue.fingerprint.starts_with("runtime:exception:"));
     }
 
@@ -993,7 +1016,10 @@ mod tests {
             "package:app/page.dart:10:3",
         ]);
         let issues = detect_layout_and_runtime_issues(&logging);
-        let layout = issues.iter().find(|i| i.category == LiveIssueCategory::Layout).unwrap();
+        let layout = issues
+            .iter()
+            .find(|i| i.category == LiveIssueCategory::Layout)
+            .unwrap();
         assert!(!layout.evidence.is_empty());
     }
 
@@ -1046,7 +1072,10 @@ mod tests {
     fn detect_network_status_400_exactly_is_warning() {
         let report = make_network_with_request("GET", "https://example.com/notfound", 400, 50.0);
         let issues = detect_network_issues(&report, 1500.0);
-        let http_issue = issues.iter().find(|i| i.fingerprint.contains("network:http:")).unwrap();
+        let http_issue = issues
+            .iter()
+            .find(|i| i.fingerprint.contains("network:http:"))
+            .unwrap();
         assert_eq!(http_issue.severity, LiveIssueSeverity::Warning);
     }
 
@@ -1054,7 +1083,10 @@ mod tests {
     fn detect_network_status_401_is_error() {
         let report = make_network_with_request("GET", "https://api.example.com/me", 401, 50.0);
         let issues = detect_network_issues(&report, 1500.0);
-        let issue = issues.iter().find(|i| i.fingerprint.contains("401")).unwrap();
+        let issue = issues
+            .iter()
+            .find(|i| i.fingerprint.contains("401"))
+            .unwrap();
         assert_eq!(issue.severity, LiveIssueSeverity::Error);
         assert!(issue.suggested_fix.contains("authentication"));
     }
@@ -1063,7 +1095,10 @@ mod tests {
     fn detect_network_status_403_is_error_with_auth_fix() {
         let report = make_network_with_request("POST", "https://api.example.com/admin", 403, 50.0);
         let issues = detect_network_issues(&report, 1500.0);
-        let issue = issues.iter().find(|i| i.fingerprint.contains("403")).unwrap();
+        let issue = issues
+            .iter()
+            .find(|i| i.fingerprint.contains("403"))
+            .unwrap();
         assert_eq!(issue.severity, LiveIssueSeverity::Error);
         assert!(issue.suggested_fix.contains("authentication"));
     }
@@ -1072,7 +1107,10 @@ mod tests {
     fn detect_network_status_404_is_warning_with_endpoint_fix() {
         let report = make_network_with_request("GET", "https://api.example.com/missing", 404, 50.0);
         let issues = detect_network_issues(&report, 1500.0);
-        let issue = issues.iter().find(|i| i.fingerprint.contains("404")).unwrap();
+        let issue = issues
+            .iter()
+            .find(|i| i.fingerprint.contains("404"))
+            .unwrap();
         assert_eq!(issue.severity, LiveIssueSeverity::Warning);
         assert!(issue.suggested_fix.contains("endpoint"));
     }
@@ -1081,7 +1119,10 @@ mod tests {
     fn detect_network_status_429_is_error_with_rate_limit_fix() {
         let report = make_network_with_request("GET", "https://api.example.com/data", 429, 50.0);
         let issues = detect_network_issues(&report, 1500.0);
-        let issue = issues.iter().find(|i| i.fingerprint.contains("429")).unwrap();
+        let issue = issues
+            .iter()
+            .find(|i| i.fingerprint.contains("429"))
+            .unwrap();
         assert_eq!(issue.severity, LiveIssueSeverity::Error);
         assert!(issue.suggested_fix.contains("rate-limited"));
     }
@@ -1090,7 +1131,10 @@ mod tests {
     fn detect_network_status_500_is_error_with_server_fix() {
         let report = make_network_with_request("GET", "https://api.example.com/crash", 500, 50.0);
         let issues = detect_network_issues(&report, 1500.0);
-        let issue = issues.iter().find(|i| i.fingerprint.contains("500")).unwrap();
+        let issue = issues
+            .iter()
+            .find(|i| i.fingerprint.contains("500"))
+            .unwrap();
         assert_eq!(issue.severity, LiveIssueSeverity::Error);
         assert!(issue.suggested_fix.contains("server-side"));
     }
@@ -1099,7 +1143,10 @@ mod tests {
     fn detect_network_status_503_is_error() {
         let report = make_network_with_request("GET", "https://api.example.com/svc", 503, 50.0);
         let issues = detect_network_issues(&report, 1500.0);
-        let issue = issues.iter().find(|i| i.fingerprint.contains("503")).unwrap();
+        let issue = issues
+            .iter()
+            .find(|i| i.fingerprint.contains("503"))
+            .unwrap();
         assert_eq!(issue.severity, LiveIssueSeverity::Error);
     }
 
@@ -1107,7 +1154,10 @@ mod tests {
     fn detect_network_slow_request_above_threshold_creates_issue() {
         let report = make_network_with_request("GET", "https://api.example.com/slow", 200, 2000.0);
         let issues = detect_network_issues(&report, 1500.0);
-        let slow_issue = issues.iter().find(|i| i.fingerprint.contains("network:slow:")).unwrap();
+        let slow_issue = issues
+            .iter()
+            .find(|i| i.fingerprint.contains("network:slow:"))
+            .unwrap();
         assert_eq!(slow_issue.severity, LiveIssueSeverity::Warning);
         assert!(slow_issue.summary.contains("2000.00 ms"));
     }
@@ -1116,19 +1166,24 @@ mod tests {
     fn detect_network_slow_request_exactly_at_threshold_creates_issue() {
         let report = make_network_with_request("GET", "https://api.example.com/edge", 200, 1500.0);
         let issues = detect_network_issues(&report, 1500.0);
-        assert!(issues.iter().any(|i| i.fingerprint.contains("network:slow:")));
+        assert!(issues
+            .iter()
+            .any(|i| i.fingerprint.contains("network:slow:")));
     }
 
     #[test]
     fn detect_network_slow_request_below_threshold_no_slow_issue() {
         let report = make_network_with_request("GET", "https://api.example.com/fast", 200, 1499.9);
         let issues = detect_network_issues(&report, 1500.0);
-        assert!(!issues.iter().any(|i| i.fingerprint.contains("network:slow:")));
+        assert!(!issues
+            .iter()
+            .any(|i| i.fingerprint.contains("network:slow:")));
     }
 
     #[test]
     fn detect_network_both_error_status_and_slow_creates_two_issues() {
-        let report = make_network_with_request("POST", "https://api.example.com/heavy", 500, 3000.0);
+        let report =
+            make_network_with_request("POST", "https://api.example.com/heavy", 500, 3000.0);
         let issues = detect_network_issues(&report, 1500.0);
         assert_eq!(issues.len(), 2);
     }
@@ -1245,14 +1300,20 @@ mod tests {
     fn detect_memory_evidence_always_includes_heap_usage() {
         let report = make_memory(250.0);
         let issues = detect_memory_issues(&report, 200.0, 350.0);
-        assert!(issues[0].evidence.iter().any(|e| e.starts_with("heap_usage_mb=")));
+        assert!(issues[0]
+            .evidence
+            .iter()
+            .any(|e| e.starts_with("heap_usage_mb=")));
     }
 
     #[test]
     fn detect_memory_no_top_bucket_evidence_omits_top_process_bucket() {
         let report = make_memory(250.0); // top_process_buckets is empty
         let issues = detect_memory_issues(&report, 200.0, 350.0);
-        assert!(!issues[0].evidence.iter().any(|e| e.starts_with("top_process_bucket=")));
+        assert!(!issues[0]
+            .evidence
+            .iter()
+            .any(|e| e.starts_with("top_process_bucket=")));
     }
 
     #[test]
@@ -1264,7 +1325,10 @@ mod tests {
             size_mb: 50.0,
         });
         let issues = detect_memory_issues(&report, 200.0, 350.0);
-        assert!(issues[0].evidence.iter().any(|e| e.contains("Image Cache") && e.contains("decoded bitmaps")));
+        assert!(issues[0]
+            .evidence
+            .iter()
+            .any(|e| e.contains("Image Cache") && e.contains("decoded bitmaps")));
     }
 
     #[test]
@@ -1350,7 +1414,9 @@ mod tests {
             350.0,
             1500.0,
         );
-        assert!(issues.iter().any(|i| i.category == LiveIssueCategory::Memory));
+        assert!(issues
+            .iter()
+            .any(|i| i.category == LiveIssueCategory::Memory));
     }
 
     #[test]
@@ -1367,7 +1433,9 @@ mod tests {
             350.0,
             1500.0,
         );
-        assert!(issues.iter().any(|i| i.category == LiveIssueCategory::Network));
+        assert!(issues
+            .iter()
+            .any(|i| i.category == LiveIssueCategory::Network));
     }
 
     #[test]
@@ -1384,7 +1452,9 @@ mod tests {
             350.0,
             1500.0,
         );
-        assert!(issues.iter().any(|i| i.category == LiveIssueCategory::Layout));
+        assert!(issues
+            .iter()
+            .any(|i| i.category == LiveIssueCategory::Layout));
     }
 
     #[test]
@@ -1404,7 +1474,10 @@ mod tests {
         );
         // Memory issues have no extractable class name matching the pattern,
         // so source_hint stays None.
-        let memory_issue = issues.iter().find(|i| i.category == LiveIssueCategory::Memory).unwrap();
+        let memory_issue = issues
+            .iter()
+            .find(|i| i.category == LiveIssueCategory::Memory)
+            .unwrap();
         assert!(memory_issue.source_hint.is_none());
     }
 

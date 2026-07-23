@@ -29,7 +29,10 @@ fn fixture_with_problems(tmp: &TempDir, cache: &TempDir) {
         &tmp.path().join("pubspec.lock"),
         "packages:\n  location:\n    source: hosted\n    version: \"8.0.0\"\n",
     );
-    write(&tmp.path().join("lib/main.dart"), "void main() { runApp(MyApp()); }\n");
+    write(
+        &tmp.path().join("lib/main.dart"),
+        "void main() { runApp(MyApp()); }\n",
+    );
     write(
         &cache
             .path()
@@ -63,11 +66,17 @@ fn analyze_rollup_runs_all_preflight_checks_and_takes_max_exit() {
     );
     // check-platform-deps fired on the missing Info.plist key
     assert!(
-        stdout.contains("NSLocationWhenInUseUsageDescription") || stdout.contains("missing-info-plist-key"),
+        stdout.contains("NSLocationWhenInUseUsageDescription")
+            || stdout.contains("missing-info-plist-key"),
         "check-platform-deps did not flag the missing Info.plist key; stdout: {stdout}"
     );
     // At least one preflight Error means exit code is 2 (max of analyze + preflight).
-    assert_eq!(output.status.code(), Some(2), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
 
 #[test]

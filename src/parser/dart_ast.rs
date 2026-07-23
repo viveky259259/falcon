@@ -162,6 +162,62 @@ pub fn get_class_methods(node: Node) -> Vec<Node> {
     methods
 }
 
+pub fn get_class_superclass(node: Node, source: &str) -> Option<String> {
+    find_named_type_after_keyword(node, source, "extends")
+}
+
+pub fn get_class_mixins(node: Node, source: &str) -> Vec<String> {
+    find_named_types_after_keyword(node, source, "with")
+}
+
+pub fn get_class_interfaces(node: Node, source: &str) -> Vec<String> {
+    find_named_types_after_keyword(node, source, "implements")
+}
+
+pub fn get_method_names(node: Node, source: &str) -> Vec<String> {
+    get_class_methods(node)
+        .into_iter()
+        .filter_map(|method| get_declaration_name(method, source).map(ToString::to_string))
+        .collect()
+}
+
+fn find_named_type_after_keyword(node: Node, source: &str, keyword: &str) -> Option<String> {
+    find_named_types_after_keyword(node, source, keyword)
+        .into_iter()
+        .next()
+}
+
+fn find_named_types_after_keyword(node: Node, source: &str, keyword: &str) -> Vec<String> {
+    let text = node.utf8_text(source.as_bytes()).unwrap_or("");
+    let Some(after_keyword) = text.split_once(keyword).map(|(_, after)| after) else {
+        return Vec::new();
+    };
+    let mut end = after_keyword
+        .find(['{', '\n'])
+        .unwrap_or(after_keyword.len());
+    for boundary in [" extends ", " with ", " implements "] {
+        if boundary.trim() != keyword {
+            if let Some(pos) = after_keyword.find(boundary) {
+                end = end.min(pos);
+            }
+        }
+    }
+    after_keyword[..end]
+        .split([',', '<', '>', ' '])
+        .map(str::trim)
+        .filter(|part| {
+            !part.is_empty()
+                && *part != "with"
+                && *part != "implements"
+                && part
+                    .chars()
+                    .next()
+                    .is_some_and(|ch| ch == '_' || ch.is_alphabetic())
+        })
+        .map(ToString::to_string)
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     //! Helper coverage for AST classification predicates and name extraction.

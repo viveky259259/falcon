@@ -456,8 +456,8 @@ fn score_cpu(
 mod tests {
     use super::*;
     use crate::runtime::connection::{MemoryUsage, RenderingStats};
-    use crate::runtime::RuntimeThresholds;
     use crate::runtime::diagnostics::{CpuSummary, MemoryTrend, NetworkSummary, RenderingSummary};
+    use crate::runtime::RuntimeThresholds;
     use serde_json::json;
 
     // ── Snapshot helpers ──────────────────────────────────────────────────

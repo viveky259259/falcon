@@ -36,7 +36,9 @@ pub fn scan_plugin_podspecs(plugin_name: &str, plugin_root: &Path) -> Vec<Podspe
             if path.extension().and_then(|e| e.to_str()) != Some("podspec") {
                 continue;
             }
-            let Ok(text) = std::fs::read_to_string(path) else { continue };
+            let Ok(text) = std::fs::read_to_string(path) else {
+                continue;
+            };
             out.push(PodspecInfo {
                 podspec_path: path.to_path_buf(),
                 plugin: plugin_name.to_string(),
@@ -74,13 +76,19 @@ mod tests {
     #[test]
     fn extract_deployment_target_basic() {
         let s = "Pod::Spec.new do |s|\n  s.ios.deployment_target = '13.0'\nend\n";
-        assert_eq!(extract_deployment_target(s, "ios"), Some("13.0".to_string()));
+        assert_eq!(
+            extract_deployment_target(s, "ios"),
+            Some("13.0".to_string())
+        );
     }
 
     #[test]
     fn extract_deployment_target_double_quoted() {
         let s = "s.ios.deployment_target = \"14.5\"\n";
-        assert_eq!(extract_deployment_target(s, "ios"), Some("14.5".to_string()));
+        assert_eq!(
+            extract_deployment_target(s, "ios"),
+            Some("14.5".to_string())
+        );
     }
 
     #[test]
@@ -98,7 +106,10 @@ mod tests {
     #[test]
     fn extract_deployment_target_osx_separate() {
         let s = "s.osx.deployment_target = '10.15'\n";
-        assert_eq!(extract_deployment_target(s, "osx"), Some("10.15".to_string()));
+        assert_eq!(
+            extract_deployment_target(s, "osx"),
+            Some("10.15".to_string())
+        );
         assert_eq!(extract_deployment_target(s, "ios"), None);
     }
 
@@ -123,8 +134,16 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let plugin_root = tmp.path();
         std::fs::create_dir_all(plugin_root.join("ios")).unwrap();
-        std::fs::write(plugin_root.join("ios/image_picker.podspec"), "s.ios.deployment_target = '12.0'\n").unwrap();
-        std::fs::write(plugin_root.join("ios/image_picker_ios.podspec"), "s.ios.deployment_target = '14.0'\n").unwrap();
+        std::fs::write(
+            plugin_root.join("ios/image_picker.podspec"),
+            "s.ios.deployment_target = '12.0'\n",
+        )
+        .unwrap();
+        std::fs::write(
+            plugin_root.join("ios/image_picker_ios.podspec"),
+            "s.ios.deployment_target = '14.0'\n",
+        )
+        .unwrap();
         let result = scan_plugin_podspecs("image_picker", plugin_root);
         assert_eq!(result.len(), 2);
         let max = result.iter().filter_map(|p| p.ios_target.as_deref()).max();
@@ -143,7 +162,10 @@ mod tests {
         .unwrap();
         let result = scan_plugin_podspecs("path_provider", plugin_root);
         assert_eq!(result.len(), 1);
-        assert!(result[0].podspec_path.to_string_lossy().contains("/darwin/"));
+        assert!(result[0]
+            .podspec_path
+            .to_string_lossy()
+            .contains("/darwin/"));
     }
 
     #[test]

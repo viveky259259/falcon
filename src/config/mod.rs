@@ -251,7 +251,7 @@ pub struct AnalyzePreflightConfig {
 impl Default for AnalyzePreflightConfig {
     fn default() -> Self {
         Self {
-            enabled: false,           // soft-rollout default; will flip to true in next major
+            enabled: false, // soft-rollout default; will flip to true in next major
             skip: Vec::new(),
         }
     }
@@ -325,6 +325,9 @@ preflight:
         let yaml = "analyze:\n  preflight:\n    skip: [check-pods, check-platform-deps]\n";
         let cfg: FalconConfig = serde_yaml::from_str(yaml).unwrap();
         assert!(!cfg.analyze.preflight.enabled); // still default-false
-        assert_eq!(cfg.analyze.preflight.skip, vec!["check-pods", "check-platform-deps"]);
+        assert_eq!(
+            cfg.analyze.preflight.skip,
+            vec!["check-pods", "check-platform-deps"]
+        );
     }
 }

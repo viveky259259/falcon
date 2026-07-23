@@ -301,7 +301,11 @@ mod tests {
         let issue = make_issue("prefer-trailing-comma", path, 1);
         let fix = generate_fixes(&[issue], tmp.path());
         assert_eq!(fix.len(), 1);
-        assert!(fix[0].replacement.ends_with(",)"), "got: {}", fix[0].replacement);
+        assert!(
+            fix[0].replacement.ends_with(",)"),
+            "got: {}",
+            fix[0].replacement
+        );
         assert!(fix[0].auto_fixable);
     }
 
@@ -312,7 +316,11 @@ mod tests {
         let issue = make_issue("prefer-trailing-comma", path, 1);
         let fix = generate_fixes(&[issue], tmp.path());
         assert_eq!(fix.len(), 1);
-        assert!(fix[0].replacement.ends_with(",]"), "got: {}", fix[0].replacement);
+        assert!(
+            fix[0].replacement.ends_with(",]"),
+            "got: {}",
+            fix[0].replacement
+        );
     }
 
     #[test]
@@ -322,7 +330,11 @@ mod tests {
         let issue = make_issue("prefer-trailing-comma", path, 1);
         let fix = generate_fixes(&[issue], tmp.path());
         assert_eq!(fix.len(), 1);
-        assert!(fix[0].replacement.ends_with(",}"), "got: {}", fix[0].replacement);
+        assert!(
+            fix[0].replacement.ends_with(",}"),
+            "got: {}",
+            fix[0].replacement
+        );
     }
 
     #[test]

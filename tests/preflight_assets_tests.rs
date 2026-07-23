@@ -33,7 +33,12 @@ fn check_assets_exits_zero_when_all_present() {
         .output()
         .expect("failed to execute falcon");
 
-    assert_eq!(output.status.code(), Some(0), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
 
 #[test]

@@ -742,8 +742,8 @@ impl RenderingStats {
 #[cfg(test)]
 mod tests {
     use super::{
-        convert_to_websocket_url, extract_vm_service_uri, normalize_vm_service_uri,
-        parse_response, parse_stream_notification, sanitize_input, MemoryUsage, RenderingStats,
+        convert_to_websocket_url, extract_vm_service_uri, normalize_vm_service_uri, parse_response,
+        parse_stream_notification, sanitize_input, MemoryUsage, RenderingStats,
     };
     use serde_json::json;
 
@@ -878,23 +878,38 @@ mod tests {
     fn convert_to_websocket_url_https_becomes_wss() {
         let input = normalize_vm_service_uri("https://x/path/").unwrap();
         let output = convert_to_websocket_url(&input);
-        assert!(output.as_str().starts_with("wss://"), "scheme should be wss");
-        assert!(output.path().ends_with("/path/ws"), "path should end with /path/ws");
+        assert!(
+            output.as_str().starts_with("wss://"),
+            "scheme should be wss"
+        );
+        assert!(
+            output.path().ends_with("/path/ws"),
+            "path should end with /path/ws"
+        );
     }
 
     #[test]
     fn convert_to_websocket_url_appends_ws_to_no_trailing_slash_path() {
         let input = normalize_vm_service_uri("http://x/abc").unwrap();
         let output = convert_to_websocket_url(&input);
-        assert!(output.path().ends_with("/abc/ws"), "path should end with /abc/ws");
+        assert!(
+            output.path().ends_with("/abc/ws"),
+            "path should end with /abc/ws"
+        );
     }
 
     #[test]
     fn convert_to_websocket_url_preserves_ws_path() {
         let input = normalize_vm_service_uri("http://x/abc/ws").unwrap();
         let output = convert_to_websocket_url(&input);
-        assert!(output.path().ends_with("/abc/ws"), "path should end with /abc/ws");
-        assert!(!output.path().ends_with("/abc/ws/ws"), "should not double-append ws");
+        assert!(
+            output.path().ends_with("/abc/ws"),
+            "path should end with /abc/ws"
+        );
+        assert!(
+            !output.path().ends_with("/abc/ws/ws"),
+            "should not double-append ws"
+        );
     }
 
     // ── parse_response ─────────────────────────────────────────────────

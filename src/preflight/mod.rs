@@ -52,8 +52,8 @@ pub fn exit_code_for_issues(issues: &[PreflightIssue]) -> i32 {
     code
 }
 
-pub mod reporter;
 pub mod pub_cache;
+pub mod reporter;
 
 #[cfg(test)]
 mod tests {
@@ -117,7 +117,13 @@ mod tests {
         let json = serde_json::to_value(&issue).unwrap();
         assert!(json.get("file").is_none(), "file should be omitted: {json}");
         assert!(json.get("line").is_none(), "line should be omitted: {json}");
-        assert!(json.get("plugin").is_none(), "plugin should be omitted: {json}");
-        assert!(json.get("suggestion").is_none(), "suggestion should be omitted: {json}");
+        assert!(
+            json.get("plugin").is_none(),
+            "plugin should be omitted: {json}"
+        );
+        assert!(
+            json.get("suggestion").is_none(),
+            "suggestion should be omitted: {json}"
+        );
     }
 }

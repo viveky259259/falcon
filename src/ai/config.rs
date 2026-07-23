@@ -210,6 +210,13 @@ ai:
   # local:
   #   endpoint: "http://localhost:11434"
   #   model: "codellama"
+  # Embedded model config (for --features ai-local builds)
+  embedded:
+    model_id: "Qwen/Qwen2.5-0.5B-Instruct-GGUF"
+    model_file: "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+    max_tokens: 128
+    context_lines: 12
+    max_issues: 100
   features:
     confidence_scoring: false
     smart_fixes: false

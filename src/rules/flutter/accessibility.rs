@@ -249,7 +249,10 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_semantics(source);
-        assert!(!issues.is_empty(), "GestureDetector without semantics should be flagged");
+        assert!(
+            !issues.is_empty(),
+            "GestureDetector without semantics should be flagged"
+        );
         assert!(issues[0].rule == "ensure-semantics-label");
         assert!(issues[0].message.contains("GestureDetector"));
     }
@@ -265,7 +268,10 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_semantics(source);
-        assert!(!issues.is_empty(), "InkWell without semantics should be flagged");
+        assert!(
+            !issues.is_empty(),
+            "InkWell without semantics should be flagged"
+        );
         assert!(issues[0].message.contains("InkWell"));
     }
 
@@ -280,7 +286,10 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_semantics(source);
-        assert!(!issues.is_empty(), "InkResponse without semantics should be flagged");
+        assert!(
+            !issues.is_empty(),
+            "InkResponse without semantics should be flagged"
+        );
         assert!(issues[0].message.contains("InkResponse"));
     }
 
@@ -295,7 +304,10 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_semantics(source);
-        assert!(!issues.is_empty(), "IconButton without semantics should be flagged");
+        assert!(
+            !issues.is_empty(),
+            "IconButton without semantics should be flagged"
+        );
         assert!(issues[0].message.contains("IconButton"));
     }
 
@@ -315,8 +327,14 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_semantics(source);
-        let flagged: Vec<_> = issues.iter().filter(|i| i.rule == "ensure-semantics-label").collect();
-        assert!(flagged.is_empty(), "GestureDetector with Semantics in forward window should be OK");
+        let flagged: Vec<_> = issues
+            .iter()
+            .filter(|i| i.rule == "ensure-semantics-label")
+            .collect();
+        assert!(
+            flagged.is_empty(),
+            "GestureDetector with Semantics in forward window should be OK"
+        );
     }
 
     #[test]
@@ -331,7 +349,10 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_semantics(source);
-        let flagged: Vec<_> = issues.iter().filter(|i| i.rule == "ensure-semantics-label").collect();
+        let flagged: Vec<_> = issues
+            .iter()
+            .filter(|i| i.rule == "ensure-semantics-label")
+            .collect();
         assert!(flagged.is_empty(), "IconButton with tooltip should be OK");
     }
 
@@ -347,8 +368,14 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_semantics(source);
-        let flagged: Vec<_> = issues.iter().filter(|i| i.rule == "ensure-semantics-label").collect();
-        assert!(flagged.is_empty(), "InkWell with semanticsLabel should be OK");
+        let flagged: Vec<_> = issues
+            .iter()
+            .filter(|i| i.rule == "ensure-semantics-label")
+            .collect();
+        assert!(
+            flagged.is_empty(),
+            "InkWell with semanticsLabel should be OK"
+        );
     }
 
     #[test]
@@ -356,7 +383,10 @@ Widget build(BuildContext context) {
         let source = "import 'dart:ui';\n\nGestureDetector(\n  onTap: () {},\n);\n";
         let issues = parse_and_check_semantics(source);
         assert!(!issues.is_empty());
-        assert_eq!(issues[0].line, 3, "Issue should point to the GestureDetector line");
+        assert_eq!(
+            issues[0].line, 3,
+            "Issue should point to the GestureDetector line"
+        );
     }
 
     #[test]
@@ -372,8 +402,14 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_semantics(source);
-        let flagged: Vec<_> = issues.iter().filter(|i| i.rule == "ensure-semantics-label").collect();
-        assert!(flagged.is_empty(), "Source with no interactive widgets should have no issues");
+        let flagged: Vec<_> = issues
+            .iter()
+            .filter(|i| i.rule == "ensure-semantics-label")
+            .collect();
+        assert!(
+            flagged.is_empty(),
+            "Source with no interactive widgets should have no issues"
+        );
     }
 
     // ── EnsureImageSemantics ──────────────────────────────────────────────────
@@ -386,7 +422,10 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_image(source);
-        assert!(!issues.is_empty(), "Image.asset without semanticLabel should be flagged");
+        assert!(
+            !issues.is_empty(),
+            "Image.asset without semanticLabel should be flagged"
+        );
         assert!(issues[0].rule == "ensure-image-semantics");
         assert!(issues[0].message.contains("Image.asset"));
     }
@@ -399,7 +438,10 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_image(source);
-        assert!(!issues.is_empty(), "Image.network without semanticLabel should be flagged");
+        assert!(
+            !issues.is_empty(),
+            "Image.network without semanticLabel should be flagged"
+        );
         assert!(issues[0].message.contains("Image.network"));
     }
 
@@ -411,7 +453,10 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_image(source);
-        assert!(!issues.is_empty(), "Image.file without semanticLabel should be flagged");
+        assert!(
+            !issues.is_empty(),
+            "Image.file without semanticLabel should be flagged"
+        );
         assert!(issues[0].message.contains("Image.file"));
     }
 
@@ -423,7 +468,10 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_image(source);
-        assert!(!issues.is_empty(), "Image.memory without semanticLabel should be flagged");
+        assert!(
+            !issues.is_empty(),
+            "Image.memory without semanticLabel should be flagged"
+        );
         assert!(issues[0].message.contains("Image.memory"));
     }
 
@@ -438,8 +486,14 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_image(source);
-        let flagged: Vec<_> = issues.iter().filter(|i| i.rule == "ensure-image-semantics").collect();
-        assert!(flagged.is_empty(), "Image.asset with semanticLabel should be OK");
+        let flagged: Vec<_> = issues
+            .iter()
+            .filter(|i| i.rule == "ensure-image-semantics")
+            .collect();
+        assert!(
+            flagged.is_empty(),
+            "Image.asset with semanticLabel should be OK"
+        );
     }
 
     #[test]
@@ -456,8 +510,14 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_image(source);
-        let flagged: Vec<_> = issues.iter().filter(|i| i.rule == "ensure-image-semantics").collect();
-        assert!(flagged.is_empty(), "Image with semanticLabel in forward window should be OK");
+        let flagged: Vec<_> = issues
+            .iter()
+            .filter(|i| i.rule == "ensure-image-semantics")
+            .collect();
+        assert!(
+            flagged.is_empty(),
+            "Image with semanticLabel in forward window should be OK"
+        );
     }
 
     #[test]
@@ -468,8 +528,14 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_image(source);
-        let flagged: Vec<_> = issues.iter().filter(|i| i.rule == "ensure-image-semantics").collect();
-        assert!(flagged.is_empty(), "Source with no images should have no issues");
+        let flagged: Vec<_> = issues
+            .iter()
+            .filter(|i| i.rule == "ensure-image-semantics")
+            .collect();
+        assert!(
+            flagged.is_empty(),
+            "Source with no images should have no issues"
+        );
     }
 
     // ── EnsureTouchTargetSize ─────────────────────────────────────────────────
@@ -489,7 +555,10 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_touch(source);
-        assert!(!issues.is_empty(), "SizedBox with small width/height and onTap should be flagged");
+        assert!(
+            !issues.is_empty(),
+            "SizedBox with small width/height and onTap should be flagged"
+        );
         assert!(issues[0].rule == "ensure-touch-target-size");
     }
 
@@ -504,7 +573,10 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_touch(source);
-        assert!(!issues.is_empty(), "SizedBox with width 40 and onPressed should be flagged");
+        assert!(
+            !issues.is_empty(),
+            "SizedBox with width 40 and onPressed should be flagged"
+        );
     }
 
     #[test]
@@ -522,8 +594,14 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_touch(source);
-        let flagged: Vec<_> = issues.iter().filter(|i| i.rule == "ensure-touch-target-size").collect();
-        assert!(flagged.is_empty(), "SizedBox with 48x48 and onTap should be OK");
+        let flagged: Vec<_> = issues
+            .iter()
+            .filter(|i| i.rule == "ensure-touch-target-size")
+            .collect();
+        assert!(
+            flagged.is_empty(),
+            "SizedBox with 48x48 and onTap should be OK"
+        );
     }
 
     #[test]
@@ -541,7 +619,10 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_touch(source);
-        let flagged: Vec<_> = issues.iter().filter(|i| i.rule == "ensure-touch-target-size").collect();
+        let flagged: Vec<_> = issues
+            .iter()
+            .filter(|i| i.rule == "ensure-touch-target-size")
+            .collect();
         assert!(flagged.is_empty(), "SizedBox 64x64 should be OK");
     }
 
@@ -559,7 +640,10 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_touch(source);
-        assert!(!issues.is_empty(), "Container with small width and GestureDetector should be flagged");
+        assert!(
+            !issues.is_empty(),
+            "Container with small width and GestureDetector should be flagged"
+        );
     }
 
     #[test]
@@ -574,15 +658,24 @@ Widget build(BuildContext context) {
 }
 "#;
         let issues = parse_and_check_touch(source);
-        let flagged: Vec<_> = issues.iter().filter(|i| i.rule == "ensure-touch-target-size").collect();
-        assert!(flagged.is_empty(), "Non-interactive small SizedBox should not be flagged");
+        let flagged: Vec<_> = issues
+            .iter()
+            .filter(|i| i.rule == "ensure-touch-target-size")
+            .collect();
+        assert!(
+            flagged.is_empty(),
+            "Non-interactive small SizedBox should not be flagged"
+        );
     }
 
     // ── extract_dimension ─────────────────────────────────────────────────────
 
     #[test]
     fn extract_dimension_integer() {
-        assert_eq!(extract_dimension("width: 48, height: 64", "width:"), Some(48.0));
+        assert_eq!(
+            extract_dimension("width: 48, height: 64", "width:"),
+            Some(48.0)
+        );
     }
 
     #[test]

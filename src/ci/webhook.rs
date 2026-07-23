@@ -173,7 +173,10 @@ mod tests {
 
     #[test]
     fn test_display_analysis_complete() {
-        assert_eq!(WebhookEvent::AnalysisComplete.to_string(), "analysis.complete");
+        assert_eq!(
+            WebhookEvent::AnalysisComplete.to_string(),
+            "analysis.complete"
+        );
     }
 
     #[test]
@@ -188,7 +191,10 @@ mod tests {
 
     #[test]
     fn test_display_threshold_exceeded() {
-        assert_eq!(WebhookEvent::ThresholdExceeded.to_string(), "threshold.exceeded");
+        assert_eq!(
+            WebhookEvent::ThresholdExceeded.to_string(),
+            "threshold.exceeded"
+        );
     }
 
     // ---- WebhookEvent serde round-trip ----
@@ -403,8 +409,8 @@ mod tests {
 
     #[test]
     fn test_send_analysis_webhook_bad_url_returns_err() {
-        use crate::reporters::{AnalysisReport, Issue};
         use crate::config::Severity;
+        use crate::reporters::{AnalysisReport, Issue};
         use std::path::PathBuf;
 
         let report = AnalysisReport {
@@ -444,12 +450,30 @@ mod tests {
 
         let score = AiCodeScore {
             overall: 90,
-            resource_safety: DimensionScore { score: 90, findings: vec![] },
-            error_handling: DimensionScore { score: 85, findings: vec![] },
-            type_safety: DimensionScore { score: 95, findings: vec![] },
-            security: DimensionScore { score: 88, findings: vec![] },
-            convention_match: DimensionScore { score: 80, findings: vec![] },
-            complexity: DimensionScore { score: 92, findings: vec![] },
+            resource_safety: DimensionScore {
+                score: 90,
+                findings: vec![],
+            },
+            error_handling: DimensionScore {
+                score: 85,
+                findings: vec![],
+            },
+            type_safety: DimensionScore {
+                score: 95,
+                findings: vec![],
+            },
+            security: DimensionScore {
+                score: 88,
+                findings: vec![],
+            },
+            convention_match: DimensionScore {
+                score: 80,
+                findings: vec![],
+            },
+            complexity: DimensionScore {
+                score: 92,
+                findings: vec![],
+            },
             file_count: 10,
             total_issues: 2,
             grade: Grade::A,
@@ -465,12 +489,30 @@ mod tests {
 
         let score = AiCodeScore {
             overall: 75,
-            resource_safety: DimensionScore { score: 70, findings: vec!["issue1".to_string()] },
-            error_handling: DimensionScore { score: 80, findings: vec![] },
-            type_safety: DimensionScore { score: 75, findings: vec![] },
-            security: DimensionScore { score: 70, findings: vec![] },
-            convention_match: DimensionScore { score: 78, findings: vec![] },
-            complexity: DimensionScore { score: 77, findings: vec![] },
+            resource_safety: DimensionScore {
+                score: 70,
+                findings: vec!["issue1".to_string()],
+            },
+            error_handling: DimensionScore {
+                score: 80,
+                findings: vec![],
+            },
+            type_safety: DimensionScore {
+                score: 75,
+                findings: vec![],
+            },
+            security: DimensionScore {
+                score: 70,
+                findings: vec![],
+            },
+            convention_match: DimensionScore {
+                score: 78,
+                findings: vec![],
+            },
+            complexity: DimensionScore {
+                score: 77,
+                findings: vec![],
+            },
             file_count: 5,
             total_issues: 1,
             grade: Grade::C,
@@ -484,10 +526,10 @@ mod tests {
 
     #[test]
     fn test_send_drift_webhook_bad_url_returns_err() {
-        use crate::ai_score::drift::DriftReport;
         use crate::ai_score::convention::{
             ArchitectureConventions, ConventionReport, ErrorHandlingConventions, NamingConventions,
         };
+        use crate::ai_score::drift::DriftReport;
 
         let drift_report = DriftReport {
             conventions: ConventionReport {

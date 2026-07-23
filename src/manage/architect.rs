@@ -253,22 +253,34 @@ mod tests {
 
     #[test]
     fn classify_layer_clean_domain() {
-        assert_eq!(classify_layer("Clean Architecture", "lib/domain/entities"), "Domain");
+        assert_eq!(
+            classify_layer("Clean Architecture", "lib/domain/entities"),
+            "Domain"
+        );
     }
 
     #[test]
     fn classify_layer_clean_data() {
-        assert_eq!(classify_layer("Clean Architecture", "lib/data/repositories"), "Data");
+        assert_eq!(
+            classify_layer("Clean Architecture", "lib/data/repositories"),
+            "Data"
+        );
     }
 
     #[test]
     fn classify_layer_clean_presentation() {
-        assert_eq!(classify_layer("Clean Architecture", "lib/presentation/screens"), "Presentation");
+        assert_eq!(
+            classify_layer("Clean Architecture", "lib/presentation/screens"),
+            "Presentation"
+        );
     }
 
     #[test]
     fn classify_layer_clean_core() {
-        assert_eq!(classify_layer("Clean Architecture", "lib/core/utils"), "Core");
+        assert_eq!(
+            classify_layer("Clean Architecture", "lib/core/utils"),
+            "Core"
+        );
     }
 
     #[test]
@@ -278,7 +290,10 @@ mod tests {
 
     #[test]
     fn classify_layer_feature_first_features() {
-        assert_eq!(classify_layer("Feature-First", "lib/features/auth"), "Feature");
+        assert_eq!(
+            classify_layer("Feature-First", "lib/features/auth"),
+            "Feature"
+        );
     }
 
     #[test]
@@ -288,7 +303,10 @@ mod tests {
 
     #[test]
     fn classify_layer_feature_first_shared() {
-        assert_eq!(classify_layer("Feature-First", "lib/shared/widgets"), "Shared");
+        assert_eq!(
+            classify_layer("Feature-First", "lib/shared/widgets"),
+            "Shared"
+        );
     }
 
     #[test]
@@ -299,7 +317,10 @@ mod tests {
     #[test]
     fn classify_layer_unknown_pattern() {
         assert_eq!(classify_layer("MVC/MVVM", "lib/domain"), "Unclassified");
-        assert_eq!(classify_layer("Flat/Custom", "lib/features"), "Unclassified");
+        assert_eq!(
+            classify_layer("Flat/Custom", "lib/features"),
+            "Unclassified"
+        );
     }
 
     // ── check_arch_violations ─────────────────────────────────────────────────
@@ -308,7 +329,12 @@ mod tests {
     fn no_violations_clean_arch_clean_domain() {
         let mut violations = Vec::new();
         let source = "class UserEntity {}";
-        check_arch_violations("Clean Architecture", "lib/domain/entities/user.dart", source, &mut violations);
+        check_arch_violations(
+            "Clean Architecture",
+            "lib/domain/entities/user.dart",
+            source,
+            &mut violations,
+        );
         assert!(violations.is_empty());
     }
 
@@ -316,17 +342,29 @@ mod tests {
     fn clean_arch_domain_imports_data_triggers_violation() {
         let mut violations = Vec::new();
         let source = "import 'package:app/data/repositories/user_repo.dart';\nclass UserUseCase {}";
-        check_arch_violations("Clean Architecture", "lib/domain/usecases/user_use_case.dart", source, &mut violations);
+        check_arch_violations(
+            "Clean Architecture",
+            "lib/domain/usecases/user_use_case.dart",
+            source,
+            &mut violations,
+        );
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].violation_type, "layer-violation");
-        assert!(violations[0].message.contains("Domain layer imports from data/presentation"));
+        assert!(violations[0]
+            .message
+            .contains("Domain layer imports from data/presentation"));
     }
 
     #[test]
     fn clean_arch_domain_imports_presentation_triggers_violation() {
         let mut violations = Vec::new();
         let source = "import 'package:app/presentation/screens/home.dart';\nclass Domain {}";
-        check_arch_violations("Clean Architecture", "lib/domain/usecases/something.dart", source, &mut violations);
+        check_arch_violations(
+            "Clean Architecture",
+            "lib/domain/usecases/something.dart",
+            source,
+            &mut violations,
+        );
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].violation_type, "layer-violation");
     }
@@ -335,17 +373,29 @@ mod tests {
     fn clean_arch_data_imports_presentation_triggers_violation() {
         let mut violations = Vec::new();
         let source = "import 'package:app/presentation/widgets/spinner.dart';\nclass DataRepo {}";
-        check_arch_violations("Clean Architecture", "lib/data/repos/user.dart", source, &mut violations);
+        check_arch_violations(
+            "Clean Architecture",
+            "lib/data/repos/user.dart",
+            source,
+            &mut violations,
+        );
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].violation_type, "layer-violation");
-        assert!(violations[0].message.contains("Data layer imports from presentation"));
+        assert!(violations[0]
+            .message
+            .contains("Data layer imports from presentation"));
     }
 
     #[test]
     fn clean_arch_data_no_presentation_import_no_violation() {
         let mut violations = Vec::new();
         let source = "import 'package:app/domain/entities/user.dart';\nclass UserRepo {}";
-        check_arch_violations("Clean Architecture", "lib/data/repos/user.dart", source, &mut violations);
+        check_arch_violations(
+            "Clean Architecture",
+            "lib/data/repos/user.dart",
+            source,
+            &mut violations,
+        );
         assert!(violations.is_empty());
     }
 
@@ -354,7 +404,12 @@ mod tests {
         let mut violations = Vec::new();
         // import present but doesn't reference /data/ or /presentation/
         let source = "import 'package:app/core/utils.dart';\nclass Entity {}";
-        check_arch_violations("Clean Architecture", "lib/domain/entities/entity.dart", source, &mut violations);
+        check_arch_violations(
+            "Clean Architecture",
+            "lib/domain/entities/entity.dart",
+            source,
+            &mut violations,
+        );
         assert!(violations.is_empty());
     }
 
@@ -362,7 +417,12 @@ mod tests {
     fn feature_first_cross_feature_import_triggers_violation() {
         let mut violations = Vec::new();
         let source = "import 'package:app/features/auth/login.dart';\nclass ProfilePage {}";
-        check_arch_violations("Feature-First", "lib/features/profile/profile_page.dart", source, &mut violations);
+        check_arch_violations(
+            "Feature-First",
+            "lib/features/profile/profile_page.dart",
+            source,
+            &mut violations,
+        );
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].violation_type, "cross-feature");
         assert!(violations[0].message.contains("profile"));
@@ -372,15 +432,26 @@ mod tests {
     fn feature_first_same_feature_import_no_violation() {
         let mut violations = Vec::new();
         let source = "import 'package:app/features/auth/widgets/button.dart';\nclass LoginPage {}";
-        check_arch_violations("Feature-First", "lib/features/auth/pages/login_page.dart", source, &mut violations);
+        check_arch_violations(
+            "Feature-First",
+            "lib/features/auth/pages/login_page.dart",
+            source,
+            &mut violations,
+        );
         assert!(violations.is_empty());
     }
 
     #[test]
     fn feature_first_non_feature_file_no_violation() {
         let mut violations = Vec::new();
-        let source = "import 'package:app/features/auth/widgets/button.dart';\nclass SharedWidget {}";
-        check_arch_violations("Feature-First", "lib/shared/widgets/common.dart", source, &mut violations);
+        let source =
+            "import 'package:app/features/auth/widgets/button.dart';\nclass SharedWidget {}";
+        check_arch_violations(
+            "Feature-First",
+            "lib/shared/widgets/common.dart",
+            source,
+            &mut violations,
+        );
         assert!(violations.is_empty());
     }
 
@@ -388,7 +459,12 @@ mod tests {
     fn unknown_pattern_no_violations() {
         let mut violations = Vec::new();
         let source = "import 'package:app/data/repos/user.dart';\nclass Anything {}";
-        check_arch_violations("Flat/Custom", "lib/domain/file.dart", source, &mut violations);
+        check_arch_violations(
+            "Flat/Custom",
+            "lib/domain/file.dart",
+            source,
+            &mut violations,
+        );
         assert!(violations.is_empty());
     }
 
@@ -399,8 +475,10 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let report = analyze_architecture(dir.path()).unwrap();
         assert_eq!(report.detected_pattern, "Flat/Custom");
-        assert!((report.layer_compliance - 100.0).abs() < f64::EPSILON,
-            "No files → compliance should be 100.0");
+        assert!(
+            (report.layer_compliance - 100.0).abs() < f64::EPSILON,
+            "No files → compliance should be 100.0"
+        );
         assert!(report.violations.is_empty());
         assert!(report.module_map.is_empty());
         assert!(report.complexity_hotspots.is_empty());
@@ -413,7 +491,10 @@ mod tests {
         make_dart(&dir, "lib/main.dart", "void main() {}");
         let report = analyze_architecture(dir.path()).unwrap();
         assert_eq!(report.detected_pattern, "Flat/Custom");
-        assert!(report.suggestions.iter().any(|s| s.contains("Clean Architecture")));
+        assert!(report
+            .suggestions
+            .iter()
+            .any(|s| s.contains("Clean Architecture")));
     }
 
     #[test]
@@ -513,24 +594,38 @@ mod tests {
                 "import 'package:app/data/repos/repo{}.dart';\nclass Entity{} {{}}\n",
                 i, i
             );
-            make_dart(&dir, &format!("lib/domain/entities/entity{}.dart", i), &content);
+            make_dart(
+                &dir,
+                &format!("lib/domain/entities/entity{}.dart", i),
+                &content,
+            );
         }
         // Also need a data dir for Clean Architecture detection
         make_dart(&dir, "lib/data/source.dart", "class Source {}");
         let report = analyze_architecture(dir.path()).unwrap();
         assert_eq!(report.detected_pattern, "Clean Architecture");
         assert!(report.violations.len() > 10);
-        assert!(report.suggestions.iter().any(|s| s.contains("enforce with falcon check-layers")));
+        assert!(report
+            .suggestions
+            .iter()
+            .any(|s| s.contains("enforce with falcon check-layers")));
     }
 
     #[test]
     fn analyze_architecture_compliance_decreases_with_violations() {
         let dir = TempDir::new().unwrap();
-        make_dart(&dir, "lib/domain/use.dart", "import 'package:app/data/r.dart';\nclass U {}");
+        make_dart(
+            &dir,
+            "lib/domain/use.dart",
+            "import 'package:app/data/r.dart';\nclass U {}",
+        );
         make_dart(&dir, "lib/data/repo.dart", "class Repo {}");
         let report = analyze_architecture(dir.path()).unwrap();
         assert_eq!(report.detected_pattern, "Clean Architecture");
-        assert!(report.layer_compliance < 100.0, "Compliance should drop with violations");
+        assert!(
+            report.layer_compliance < 100.0,
+            "Compliance should drop with violations"
+        );
     }
 }
 

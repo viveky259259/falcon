@@ -24,7 +24,12 @@ fn check_pods_exits_zero_with_no_podfile() {
         .arg(tmp.path())
         .output()
         .expect("failed to execute falcon");
-    assert_eq!(output.status.code(), Some(0), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
 
 #[test]
@@ -66,7 +71,9 @@ fn check_pods_json_format() {
     );
     std::fs::create_dir_all(cache.path().join("hosted/pub.dev/location-8.0.0/ios")).unwrap();
     write(
-        &cache.path().join("hosted/pub.dev/location-8.0.0/ios/location.podspec"),
+        &cache
+            .path()
+            .join("hosted/pub.dev/location-8.0.0/ios/location.podspec"),
         "s.ios.deployment_target = '13.0'\n",
     );
     let output = Command::new(falcon_bin())
@@ -80,7 +87,9 @@ fn check_pods_json_format() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
     assert_eq!(parsed["schema_version"], serde_json::json!(1));
-    assert!(parsed["issues"].as_array().unwrap().iter().any(|i| {
-        i["rule_id"] == "pods/deployment-target-too-low"
-    }));
+    assert!(parsed["issues"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|i| { i["rule_id"] == "pods/deployment-target-too-low" }));
 }

@@ -262,12 +262,6 @@ impl FalconSdk {
     }
 }
 
-impl Default for FalconSdk {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 fn source_file_path(file_name: &str, project_root: Option<&Path>) -> PathBuf {
     let file_path = PathBuf::from(file_name);
     match project_root {

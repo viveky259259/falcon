@@ -55,7 +55,10 @@ struct LockedPackage {
 }
 
 /// Read `<project>/pubspec.lock` and return one `InstalledPlugin` per package.
-pub fn iter_installed_plugins(project_root: &Path, pub_cache: &Path) -> Result<Vec<InstalledPlugin>> {
+pub fn iter_installed_plugins(
+    project_root: &Path,
+    pub_cache: &Path,
+) -> Result<Vec<InstalledPlugin>> {
     let lock_path = project_root.join("pubspec.lock");
     if !lock_path.exists() {
         return Ok(Vec::new());
@@ -201,7 +204,10 @@ sdks:
         let plugins = iter_installed_plugins(tmp.path(), pub_cache.path()).unwrap();
         assert_eq!(plugins.len(), 2);
         for p in &plugins {
-            assert!(p.root.is_none(), "non-hosted should have root = None: {p:?}");
+            assert!(
+                p.root.is_none(),
+                "non-hosted should have root = None: {p:?}"
+            );
         }
     }
 

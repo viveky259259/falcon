@@ -44,7 +44,12 @@ fn format_analysis(report: &AnalysisReport) -> String {
     .unwrap();
     out.push('\n');
 
-    writeln!(out, "  {} files analyzed", report.file_count.to_string().bold()).unwrap();
+    writeln!(
+        out,
+        "  {} files analyzed",
+        report.file_count.to_string().bold()
+    )
+    .unwrap();
     out.push('\n');
 
     if !report.issues.is_empty() {
@@ -79,8 +84,7 @@ fn format_metrics(metrics: &[(PathBuf, MetricsResults)]) -> String {
 
         for func in &result.functions {
             let cc_color = threshold_color(func.cyclomatic_complexity, 10, 20, 30);
-            let mi_color =
-                threshold_color_inverted(func.maintainability_index, 20.0, 40.0, 60.0);
+            let mi_color = threshold_color_inverted(func.maintainability_index, 20.0, 40.0, 60.0);
 
             writeln!(
                 out,
@@ -359,10 +363,7 @@ mod tests {
 
     #[test]
     fn threshold_color_inverted_red_below_alarm() {
-        assert_eq!(
-            threshold_color_inverted(10.0, 20.0, 40.0, 60.0),
-            Color::Red
-        );
+        assert_eq!(threshold_color_inverted(10.0, 20.0, 40.0, 60.0), Color::Red);
     }
 
     #[test]
@@ -483,8 +484,14 @@ mod tests {
         // It's rendered as "  a.dart\n" (with leading spaces)
         let a_header_count = out.matches("  a.dart\n").count();
         let b_header_count = out.matches("  b.dart\n").count();
-        assert_eq!(a_header_count, 1, "a.dart header count: {a_header_count}, out:\n{out}");
-        assert_eq!(b_header_count, 1, "b.dart header count: {b_header_count}, out:\n{out}");
+        assert_eq!(
+            a_header_count, 1,
+            "a.dart header count: {a_header_count}, out:\n{out}"
+        );
+        assert_eq!(
+            b_header_count, 1,
+            "b.dart header count: {b_header_count}, out:\n{out}"
+        );
     }
 
     #[test]
@@ -497,7 +504,10 @@ mod tests {
         let out = format_issues(&issues);
         let pos2 = out.find("2:").expect("line 2 not found");
         let pos5 = out.find("5:").expect("line 5 not found");
-        assert!(pos2 < pos5, "line 2 should appear before line 5, out:\n{out}");
+        assert!(
+            pos2 < pos5,
+            "line 2 should appear before line 5, out:\n{out}"
+        );
     }
 
     #[test]

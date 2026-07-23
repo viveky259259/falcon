@@ -344,7 +344,10 @@ mod tests {
 
     #[test]
     fn test_drift_category_display_state_management() {
-        assert_eq!(DriftCategory::StateManagement.to_string(), "state-management");
+        assert_eq!(
+            DriftCategory::StateManagement.to_string(),
+            "state-management"
+        );
     }
 
     #[test]
@@ -448,10 +451,7 @@ mod tests {
         let file_findings: Vec<_> = report
             .findings
             .iter()
-            .filter(|f| {
-                f.category == DriftCategory::Naming
-                    && f.expected == "snake_case"
-            })
+            .filter(|f| f.category == DriftCategory::Naming && f.expected == "snake_case")
             .collect();
         assert!(
             file_findings.is_empty(),
@@ -476,7 +476,10 @@ mod tests {
                     && (f.file.contains("home_page") || f.file.contains("user_model"))
             })
             .collect();
-        assert!(naming.is_empty(), "snake_case files should not trigger naming drift");
+        assert!(
+            naming.is_empty(),
+            "snake_case files should not trigger naming drift"
+        );
     }
 
     #[test]
@@ -648,7 +651,10 @@ mod tests {
             .iter()
             .filter(|f| f.category == DriftCategory::Architecture && f.file.contains("main.dart"))
             .collect();
-        assert!(arch_main.is_empty(), "main.dart should be exempt from architecture drift");
+        assert!(
+            arch_main.is_empty(),
+            "main.dart should be exempt from architecture drift"
+        );
     }
 
     // ── check_architecture_drift — Feature-First ──────────────────────────────
@@ -789,9 +795,7 @@ void main() {
         let err_test: Vec<_> = report
             .findings
             .iter()
-            .filter(|f| {
-                f.category == DriftCategory::ErrorHandling && f.file.contains("test")
-            })
+            .filter(|f| f.category == DriftCategory::ErrorHandling && f.file.contains("test"))
             .collect();
         assert!(
             err_test.is_empty(),
@@ -816,7 +820,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 "#;
         // Multiple BLoC files to ensure dominance
         write_file(root, "lib/bloc/auth_bloc.dart", bloc_source);
-        write_file(root, "lib/bloc/user_bloc.dart", "class UserBloc extends Bloc<UserEvent, UserState> {}");
+        write_file(
+            root,
+            "lib/bloc/user_bloc.dart",
+            "class UserBloc extends Bloc<UserEvent, UserState> {}",
+        );
 
         // Conflicting GetX usage
         let getx_source = "class HomeController extends GetxController { final count = 0.obs; }";
@@ -840,7 +848,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         let root = tmp.path();
 
         // No state management indicators — state_management will be None
-        write_file(root, "lib/models/user.dart", "class User { final String name; User(this.name); }");
+        write_file(
+            root,
+            "lib/models/user.dart",
+            "class User { final String name; User(this.name); }",
+        );
 
         let report = detect_drift(root, None).unwrap();
         let sm_findings: Vec<_> = report
@@ -888,7 +900,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
         let bloc_source = "class AuthBloc extends Bloc<AuthEvent, AuthState> { AuthBloc() : super(AuthInitial()); }";
         write_file(root, "lib/bloc/auth_bloc.dart", bloc_source);
-        write_file(root, "lib/bloc/user_bloc.dart", "class UserBloc extends Bloc<UserEvent, UserState> {}");
+        write_file(
+            root,
+            "lib/bloc/user_bloc.dart",
+            "class UserBloc extends Bloc<UserEvent, UserState> {}",
+        );
 
         // Test file with conflicting GetX — should be exempt
         let test_source = "void main() { testWidgets('home', (tester) async { final ctrl = GetxController(); }); }";
