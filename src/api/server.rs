@@ -575,7 +575,7 @@ mod tests {
         assert_eq!(status, "200 OK");
         let v: serde_json::Value = serde_json::from_str(&resp_body).unwrap();
         assert_eq!(v["success"], true);
-        // issue_count might be > 0 depending on enabled rules; just verify structure
-        assert!(v["data"]["issue_count"].as_u64().unwrap() >= 0);
+        // issue_count might be > 0 depending on enabled rules; just verify structure.
+        assert!(v["data"]["issue_count"].as_u64().is_some());
     }
 }
