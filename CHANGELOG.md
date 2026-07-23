@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.1 (2026-07-23)
+
+### Changed
+
+- Fresh release after the v0.5.0 tag was created before master finished syncing
+- Includes the v0.5.0 navigation graph release plus the latest CLI dispatch and release preflight integrations from origin/master
+
+### Stats
+
+- 61 lint rules
+- 2,435 test definitions
+- 90+ CLI commands
+- 263 source files (78,413 lines of Rust)
+
 ## 0.5.0 (2026-07-23)
 
 ### Added

@@ -1,3 +1,9 @@
+## 0.5.1
+
+- Fresh release after the v0.5.0 tag was created before master finished syncing
+- Includes the Falcon 0.5.0 navigation graph release plus latest CLI dispatch and preflight integrations
+- 61 lint rules, 90+ commands
+
 ## 0.5.0
 
 - Updated to Falcon 0.5.0
