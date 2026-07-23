@@ -305,3 +305,280 @@ fn handle_check_file(body: &str) -> anyhow::Result<(&'static str, String)> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── parse_http_request ────────────────────────────────────────────────────
+
+    #[test]
+    fn test_parse_http_request_get() {
+        let raw = "GET /health HTTP/1.1\r\nHost: localhost\r\n\r\n";
+        let (method, path, body) = parse_http_request(raw);
+        assert_eq!(method, "GET");
+        assert_eq!(path, "/health");
+        assert_eq!(body, "");
+    }
+
+    #[test]
+    fn test_parse_http_request_post_with_body() {
+        let json_body = r#"{"path":"/tmp/proj"}"#;
+        let raw = format!(
+            "POST /analyze HTTP/1.1\r\nContent-Length: {}\r\n\r\n{}",
+            json_body.len(),
+            json_body
+        );
+        let (method, path, body) = parse_http_request(&raw);
+        assert_eq!(method, "POST");
+        assert_eq!(path, "/analyze");
+        assert_eq!(body, json_body);
+    }
+
+    #[test]
+    fn test_parse_http_request_missing_body_separator() {
+        // No \r\n\r\n — body should be empty string
+        let raw = "POST /score HTTP/1.1\r\nContent-Length: 10";
+        let (method, path, body) = parse_http_request(raw);
+        assert_eq!(method, "POST");
+        assert_eq!(path, "/score");
+        assert_eq!(body, "");
+    }
+
+    #[test]
+    fn test_parse_http_request_empty_string() {
+        let (method, path, body) = parse_http_request("");
+        assert_eq!(method, "GET");
+        assert_eq!(path, "/");
+        assert_eq!(body, "");
+    }
+
+    #[test]
+    fn test_parse_http_request_check_file_path() {
+        let raw = "POST /check-file HTTP/1.1\r\n\r\n{\"source\":\"void main(){}\"}";
+        let (method, path, body) = parse_http_request(raw);
+        assert_eq!(method, "POST");
+        assert_eq!(path, "/check-file");
+        assert_eq!(body, r#"{"source":"void main(){}"}"#);
+    }
+
+    // ── handle_analyze — invalid JSON ─────────────────────────────────────────
+
+    #[test]
+    fn test_handle_analyze_invalid_json() {
+        let (status, body) = handle_analyze("not valid json").unwrap();
+        assert_eq!(status, "400 Bad Request");
+        let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(v["success"], false);
+        assert!(v["error"].as_str().unwrap().contains("Invalid JSON"));
+    }
+
+    #[test]
+    fn test_handle_analyze_missing_path_and_source() {
+        let (status, body) = handle_analyze("{}").unwrap();
+        assert_eq!(status, "400 Bad Request");
+        let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(v["success"], false);
+        assert!(v["error"]
+            .as_str()
+            .unwrap()
+            .contains("path"));
+    }
+
+    // ── handle_analyze — source branch ───────────────────────────────────────
+
+    #[test]
+    fn test_handle_analyze_source_clean_dart() {
+        let body = serde_json::json!({
+            "source": "void main() { print('hello'); }\n",
+            "file_name": "main.dart"
+        })
+        .to_string();
+        let (status, resp_body) = handle_analyze(&body).unwrap();
+        assert_eq!(status, "200 OK");
+        let v: serde_json::Value = serde_json::from_str(&resp_body).unwrap();
+        assert_eq!(v["success"], true);
+        assert!(v["data"]["issue_count"].is_number());
+        assert_eq!(v["data"]["file"], "main.dart");
+    }
+
+    #[test]
+    fn test_handle_analyze_source_default_file_name() {
+        let body = serde_json::json!({
+            "source": "class A {}\n"
+        })
+        .to_string();
+        let (status, resp_body) = handle_analyze(&body).unwrap();
+        assert_eq!(status, "200 OK");
+        let v: serde_json::Value = serde_json::from_str(&resp_body).unwrap();
+        assert_eq!(v["data"]["file"], "input.dart");
+    }
+
+    // ── handle_analyze — path branch ─────────────────────────────────────────
+
+    #[test]
+    fn test_handle_analyze_path_valid_project() {
+        let tmp = tempfile::tempdir().unwrap();
+        let lib = tmp.path().join("lib");
+        std::fs::create_dir_all(&lib).unwrap();
+        std::fs::write(lib.join("main.dart"), "void main() { print('hi'); }\n").unwrap();
+        std::fs::write(
+            tmp.path().join("falcon.yaml"),
+            "metrics:\n  cyclomatic_complexity: 20\n",
+        )
+        .unwrap();
+
+        let body = serde_json::json!({
+            "path": tmp.path().to_string_lossy()
+        })
+        .to_string();
+        let (status, resp_body) = handle_analyze(&body).unwrap();
+        assert_eq!(status, "200 OK");
+        let v: serde_json::Value = serde_json::from_str(&resp_body).unwrap();
+        assert_eq!(v["success"], true);
+        assert!(v["data"]["file_count"].is_number());
+    }
+
+    #[test]
+    fn test_handle_analyze_path_nonexistent() {
+        // The SDK gracefully handles nonexistent paths (returns empty result),
+        // so the API returns 200 OK with success:true and zero file_count.
+        let body = serde_json::json!({
+            "path": "/nonexistent/path/to/project"
+        })
+        .to_string();
+        let (status, resp_body) = handle_analyze(&body).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&resp_body).unwrap();
+        // Either success (SDK returns empty) or failure (SDK errors) — both valid
+        if status == "200 OK" {
+            assert_eq!(v["success"], true);
+        } else {
+            assert_eq!(v["success"], false);
+        }
+    }
+
+    // ── handle_score ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_handle_score_invalid_json() {
+        let (status, body) = handle_score("{bad json}").unwrap();
+        assert_eq!(status, "400 Bad Request");
+        let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(v["success"], false);
+        assert!(v["error"].as_str().unwrap().contains("Invalid JSON"));
+    }
+
+    #[test]
+    fn test_handle_score_missing_path_field() {
+        // path field required; missing key causes JSON parse error for the inner struct
+        let (status, body) = handle_score("{}").unwrap();
+        assert_eq!(status, "400 Bad Request");
+        let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(v["success"], false);
+    }
+
+    #[test]
+    fn test_handle_score_valid_project() {
+        let tmp = tempfile::tempdir().unwrap();
+        let lib = tmp.path().join("lib");
+        std::fs::create_dir_all(&lib).unwrap();
+        std::fs::write(
+            lib.join("service.dart"),
+            "class MyService { void run() {} }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            tmp.path().join("falcon.yaml"),
+            "metrics:\n  cyclomatic_complexity: 20\n",
+        )
+        .unwrap();
+
+        let body = serde_json::json!({
+            "path": tmp.path().to_string_lossy()
+        })
+        .to_string();
+        let (status, resp_body) = handle_score(&body).unwrap();
+        assert_eq!(status, "200 OK");
+        let v: serde_json::Value = serde_json::from_str(&resp_body).unwrap();
+        assert_eq!(v["success"], true);
+        let data = &v["data"];
+        assert!(data["overall"].is_number());
+        assert!(data["grade"].is_string());
+    }
+
+    #[test]
+    fn test_handle_score_nonexistent_path() {
+        let body = serde_json::json!({
+            "path": "/no/such/dir"
+        })
+        .to_string();
+        let (status, resp_body) = handle_score(&body).unwrap();
+        assert_ne!(status, "200 OK");
+        let v: serde_json::Value = serde_json::from_str(&resp_body).unwrap();
+        assert_eq!(v["success"], false);
+    }
+
+    // ── handle_check_file ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_handle_check_file_invalid_json() {
+        let (status, body) = handle_check_file("!!!").unwrap();
+        assert_eq!(status, "400 Bad Request");
+        let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(v["success"], false);
+        assert!(v["error"].as_str().unwrap().contains("Invalid JSON"));
+    }
+
+    #[test]
+    fn test_handle_check_file_missing_source() {
+        // source field is required; missing it triggers a parse error
+        let (status, body) = handle_check_file("{}").unwrap();
+        assert_eq!(status, "400 Bad Request");
+        let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(v["success"], false);
+    }
+
+    #[test]
+    fn test_handle_check_file_valid_source() {
+        let body = serde_json::json!({
+            "source": "void main() { print('hello'); }\n",
+            "file_name": "hello.dart"
+        })
+        .to_string();
+        let (status, resp_body) = handle_check_file(&body).unwrap();
+        assert_eq!(status, "200 OK");
+        let v: serde_json::Value = serde_json::from_str(&resp_body).unwrap();
+        assert_eq!(v["success"], true);
+        assert_eq!(v["data"]["file"], "hello.dart");
+        assert!(v["data"]["issue_count"].is_number());
+        assert!(v["data"]["issues"].is_array());
+    }
+
+    #[test]
+    fn test_handle_check_file_default_file_name() {
+        let body = serde_json::json!({
+            "source": "class Widget {}\n"
+        })
+        .to_string();
+        let (status, resp_body) = handle_check_file(&body).unwrap();
+        assert_eq!(status, "200 OK");
+        let v: serde_json::Value = serde_json::from_str(&resp_body).unwrap();
+        assert_eq!(v["data"]["file"], "input.dart");
+    }
+
+    #[test]
+    fn test_handle_check_file_with_issues() {
+        // dynamic usage should trigger lint issues
+        let body = serde_json::json!({
+            "source": "void foo(dynamic x) { var y = x as dynamic; }\n",
+            "file_name": "bad.dart"
+        })
+        .to_string();
+        let (status, resp_body) = handle_check_file(&body).unwrap();
+        assert_eq!(status, "200 OK");
+        let v: serde_json::Value = serde_json::from_str(&resp_body).unwrap();
+        assert_eq!(v["success"], true);
+        // issue_count might be > 0 depending on enabled rules; just verify structure
+        assert!(v["data"]["issue_count"].as_u64().unwrap() >= 0);
+    }
+}

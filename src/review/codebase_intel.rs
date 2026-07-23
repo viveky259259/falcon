@@ -381,6 +381,482 @@ fn generate_narrative(
     narrative
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    fn make_dart_file(dir: &TempDir, name: &str, content: &str) {
+        let path = dir.path().join(name);
+        let mut f = std::fs::File::create(&path).unwrap();
+        write!(f, "{}", content).unwrap();
+    }
+
+    fn make_dart_file_in(dir: &std::path::Path, name: &str, content: &str) {
+        let path = dir.join(name);
+        let mut f = std::fs::File::create(&path).unwrap();
+        write!(f, "{}", content).unwrap();
+    }
+
+    fn simple_stats(path: &str, lines: usize, classes: usize, functions: usize,
+                    max_cc: u32, avg_cc: f64, mi: f64) -> FileStats {
+        FileStats {
+            path: PathBuf::from(path),
+            lines,
+            classes,
+            functions,
+            max_complexity: max_cc,
+            avg_complexity: avg_cc,
+            maintainability: mi,
+        }
+    }
+
+    fn dummy_path() -> &'static Path {
+        Path::new("/tmp")
+    }
+
+    // ── count_kind (via analyze_codebase with real Dart) ─────────────────────
+
+    #[test]
+    fn count_kind_returns_zero_for_no_matches() {
+        let mut parser = crate::parser::DartParser::new().unwrap();
+        let source = "void main() {}";
+        let tree = parser.parse(source).unwrap();
+        let root = tree.root_node();
+        assert_eq!(count_kind(root, "class_declaration"), 0);
+    }
+
+    #[test]
+    fn count_kind_counts_class_declarations() {
+        let mut parser = crate::parser::DartParser::new().unwrap();
+        let source = "class A {} class B {}";
+        let tree = parser.parse(source).unwrap();
+        let root = tree.root_node();
+        assert_eq!(count_kind(root, "class_declaration"), 2);
+    }
+
+    #[test]
+    fn count_kind_single_class() {
+        let mut parser = crate::parser::DartParser::new().unwrap();
+        let source = "class MyClass { void foo() {} }";
+        let tree = parser.parse(source).unwrap();
+        let root = tree.root_node();
+        assert_eq!(count_kind(root, "class_declaration"), 1);
+    }
+
+    #[test]
+    fn count_kind_nested_nodes() {
+        let mut parser = crate::parser::DartParser::new().unwrap();
+        let source = "class A { class B {} }";
+        let tree = parser.parse(source).unwrap();
+        let root = tree.root_node();
+        // nested classes should also be counted
+        let cnt = count_kind(root, "class_declaration");
+        assert!(cnt >= 1);
+    }
+
+    // ── find_god_files ────────────────────────────────────────────────────────
+
+    #[test]
+    fn find_god_files_empty_stats_returns_empty() {
+        let result = find_god_files(&[], dummy_path());
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn find_god_files_normal_file_excluded() {
+        let stats = vec![simple_stats("a.dart", 100, 1, 5, 5, 2.0, 80.0)];
+        let result = find_god_files(&stats, dummy_path());
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn find_god_files_triggers_on_lines_over_500() {
+        let stats = vec![simple_stats("big.dart", 600, 1, 5, 5, 2.0, 80.0)];
+        let result = find_god_files(&stats, dummy_path());
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].lines, 600);
+    }
+
+    #[test]
+    fn find_god_files_triggers_on_classes_over_5() {
+        let stats = vec![simple_stats("many_classes.dart", 100, 6, 5, 5, 2.0, 80.0)];
+        let result = find_god_files(&stats, dummy_path());
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn find_god_files_triggers_on_functions_over_30() {
+        let stats = vec![simple_stats("many_fns.dart", 100, 1, 31, 5, 2.0, 80.0)];
+        let result = find_god_files(&stats, dummy_path());
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn find_god_files_sorted_by_lines_descending() {
+        let stats = vec![
+            simple_stats("small.dart", 510, 1, 5, 5, 2.0, 80.0),
+            simple_stats("big.dart", 1000, 1, 5, 5, 2.0, 80.0),
+            simple_stats("medium.dart", 700, 1, 5, 5, 2.0, 80.0),
+        ];
+        let result = find_god_files(&stats, dummy_path());
+        assert_eq!(result.len(), 3);
+        assert!(result[0].lines >= result[1].lines);
+        assert!(result[1].lines >= result[2].lines);
+    }
+
+    #[test]
+    fn find_god_files_truncated_to_10() {
+        let stats: Vec<FileStats> = (0..15)
+            .map(|i| simple_stats(&format!("f{}.dart", i), 600, 1, 5, 5, 2.0, 80.0))
+            .collect();
+        let result = find_god_files(&stats, dummy_path());
+        assert_eq!(result.len(), 10);
+    }
+
+    #[test]
+    fn find_god_files_suggestions_classes_over_3() {
+        // needs > 5 classes to enter god files, then > 3 classes to get the suggestion
+        let stats = vec![simple_stats("a.dart", 100, 6, 5, 5, 2.0, 80.0)];
+        let result = find_god_files(&stats, dummy_path());
+        assert_eq!(result.len(), 1);
+        assert!(result[0].decomposition_suggestions.iter().any(|s| s.contains("classes")));
+    }
+
+    #[test]
+    fn find_god_files_suggestions_functions_over_20() {
+        let stats = vec![simple_stats("a.dart", 100, 1, 31, 5, 2.0, 80.0)];
+        let result = find_god_files(&stats, dummy_path());
+        assert!(result[0].decomposition_suggestions.iter().any(|s| s.contains("functions")));
+    }
+
+    #[test]
+    fn find_god_files_suggestions_lines_over_500() {
+        let stats = vec![simple_stats("a.dart", 600, 1, 5, 5, 2.0, 80.0)];
+        let result = find_god_files(&stats, dummy_path());
+        assert!(result[0].decomposition_suggestions.iter().any(|s| s.contains("files")));
+    }
+
+    #[test]
+    fn find_god_files_suggestions_high_complexity() {
+        let stats = vec![simple_stats("a.dart", 600, 1, 5, 16, 5.0, 80.0)];
+        let result = find_god_files(&stats, dummy_path());
+        assert!(result[0].decomposition_suggestions.iter().any(|s| s.contains("Refactor")));
+    }
+
+    // ── find_hotspots ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn find_hotspots_empty_stats_returns_empty() {
+        let result = find_hotspots(&[], dummy_path());
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn find_hotspots_normal_file_not_flagged() {
+        let stats = vec![simple_stats("a.dart", 100, 1, 5, 5, 2.0, 80.0)];
+        let result = find_hotspots(&stats, dummy_path());
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn find_hotspots_high_complexity_flagged() {
+        // complexity > 20 + lines > 300 gives score > 10
+        let stats = vec![simple_stats("complex.dart", 400, 1, 5, 25, 10.0, 80.0)];
+        let result = find_hotspots(&stats, dummy_path());
+        assert_eq!(result.len(), 1);
+        assert!(result[0].reason.contains("cyclomatic complexity"));
+    }
+
+    #[test]
+    fn find_hotspots_low_maintainability_flagged() {
+        // maintainability < 40 and > 0, plus lines > 300 to push score > 10
+        let stats = vec![simple_stats("low_mi.dart", 400, 1, 5, 5, 2.0, 20.0)];
+        let result = find_hotspots(&stats, dummy_path());
+        assert_eq!(result.len(), 1);
+        assert!(result[0].reason.contains("maintainability index"));
+    }
+
+    #[test]
+    fn find_hotspots_zero_maintainability_not_flagged_for_mi() {
+        // maintainability == 0.0 skips the MI check; needs other triggers to score > 10
+        let stats = vec![simple_stats("zero_mi.dart", 100, 1, 5, 5, 2.0, 0.0)];
+        let result = find_hotspots(&stats, dummy_path());
+        // score would be 0, so not added
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn find_hotspots_sorted_by_score_descending() {
+        let stats = vec![
+            simple_stats("a.dart", 400, 1, 5, 22, 10.0, 20.0),
+            simple_stats("b.dart", 500, 1, 5, 30, 15.0, 20.0),
+        ];
+        let result = find_hotspots(&stats, dummy_path());
+        assert!(result.len() >= 2);
+        assert!(result[0].score >= result[1].score);
+    }
+
+    #[test]
+    fn find_hotspots_truncated_to_15() {
+        let stats: Vec<FileStats> = (0..20)
+            .map(|i| simple_stats(&format!("f{}.dart", i), 400, 1, 5, 25, 10.0, 20.0))
+            .collect();
+        let result = find_hotspots(&stats, dummy_path());
+        assert!(result.len() <= 15);
+    }
+
+    // ── calculate_tech_debt ───────────────────────────────────────────────────
+
+    #[test]
+    fn tech_debt_empty_stats_score_100() {
+        let debt = calculate_tech_debt(&[]);
+        assert_eq!(debt.score, 100.0);
+        assert_eq!(debt.effort_hours, 0.0);
+        assert!(debt.categories.is_empty());
+    }
+
+    #[test]
+    fn tech_debt_clean_file_has_low_hours() {
+        let stats = vec![simple_stats("a.dart", 100, 1, 5, 5, 2.0, 80.0)];
+        let debt = calculate_tech_debt(&stats);
+        assert_eq!(debt.effort_hours, 0.0);
+        assert!(debt.categories.is_empty());
+    }
+
+    #[test]
+    fn tech_debt_high_complexity_adds_hours() {
+        let stats = vec![simple_stats("a.dart", 100, 1, 5, 20, 5.0, 80.0)];
+        let debt = calculate_tech_debt(&stats);
+        assert!(debt.effort_hours > 0.0);
+        assert!(debt.categories.contains_key("Complexity"));
+    }
+
+    #[test]
+    fn tech_debt_large_file_adds_hours() {
+        let stats = vec![simple_stats("a.dart", 500, 1, 5, 5, 2.0, 80.0)];
+        let debt = calculate_tech_debt(&stats);
+        assert!(debt.effort_hours > 0.0);
+        assert!(debt.categories.contains_key("File size"));
+    }
+
+    #[test]
+    fn tech_debt_low_maintainability_adds_hours() {
+        let stats = vec![simple_stats("a.dart", 100, 1, 5, 5, 2.0, 30.0)];
+        let debt = calculate_tech_debt(&stats);
+        assert!(debt.effort_hours > 0.0);
+        assert!(debt.categories.contains_key("Maintainability"));
+    }
+
+    #[test]
+    fn tech_debt_score_clamped_0_to_100() {
+        // Very many terrible files; score should not go below 0
+        let stats: Vec<FileStats> = (0..100)
+            .map(|i| simple_stats(&format!("f{}.dart", i), 5000, 1, 5, 100, 50.0, 1.0))
+            .collect();
+        let debt = calculate_tech_debt(&stats);
+        assert!(debt.score >= 0.0);
+        assert!(debt.score <= 100.0);
+    }
+
+    // ── calculate_health_score ────────────────────────────────────────────────
+
+    #[test]
+    fn health_score_empty_returns_100() {
+        assert_eq!(calculate_health_score(&[]), 100.0);
+    }
+
+    #[test]
+    fn health_score_perfect_file_near_100() {
+        let stats = vec![simple_stats("a.dart", 100, 1, 5, 1, 1.0, 100.0)];
+        let score = calculate_health_score(&stats);
+        // maintainability 100 → 40pts, complexity 1 avg → ~28.5pts, no god file → 30pts
+        assert!(score > 90.0, "Expected score > 90 but got {}", score);
+    }
+
+    #[test]
+    fn health_score_clamped_0_to_100() {
+        let stats: Vec<FileStats> = (0..10)
+            .map(|i| simple_stats(&format!("f{}.dart", i), 600, 1, 5, 1, 50.0, 0.0))
+            .collect();
+        let score = calculate_health_score(&stats);
+        assert!(score >= 0.0);
+        assert!(score <= 100.0);
+    }
+
+    #[test]
+    fn health_score_all_god_files_lowers_structure() {
+        let all_god: Vec<FileStats> = (0..5)
+            .map(|i| simple_stats(&format!("f{}.dart", i), 600, 1, 5, 1, 1.0, 100.0))
+            .collect();
+        let no_god: Vec<FileStats> = (0..5)
+            .map(|i| simple_stats(&format!("f{}.dart", i), 100, 1, 5, 1, 1.0, 100.0))
+            .collect();
+        assert!(calculate_health_score(&all_god) < calculate_health_score(&no_god));
+    }
+
+    // ── generate_narrative ────────────────────────────────────────────────────
+
+    fn empty_debt() -> TechDebt {
+        TechDebt { score: 100.0, effort_hours: 0.0, categories: HashMap::new() }
+    }
+
+    #[test]
+    fn narrative_contains_file_and_line_counts() {
+        let s = generate_narrative(42, 1234, &[], &[], 85.0, &empty_debt());
+        assert!(s.contains("42"));
+        assert!(s.contains("1234"));
+    }
+
+    #[test]
+    fn narrative_health_label_healthy() {
+        let s = generate_narrative(1, 100, &[], &[], 80.0, &empty_debt());
+        assert!(s.contains("healthy"));
+    }
+
+    #[test]
+    fn narrative_health_label_moderate() {
+        let s = generate_narrative(1, 100, &[], &[], 65.0, &empty_debt());
+        assert!(s.contains("moderate"));
+    }
+
+    #[test]
+    fn narrative_health_label_needs_attention() {
+        let s = generate_narrative(1, 100, &[], &[], 50.0, &empty_debt());
+        assert!(s.contains("needs attention"));
+    }
+
+    #[test]
+    fn narrative_health_label_at_risk() {
+        let s = generate_narrative(1, 100, &[], &[], 30.0, &empty_debt());
+        assert!(s.contains("at risk"));
+    }
+
+    #[test]
+    fn narrative_with_god_files_mentions_god_file() {
+        let god = GodFile {
+            path: PathBuf::from("big.dart"),
+            lines: 800,
+            classes: 3,
+            functions: 10,
+            complexity: 5,
+            decomposition_suggestions: vec![],
+        };
+        let s = generate_narrative(5, 1000, &[god], &[], 70.0, &empty_debt());
+        assert!(s.contains("god file"));
+        assert!(s.contains("800"));
+    }
+
+    #[test]
+    fn narrative_with_hotspots_mentions_hotspot() {
+        let hs = Hotspot {
+            path: PathBuf::from("hot.dart"),
+            reason: "cyclomatic complexity 25".to_string(),
+            score: 20.0,
+        };
+        let s = generate_narrative(5, 1000, &[], &[hs], 70.0, &empty_debt());
+        assert!(s.contains("hotspot"));
+    }
+
+    #[test]
+    fn narrative_no_god_files_no_god_section() {
+        let s = generate_narrative(5, 1000, &[], &[], 70.0, &empty_debt());
+        assert!(!s.contains("god file"));
+    }
+
+    #[test]
+    fn narrative_no_hotspots_no_hotspot_section() {
+        let s = generate_narrative(5, 1000, &[], &[], 70.0, &empty_debt());
+        assert!(!s.contains("hotspot"));
+    }
+
+    #[test]
+    fn narrative_always_contains_tech_debt() {
+        let s = generate_narrative(5, 1000, &[], &[], 70.0, &empty_debt());
+        assert!(s.contains("Tech debt"));
+    }
+
+    // ── analyze_codebase (orchestrator) ──────────────────────────────────────
+
+    #[test]
+    fn analyze_codebase_empty_dir_returns_zero_files() {
+        let dir = TempDir::new().unwrap();
+        let config = crate::config::FalconConfig::default();
+        let report = analyze_codebase(dir.path(), &config).unwrap();
+        assert_eq!(report.total_files, 0);
+        assert_eq!(report.total_lines, 0);
+        assert!(report.god_files.is_empty());
+        assert!(report.hotspots.is_empty());
+    }
+
+    #[test]
+    fn analyze_codebase_non_dart_files_ignored() {
+        let dir = TempDir::new().unwrap();
+        make_dart_file(&dir, "readme.txt", "hello world");
+        make_dart_file(&dir, "style.css", ".foo { color: red; }");
+        let config = crate::config::FalconConfig::default();
+        let report = analyze_codebase(dir.path(), &config).unwrap();
+        assert_eq!(report.total_files, 0);
+    }
+
+    #[test]
+    fn analyze_codebase_single_dart_file_counted() {
+        let dir = TempDir::new().unwrap();
+        make_dart_file(&dir, "main.dart", "void main() {}\n");
+        let config = crate::config::FalconConfig::default();
+        let report = analyze_codebase(dir.path(), &config).unwrap();
+        assert_eq!(report.total_files, 1);
+        assert!(report.total_lines >= 1);
+    }
+
+    #[test]
+    fn analyze_codebase_uses_lib_subdir_when_present() {
+        let dir = TempDir::new().unwrap();
+        let lib_dir = dir.path().join("lib");
+        std::fs::create_dir_all(&lib_dir).unwrap();
+        make_dart_file_in(&lib_dir, "app.dart", "void main() {}\n");
+        // file outside lib
+        make_dart_file(&dir, "outside.dart", "void helper() {}\n");
+        let config = crate::config::FalconConfig::default();
+        let report = analyze_codebase(dir.path(), &config).unwrap();
+        // only lib/ is walked, so only 1 file
+        assert_eq!(report.total_files, 1);
+    }
+
+    #[test]
+    fn analyze_codebase_returns_valid_narrative() {
+        let dir = TempDir::new().unwrap();
+        make_dart_file(&dir, "main.dart", "class Foo {} void main() {}\n");
+        let config = crate::config::FalconConfig::default();
+        let report = analyze_codebase(dir.path(), &config).unwrap();
+        assert!(!report.narrative.is_empty());
+        assert!(report.narrative.contains("Dart files"));
+    }
+
+    #[test]
+    fn analyze_codebase_health_score_in_range() {
+        let dir = TempDir::new().unwrap();
+        make_dart_file(&dir, "a.dart", "class A {} void main() {}\n");
+        let config = crate::config::FalconConfig::default();
+        let report = analyze_codebase(dir.path(), &config).unwrap();
+        assert!(report.health_score >= 0.0 && report.health_score <= 100.0);
+    }
+
+    #[test]
+    fn analyze_codebase_multiple_dart_files() {
+        let dir = TempDir::new().unwrap();
+        for i in 0..5 {
+            make_dart_file(&dir, &format!("file{}.dart", i), "void main() {}\n");
+        }
+        let config = crate::config::FalconConfig::default();
+        let report = analyze_codebase(dir.path(), &config).unwrap();
+        assert_eq!(report.total_files, 5);
+    }
+}
+
 pub fn print_codebase_report(report: &CodebaseReport, root: &Path) {
     println!();
     println!("  {} Codebase Intelligence", "falcon".bright_cyan().bold());

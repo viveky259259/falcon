@@ -213,6 +213,285 @@ fn extract_pkg(line: &str) -> Option<String> {
     Some(rest[..end].to_string())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    // ── DepIssueType::Display ────────────────────────────────────────────────
+
+    #[test]
+    fn display_unused() {
+        assert_eq!(DepIssueType::Unused.to_string(), "unused");
+    }
+
+    #[test]
+    fn display_too_permissive() {
+        assert_eq!(DepIssueType::TooPermissive.to_string(), "permissive");
+    }
+
+    #[test]
+    fn display_pinned_version() {
+        assert_eq!(DepIssueType::PinnedVersion.to_string(), "pinned");
+    }
+
+    #[test]
+    fn display_git_dependency() {
+        assert_eq!(DepIssueType::GitDependency.to_string(), "git-dep");
+    }
+
+    #[test]
+    fn display_path_dependency() {
+        assert_eq!(DepIssueType::PathDependency.to_string(), "path-dep");
+    }
+
+    #[test]
+    fn display_override_dep() {
+        assert_eq!(DepIssueType::OverrideDep.to_string(), "override");
+    }
+
+    // ── extract_pkg (pure) ──────────────────────────────────────────────────
+
+    #[test]
+    fn extract_pkg_basic() {
+        let line = r#"import 'package:provider/provider.dart';"#;
+        assert_eq!(extract_pkg(line), Some("provider".to_string()));
+    }
+
+    #[test]
+    fn extract_pkg_nested_path() {
+        let line = r#"import 'package:flutter_bloc/src/bloc.dart';"#;
+        assert_eq!(extract_pkg(line), Some("flutter_bloc".to_string()));
+    }
+
+    #[test]
+    fn extract_pkg_no_slash_returns_none() {
+        let line = r#"import 'package:something';"#;
+        assert_eq!(extract_pkg(line), None);
+    }
+
+    #[test]
+    fn extract_pkg_no_package_prefix_returns_none() {
+        let line = r#"import 'dart:async';"#;
+        assert_eq!(extract_pkg(line), None);
+    }
+
+    #[test]
+    fn extract_pkg_empty_line_returns_none() {
+        assert_eq!(extract_pkg(""), None);
+    }
+
+    // ── format_constraint (pure via serde_yaml) ─────────────────────────────
+
+    fn yaml_str(s: &str) -> serde_yaml::Value {
+        serde_yaml::from_str(s).unwrap()
+    }
+
+    #[test]
+    fn format_constraint_string_value() {
+        let v: serde_yaml::Value = serde_yaml::Value::String("^1.2.3".to_string());
+        assert_eq!(format_constraint(&v), "^1.2.3");
+    }
+
+    #[test]
+    fn format_constraint_any_string() {
+        let v: serde_yaml::Value = serde_yaml::Value::String("any".to_string());
+        assert_eq!(format_constraint(&v), "any");
+    }
+
+    #[test]
+    fn format_constraint_git_mapping() {
+        let v = yaml_str("git:\n  url: https://github.com/foo/bar.git");
+        assert_eq!(format_constraint(&v), "git");
+    }
+
+    #[test]
+    fn format_constraint_path_mapping() {
+        let v = yaml_str("path: ../my_package");
+        assert_eq!(format_constraint(&v), "path");
+    }
+
+    #[test]
+    fn format_constraint_other_mapping() {
+        let v = yaml_str("hosted:\n  name: foo\n  url: https://example.com");
+        assert_eq!(format_constraint(&v), "complex");
+    }
+
+    #[test]
+    fn format_constraint_null_value() {
+        let v = serde_yaml::Value::Null;
+        assert_eq!(format_constraint(&v), "any");
+    }
+
+    // ── collect_imported_packages (TempDir) ─────────────────────────────────
+
+    fn make_dir_with_dart(content: &str) -> TempDir {
+        let dir = TempDir::new().unwrap();
+        let lib = dir.path().join("lib");
+        fs::create_dir_all(&lib).unwrap();
+        fs::write(lib.join("main.dart"), content).unwrap();
+        dir
+    }
+
+    #[test]
+    fn collect_finds_single_import() {
+        let dir = make_dir_with_dart("import 'package:provider/provider.dart';\n");
+        let pkgs = collect_imported_packages(dir.path());
+        assert!(pkgs.contains(&"provider".to_string()));
+    }
+
+    #[test]
+    fn collect_finds_multiple_imports() {
+        let dir = make_dir_with_dart(
+            "import 'package:provider/provider.dart';\nimport 'package:dio/dio.dart';\n",
+        );
+        let pkgs = collect_imported_packages(dir.path());
+        assert!(pkgs.contains(&"provider".to_string()));
+        assert!(pkgs.contains(&"dio".to_string()));
+    }
+
+    #[test]
+    fn collect_ignores_dart_scheme_imports() {
+        let dir = make_dir_with_dart("import 'dart:async';\nimport 'dart:io';\n");
+        let pkgs = collect_imported_packages(dir.path());
+        assert!(pkgs.is_empty());
+    }
+
+    #[test]
+    fn collect_empty_dir_returns_empty() {
+        let dir = TempDir::new().unwrap();
+        let pkgs = collect_imported_packages(dir.path());
+        assert!(pkgs.is_empty());
+    }
+
+    // ── analyze_dependencies (TempDir orchestrator) ─────────────────────────
+
+    fn write_pubspec(dir: &TempDir, content: &str) {
+        fs::write(dir.path().join("pubspec.yaml"), content).unwrap();
+    }
+
+    #[test]
+    fn analyze_no_pubspec_returns_error() {
+        let dir = TempDir::new().unwrap();
+        let result = analyze_dependencies(dir.path());
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("No pubspec.yaml"));
+    }
+
+    #[test]
+    fn analyze_empty_deps() {
+        let dir = TempDir::new().unwrap();
+        write_pubspec(&dir, "name: my_app\ndependencies:\n  flutter:\n    sdk: flutter\n");
+        let report = analyze_dependencies(dir.path()).unwrap();
+        assert_eq!(report.total_deps, 0);
+        assert!(report.direct_deps.is_empty());
+        assert!(report.issues.is_empty());
+    }
+
+    #[test]
+    fn analyze_unused_dep_creates_issue() {
+        let dir = TempDir::new().unwrap();
+        write_pubspec(
+            &dir,
+            "name: my_app\ndependencies:\n  provider: ^6.0.0\n",
+        );
+        let report = analyze_dependencies(dir.path()).unwrap();
+        let issue_types: Vec<String> =
+            report.issues.iter().map(|i| i.issue_type.to_string()).collect();
+        assert!(issue_types.contains(&"unused".to_string()));
+    }
+
+    #[test]
+    fn analyze_git_dep_creates_issue() {
+        let dir = TempDir::new().unwrap();
+        write_pubspec(
+            &dir,
+            "name: my_app\ndependencies:\n  my_pkg:\n    git:\n      url: https://github.com/foo/my_pkg.git\n",
+        );
+        let report = analyze_dependencies(dir.path()).unwrap();
+        let issue_types: Vec<String> =
+            report.issues.iter().map(|i| i.issue_type.to_string()).collect();
+        assert!(issue_types.contains(&"git-dep".to_string()));
+    }
+
+    #[test]
+    fn analyze_path_dep_creates_issue() {
+        let dir = TempDir::new().unwrap();
+        write_pubspec(
+            &dir,
+            "name: my_app\ndependencies:\n  local_pkg:\n    path: ../local_pkg\n",
+        );
+        let report = analyze_dependencies(dir.path()).unwrap();
+        let issue_types: Vec<String> =
+            report.issues.iter().map(|i| i.issue_type.to_string()).collect();
+        assert!(issue_types.contains(&"path-dep".to_string()));
+    }
+
+    #[test]
+    fn analyze_any_version_creates_too_permissive_issue() {
+        let dir = TempDir::new().unwrap();
+        write_pubspec(&dir, "name: my_app\ndependencies:\n  dio: any\n");
+        let report = analyze_dependencies(dir.path()).unwrap();
+        let issue_types: Vec<String> =
+            report.issues.iter().map(|i| i.issue_type.to_string()).collect();
+        assert!(issue_types.contains(&"permissive".to_string()));
+    }
+
+    #[test]
+    fn analyze_dependency_overrides_creates_issue() {
+        let dir = TempDir::new().unwrap();
+        write_pubspec(
+            &dir,
+            "name: my_app\ndependencies: {}\ndependency_overrides:\n  some_pkg: ^1.0.0\n",
+        );
+        let report = analyze_dependencies(dir.path()).unwrap();
+        let issue_types: Vec<String> =
+            report.issues.iter().map(|i| i.issue_type.to_string()).collect();
+        assert!(issue_types.contains(&"override".to_string()));
+    }
+
+    #[test]
+    fn analyze_used_dep_not_in_unused_list() {
+        let dir = TempDir::new().unwrap();
+        write_pubspec(&dir, "name: my_app\ndependencies:\n  provider: ^6.0.0\n");
+        let lib = dir.path().join("lib");
+        fs::create_dir_all(&lib).unwrap();
+        fs::write(
+            lib.join("main.dart"),
+            "import 'package:provider/provider.dart';\n",
+        )
+        .unwrap();
+        let report = analyze_dependencies(dir.path()).unwrap();
+        assert!(!report.unused.contains(&"provider".to_string()));
+    }
+
+    #[test]
+    fn analyze_dev_deps_skips_flutter_test_and_lints() {
+        let dir = TempDir::new().unwrap();
+        write_pubspec(
+            &dir,
+            "name: my_app\ndev_dependencies:\n  flutter_test:\n    sdk: flutter\n  flutter_lints: ^3.0.0\n  lints: ^3.0.0\n  build_runner: ^2.4.0\n",
+        );
+        let report = analyze_dependencies(dir.path()).unwrap();
+        // Only build_runner should appear — flutter_test, flutter_lints, lints are skipped
+        assert_eq!(report.dev_deps.len(), 1);
+        assert_eq!(report.dev_deps[0].name, "build_runner");
+    }
+
+    #[test]
+    fn analyze_total_deps_counts_direct_plus_dev() {
+        let dir = TempDir::new().unwrap();
+        write_pubspec(
+            &dir,
+            "name: my_app\ndependencies:\n  provider: ^6.0.0\ndev_dependencies:\n  build_runner: ^2.4.0\n",
+        );
+        let report = analyze_dependencies(dir.path()).unwrap();
+        assert_eq!(report.total_deps, report.direct_deps.len() + report.dev_deps.len());
+    }
+}
+
 /// Print dependency report.
 pub fn print_dep_report(report: &DepReport) {
     println!();

@@ -653,6 +653,203 @@ fn html_escape(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    // -------------------------------------------------------------------------
+    // AnimSeverity methods
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_anim_severity_score_penalty() {
+        assert_eq!(AnimSeverity::Error.score_penalty(), -15);
+        assert_eq!(AnimSeverity::Warning.score_penalty(), -8);
+        assert_eq!(AnimSeverity::Info.score_penalty(), -3);
+    }
+
+    #[test]
+    fn test_anim_severity_as_str() {
+        assert_eq!(AnimSeverity::Error.as_str(), "ERROR");
+        assert_eq!(AnimSeverity::Warning.as_str(), "WARNING");
+        assert_eq!(AnimSeverity::Info.as_str(), "INFO");
+    }
+
+    #[test]
+    fn test_anim_severity_colored_str_contains_label() {
+        // colored_str may contain ANSI escape codes; just check label text is present
+        assert!(AnimSeverity::Error.colored_str().contains("ERROR"));
+        assert!(AnimSeverity::Warning.colored_str().contains("WARNING"));
+        assert!(AnimSeverity::Info.colored_str().contains("INFO"));
+    }
+
+    // -------------------------------------------------------------------------
+    // count_animation_controllers
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_count_animation_controllers_zero() {
+        let content = "Widget build(BuildContext ctx) { return Container(); }";
+        assert_eq!(count_animation_controllers(content), 0);
+    }
+
+    #[test]
+    fn test_count_animation_controllers_one() {
+        let content = "final ctrl = AnimationController(vsync: this);";
+        assert_eq!(count_animation_controllers(content), 1);
+    }
+
+    #[test]
+    fn test_count_animation_controllers_multiple() {
+        let content = "AnimationController(\n) AnimationController( AnimationController(";
+        assert_eq!(count_animation_controllers(content), 3);
+    }
+
+    // -------------------------------------------------------------------------
+    // extract_duration_ms
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_extract_duration_ms_basic() {
+        let block = "duration: Duration(milliseconds: 300),";
+        assert_eq!(extract_duration_ms(block), Some(300));
+    }
+
+    #[test]
+    fn test_extract_duration_ms_no_duration_key() {
+        let block = "curve: Curves.easeIn,";
+        assert_eq!(extract_duration_ms(block), None);
+    }
+
+    #[test]
+    fn test_extract_duration_ms_duration_key_no_milliseconds() {
+        let block = "duration: Duration(seconds: 2),";
+        assert_eq!(extract_duration_ms(block), None);
+    }
+
+    #[test]
+    fn test_extract_duration_ms_short_milliseconds_key() {
+        // Matches the `milliseconds:` branch (without leading `Duration(`)
+        let block = "  duration: const Duration(milliseconds: 150)";
+        assert_eq!(extract_duration_ms(block), Some(150));
+    }
+
+    #[test]
+    fn test_extract_duration_ms_zero() {
+        let block = "duration: Duration(milliseconds: 0),";
+        assert_eq!(extract_duration_ms(block), Some(0));
+    }
+
+    #[test]
+    fn test_extract_duration_ms_large_value() {
+        let block = "duration: Duration(milliseconds: 5000),";
+        assert_eq!(extract_duration_ms(block), Some(5000));
+    }
+
+    // -------------------------------------------------------------------------
+    // find_class_start / find_class_end
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_find_class_start_found() {
+        let lines = vec!["class Foo {", "  void bar() {}", "}"];
+        assert_eq!(find_class_start(&lines, 2), 0);
+    }
+
+    #[test]
+    fn test_find_class_start_no_class_returns_zero() {
+        let lines = vec!["void foo() {}", "  int x = 1;", "}"];
+        assert_eq!(find_class_start(&lines, 2), 0);
+    }
+
+    #[test]
+    fn test_find_class_start_nested() {
+        let lines = vec!["class Outer {", "  class Inner {", "    int x;", "  }", "}"];
+        // From line 3 ("}"), searching back should find "class Inner" at 1
+        assert_eq!(find_class_start(&lines, 3), 1);
+    }
+
+    #[test]
+    fn test_find_class_end_simple() {
+        let lines = vec!["class Foo {", "  int x;", "}"];
+        assert_eq!(find_class_end(&lines, 0), Some(2));
+    }
+
+    #[test]
+    fn test_find_class_end_no_closing_brace() {
+        let lines = vec!["class Foo {", "  int x;"];
+        assert_eq!(find_class_end(&lines, 0), None);
+    }
+
+    #[test]
+    fn test_find_class_end_nested_braces() {
+        let lines = vec![
+            "class Foo {",
+            "  void bar() {",
+            "    if (x) {",
+            "    }",
+            "  }",
+            "}",
+        ];
+        assert_eq!(find_class_end(&lines, 0), Some(5));
+    }
+
+    // -------------------------------------------------------------------------
+    // find_builder_start / find_builder_end
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_find_builder_start_found() {
+        let lines = vec!["AnimatedBuilder(", "  animation: ctrl,", "  builder: (ctx, child) {", "  },", ")"];
+        assert_eq!(find_builder_start(&lines, 0), Some(2));
+    }
+
+    #[test]
+    fn test_find_builder_start_not_found() {
+        let lines = vec!["AnimatedBuilder(", "  animation: ctrl,", ")"];
+        assert_eq!(find_builder_start(&lines, 0), None);
+    }
+
+    #[test]
+    fn test_find_builder_end_simple() {
+        let lines = vec!["  builder: (ctx, child) {", "    return Container();", "  },", ")"];
+        assert_eq!(find_builder_end(&lines, 0), Some(0));
+    }
+
+    #[test]
+    fn test_find_builder_end_multiline() {
+        // find_builder_end counts ( and ) chars per line.
+        // Line 0 "  builder: (ctx, child) =>" has one ( and one ) → balanced at line 0.
+        let lines = vec![
+            "  builder: (ctx, child) =>",
+            "    Transform.rotate(",
+            "      angle: ctrl.value,",
+            "      child: child,",
+            "    ),",
+        ];
+        assert_eq!(find_builder_end(&lines, 0), Some(0));
+    }
+
+    #[test]
+    fn test_find_builder_end_unmatched_multiline() {
+        // builder: ( spans multiple lines before closing )
+        let lines = vec![
+            "  builder: (ctx,",
+            "    child) =>",
+            "    Container(),",
+        ];
+        // Line 0: one ( → count=1; line 1: one ) → count=0, found → Some(1)
+        assert_eq!(find_builder_end(&lines, 0), Some(1));
+    }
+
+    #[test]
+    fn test_find_builder_end_no_parens() {
+        let lines = vec!["  builder: no_parens_here"];
+        assert_eq!(find_builder_end(&lines, 0), None);
+    }
+
+    // -------------------------------------------------------------------------
+    // check_missing_disposal
+    // -------------------------------------------------------------------------
 
     #[test]
     fn test_missing_disposal_detection() {
@@ -679,6 +876,49 @@ class MyAnimation extends State {
     }
 
     #[test]
+    fn test_missing_disposal_clean_with_dispose() {
+        let content = r#"
+class MyAnimation extends State {
+  late AnimationController controller;
+
+  @override
+  void initState() {
+    controller = AnimationController(vsync: this, duration: Duration(seconds: 1));
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+}
+"#;
+        let lines: Vec<&str> = content.lines().collect();
+        let issues = check_missing_disposal(Path::new("test.dart"), &lines);
+        assert!(issues.is_empty(), "Should not flag when dispose() is present");
+    }
+
+    #[test]
+    fn test_missing_disposal_comment_does_not_suppress() {
+        // dispose() only appears in a comment — should still flag
+        let content = r#"
+class BadAnim extends State {
+  void init() {
+    controller = AnimationController(vsync: this);
+    // remember to call dispose()
+  }
+}
+"#;
+        let lines: Vec<&str> = content.lines().collect();
+        let issues = check_missing_disposal(Path::new("test.dart"), &lines);
+        assert!(!issues.is_empty(), "Comment-only dispose reference should still flag");
+    }
+
+    // -------------------------------------------------------------------------
+    // check_setstate_in_listener
+    // -------------------------------------------------------------------------
+
+    #[test]
     fn test_setstate_in_listener_detection() {
         let content = r#"
 controller.addListener(() {
@@ -697,18 +937,68 @@ controller.addListener(() {
     }
 
     #[test]
-    fn test_missing_vsync_detection() {
+    fn test_setstate_in_listener_clean() {
         let content = r#"
-controller = AnimationController(
-  duration: Duration(seconds: 1),
-);
+controller.addListener(() {
+  // just read the value
+  print(controller.value);
+});
 "#;
         let lines: Vec<&str> = content.lines().collect();
-        let issues = check_missing_vsync(Path::new("test.dart"), &lines);
+        let issues = check_setstate_in_listener(Path::new("test.dart"), &lines);
+        assert!(issues.is_empty(), "Should not flag listener without setState");
+    }
+
+    #[test]
+    fn test_setstate_in_listener_setState_far_away() {
+        // setState appears more than 5 lines after addListener — should NOT flag
+        let content = "controller.addListener(() {\n  doA();\n  doB();\n  doC();\n  doD();\n  doE();\n  setState(() {});\n});\n";
+        let lines: Vec<&str> = content.lines().collect();
+        let issues = check_setstate_in_listener(Path::new("test.dart"), &lines);
+        assert!(issues.is_empty(), "setState beyond 5-line window should not flag");
+    }
+
+    // -------------------------------------------------------------------------
+    // check_heavy_computation_in_callbacks
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_network_call_in_listener() {
+        let content = r#"
+controller.addListener(() {
+  http.get(Uri.parse('https://example.com'));
+});
+"#;
+        let lines: Vec<&str> = content.lines().collect();
+        let issues = check_heavy_computation_in_callbacks(Path::new("test.dart"), &lines);
         assert!(!issues.is_empty());
         assert_eq!(issues[0].severity, AnimSeverity::Error);
-        assert!(issues[0].category.contains("Missing vsync"));
+        assert!(issues[0]
+            .category
+            .contains("Heavy computation in animation callbacks"));
     }
+
+    #[test]
+    fn test_future_delayed_in_listener() {
+        let content = "controller.addListener(() {\n  Future.delayed(Duration(ms: 100), doSomething);\n});\n";
+        let lines: Vec<&str> = content.lines().collect();
+        let issues = check_heavy_computation_in_callbacks(Path::new("test.dart"), &lines);
+        assert!(!issues.is_empty());
+        assert_eq!(issues[0].severity, AnimSeverity::Warning);
+        assert!(issues[0].category.contains("Heavy computation in animation callbacks"));
+    }
+
+    #[test]
+    fn test_heavy_computation_clean() {
+        let content = "controller.addListener(() {\n  print(ctrl.value);\n});\n";
+        let lines: Vec<&str> = content.lines().collect();
+        let issues = check_heavy_computation_in_callbacks(Path::new("test.dart"), &lines);
+        assert!(issues.is_empty(), "Clean listener should not flag");
+    }
+
+    // -------------------------------------------------------------------------
+    // check_implicit_animation_duration
+    // -------------------------------------------------------------------------
 
     #[test]
     fn test_animation_duration_too_fast() {
@@ -739,20 +1029,33 @@ AnimatedOpacity(
     }
 
     #[test]
-    fn test_network_call_in_listener() {
-        let content = r#"
-controller.addListener(() {
-  http.get(Uri.parse('https://example.com'));
-});
-"#;
+    fn test_animation_duration_in_range_no_issue() {
+        let content = "AnimatedContainer(\n  duration: Duration(milliseconds: 300),\n)\n";
         let lines: Vec<&str> = content.lines().collect();
-        let issues = check_heavy_computation_in_callbacks(Path::new("test.dart"), &lines);
-        assert!(!issues.is_empty());
-        assert_eq!(issues[0].severity, AnimSeverity::Error);
-        assert!(issues[0]
-            .category
-            .contains("Heavy computation in animation callbacks"));
+        let issues = check_implicit_animation_duration(Path::new("test.dart"), &lines);
+        assert!(issues.is_empty(), "Duration 300ms is in acceptable range");
     }
+
+    #[test]
+    fn test_animation_duration_no_animated_widget() {
+        let content = "Container(\n  duration: Duration(milliseconds: 50),\n)\n";
+        let lines: Vec<&str> = content.lines().collect();
+        let issues = check_implicit_animation_duration(Path::new("test.dart"), &lines);
+        assert!(issues.is_empty(), "Non-animated widget should not flag");
+    }
+
+    #[test]
+    fn test_animation_duration_no_duration_present() {
+        // AnimatedContainer but no duration: line — no issue
+        let content = "AnimatedContainer(\n  color: Colors.red,\n)\n";
+        let lines: Vec<&str> = content.lines().collect();
+        let issues = check_implicit_animation_duration(Path::new("test.dart"), &lines);
+        assert!(issues.is_empty());
+    }
+
+    // -------------------------------------------------------------------------
+    // check_chained_animation_then
+    // -------------------------------------------------------------------------
 
     #[test]
     fn test_chained_animation_then() {
@@ -766,6 +1069,123 @@ controller.forward().then((_) {
         assert!(!issues.is_empty());
         assert_eq!(issues[0].severity, AnimSeverity::Warning);
     }
+
+    #[test]
+    fn test_chained_animation_then_clean() {
+        let content = "controller.forward();\ncontroller.repeat(reverse: true);\n";
+        let lines: Vec<&str> = content.lines().collect();
+        let issues = check_chained_animation_then(Path::new("test.dart"), &lines);
+        assert!(issues.is_empty(), "No .forward().then( means no issue");
+    }
+
+    // -------------------------------------------------------------------------
+    // check_missing_vsync
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_missing_vsync_detection() {
+        let content = r#"
+controller = AnimationController(
+  duration: Duration(seconds: 1),
+);
+"#;
+        let lines: Vec<&str> = content.lines().collect();
+        let issues = check_missing_vsync(Path::new("test.dart"), &lines);
+        assert!(!issues.is_empty());
+        assert_eq!(issues[0].severity, AnimSeverity::Error);
+        assert!(issues[0].category.contains("Missing vsync"));
+    }
+
+    #[test]
+    fn test_missing_vsync_clean() {
+        let content = "controller = AnimationController(\n  vsync: this,\n  duration: Duration(seconds: 1),\n);\n";
+        let lines: Vec<&str> = content.lines().collect();
+        let issues = check_missing_vsync(Path::new("test.dart"), &lines);
+        assert!(issues.is_empty(), "vsync present should not flag");
+    }
+
+    // -------------------------------------------------------------------------
+    // check_tween_without_animate
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_tween_without_animate_flags() {
+        let content = "final tween = Tween<double>(begin: 0.0, end: 1.0);\n";
+        let lines: Vec<&str> = content.lines().collect();
+        let issues = check_tween_without_animate(Path::new("test.dart"), &lines);
+        assert!(!issues.is_empty());
+        assert_eq!(issues[0].severity, AnimSeverity::Warning);
+        assert!(issues[0].category.contains("Tween used without animation"));
+    }
+
+    #[test]
+    fn test_tween_with_animate_clean() {
+        let content = "final anim = Tween<double>(begin: 0.0, end: 1.0).animate(controller);\n";
+        let lines: Vec<&str> = content.lines().collect();
+        let issues = check_tween_without_animate(Path::new("test.dart"), &lines);
+        assert!(issues.is_empty(), ".animate() present should not flag");
+    }
+
+    #[test]
+    fn test_tween_without_begin_not_flagged() {
+        // Tween without `(begin:` should not match the heuristic
+        let content = "final tween = Tween<double>(end: 1.0);\n";
+        let lines: Vec<&str> = content.lines().collect();
+        let issues = check_tween_without_animate(Path::new("test.dart"), &lines);
+        assert!(issues.is_empty(), "Tween without (begin: should not flag");
+    }
+
+    // -------------------------------------------------------------------------
+    // check_large_animated_builder
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_large_animated_builder_flags() {
+        // find_builder_end tracks '(' and ')'. To make builder_size > 20, we need
+        // the opening '(' at builder_start to not close for > 20 lines.
+        // Use "builder: (ctx," on the first line (1 open, 0 close → net +1),
+        // then 22 lines of "    int x = 0; // (no parens)",
+        // then "  child)" to close the paren.
+        let mut lines_vec: Vec<String> = vec![
+            "AnimatedBuilder(".to_string(),
+            "  animation: ctrl,".to_string(),
+            "  builder: (ctx,".to_string(), // builder_start = 2; net parens = +1
+        ];
+        for i in 0..22usize {
+            lines_vec.push(format!("    int x{} = {};", i, i)); // no parens
+        }
+        lines_vec.push("  child)".to_string()); // closes the builder paren → builder_end = 25
+        lines_vec.push(");".to_string());
+
+        let lines_str: Vec<&str> = lines_vec.iter().map(|s| s.as_str()).collect();
+        let issues = check_large_animated_builder(Path::new("test.dart"), &lines_str);
+        assert!(!issues.is_empty(), "Large builder should flag (builder_size = {})", {
+            // builder_start = 2, builder_end = 25 → size = 23 > 20
+            23
+        });
+        assert_eq!(issues[0].severity, AnimSeverity::Warning);
+    }
+
+    #[test]
+    fn test_small_animated_builder_clean() {
+        let content = "AnimatedBuilder(\n  animation: ctrl,\n  builder: (ctx, child) {\n    return Container();\n  },\n);\n";
+        let lines: Vec<&str> = content.lines().collect();
+        let issues = check_large_animated_builder(Path::new("test.dart"), &lines);
+        assert!(issues.is_empty(), "Small builder should not flag");
+    }
+
+    #[test]
+    fn test_animated_builder_no_builder_param() {
+        // AnimatedBuilder present but no builder: within 20 lines — should not crash
+        let content = "AnimatedBuilder(\n  animation: ctrl,\n);\n";
+        let lines: Vec<&str> = content.lines().collect();
+        let issues = check_large_animated_builder(Path::new("test.dart"), &lines);
+        assert!(issues.is_empty());
+    }
+
+    // -------------------------------------------------------------------------
+    // report score calculation
+    // -------------------------------------------------------------------------
 
     #[test]
     fn test_report_score_calculation() {
@@ -796,8 +1216,281 @@ controller.forward().then((_) {
     }
 
     #[test]
-    fn test_extract_duration_ms() {
-        let block = "duration: Duration(milliseconds: 300),";
-        assert_eq!(extract_duration_ms(block), Some(300));
+    fn test_report_score_no_issues() {
+        let score = AnimationAuditReport::calculate_score(&[]);
+        assert_eq!(score, 100);
+    }
+
+    #[test]
+    fn test_report_score_info_penalty() {
+        let issues = vec![AnimationIssue {
+            severity: AnimSeverity::Info,
+            category: "test",
+            file: PathBuf::from("test.dart"),
+            line: 1,
+            snippet: "".to_string(),
+            detail: "".to_string(),
+            suggestion: "".to_string(),
+        }];
+        let score = AnimationAuditReport::calculate_score(&issues);
+        assert_eq!(score, 97); // 100 - 3
+    }
+
+    #[test]
+    fn test_report_score_clamped_to_zero() {
+        // Many errors should clamp score to 0
+        let issues: Vec<AnimationIssue> = (0..10)
+            .map(|i| AnimationIssue {
+                severity: AnimSeverity::Error,
+                category: "test",
+                file: PathBuf::from("test.dart"),
+                line: i,
+                snippet: "".to_string(),
+                detail: "".to_string(),
+                suggestion: "".to_string(),
+            })
+            .collect();
+        let score = AnimationAuditReport::calculate_score(&issues);
+        assert_eq!(score, 0); // 100 - 150 clamped to 0
+    }
+
+    // -------------------------------------------------------------------------
+    // analyze_file
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_analyze_file_clean_dart_no_issues() {
+        let content = "void main() { print('hello'); }\n";
+        let issues = analyze_file(Path::new("lib/main.dart"), content);
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_file_multiple_issues() {
+        // File with chained animation + missing vsync — both should be reported
+        let content = "controller = AnimationController(duration: Duration(seconds: 1));\ncontroller.forward().then((_) { controller.reverse(); });\n";
+        let issues = analyze_file(Path::new("lib/anim.dart"), content);
+        assert!(!issues.is_empty());
+    }
+
+    // -------------------------------------------------------------------------
+    // html_escape
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_html_escape_ampersand() {
+        assert_eq!(html_escape("a & b"), "a &amp; b");
+    }
+
+    #[test]
+    fn test_html_escape_less_than() {
+        assert_eq!(html_escape("a < b"), "a &lt; b");
+    }
+
+    #[test]
+    fn test_html_escape_greater_than() {
+        assert_eq!(html_escape("a > b"), "a &gt; b");
+    }
+
+    #[test]
+    fn test_html_escape_double_quote() {
+        assert_eq!(html_escape("say \"hi\""), "say &quot;hi&quot;");
+    }
+
+    #[test]
+    fn test_html_escape_combined() {
+        assert_eq!(html_escape("<a href=\"x\">foo & bar</a>"),
+            "&lt;a href=&quot;x&quot;&gt;foo &amp; bar&lt;/a&gt;");
+    }
+
+    #[test]
+    fn test_html_escape_no_special_chars() {
+        assert_eq!(html_escape("hello world"), "hello world");
+    }
+
+    // -------------------------------------------------------------------------
+    // generate_html_report (via write_animation_html_report)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_write_animation_html_report_no_issues() {
+        let dir = TempDir::new().unwrap();
+        let out = dir.path().join("report.html");
+
+        let report = AnimationAuditReport {
+            files_scanned: 5,
+            total_animation_controllers: 2,
+            issues: vec![],
+            score: 100,
+        };
+
+        write_animation_html_report(&report, &out).unwrap();
+        let html = std::fs::read_to_string(&out).unwrap();
+        assert!(html.contains("Animation Audit Report"));
+        assert!(html.contains("No animation issues found"));
+        assert!(html.contains("100"));
+    }
+
+    #[test]
+    fn test_write_animation_html_report_with_issues() {
+        let dir = TempDir::new().unwrap();
+        let out = dir.path().join("report.html");
+
+        let report = AnimationAuditReport {
+            files_scanned: 3,
+            total_animation_controllers: 1,
+            issues: vec![AnimationIssue {
+                severity: AnimSeverity::Error,
+                category: "Missing vsync",
+                file: PathBuf::from("lib/anim.dart"),
+                line: 10,
+                snippet: "AnimationController()".to_string(),
+                detail: "No vsync".to_string(),
+                suggestion: "Add vsync: this".to_string(),
+            }],
+            score: 85,
+        };
+
+        write_animation_html_report(&report, &out).unwrap();
+        let html = std::fs::read_to_string(&out).unwrap();
+        assert!(html.contains("Missing vsync"));
+        assert!(html.contains("ERROR"));
+        assert!(html.contains("Issues Detected"));
+        assert!(html.contains("85"));
+    }
+
+    #[test]
+    fn test_html_report_low_score_class() {
+        // score < 80 => "score low" class
+        let dir = TempDir::new().unwrap();
+        let out = dir.path().join("report.html");
+        let report = AnimationAuditReport {
+            files_scanned: 1,
+            total_animation_controllers: 0,
+            issues: vec![],
+            score: 50,
+        };
+        write_animation_html_report(&report, &out).unwrap();
+        let html = std::fs::read_to_string(&out).unwrap();
+        assert!(html.contains("score low"));
+    }
+
+    #[test]
+    fn test_html_report_high_score_class() {
+        // score >= 80 => "score" class (not "score low")
+        let dir = TempDir::new().unwrap();
+        let out = dir.path().join("report.html");
+        let report = AnimationAuditReport {
+            files_scanned: 1,
+            total_animation_controllers: 0,
+            issues: vec![],
+            score: 95,
+        };
+        write_animation_html_report(&report, &out).unwrap();
+        let html = std::fs::read_to_string(&out).unwrap();
+        // Should contain "score" but NOT "score low"
+        assert!(!html.contains("score low"));
+    }
+
+    #[test]
+    fn test_html_report_escapes_snippet() {
+        let dir = TempDir::new().unwrap();
+        let out = dir.path().join("report.html");
+        let report = AnimationAuditReport {
+            files_scanned: 1,
+            total_animation_controllers: 0,
+            issues: vec![AnimationIssue {
+                severity: AnimSeverity::Warning,
+                category: "Test",
+                file: PathBuf::from("lib/x.dart"),
+                line: 1,
+                snippet: "<script>alert(1)</script>".to_string(),
+                detail: "test detail".to_string(),
+                suggestion: "fix it".to_string(),
+            }],
+            score: 92,
+        };
+        write_animation_html_report(&report, &out).unwrap();
+        let html = std::fs::read_to_string(&out).unwrap();
+        assert!(html.contains("&lt;script&gt;"));
+        assert!(!html.contains("<script>alert"));
+    }
+
+    // -------------------------------------------------------------------------
+    // audit_animations (orchestrator, TempDir)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_audit_animations_empty_dir() {
+        let dir = TempDir::new().unwrap();
+        let result = audit_animations(dir.path()).unwrap();
+        assert_eq!(result.files_scanned, 0);
+        assert_eq!(result.total_animation_controllers, 0);
+        assert!(result.issues.is_empty());
+        assert_eq!(result.score, 100);
+    }
+
+    #[test]
+    fn test_audit_animations_skips_generated_files() {
+        let dir = TempDir::new().unwrap();
+        // .g.dart file should be skipped
+        let gen_file = dir.path().join("foo.g.dart");
+        std::fs::write(&gen_file,
+            "class Foo { AnimationController(\n  duration: Duration(seconds: 1),\n); }\n"
+        ).unwrap();
+        let result = audit_animations(dir.path()).unwrap();
+        assert_eq!(result.files_scanned, 0);
+    }
+
+    #[test]
+    fn test_audit_animations_skips_non_dart_files() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("readme.md"), "# title").unwrap();
+        std::fs::write(dir.path().join("config.yaml"), "key: value").unwrap();
+        let result = audit_animations(dir.path()).unwrap();
+        assert_eq!(result.files_scanned, 0);
+    }
+
+    #[test]
+    fn test_audit_animations_counts_controllers() {
+        let dir = TempDir::new().unwrap();
+        let content = r#"
+class MyWidget extends StatefulWidget {
+  AnimationController ctrl1;
+  AnimationController ctrl2;
+  void init() {
+    ctrl1 = AnimationController(vsync: this, duration: Duration(seconds: 1));
+    ctrl2 = AnimationController(vsync: this, duration: Duration(seconds: 2));
+  }
+  void dispose() { ctrl1.dispose(); ctrl2.dispose(); }
+}
+"#;
+        std::fs::write(dir.path().join("widget.dart"), content).unwrap();
+        let result = audit_animations(dir.path()).unwrap();
+        assert_eq!(result.files_scanned, 1);
+        assert_eq!(result.total_animation_controllers, 2);
+    }
+
+    #[test]
+    fn test_audit_animations_detects_issues() {
+        let dir = TempDir::new().unwrap();
+        // This Dart content triggers missing_vsync and chained_then
+        let content = "controller = AnimationController(duration: Duration(seconds: 1));\ncontroller.forward().then((_) { controller.reverse(); });\n";
+        std::fs::write(dir.path().join("bad.dart"), content).unwrap();
+        let result = audit_animations(dir.path()).unwrap();
+        assert_eq!(result.files_scanned, 1);
+        assert!(!result.issues.is_empty());
+        assert!(result.score < 100);
+    }
+
+    #[test]
+    fn test_audit_animations_clean_file_no_issues() {
+        let dir = TempDir::new().unwrap();
+        let content = "void main() { runApp(const MyApp()); }\n";
+        std::fs::write(dir.path().join("main.dart"), content).unwrap();
+        let result = audit_animations(dir.path()).unwrap();
+        assert_eq!(result.files_scanned, 1);
+        assert!(result.issues.is_empty());
+        assert_eq!(result.score, 100);
     }
 }

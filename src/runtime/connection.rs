@@ -741,7 +741,10 @@ impl RenderingStats {
 
 #[cfg(test)]
 mod tests {
-    use super::{convert_to_websocket_url, normalize_vm_service_uri, parse_stream_notification};
+    use super::{
+        convert_to_websocket_url, extract_vm_service_uri, normalize_vm_service_uri,
+        parse_response, parse_stream_notification, sanitize_input, MemoryUsage, RenderingStats,
+    };
     use serde_json::json;
 
     #[test]
@@ -787,5 +790,233 @@ mod tests {
         let notification = parse_stream_notification(&payload).unwrap().unwrap();
         assert_eq!(notification["streamId"].as_str(), Some("Stdout"));
         assert_eq!(notification["event"]["kind"].as_str(), Some("WriteEvent"));
+    }
+
+    // ── extract_vm_service_uri ──────────────────────────────────────────
+
+    #[test]
+    fn extract_vm_service_uri_finds_http_127_0_0_1() {
+        let result = extract_vm_service_uri("Some log: http://127.0.0.1:8080/abc/ — done");
+        assert_eq!(result, Some("http://127.0.0.1:8080/abc".to_string()));
+    }
+
+    #[test]
+    fn extract_vm_service_uri_finds_http_localhost() {
+        let result = extract_vm_service_uri("VM at http://localhost:9101/xy/");
+        assert_eq!(result, Some("http://localhost:9101/xy".to_string()));
+    }
+
+    #[test]
+    fn extract_vm_service_uri_finds_https_variant() {
+        let result = extract_vm_service_uri("https://localhost:443/path/");
+        assert_eq!(result, Some("https://localhost:443/path".to_string()));
+    }
+
+    #[test]
+    fn extract_vm_service_uri_no_match_returns_none() {
+        let result = extract_vm_service_uri("plain log line");
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn extract_vm_service_uri_strips_trailing_slash() {
+        let result = extract_vm_service_uri("http://127.0.0.1:1/foo/");
+        let uri = result.expect("should match");
+        assert!(!uri.ends_with('/'), "trailing slash should be stripped");
+    }
+
+    // ── sanitize_input ─────────────────────────────────────────────────
+
+    #[test]
+    fn sanitize_input_trims_whitespace() {
+        assert_eq!(sanitize_input("  hello  "), "hello");
+    }
+
+    #[test]
+    fn sanitize_input_strips_surrounding_double_quotes() {
+        assert_eq!(sanitize_input(r#""hello""#), "hello");
+    }
+
+    #[test]
+    fn sanitize_input_strips_surrounding_single_quotes() {
+        assert_eq!(sanitize_input("'hello'"), "hello");
+    }
+
+    #[test]
+    fn sanitize_input_unescapes_shell_escapes() {
+        assert_eq!(sanitize_input(r"a\?b\=c\&d"), "a?b=c&d");
+    }
+
+    #[test]
+    fn sanitize_input_no_changes_for_clean_input() {
+        assert_eq!(sanitize_input("clean"), "clean");
+    }
+
+    // ── normalize_vm_service_uri additional ───────────────────────────
+
+    #[test]
+    fn normalize_vm_service_uri_strips_fragment() {
+        let uri = normalize_vm_service_uri("http://127.0.0.1:1/foo#frag").unwrap();
+        assert!(uri.fragment().is_none(), "fragment should be stripped");
+    }
+
+    #[test]
+    fn normalize_vm_service_uri_rejects_invalid_uri() {
+        assert!(normalize_vm_service_uri("not a uri").is_err());
+    }
+
+    #[test]
+    fn normalize_vm_service_uri_handles_plain_http() {
+        let uri = normalize_vm_service_uri("http://localhost:1234").unwrap();
+        assert_eq!(uri.scheme(), "http");
+        assert_eq!(uri.host_str(), Some("localhost"));
+    }
+
+    // ── convert_to_websocket_url additional ───────────────────────────
+
+    #[test]
+    fn convert_to_websocket_url_https_becomes_wss() {
+        let input = normalize_vm_service_uri("https://x/path/").unwrap();
+        let output = convert_to_websocket_url(&input);
+        assert!(output.as_str().starts_with("wss://"), "scheme should be wss");
+        assert!(output.path().ends_with("/path/ws"), "path should end with /path/ws");
+    }
+
+    #[test]
+    fn convert_to_websocket_url_appends_ws_to_no_trailing_slash_path() {
+        let input = normalize_vm_service_uri("http://x/abc").unwrap();
+        let output = convert_to_websocket_url(&input);
+        assert!(output.path().ends_with("/abc/ws"), "path should end with /abc/ws");
+    }
+
+    #[test]
+    fn convert_to_websocket_url_preserves_ws_path() {
+        let input = normalize_vm_service_uri("http://x/abc/ws").unwrap();
+        let output = convert_to_websocket_url(&input);
+        assert!(output.path().ends_with("/abc/ws"), "path should end with /abc/ws");
+        assert!(!output.path().ends_with("/abc/ws/ws"), "should not double-append ws");
+    }
+
+    // ── parse_response ─────────────────────────────────────────────────
+
+    #[test]
+    fn parse_response_returns_result_for_matching_id() {
+        let msg = json!({"id": 1u64, "result": {"v": 42}}).to_string();
+        let result = parse_response(&msg, 1).unwrap();
+        assert_eq!(result, Some(json!({"v": 42})));
+    }
+
+    #[test]
+    fn parse_response_returns_none_for_mismatched_id() {
+        let msg = json!({"id": 1u64, "result": {"v": 42}}).to_string();
+        let result = parse_response(&msg, 2).unwrap();
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn parse_response_bails_on_error_field() {
+        let msg = json!({"id": 1u64, "error": {"code": -1}}).to_string();
+        assert!(parse_response(&msg, 1).is_err());
+    }
+
+    #[test]
+    fn parse_response_invalid_json_returns_none() {
+        let result = parse_response("not json", 1).unwrap();
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn parse_response_missing_id_returns_none() {
+        let msg = json!({"result": {}}).to_string();
+        let result = parse_response(&msg, 1).unwrap();
+        assert_eq!(result, None);
+    }
+
+    // ── parse_stream_notification additional ──────────────────────────
+
+    #[test]
+    fn parse_stream_notification_returns_none_for_non_stream_method() {
+        let msg = json!({"jsonrpc": "2.0", "method": "getVM", "params": {}}).to_string();
+        let result = parse_stream_notification(&msg).unwrap();
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn parse_stream_notification_returns_none_for_invalid_json() {
+        let result = parse_stream_notification("garbage").unwrap();
+        assert_eq!(result, None);
+    }
+
+    // ── MemoryUsage methods ────────────────────────────────────────────
+
+    #[test]
+    fn memory_usage_heap_usage_mb_converts_bytes() {
+        let m = MemoryUsage {
+            heap_usage_bytes: 1024 * 1024 * 4,
+            heap_capacity_bytes: 0,
+            external_usage_bytes: 0,
+        };
+        assert_eq!(m.heap_usage_mb(), 4.0);
+    }
+
+    #[test]
+    fn memory_usage_heap_capacity_mb_converts() {
+        let m = MemoryUsage {
+            heap_usage_bytes: 0,
+            heap_capacity_bytes: 1024 * 1024,
+            external_usage_bytes: 0,
+        };
+        assert_eq!(m.heap_capacity_mb(), 1.0);
+    }
+
+    #[test]
+    fn memory_usage_external_usage_mb_zero() {
+        let m = MemoryUsage {
+            heap_usage_bytes: 0,
+            heap_capacity_bytes: 0,
+            external_usage_bytes: 0,
+        };
+        assert_eq!(m.external_usage_mb(), 0.0);
+    }
+
+    // ── RenderingStats methods ─────────────────────────────────────────
+
+    #[test]
+    fn rendering_stats_dropped_frame_pct_with_zero_total_returns_zero() {
+        let s = RenderingStats {
+            total_frames: 0,
+            dropped_frames: 0,
+            avg_frame_build_time_ms: 0.0,
+            max_frame_build_time_ms: 0.0,
+            avg_frame_raster_time_ms: 0.0,
+            max_frame_raster_time_ms: 0.0,
+        };
+        assert_eq!(s.dropped_frame_pct(), 0.0);
+    }
+
+    #[test]
+    fn rendering_stats_dropped_frame_pct_correct_percentage() {
+        let s = RenderingStats {
+            total_frames: 100,
+            dropped_frames: 5,
+            avg_frame_build_time_ms: 0.0,
+            max_frame_build_time_ms: 0.0,
+            avg_frame_raster_time_ms: 0.0,
+            max_frame_raster_time_ms: 0.0,
+        };
+        assert_eq!(s.dropped_frame_pct(), 5.0);
+    }
+
+    #[test]
+    fn rendering_stats_dropped_frame_pct_full_loss() {
+        let s = RenderingStats {
+            total_frames: 10,
+            dropped_frames: 10,
+            avg_frame_build_time_ms: 0.0,
+            max_frame_build_time_ms: 0.0,
+            avg_frame_raster_time_ms: 0.0,
+            max_frame_raster_time_ms: 0.0,
+        };
+        assert_eq!(s.dropped_frame_pct(), 100.0);
     }
 }

@@ -424,6 +424,248 @@ fn check_missing_tests(
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    use tempfile::TempDir;
+
+    fn empty_patterns() -> ProjectPatterns {
+        ProjectPatterns::default()
+    }
+
+    fn patterns_with(uses_try_catch: usize, uses_result_type: usize, uses_either: usize) -> ProjectPatterns {
+        ProjectPatterns {
+            error_handling: ErrorHandlingPattern {
+                uses_try_catch,
+                uses_result_type,
+                uses_either,
+                total_error_sites: uses_try_catch + uses_result_type + uses_either,
+            },
+            _naming: NamingPatterns::default(),
+        }
+    }
+
+    // --- ObservationCategory::label ---
+
+    #[test]
+    fn observation_category_pattern_consistency_label() {
+        assert_eq!(ObservationCategory::PatternConsistency.label(), "Pattern");
+    }
+
+    #[test]
+    fn observation_category_naming_convention_label() {
+        assert_eq!(ObservationCategory::NamingConvention.label(), "Naming");
+    }
+
+    #[test]
+    fn observation_category_error_handling_label() {
+        assert_eq!(ObservationCategory::ErrorHandling.label(), "Error Handling");
+    }
+
+    #[test]
+    fn observation_category_missing_test_label() {
+        assert_eq!(ObservationCategory::MissingTest.label(), "Testing");
+    }
+
+    #[test]
+    fn observation_category_code_style_label() {
+        assert_eq!(ObservationCategory::CodeStyle.label(), "Style");
+    }
+
+    #[test]
+    fn observation_category_performance_label() {
+        assert_eq!(ObservationCategory::Performance.label(), "Performance");
+    }
+
+    // --- check_error_handling ---
+
+    #[test]
+    fn check_error_handling_flags_generic_catch_with_print() {
+        let file = PathBuf::from("test.dart");
+        let source = "try {\n  x();\n} catch (e) {\n  print(e);\n}";
+        let mut observations = Vec::new();
+        check_error_handling(&file, source, &mut observations);
+        assert_eq!(observations.len(), 1);
+        assert_eq!(observations[0].severity, ObservationSeverity::Critical);
+        assert!(matches!(observations[0].category, ObservationCategory::ErrorHandling));
+        assert!(observations[0].message.contains("Generic catch") || observations[0].message.contains("silently swallowed"));
+    }
+
+    #[test]
+    fn check_error_handling_flags_empty_catch_e() {
+        let file = PathBuf::from("test.dart");
+        let source = "try { x(); } catch (e) {}";
+        let mut observations = Vec::new();
+        check_error_handling(&file, source, &mut observations);
+        assert_eq!(observations.len(), 1);
+        assert_eq!(observations[0].severity, ObservationSeverity::Critical);
+        assert!(observations[0].message.contains("Empty catch block"));
+    }
+
+    #[test]
+    fn check_error_handling_flags_empty_catch_underscore() {
+        let file = PathBuf::from("test.dart");
+        let source = "try { x(); } catch (_) {}";
+        let mut observations = Vec::new();
+        check_error_handling(&file, source, &mut observations);
+        assert_eq!(observations.len(), 1);
+        assert_eq!(observations[0].severity, ObservationSeverity::Critical);
+    }
+
+    #[test]
+    fn check_error_handling_clean_code_no_observations() {
+        let file = PathBuf::from("test.dart");
+        let source = "try { x(); } on FormatException catch (e) { log(e); }";
+        let mut observations = Vec::new();
+        check_error_handling(&file, source, &mut observations);
+        assert!(observations.is_empty());
+    }
+
+    // --- check_pattern_consistency ---
+
+    #[test]
+    fn check_pattern_consistency_flags_try_catch_when_result_dominates() {
+        let file = PathBuf::from("feature.dart");
+        let source = "try { doWork(); } catch (e) { handle(e); }";
+        let patterns = patterns_with(1, 10, 0);
+        let mut observations = Vec::new();
+        check_pattern_consistency(&file, source, &patterns, &mut observations);
+        assert_eq!(observations.len(), 1);
+        assert!(observations[0].message.contains("Result type"));
+    }
+
+    #[test]
+    fn check_pattern_consistency_flags_try_catch_when_either_dominates() {
+        let file = PathBuf::from("feature.dart");
+        let source = "try { doWork(); } catch (e) { handle(e); }";
+        let patterns = patterns_with(1, 0, 10);
+        let mut observations = Vec::new();
+        check_pattern_consistency(&file, source, &patterns, &mut observations);
+        assert_eq!(observations.len(), 1);
+        assert!(observations[0].message.contains("Either type"));
+    }
+
+    #[test]
+    fn check_pattern_consistency_no_observation_when_try_catch_dominates() {
+        let file = PathBuf::from("feature.dart");
+        let source = "try { doWork(); } catch (e) { handle(e); }";
+        let patterns = patterns_with(10, 0, 0);
+        let mut observations = Vec::new();
+        check_pattern_consistency(&file, source, &patterns, &mut observations);
+        assert!(observations.is_empty());
+    }
+
+    // --- check_naming_consistency / check_naming_node ---
+
+    #[test]
+    fn check_naming_lowercase_class_flagged() {
+        let file = PathBuf::from("foo.dart");
+        let source = "class foo {}";
+        let patterns = empty_patterns();
+        let mut observations = Vec::new();
+        check_naming_consistency(&file, source, &patterns, &mut observations);
+        assert_eq!(observations.len(), 1);
+        assert!(matches!(observations[0].category, ObservationCategory::NamingConvention));
+        assert_eq!(observations[0].severity, ObservationSeverity::Suggestion);
+        assert!(observations[0].message.contains("UpperCamelCase"));
+        let suggestion = observations[0].suggestion.as_deref().unwrap_or("");
+        assert!(suggestion.contains("Foo"));
+    }
+
+    #[test]
+    fn check_naming_proper_case_no_observation() {
+        let file = PathBuf::from("foo.dart");
+        let source = "class Foo {}";
+        let patterns = empty_patterns();
+        let mut observations = Vec::new();
+        check_naming_consistency(&file, source, &patterns, &mut observations);
+        assert!(observations.is_empty());
+    }
+
+    #[test]
+    fn check_naming_invalid_dart_returns_early() {
+        let file = PathBuf::from("bad.dart");
+        let source = "@@@ not valid dart";
+        let patterns = empty_patterns();
+        let mut observations = Vec::new();
+        check_naming_consistency(&file, source, &patterns, &mut observations);
+        // Parser may return a tree with errors but no class_declaration nodes,
+        // so no NamingConvention observations should be produced.
+        let naming_obs: Vec<_> = observations
+            .iter()
+            .filter(|o| matches!(o.category, ObservationCategory::NamingConvention))
+            .collect();
+        assert!(naming_obs.is_empty());
+    }
+
+    // --- check_missing_tests ---
+
+    #[test]
+    fn check_missing_tests_no_test_dir_returns_early() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        let file = PathBuf::from("lib/my_feature.dart");
+        let source = "void doA() {}\nvoid doB() {}\nvoid doC() {}";
+        let mut observations = Vec::new();
+        check_missing_tests(root, &file, source, &mut observations);
+        assert!(observations.is_empty());
+    }
+
+    #[test]
+    fn check_missing_tests_flags_file_without_test() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        std::fs::create_dir(root.join("test")).unwrap();
+        let file = PathBuf::from("lib/my_feature.dart");
+        let source = "void doA() {}\nvoid doB() {}\nvoid doC() {}";
+        let mut observations = Vec::new();
+        check_missing_tests(root, &file, source, &mut observations);
+        assert_eq!(observations.len(), 1);
+        assert!(matches!(observations[0].category, ObservationCategory::MissingTest));
+        assert!(observations[0].message.contains("my_feature_test.dart"));
+    }
+
+    #[test]
+    fn check_missing_tests_skips_when_test_file_exists() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        std::fs::create_dir(root.join("test")).unwrap();
+        std::fs::write(root.join("test").join("my_feature_test.dart"), "").unwrap();
+        let file = PathBuf::from("lib/my_feature.dart");
+        let source = "void doA() {}\nvoid doB() {}\nvoid doC() {}";
+        let mut observations = Vec::new();
+        check_missing_tests(root, &file, source, &mut observations);
+        assert!(observations.is_empty());
+    }
+
+    // --- collect_project_patterns ---
+
+    #[test]
+    fn collect_project_patterns_no_lib_dir_returns_default() {
+        let dir = TempDir::new().unwrap();
+        let patterns = collect_project_patterns(dir.path(), &[]);
+        assert_eq!(patterns.error_handling.uses_try_catch, 0);
+        assert_eq!(patterns.error_handling.uses_result_type, 0);
+        assert_eq!(patterns.error_handling.uses_either, 0);
+        assert_eq!(patterns.error_handling.total_error_sites, 0);
+    }
+
+    #[test]
+    fn collect_project_patterns_counts_try_catch_and_result_in_lib() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        let lib_dir = root.join("lib");
+        std::fs::create_dir(&lib_dir).unwrap();
+        let content = "void foo() {\n  try { } catch (e) {}\n  Result<int, String> r = doSomething();\n}";
+        std::fs::write(lib_dir.join("a.dart"), content).unwrap();
+        let patterns = collect_project_patterns(root, &[]);
+        assert!(patterns.error_handling.uses_try_catch > 0);
+        assert!(patterns.error_handling.uses_result_type > 0);
+        assert!(patterns.error_handling.total_error_sites > 0);
+    }
+}
+
 pub fn print_review(report: &ReviewReport) {
     println!();
     println!(
