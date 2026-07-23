@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.5.0 (2026-07-23)
+
+### Added
+
+- Versioned, JSON-serializable navigation graph API for Flutter applications
+- GoRouter and FlutterFlow route, screen, and navigation-edge extraction
+- Contract checks for orphan routes, dangling references, and unguarded sensitive screens
+- Navigation graph diffs with broken-edge detection
+- Scoped Mermaid diagrams and Markdown pull-request summaries
+- 28 contract tests covering extraction, checks, diffs, rendering, and schema stability
+
+### Stats
+
+- 55 lint rules
+- 592 tests passing
+- 93 CLI commands
+- 220 source files (46,567 lines of Rust)
+
 ## 0.4.0 (2026-05-05)
 
 ### Stats
