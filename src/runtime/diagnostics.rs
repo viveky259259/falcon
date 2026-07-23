@@ -4,7 +4,6 @@
 use super::connection::{MemoryUsage, RenderingStats, VmServiceClient};
 use anyhow::Result;
 use serde_json::Value;
-use std::cmp::Reverse;
 
 /// A single point-in-time snapshot of all runtime diagnostics.
 #[derive(Debug, Clone)]
@@ -335,7 +334,7 @@ pub fn analyze_cpu(snapshots: &[RuntimeSnapshot]) -> CpuSummary {
     }
 
     let mut top_functions: Vec<(String, u64)> = func_counts.into_iter().collect();
-    top_functions.sort_by_key(|(_, count)| Reverse(*count));
+    top_functions.sort_by_key(|e| std::cmp::Reverse(e.1));
     top_functions.truncate(10);
 
     // Rough CPU estimate based on sample density.

@@ -1,6 +1,5 @@
 use crate::reporters::Issue;
 use colored::Colorize;
-use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -202,7 +201,7 @@ pub fn apply_fixes(fixes: &[FixSuggestion]) -> usize {
     }
 
     for (file, mut file_fixes) in by_file {
-        file_fixes.sort_by_key(|fix| Reverse(fix.line));
+        file_fixes.sort_by_key(|e| std::cmp::Reverse(e.line));
 
         let source = match std::fs::read_to_string(file) {
             Ok(s) => s,

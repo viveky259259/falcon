@@ -89,7 +89,7 @@ pub fn analyze_trends(history: &[AnalysisSnapshot], last_n: usize) -> Option<Tre
         }
     }
 
-    rule_changes.sort_by_key(|(_, count)| *count);
+    rule_changes.sort_by_key(|a| a.1);
 
     let top_improving: Vec<(String, i64)> = rule_changes
         .iter()

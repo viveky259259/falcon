@@ -11,7 +11,7 @@
 //!
 //! # Example
 //!
-//! ```text
+//! ```ignore
 //! let report = analyze_l10n_coverage(Path::new("."))?;
 //! print_l10n_report(&report);
 //! write_l10n_html_report(&report, Path::new("l10n_coverage.html"))?;
@@ -131,7 +131,11 @@ fn parse_arb_file(path: &Path) -> Result<ArbFile> {
     // Extract locale from filename (e.g., "app_en.arb" -> "en")
     let filename = path.file_stem().unwrap_or_default().to_string_lossy();
     let locale = if filename.contains('_') {
-        filename.rsplit('_').next().unwrap_or("unknown").to_string()
+        filename
+            .split('_')
+            .next_back()
+            .unwrap_or("unknown")
+            .to_string()
     } else {
         "base".to_string()
     };
@@ -1129,7 +1133,7 @@ mod tests {
         let mut used_keys = HashSet::new();
         find_keys_in_content(content, &mut used_keys);
 
-        assert!(used_keys.len() > 0);
+        assert!(!used_keys.is_empty());
     }
 
     #[test]

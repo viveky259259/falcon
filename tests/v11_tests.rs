@@ -157,7 +157,7 @@ class _MyState extends State<MyWidget> {
 fn test_avoid_excessive_widget_nesting() {
     let mut deep_widget = "return ".to_string();
     for _ in 0..15 {
-        deep_widget.push_str(&format!("Container(child: "));
+        deep_widget.push_str("Container(child: ");
     }
     deep_widget.push_str("Text('deep')");
     for _ in 0..15 {

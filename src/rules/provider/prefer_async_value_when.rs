@@ -35,8 +35,7 @@ impl Rule for PreferAsyncValueWhen {
             let has_error = text.contains(".hasError") || text.contains("is AsyncError");
             let has_data = text.contains(".hasValue") || text.contains("is AsyncData");
 
-            let state_checks = u8::from(has_loading) + u8::from(has_error) + u8::from(has_data);
-            if state_checks >= 2 {
+            if (has_data || has_error) && has_loading || (has_error && has_data) {
                 issues.push(Issue {
                     rule: self.name().to_string(),
                     message: "Consider using '.when(data:, error:, loading:)' instead of manual if-checks for AsyncValue.".to_string(),

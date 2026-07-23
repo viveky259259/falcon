@@ -4,7 +4,7 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use colored::Colorize;
 use serde::Serialize;
 use serde_json::Value;
-use std::cmp::{Ordering, Reverse};
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::Duration;
@@ -1051,7 +1051,7 @@ fn summarize_performance(timeline: &Value) -> PerformanceSummaryData {
         .into_iter()
         .map(|(name, count)| TimelineCount { name, count })
         .collect::<Vec<_>>();
-    top_event_counts.sort_by_key(|entry| Reverse(entry.count));
+    top_event_counts.sort_by_key(|e| std::cmp::Reverse(e.count));
     top_event_counts.truncate(DEFAULT_TOP_TIMELINE_COUNTS_LIMIT);
 
     durations.sort_by(|a, b| {
@@ -1102,7 +1102,7 @@ fn summarize_cpu_samples(cpu_samples: &Value) -> CpuSummaryData {
         .into_iter()
         .map(|(name, samples)| HotFunction { name, samples })
         .collect::<Vec<_>>();
-    hot_functions.sort_by_key(|entry| Reverse(entry.samples));
+    hot_functions.sort_by_key(|e| std::cmp::Reverse(e.samples));
     hot_functions.truncate(DEFAULT_TOP_HOT_FUNCTIONS_LIMIT);
 
     CpuSummaryData {
@@ -1188,7 +1188,7 @@ fn summarize_logging(events: &[Value]) -> LoggingSummaryData {
         .into_iter()
         .map(|(name, count)| TimelineCount { name, count })
         .collect::<Vec<_>>();
-    stream_counts.sort_by_key(|entry| Reverse(entry.count));
+    stream_counts.sort_by_key(|e| std::cmp::Reverse(e.count));
 
     LoggingSummaryData {
         total_events: events.len(),
@@ -1334,7 +1334,7 @@ fn summarize_rebuilds(raw: &Value) -> RebuildSummary {
         }
     }
 
-    entries.sort_by_key(|entry| Reverse(entry.count));
+    entries.sort_by_key(|e| std::cmp::Reverse(e.count));
     let total_widgets = entries.len();
     entries.truncate(DEFAULT_TOP_HOT_FUNCTIONS_LIMIT);
 

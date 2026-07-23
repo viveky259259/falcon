@@ -94,8 +94,9 @@ impl AiConfig {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum AiProvider {
     #[serde(alias = "openai")]
     OpenAi,
@@ -129,16 +130,12 @@ fn default_local_model() -> String {
 pub struct EmbeddedModelConfig {
     #[serde(default = "default_embedded_model_id")]
     pub model_id: String,
-
     #[serde(default = "default_embedded_model_file")]
     pub model_file: String,
-
     #[serde(default = "default_embedded_max_tokens")]
     pub max_tokens: usize,
-
     #[serde(default = "default_embedded_context_lines")]
     pub context_lines: usize,
-
     #[serde(default = "default_embedded_max_issues")]
     pub max_issues: usize,
 }
@@ -158,24 +155,20 @@ impl Default for EmbeddedModelConfig {
 fn default_embedded_model_id() -> String {
     "Qwen/Qwen2.5-0.5B-Instruct-GGUF".to_string()
 }
-
 fn default_embedded_model_file() -> String {
     "qwen2.5-0.5b-instruct-q4_k_m.gguf".to_string()
 }
-
 fn default_embedded_max_tokens() -> usize {
     128
 }
-
 fn default_embedded_context_lines() -> usize {
     12
 }
-
 fn default_embedded_max_issues() -> usize {
     100
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AiFeatureToggles {
     #[serde(default)]
     pub confidence_scoring: bool,
@@ -206,7 +199,7 @@ pub fn generate_ai_setup(path: &Path) -> anyhow::Result<()> {
 # AI Configuration (all features off by default)
 ai:
   enabled: false
-  # Provider: openai, anthropic, gemini, local, embedded, none
+  # Provider: openai, anthropic, gemini, local, none
   provider: none
   # API key (or use api_key_env to reference an environment variable)
   # api_key: "sk-..."
@@ -217,13 +210,6 @@ ai:
   # local:
   #   endpoint: "http://localhost:11434"
   #   model: "codellama"
-  # Embedded model config (for opt-in ai-local builds)
-  # embedded:
-  #   model_id: "Qwen/Qwen2.5-0.5B-Instruct-GGUF"
-  #   model_file: "qwen2.5-0.5b-instruct-q4_k_m.gguf"
-  #   max_tokens: 128
-  #   context_lines: 12
-  #   max_issues: 100
   features:
     confidence_scoring: false
     smart_fixes: false
@@ -235,4 +221,46 @@ ai:
     std::fs::write(&config_path, content)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod embedded_tests {
+    use super::*;
+
+    #[test]
+    fn embedded_config_has_sane_defaults() {
+        let c = EmbeddedModelConfig::default();
+        assert_eq!(c.model_id, "Qwen/Qwen2.5-0.5B-Instruct-GGUF");
+        assert!(c.model_file.ends_with(".gguf"));
+        assert_eq!(c.max_tokens, 128);
+        assert_eq!(c.context_lines, 12);
+        assert_eq!(c.max_issues, 100);
+    }
+
+    #[test]
+    fn provider_embedded_parses_from_alias() {
+        let p: AiProvider = serde_yaml::from_str("embedded").unwrap();
+        assert_eq!(p, AiProvider::Embedded);
+    }
+
+    #[test]
+    fn effective_model_for_embedded_uses_embedded_model_id() {
+        let cfg = AiConfig {
+            provider: AiProvider::Embedded,
+            embedded: Some(EmbeddedModelConfig::default()),
+            ..Default::default()
+        };
+        assert_eq!(cfg.effective_model(), "Qwen/Qwen2.5-0.5B-Instruct-GGUF");
+    }
+
+    #[test]
+    fn embedded_is_available_when_enabled_with_config() {
+        let cfg = AiConfig {
+            enabled: true,
+            provider: AiProvider::Embedded,
+            embedded: Some(EmbeddedModelConfig::default()),
+            ..Default::default()
+        };
+        assert!(cfg.is_available());
+    }
 }

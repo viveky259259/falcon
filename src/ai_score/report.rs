@@ -1,6 +1,5 @@
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
-use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -85,7 +84,7 @@ pub fn generate_ai_report(root: &Path) -> anyhow::Result<AiReport> {
             severity,
         })
         .collect();
-    top_issues.sort_by_key(|issue| Reverse(issue.count));
+    top_issues.sort_by_key(|e| std::cmp::Reverse(e.count));
     top_issues.truncate(10);
 
     let recommendations = generate_recommendations(&score, &provenance);
@@ -133,7 +132,7 @@ fn generate_recommendations(
     }
     if provenance.ai_pct > 30.0 {
         recs.push(format!(
-            "AI Provenance: {:.0}% of files show AI-generation patterns — run 'falcon score' after each AI session to catch common pitfalls.",
+            "AI Provenance: {:.0}% of files show AI-generation patterns — run 'falcon ai-score' after each AI session to catch common pitfalls.",
             provenance.ai_pct
         ));
     }

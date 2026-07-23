@@ -344,7 +344,7 @@ fn extract_constructor_params(lines: &[&str], class_line_idx: usize) -> Result<V
         let line = lines[idx];
 
         // Look for constructor
-        if (line.contains("const ") || idx == class_line_idx) && line.contains('(') {
+        if (line.contains("const ") || idx == class_line_idx) && line.find('(').is_some() {
             // Collect full parameter list
             let mut param_content = String::new();
             let mut brace_count = 0;

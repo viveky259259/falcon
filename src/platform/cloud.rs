@@ -121,7 +121,7 @@ pub fn save_cloud_config(root: &Path, config: &CloudConfig) -> anyhow::Result<()
 pub fn init_cloud(root: &Path, team_name: &str) -> anyhow::Result<()> {
     let config = CloudConfig {
         team_name: team_name.to_string(),
-        ..CloudConfig::default()
+        ..Default::default()
     };
     save_cloud_config(root, &config)?;
     Ok(())

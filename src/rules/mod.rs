@@ -8,36 +8,26 @@ pub mod severity;
 
 use crate::config::{FalconConfig, Severity};
 use crate::reporters::Issue;
-use crate::resolver::{Resolver, ResolverIndex};
 use std::collections::HashMap;
 use std::path::Path;
 use tree_sitter::Node;
-
-#[derive(Default)]
-pub struct RuleContext<'a> {
-    pub resolver_index: Option<&'a ResolverIndex>,
-    pub resolver: Option<&'a Resolver<'a>>,
-}
 
 pub trait Rule: Send + Sync {
     fn name(&self) -> &'static str;
     fn description(&self) -> &'static str;
     fn default_severity(&self) -> Severity;
     fn check(&self, root: Node, source: &str, file: &Path) -> Vec<Issue>;
-    fn check_with_context(
-        &self,
-        root: Node,
-        source: &str,
-        file: &Path,
-        _context: &RuleContext<'_>,
-    ) -> Vec<Issue> {
-        self.check(root, source, file)
-    }
     fn configure(&mut self, _options: &HashMap<String, serde_yaml::Value>) {}
 }
 
 pub struct RuleRegistry {
     rules: Vec<(Box<dyn Rule>, Severity)>,
+}
+
+impl Default for RuleRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RuleRegistry {
@@ -117,7 +107,7 @@ impl RuleRegistry {
             Box::new(flutter::EnsureSemanticsLabel),
             Box::new(flutter::EnsureImageSemantics),
             Box::new(flutter::EnsureTouchTargetSize),
-            // Behavioral rule pack (PR-F) — 6 implemented; richer provider/import resolution remains EPIC 3.1 work.
+            // Behavioral rule pack (PR-F) — 2 implemented, 4 resolver-pending (EPIC 3.1).
             Box::new(behavioral::SetStateAfterDispose),
             Box::new(behavioral::UnawaitedFutureInBuild),
             Box::new(behavioral::FakeMountedCheck),
@@ -139,16 +129,6 @@ impl RuleRegistry {
     }
 
     pub fn check(&self, root: Node, source: &str, file: &Path) -> Vec<Issue> {
-        self.check_with_context(root, source, file, &RuleContext::default())
-    }
-
-    pub fn check_with_context(
-        &self,
-        root: Node,
-        source: &str,
-        file: &Path,
-        context: &RuleContext<'_>,
-    ) -> Vec<Issue> {
         let mut issues = Vec::new();
 
         if is_suppressed_for_file(source) {
@@ -156,7 +136,7 @@ impl RuleRegistry {
         }
 
         for (rule, severity) in &self.rules {
-            let mut rule_issues = rule.check_with_context(root, source, file, context);
+            let mut rule_issues = rule.check(root, source, file);
             for issue in &mut rule_issues {
                 issue.severity = *severity;
             }
@@ -166,12 +146,6 @@ impl RuleRegistry {
         }
 
         issues
-    }
-}
-
-impl Default for RuleRegistry {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

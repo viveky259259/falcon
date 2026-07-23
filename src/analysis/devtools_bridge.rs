@@ -142,13 +142,13 @@ fn check_render_issues(file: &Path, source: &str, issues: &mut Vec<Issue>) {
                 && block.contains("children:")
             {
                 issues.push(Issue {
-                    rule: "perf-unbounded-list".to_string(),
-                    message: "ListView/GridView with children: builds all items eagerly. Use .builder() for large/dynamic lists.".to_string(),
-                    severity: Severity::Warning,
-                    file: file.to_path_buf(),
-                    line: i + 1,
-                    column: 1,
-                });
+                        rule: "perf-unbounded-list".to_string(),
+                        message: "ListView/GridView with children: builds all items eagerly. Use .builder() for large/dynamic lists.".to_string(),
+                        severity: Severity::Warning,
+                        file: file.to_path_buf(),
+                        line: i + 1,
+                        column: 1,
+                    });
             }
         }
 

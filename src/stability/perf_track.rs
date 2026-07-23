@@ -17,7 +17,7 @@ pub struct PerfSnapshot {
     pub git_commit: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PerfHistory {
     pub snapshots: Vec<PerfSnapshot>,
 }
@@ -142,7 +142,7 @@ pub fn print_perf_history(history: &PerfHistory, last_n: usize) {
 
     if snapshots.is_empty() {
         println!("  No performance data recorded yet.");
-        println!("  Run: falcon x perf-track <path>");
+        println!("  Run: falcon perf-track <path>");
         println!();
         return;
     }

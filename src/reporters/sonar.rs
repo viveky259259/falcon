@@ -56,6 +56,7 @@ fn sonar_severity(severity: &Severity) -> &'static str {
 }
 
 fn sonar_type(_rule: &str) -> &'static str {
+    // All Falcon findings currently map to the SonarQube CODE_SMELL type.
     "CODE_SMELL"
 }
 

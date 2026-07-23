@@ -56,7 +56,7 @@ pub fn scan_vulnerabilities(root: &Path) -> Vec<VulnFinding> {
         check_data_exposure(entry.path(), &source, &mut findings);
     }
 
-    findings.sort_by_key(|finding| risk_priority(&finding.risk_level));
+    findings.sort_by_key(|a| risk_priority(&a.risk_level));
     findings
 }
 
@@ -148,15 +148,15 @@ fn check_injection_risks(file: &Path, source: &str, findings: &mut Vec<VulnFindi
             && (trimmed.contains("$") || trimmed.contains("+ "))
         {
             findings.push(VulnFinding {
-                issue: Issue {
-                    rule: "vuln-sql-injection".to_string(),
-                    message: "SQL query with string interpolation — use parameterized queries to prevent SQL injection".to_string(),
-                    severity: Severity::Error,
-                    file: file.to_path_buf(), line: i + 1, column: 1,
-                },
-                risk_level: RiskLevel::Critical,
-                cwe: Some("CWE-89".to_string()),
-            });
+                    issue: Issue {
+                        rule: "vuln-sql-injection".to_string(),
+                        message: "SQL query with string interpolation — use parameterized queries to prevent SQL injection".to_string(),
+                        severity: Severity::Error,
+                        file: file.to_path_buf(), line: i + 1, column: 1,
+                    },
+                    risk_level: RiskLevel::Critical,
+                    cwe: Some("CWE-89".to_string()),
+                });
         }
 
         if trimmed.contains("Uri.parse(") && trimmed.contains("$") {

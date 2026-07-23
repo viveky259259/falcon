@@ -562,7 +562,7 @@ Prometheus export produces valid scrape-ready metrics.
 | ✅ `falcon x benchmark` command | Done | Performance profiling with throughput metrics |
 | ✅ Performance: 32K LOC in 794ms | Done | ~41K lines/sec, well under 5s target |
 | ✅ Graceful error handling | Done | Edge cases, large files, panic recovery |
-| ✅ Production stability | Done | 196 tests pass, zero known crashers |
+| ✅ Production stability | Done | 719 tests pass, zero known crashers |
 
 ### 1.0C: DCM Migration + Docs ✅
 
@@ -580,9 +580,9 @@ Prometheus export produces valid scrape-ready metrics.
 
 | Metric | Target | Current | Status |
 |---|---|---|---|
-| Rule count | 200+ | 48 | In progress |
+| Rule count | 200+ | 61 | In progress |
 | Performance | < 5s for 1M LOC | 794ms for 32K LOC | ✅ On track |
-| Test count | Comprehensive | 196 tests | ✅ |
+| Test count | Comprehensive | 719 tests | ✅ |
 | Zero known crashers | 0 | 0 | ✅ |
 | DCM migration | Working | 40/129 rules mapped | ✅ |
 

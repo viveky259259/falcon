@@ -2,7 +2,6 @@ use crate::config::FalconConfig;
 use crate::metrics;
 use crate::parser::DartParser;
 use colored::Colorize;
-use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -224,7 +223,7 @@ fn find_god_files(stats: &[FileStats], _root: &Path) -> Vec<GodFile> {
         })
         .collect();
 
-    gods.sort_by_key(|god| Reverse(god.lines));
+    gods.sort_by_key(|e| std::cmp::Reverse(e.lines));
     gods.truncate(10);
     gods
 }

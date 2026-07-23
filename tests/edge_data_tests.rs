@@ -41,7 +41,7 @@ fn test_baseline_create_with_issues() {
     ];
 
     let filtered = baseline.filter_new_issues(new_issues, tmp.path());
-    assert!(filtered.len() >= 1);
+    assert!(!filtered.is_empty());
 }
 
 #[test]
@@ -111,7 +111,7 @@ fn test_dep_graph_affected_files() {
     let graph = falcon::incremental::dep_graph::DependencyGraph::build(tmp.path(), &[]);
     let changed = vec![lib.join("b.dart")];
     let affected = graph.affected_files(&changed);
-    assert!(affected.len() >= 1);
+    assert!(!affected.is_empty());
 }
 
 // ─── Suppression: Persistence ───────────────────────────────────────────────
@@ -185,8 +185,10 @@ fn test_score_trends_roundtrip() {
 #[test]
 fn test_tune_history_roundtrip() {
     let tmp = tempfile::tempdir().unwrap();
-    let mut history = falcon::ai_score::self_tune::TuneHistory::default();
-    history.snapshots = 5;
+    let history = falcon::ai_score::self_tune::TuneHistory {
+        snapshots: 5,
+        ..Default::default()
+    };
 
     falcon::ai_score::self_tune::save_tune_history(tmp.path(), &history).unwrap();
     let loaded = falcon::ai_score::self_tune::load_tune_history(tmp.path()).unwrap();

@@ -1,5 +1,4 @@
 use colored::Colorize;
-use std::cmp::Reverse;
 use std::path::Path;
 use std::process::Command;
 use std::time::Instant;
@@ -64,7 +63,7 @@ pub fn compare_with_dart_analyze(root: &Path) -> anyhow::Result<CompareResult> {
     ];
 
     let mut overlap_categories: Vec<(String, usize)> = rule_counts.into_iter().collect();
-    overlap_categories.sort_by_key(|(_, count)| Reverse(*count));
+    overlap_categories.sort_by_key(|e| std::cmp::Reverse(e.1));
     overlap_categories.truncate(15);
 
     Ok(CompareResult {

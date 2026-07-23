@@ -9,7 +9,7 @@
 //!
 //! # Example
 //!
-//! ```text
+//! ```ignore
 //! let report = audit_assets(Path::new("."))?;
 //! print_asset_report(&report);
 //! write_asset_html_report(&report, Path::new("asset_audit.html"))?;
@@ -340,7 +340,7 @@ pub fn audit_assets_with_threshold(
 ) -> Result<AssetAuditReport> {
     let config = AuditConfig {
         oversized_threshold_bytes: size_threshold_kb * 1024,
-        ..AuditConfig::default()
+        ..Default::default()
     };
 
     // Parse pubspec.yaml for declared assets

@@ -64,6 +64,12 @@ pub struct SdkScore {
     pub complexity: u32,
 }
 
+impl Default for FalconSdk {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FalconSdk {
     /// Create a new Falcon SDK instance.
     pub fn new() -> Self {

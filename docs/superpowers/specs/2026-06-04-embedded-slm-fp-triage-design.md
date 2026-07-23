@@ -56,7 +56,7 @@ src/ai/local/
 
 - **`completer.rs`** — defines `trait Completer { fn complete(&mut self, prompt: &str, opts: &GenOpts) -> anyhow::Result<String>; }` and `GenOpts { max_tokens, temperature, stop }`. **This is the testability boundary**: all triage/prompt/parse logic depends on `&mut dyn Completer`, so it is fully testable with a fake and zero model download.
 
-- **`engine.rs`** — `LocalEngine` wraps candle (`candle-core`, `candle-transformers`) + `tokenizers`. `LocalEngine::load(spec: &EmbeddedModelConfig) -> Result<Self>` loads weights + `tokenizer.json` through `hf-hub` using Falcon's model cache, downloading them on first use. Implements `Completer` via greedy/low-temp sampling with stop tokens and a `max_tokens` cap. Device: CPU for this slice. The engine is **loaded once** and reused across all findings in a run.
+- **`engine.rs`** — `LocalEngine` wraps candle (`candle-core`, `candle-transformers`) + `tokenizers`. `LocalEngine::load(spec: &EmbeddedModelConfig) -> Result<Self>` loads weights + `tokenizer.json` from the cache. Implements `Completer` via greedy/low-temp sampling with stop tokens and a `max_tokens` cap. Device: CPU by default; best-effort Metal on macOS (`cfg(target_os = "macos")`). The engine is **loaded once** and reused across all findings in a run.
 
 - **`model_cache.rs`** — resolves the cache dir (`~/.cache/falcon/models/<model-id>/`, honoring `XDG_CACHE_HOME`, via `dirs`). On first run, downloads model weights + `tokenizer.json` (via `hf-hub`) idempotently, printing a one-line progress indicator. Verifies file presence before returning a ready path.
 
@@ -96,7 +96,7 @@ When the binary is built **without** `ai-local`, the `ai triage` command still e
 
 ## Data Flow
 
-1. User runs `falcon x ai triage <path>` (feature-gated).
+1. User runs `falcon ai triage <path>` (feature-gated).
 2. Falcon runs normal analysis → `Vec<Issue>`.
 3. Issues are capped at `max_issues` (configurable). **If truncated, a warning is printed** — no silent caps.
 4. `LocalEngine` is loaded once (downloading weights on first ever run).
@@ -147,7 +147,7 @@ Default build pulls none of these — compile time and binary size unchanged unl
 - `crate::reporters::Issue { rule, message, severity, file, line, column }` — input to triage.
 - `src/ai/confidence.rs` — heuristic scorer stays; triage is a parallel, additive surface.
 - `src/ai/mod.rs` — add `#[cfg(feature = "ai-local")] pub mod local;`.
-- `src/main.rs` — register `ai triage` subcommand (with cfg-gated stub for the feature-off build); mirror the dispatch style of the existing `x check-unused-confidence` command.
+- `src/main.rs` — register `ai triage` subcommand (with cfg-gated stub for the feature-off build); mirror the dispatch style of the existing `check-unused-confidence` command.
 - `src/ai/config.rs` — `AiProvider::Embedded` + `EmbeddedModelConfig`.
 
 ## Future Slices (not this spec)

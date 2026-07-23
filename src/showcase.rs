@@ -1,5 +1,4 @@
 use colored::Colorize;
-use std::cmp::Reverse;
 use std::path::Path;
 
 #[derive(Debug, Clone)]
@@ -36,7 +35,7 @@ pub fn analyze_local_project(path: &Path, name: &str) -> anyhow::Result<RepoAnal
     }
 
     let mut top_rules: Vec<(String, usize)> = rule_counts.into_iter().collect();
-    top_rules.sort_by_key(|(_, count)| Reverse(*count));
+    top_rules.sort_by_key(|e| std::cmp::Reverse(e.1));
     top_rules.truncate(5);
 
     let issue_count = report.issues.len();
@@ -76,7 +75,7 @@ pub fn generate_showcase_report(repos: Vec<RepoAnalysis>) -> ShowcaseReport {
         }
     }
     let mut most_common: Vec<(String, usize)> = all_rules.into_iter().collect();
-    most_common.sort_by_key(|(_, count)| Reverse(*count));
+    most_common.sort_by_key(|e| std::cmp::Reverse(e.1));
     most_common.truncate(10);
 
     ShowcaseReport {
