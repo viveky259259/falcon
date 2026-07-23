@@ -488,7 +488,6 @@ pub fn send_os_notification(title: &str, message: &str) {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status();
-        return;
     }
 
     // Windows (PowerShell toast)

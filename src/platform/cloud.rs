@@ -415,8 +415,10 @@ mod tests {
     #[test]
     fn test_load_cloud_config_reads_saved_config() {
         let tmp = TempDir::new().unwrap();
-        let mut expected = CloudConfig::default();
-        expected.team_name = "Test Team".to_string();
+        let expected = CloudConfig {
+            team_name: "Test Team".to_string(),
+            ..Default::default()
+        };
         save_cloud_config(tmp.path(), &expected).unwrap();
 
         let loaded = load_cloud_config(tmp.path()).unwrap();

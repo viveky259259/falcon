@@ -71,7 +71,7 @@ fn walk<'a>(node: Node<'a>, source: &str, out: &mut Vec<WidgetOccurrence>) {
     // Check if this node is an identifier that is the start of a widget call
     // (i.e. next sibling is a selector with argument_part).
     if let Some(name) = widget_call_name_at_identifier(node, source) {
-        if INTERACTIVE_WIDGETS.iter().any(|w| *w == name) {
+        if INTERACTIVE_WIDGETS.contains(&name) {
             let wrapped = nearest_semantics_with_identifier(node, source, ANCESTOR_LOOKBACK);
             out.push(WidgetOccurrence {
                 kind: name.to_string(),
