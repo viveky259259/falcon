@@ -12,16 +12,6 @@ pub enum WidgetType {
     Consumer,
 }
 
-impl WidgetType {
-    fn as_str(&self) -> &'static str {
-        match self {
-            WidgetType::Stateless => "StatelessWidget",
-            WidgetType::Stateful => "StatefulWidget",
-            WidgetType::Consumer => "ConsumerWidget",
-        }
-    }
-}
-
 /// Represents a constructor parameter of a widget
 #[derive(Debug, Clone)]
 pub struct WidgetParam {
@@ -71,7 +61,7 @@ pub fn discover_widgets(path: &Path) -> Result<Vec<DiscoveredWidget>> {
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .filter(|e| {
             let rel_path = e.path().strip_prefix(path).unwrap_or_else(|_| e.path());
             let path_str = rel_path.to_string_lossy();
@@ -354,36 +344,33 @@ fn extract_constructor_params(lines: &[&str], class_line_idx: usize) -> Result<V
         let line = lines[idx];
 
         // Look for constructor
-        if line.contains("const ") || idx == class_line_idx {
-            if line.find('(').is_some() {
-                // Collect full parameter list
-                let mut param_content = String::new();
-                let mut brace_count = 0;
-                let mut in_params = false;
+        if (line.contains("const ") || idx == class_line_idx) && line.contains('(') {
+            // Collect full parameter list
+            let mut param_content = String::new();
+            let mut brace_count = 0;
+            let mut in_params = false;
 
-                for check_idx in idx..lines.len() {
-                    let check_line = lines[check_idx];
-                    for ch in check_line.chars() {
-                        match ch {
-                            '(' => {
-                                in_params = true;
-                                brace_count += 1;
-                            }
-                            ')' => {
-                                brace_count -= 1;
-                                if brace_count == 0 && in_params {
-                                    return Ok(parse_params(&param_content));
-                                }
-                            }
-                            _ if in_params && brace_count > 0 => {
-                                param_content.push(ch);
-                            }
-                            _ => {}
+            for check_line in lines.iter().skip(idx) {
+                for ch in check_line.chars() {
+                    match ch {
+                        '(' => {
+                            in_params = true;
+                            brace_count += 1;
                         }
+                        ')' => {
+                            brace_count -= 1;
+                            if brace_count == 0 && in_params {
+                                return Ok(parse_params(&param_content));
+                            }
+                        }
+                        _ if in_params && brace_count > 0 => {
+                            param_content.push(ch);
+                        }
+                        _ => {}
                     }
-                    if brace_count == 0 && in_params {
-                        break;
-                    }
+                }
+                if brace_count == 0 && in_params {
+                    break;
                 }
             }
         }
@@ -438,7 +425,7 @@ fn parse_single_param(param_str: &str) -> Option<WidgetParam> {
 
     let is_required = trimmed.starts_with("required ");
     let param_str = if is_required {
-        &trimmed[9..].trim()
+        trimmed[9..].trim()
     } else {
         trimmed
     };

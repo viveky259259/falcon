@@ -1,6 +1,6 @@
 //! Smell categorization: bucket falcon issues into Dead Code, Code Smells, Security Smells.
 //!
-//! Used by the `falcon smells` command to give users a SonarQube-style classified view
+//! Used by the `falcon x smells` command to give users a SonarQube-style classified view
 //! instead of a flat severity-only list.
 
 pub mod dead_folders;
@@ -81,9 +81,14 @@ pub fn classify(rule_id: &str) -> SmellCategory {
         || r.contains("dynamic")
         || r.contains("late-keyword")
         || r.contains("empty-catch")
+        || r.contains("silent-catch")
         || r.contains("print-in-production")
         || r.contains("returning-widgets")
         || r.contains("unawaited-future")
+        || r.contains("fake-mounted-check")
+        || r.contains("set-state-after-dispose")
+        || r.contains("riverpod-scope-leak")
+        || r.contains("dispose-not-called")
         || r.contains("non-ascii")
         || r.contains("double-negation")
         || r.contains("unnecessary-")
@@ -194,6 +199,18 @@ mod tests {
             classify("avoid-unused-parameters"),
             SmellCategory::CodeSmell
         );
+        assert_eq!(classify("fake-mounted-check"), SmellCategory::CodeSmell);
+        assert_eq!(classify("silent-catch"), SmellCategory::CodeSmell);
+        assert_eq!(
+            classify("unawaited-future-in-build"),
+            SmellCategory::CodeSmell
+        );
+        assert_eq!(
+            classify("set-state-after-dispose"),
+            SmellCategory::CodeSmell
+        );
+        assert_eq!(classify("riverpod-scope-leak"), SmellCategory::CodeSmell);
+        assert_eq!(classify("dispose-not-called"), SmellCategory::CodeSmell);
     }
 
     #[test]

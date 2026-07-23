@@ -28,13 +28,13 @@ This report presents the first systematic analysis of AI-generated Flutter code 
 cargo install --git https://github.com/viveky259259/falcon
 
 # Score any Flutter project
-falcon ai-score /path/to/your/flutter/app
+falcon score /path/to/your/flutter/app
 
 # Full report with provenance
-falcon ai-report /path/to/your/flutter/app
+falcon x ai-report /path/to/your/flutter/app
 
 # Detect AI-generated files
-falcon provenance /path/to/your/flutter/app --verbose
+falcon x provenance /path/to/your/flutter/app --verbose
 ```
 
 ---
@@ -122,9 +122,9 @@ navigateToNextScreen(); // Missing await!
 
 ### For developers using AI tools
 
-1. **Always run `falcon ai-score` after an AI coding session** — catch the patterns AI consistently misses
-2. **Use `falcon analyze --preset ai-generated`** — the preset targets the 20 most common AI code issues
-3. **Check dispose lifecycle** — run `falcon check-widgets` after generating StatefulWidgets
+1. **Always run `falcon score` after an AI coding session** — catch the patterns AI consistently misses
+2. **Use `falcon check --preset ai-generated`** — the preset targets the 20 most common AI code issues
+3. **Check dispose lifecycle** — run `falcon x check-widgets` after generating StatefulWidgets
 4. **Never trust empty catch blocks** — search for `catch (e) {}` in AI-generated code
 
 ### For AI tool builders
@@ -132,14 +132,14 @@ navigateToNextScreen(); // Missing await!
 1. **Integrate Falcon as an MCP server** — `falcon-mcp` provides real-time analysis during generation
 2. **Focus on Error Handling** — the -45 point gap is the largest and most impactful
 3. **Add dispose() awareness** — this is a Flutter-specific pattern that all AI tools miss
-4. **Use Falcon's benchmark database** — `falcon benchmark-db` tracks your tool's quality over time
+4. **Use Falcon's benchmark database** — `falcon x benchmark-db` tracks your tool's quality over time
 
 ### For engineering leads
 
-1. **Add `falcon ai-score` to CI** — set a minimum score threshold (we recommend 70+)
-2. **Use `falcon pr-comment`** — automatic analysis on every PR
-3. **Track score trends** — `falcon score-track` shows quality trajectory over time
-4. **Set enterprise policies** — `falcon enterprise check` enforces team standards
+1. **Add `falcon score` to CI** — set a minimum score threshold (we recommend 70+)
+2. **Use `falcon review --format gh`** — automatic analysis on every PR
+3. **Track score trends** — `falcon x score-track` shows quality trajectory over time
+4. **Set enterprise policies** — `falcon x enterprise check` enforces team standards
 
 ---
 

@@ -101,6 +101,104 @@ fn test_sarif_severity_mapping() {
     assert!(contents.contains("\"note\""));
 }
 
+#[test]
+fn test_sarif_includes_code_scanning_structure() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path().join("repo");
+    std::fs::create_dir_all(root.join("lib")).unwrap();
+    let report = AnalysisReport {
+        issues: vec![
+            Issue {
+                rule: "avoid-print-in-production".to_string(),
+                message: "Avoid print calls.".to_string(),
+                severity: Severity::Warning,
+                file: root.join("lib/main.dart"),
+                line: 3,
+                column: 5,
+            },
+            Issue {
+                rule: "avoid-print-in-production".to_string(),
+                message: "Avoid print calls again.".to_string(),
+                severity: Severity::Warning,
+                file: root.join("lib/other.dart"),
+                line: 9,
+                column: 2,
+            },
+        ],
+        metrics: Vec::new(),
+        file_count: 2,
+        project_path: Some(root.clone()),
+    };
+    let out = dir.path().join("result.sarif");
+    let reporter = SarifReporter {
+        output_path: Some(out.clone()),
+    };
+    reporter.report_analysis(&report);
+
+    let contents = std::fs::read_to_string(&out).unwrap();
+    let json: serde_json::Value = serde_json::from_str(&contents).unwrap();
+    let run = &json["runs"][0];
+    let driver = &run["tool"]["driver"];
+    assert_eq!(json["version"], "2.1.0");
+    assert!(driver["semanticVersion"].as_str().is_some());
+    assert_eq!(run["columnKind"], "utf16CodeUnits");
+    assert_eq!(run["invocations"][0]["executionSuccessful"], true);
+
+    let rules = driver["rules"].as_array().unwrap();
+    assert_eq!(rules.len(), 1);
+    assert_eq!(rules[0]["id"], "avoid-print-in-production");
+    assert_eq!(rules[0]["name"], "avoid-print-in-production");
+    assert!(rules[0]["fullDescription"]["text"].as_str().is_some());
+
+    let results = run["results"].as_array().unwrap();
+    assert_eq!(results.len(), 2);
+    for result in results {
+        assert_eq!(result["ruleId"], "avoid-print-in-production");
+        assert_eq!(result["ruleIndex"], 0);
+        assert_eq!(result["kind"], "fail");
+        assert!(result["level"].as_str().is_some());
+        assert!(result["message"]["text"].as_str().is_some());
+        let physical = &result["locations"][0]["physicalLocation"];
+        assert!(physical["artifactLocation"]["uri"].as_str().is_some());
+        assert!(physical["artifactLocation"].get("uriBaseId").is_none());
+        assert!(physical["region"]["startLine"].as_u64().is_some());
+        assert!(physical["region"]["startColumn"].as_u64().is_some());
+    }
+    assert_eq!(
+        results[0]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"],
+        "lib/main.dart"
+    );
+}
+
+#[test]
+fn test_sarif_output_validates_against_schema() {
+    let report = sample_report();
+    let dir = TempDir::new().unwrap();
+    let out = dir.path().join("result.sarif");
+
+    let reporter = SarifReporter {
+        output_path: Some(out.clone()),
+    };
+    reporter.report_analysis(&report);
+
+    let contents = std::fs::read_to_string(&out).unwrap();
+    let sarif: serde_json::Value = serde_json::from_str(&contents).unwrap();
+    let schema: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/schemas/sarif-schema-2.1.0.json")).unwrap();
+    let compiled = jsonschema::JSONSchema::options()
+        .with_draft(jsonschema::Draft::Draft4)
+        .compile(&schema)
+        .unwrap();
+
+    if let Err(errors) = compiled.validate(&sarif) {
+        let messages = errors.map(|error| error.to_string()).collect::<Vec<_>>();
+        panic!(
+            "generated SARIF did not validate against SARIF 2.1.0 schema:\n{}",
+            messages.join("\n")
+        );
+    };
+}
+
 // --- CodeClimate Reporter Tests ---
 
 #[test]
@@ -282,6 +380,7 @@ fn test_baseline_create_and_filter() {
     assert!(path.exists());
 
     let baseline = Baseline::load(dir.path()).unwrap();
+    assert_eq!(baseline.schema_version, 1);
     assert_eq!(baseline.entries.len(), 3);
 
     let new_issues = vec![

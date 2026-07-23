@@ -64,7 +64,7 @@
                     <tr><td><code>analyze</code></td><td>Run full static analysis on the project</td><td><code>--fix</code>, <code>--strict</code>, <code>--json</code></td></tr>
                     <tr><td><code>metrics</code></td><td>Compute code metrics (LOC, complexity, etc.)</td><td><code>--format</code>, <code>--output</code></td></tr>
                     <tr><td><code>ai-score</code></td><td>Get AI-powered quality score (0–100)</td><td><code>--model</code>, <code>--verbose</code></td></tr>
-                    <tr><td><code>ai-report</code></td><td>Generate detailed AI analysis report</td><td><code>--output</code>, <code>--format</code></td></tr>
+                    <tr><td><code>x ai-report</code></td><td>Generate detailed AI analysis report</td><td><code>--output</code>, <code>--format</code></td></tr>
                 </tbody>
             </table>
 
@@ -82,14 +82,14 @@
                     <tr><td><code>check-dead-code</code></td><td>Identify unreachable code paths</td><td><code>--strict</code></td></tr>
                     <tr><td><code>check-unused-l10n</code></td><td>Find unused localization strings</td><td><code>--arb-dir</code></td></tr>
                     <tr><td><code>check-promoted-deps</code></td><td>Check for promoted transitive deps</td><td><code>--fix</code></td></tr>
-                    <tr><td><code>check-layers</code></td><td>Enforce architectural layer boundaries</td><td><code>--config</code></td></tr>
-                    <tr><td><code>check-imports</code></td><td>Validate import order and rules</td><td><code>--fix</code>, <code>--group</code></td></tr>
-                    <tr><td><code>check-widgets</code></td><td>Flutter widget-specific checks</td><td><code>--const</code>, <code>--keys</code></td></tr>
-                    <tr><td><code>check-async</code></td><td>Async/await and Future best practices</td><td><code>--strict</code></td></tr>
-                    <tr><td><code>check-platform</code></td><td>Platform-specific code validation</td><td><code>--targets</code></td></tr>
-                    <tr><td><code>check-codegen</code></td><td>Verify code generation outputs</td><td><code>--run</code></td></tr>
-                    <tr><td><code>check-perf</code></td><td>Performance anti-pattern detection</td><td><code>--report</code></td></tr>
-                    <tr><td><code>cognitive-complexity</code></td><td>Compute cognitive complexity scores</td><td><code>--threshold</code>, <code>--json</code></td></tr>
+                    <tr><td><code>x check-layers</code></td><td>Enforce architectural layer boundaries</td><td><code>--config</code></td></tr>
+                    <tr><td><code>x check-imports</code></td><td>Validate import order and rules</td><td><code>--fix</code>, <code>--group</code></td></tr>
+                    <tr><td><code>x check-widgets</code></td><td>Flutter widget-specific checks</td><td><code>--const</code>, <code>--keys</code></td></tr>
+                    <tr><td><code>x check-async</code></td><td>Async/await and Future best practices</td><td><code>--strict</code></td></tr>
+                    <tr><td><code>x check-platform</code></td><td>Platform-specific code validation</td><td><code>--targets</code></td></tr>
+                    <tr><td><code>x check-codegen</code></td><td>Verify code generation outputs</td><td><code>--run</code></td></tr>
+                    <tr><td><code>x check-perf</code></td><td>Performance anti-pattern detection</td><td><code>--report</code></td></tr>
+                    <tr><td><code>x cognitive-complexity</code></td><td>Compute cognitive complexity scores</td><td><code>--threshold</code>, <code>--json</code></td></tr>
                 </tbody>
             </table>
 
@@ -99,16 +99,16 @@
                     <tr><th>Command</th><th>Description</th><th>Key Flags</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>provenance</code></td><td>Trace code provenance and authorship</td><td><code>--format</code>, <code>--since</code></td></tr>
-                    <tr><td><code>conventions</code></td><td>Learn and enforce project conventions</td><td><code>--learn</code>, <code>--apply</code></td></tr>
-                    <tr><td><code>drift</code></td><td>Detect convention drift over time</td><td><code>--baseline</code>, <code>--report</code></td></tr>
-                    <tr><td><code>predict</code></td><td>Predict refactoring impact</td><td><code>--scope</code>, <code>--dry-run</code></td></tr>
-                    <tr><td><code>discover-rules</code></td><td>AI-discover custom rules from codebase</td><td><code>--output</code>, <code>--min-confidence</code></td></tr>
+                    <tr><td><code>x provenance</code></td><td>Trace code provenance and authorship</td><td><code>--format</code>, <code>--since</code></td></tr>
+                    <tr><td><code>x conventions</code></td><td>Learn and enforce project conventions</td><td><code>--learn</code>, <code>--apply</code></td></tr>
+                    <tr><td><code>x drift</code></td><td>Detect convention drift over time</td><td><code>--baseline</code>, <code>--report</code></td></tr>
+                    <tr><td><code>x predict</code></td><td>Predict refactoring impact</td><td><code>--scope</code>, <code>--dry-run</code></td></tr>
+                    <tr><td><code>x discover-rules</code></td><td>AI-discover custom rules from codebase</td><td><code>--output</code>, <code>--min-confidence</code></td></tr>
                     <tr><td><code>refactor-sim</code></td><td>Simulate refactoring suggestions</td><td><code>--target</code>, <code>--diff</code></td></tr>
                     <tr><td><code>test-gen</code></td><td>Generate unit tests with AI</td><td><code>--target</code>, <code>--coverage</code></td></tr>
                     <tr><td><code>vuln-scan</code></td><td>Scan for known vulnerabilities</td><td><code>--fix</code>, <code>--advisory-db</code></td></tr>
-                    <tr><td><code>upgrade-check</code></td><td>Check upgrade path for dependencies</td><td><code>--major</code>, <code>--dry-run</code></td></tr>
-                    <tr><td><code>ai</code></td><td>AI setup and status (setup, status)</td><td><code>setup</code>, <code>status</code></td></tr>
+                    <tr><td><code>x upgrade-check</code></td><td>Check upgrade path for dependencies</td><td><code>--major</code>, <code>--dry-run</code></td></tr>
+                    <tr><td><code>x ai</code></td><td>AI setup and status (setup, status)</td><td><code>setup</code>, <code>status</code></td></tr>
                 </tbody>
             </table>
 
@@ -120,8 +120,8 @@
                 <tbody>
                     <tr><td><code>fix</code></td><td>Auto-fix safe issues</td><td><code>--dry-run</code>, <code>--rules</code></td></tr>
                     <tr><td><code>review</code></td><td>Review code changes (diff-aware)</td><td><code>--base</code>, <code>--head</code></td></tr>
-                    <tr><td><code>explain</code></td><td>Explain why a rule fired</td><td><code>--rule</code>, <code>--file</code></td></tr>
-                    <tr><td><code>codebase-intel</code></td><td>Query codebase with natural language</td><td><code>--query</code>, <code>--format</code></td></tr>
+                    <tr><td><code>x explain</code></td><td>Explain why a rule fired</td><td><code>--rule</code>, <code>--file</code></td></tr>
+                    <tr><td><code>x codebase-intel</code></td><td>Query codebase with natural language</td><td><code>--query</code>, <code>--format</code></td></tr>
                 </tbody>
             </table>
 
@@ -132,8 +132,8 @@
                 </thead>
                 <tbody>
                     <tr><td><code>pr-comment</code></td><td>Post analysis as PR comment</td><td><code>--token</code>, <code>--pr</code>, <code>--repo</code></td></tr>
-                    <tr><td><code>webhook</code></td><td>Run as webhook handler for CI</td><td><code>--port</code>, <code>--secret</code></td></tr>
-                    <tr><td><code>compare</code></td><td>Compare analysis across branches</td><td><code>--base</code>, <code>--head</code>, <code>--json</code></td></tr>
+                    <tr><td><code>x webhook</code></td><td>Run as webhook handler for CI</td><td><code>--port</code>, <code>--secret</code></td></tr>
+                    <tr><td><code>x compare</code></td><td>Compare Falcon vs dart analyze</td><td></td></tr>
                 </tbody>
             </table>
 
@@ -143,11 +143,11 @@
                     <tr><th>Command</th><th>Description</th><th>Key Flags</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>score-track</code></td><td>Track AI score over time</td><td><code>--store</code>, <code>--chart</code></td></tr>
-                    <tr><td><code>perf-track</code></td><td>Track performance metrics</td><td><code>--baseline</code>, <code>--report</code></td></tr>
-                    <tr><td><code>self-tune</code></td><td>Auto-tune rule thresholds from history</td><td><code>--dry-run</code>, <code>--apply</code></td></tr>
-                    <tr><td><code>benchmark</code></td><td>Benchmark analysis performance</td><td><code>--runs</code>, <code>--warmup</code></td></tr>
-                    <tr><td><code>benchmark-db</code></td><td>Benchmark with persistent DB</td><td><code>--db</code>, <code>--compare</code></td></tr>
+                    <tr><td><code>x score-track</code></td><td>Track AI score over time</td><td><code>--store</code>, <code>--chart</code></td></tr>
+                    <tr><td><code>x perf-track</code></td><td>Track performance metrics</td><td><code>--baseline</code>, <code>--report</code></td></tr>
+                    <tr><td><code>x self-tune</code></td><td>Auto-tune rule thresholds from history</td><td><code>--dry-run</code>, <code>--apply</code></td></tr>
+                    <tr><td><code>x benchmark</code></td><td>Benchmark analysis performance</td><td><code>--runs</code>, <code>--warmup</code></td></tr>
+                    <tr><td><code>x benchmark-db</code></td><td>Benchmark with persistent DB</td><td><code>--db</code>, <code>--compare</code></td></tr>
                 </tbody>
             </table>
 
@@ -157,13 +157,13 @@
                     <tr><th>Command</th><th>Description</th><th>Key Flags</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>init</code></td><td>Initialize Falcon config in project</td><td><code>--force</code>, <code>--preset</code></td></tr>
-                    <tr><td><code>validate</code></td><td>Validate falcon.yaml and config</td><td><code>--strict</code></td></tr>
-                    <tr><td><code>watch</code></td><td>Watch mode — re-run on file changes</td><td><code>--debounce</code>, <code>--command</code></td></tr>
-                    <tr><td><code>baseline</code></td><td>Create or update baseline</td><td><code>--create</code>, <code>--update</code></td></tr>
-                    <tr><td><code>dep-graph</code></td><td>Generate dependency graph</td><td><code>--format</code>, <code>--output</code></td></tr>
-                    <tr><td><code>workspace</code></td><td>Multi-package workspace support</td><td><code>--packages</code>, <code>--all</code></td></tr>
-                    <tr><td><code>docs</code></td><td>Generate or serve documentation</td><td><code>--serve</code>, <code>--output</code></td></tr>
+                    <tr><td><code>x init</code></td><td>Initialize Falcon config in project</td><td><code>--force</code>, <code>--preset</code></td></tr>
+                    <tr><td><code>x validate</code></td><td>Validate falcon.yaml and config</td><td><code>--strict</code></td></tr>
+                    <tr><td><code>x watch</code></td><td>Watch mode — re-run on file changes</td><td><code>--debounce</code>, <code>--command</code></td></tr>
+                    <tr><td><code>x baseline</code></td><td>Create or update baseline</td><td><code>create</code></td></tr>
+                    <tr><td><code>x dep-graph</code></td><td>Generate dependency graph</td><td><code>--file</code></td></tr>
+                    <tr><td><code>x workspace</code></td><td>Multi-package workspace support</td><td><code>[path]</code></td></tr>
+                    <tr><td><code>x docs</code></td><td>Generate documentation</td><td><code>[output]</code></td></tr>
                 </tbody>
             </table>
 
@@ -173,10 +173,10 @@
                     <tr><th>Command</th><th>Description</th><th>Key Flags</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>plugin</code></td><td>Plugin management (create, list, install, search, test)</td><td><code>create</code>, <code>list</code>, <code>install</code>, <code>search</code>, <code>test</code></td></tr>
-                    <tr><td><code>preset</code></td><td>Preset management (list, show, apply)</td><td><code>list</code>, <code>show</code>, <code>apply</code></td></tr>
-                    <tr><td><code>rule-docs</code></td><td>Generate rule documentation</td><td><code>--output</code>, <code>--format</code></td></tr>
-                    <tr><td><code>showcase</code></td><td>Showcase rule examples</td><td><code>--rule</code>, <code>--interactive</code></td></tr>
+                    <tr><td><code>x plugin</code></td><td>Plugin management (create, list, install, search, test)</td><td><code>create</code>, <code>list</code>, <code>install</code>, <code>search</code>, <code>test</code></td></tr>
+                    <tr><td><code>x preset</code></td><td>Preset management (list, show, apply)</td><td><code>list</code>, <code>show</code>, <code>apply</code></td></tr>
+                    <tr><td><code>x rule-docs</code></td><td>Generate rule documentation</td><td><code>--output</code>, <code>--format</code></td></tr>
+                    <tr><td><code>x showcase</code></td><td>Showcase rule examples</td><td><code>--rule</code>, <code>--interactive</code></td></tr>
                 </tbody>
             </table>
 
@@ -186,11 +186,11 @@
                     <tr><th>Command</th><th>Description</th><th>Key Flags</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>learn</code></td><td>Learn patterns from codebase</td><td><code>--output</code>, <code>--min-support</code></td></tr>
-                    <tr><td><code>fix-track</code></td><td>Track fix history and effectiveness</td><td><code>--since</code>, <code>--report</code></td></tr>
-                    <tr><td><code>suppress</code></td><td>Manage suppressions</td><td><code>--add</code>, <code>--list</code>, <code>--remove</code></td></tr>
-                    <tr><td><code>community</code></td><td>Community rules and contributions</td><td><code>--list</code>, <code>--install</code></td></tr>
-                    <tr><td><code>export</code></td><td>Export analysis data</td><td><code>--format</code>, <code>--output</code></td></tr>
+                    <tr><td><code>x learn</code></td><td>Learn patterns from codebase</td><td><code>--output</code>, <code>--min-support</code></td></tr>
+                    <tr><td><code>x fix-track</code></td><td>Track fix history and effectiveness</td><td><code>--since</code>, <code>--report</code></td></tr>
+                    <tr><td><code>x suppress</code></td><td>Manage suppressions</td><td><code>add</code>, <code>stats</code>, <code>list</code></td></tr>
+                    <tr><td><code>x community</code></td><td>Community rules and contributions</td><td><code>--list</code>, <code>--install</code></td></tr>
+                    <tr><td><code>x export</code></td><td>Export analysis data</td><td><code>--format</code>, <code>--output</code></td></tr>
                 </tbody>
             </table>
 
@@ -200,12 +200,12 @@
                     <tr><th>Command</th><th>Description</th><th>Key Flags</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>cloud</code></td><td>Cloud platform (init, add-project, dashboard)</td><td><code>init</code>, <code>add-project</code>, <code>dashboard</code></td></tr>
-                    <tr><td><code>enterprise</code></td><td>Enterprise features (init, check, compliance, audit)</td><td><code>init</code>, <code>check</code>, <code>compliance</code>, <code>audit</code></td></tr>
-                    <tr><td><code>marketplace</code></td><td>Browse and install marketplace items</td><td><code>--search</code>, <code>--install</code></td></tr>
-                    <tr><td><code>certify</code></td><td>Certify project for standards</td><td><code>--standard</code>, <code>--report</code></td></tr>
-                    <tr><td><code>partners</code></td><td>Partner integrations</td><td><code>--list</code>, <code>--connect</code></td></tr>
-                    <tr><td><code>api</code></td><td>API key and endpoint management</td><td><code>--key</code>, <code>--endpoint</code></td></tr>
+                    <tr><td><code>x cloud</code></td><td>Cloud platform (init, add-project, dashboard)</td><td><code>init</code>, <code>add-project</code>, <code>dashboard</code></td></tr>
+                    <tr><td><code>x enterprise</code></td><td>Enterprise features (init, check, compliance, audit)</td><td><code>init</code>, <code>check</code>, <code>compliance</code>, <code>audit</code></td></tr>
+                    <tr><td><code>x marketplace</code></td><td>Browse marketplace items</td><td><code>[query]</code></td></tr>
+                    <tr><td><code>x certify</code></td><td>Certify project for standards</td><td><code>[path]</code></td></tr>
+                    <tr><td><code>x partners</code></td><td>Partner integrations</td><td><code>no flags</code></td></tr>
+                    <tr><td><code>x api</code></td><td>API key and endpoint management</td><td><code>--key</code>, <code>--endpoint</code></td></tr>
                 </tbody>
             </table>
 
@@ -215,8 +215,8 @@
                     <tr><th>Command</th><th>Description</th><th>Key Flags</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>mcp</code></td><td>Start MCP (Model Context Protocol) server</td><td><code>--port</code>, <code>--stdio</code></td></tr>
-                    <tr><td><code>api</code></td><td>Start REST API server</td><td><code>--port</code>, <code>--host</code></td></tr>
+                    <tr><td><code>x mcp</code></td><td>Start MCP (Model Context Protocol) server</td><td><code>--port</code>, <code>--stdio</code></td></tr>
+                    <tr><td><code>x api</code></td><td>Start REST API server</td><td><code>--port</code>, <code>--host</code></td></tr>
                 </tbody>
             </table>
 
@@ -228,7 +228,7 @@
             <h3 id="analyze">analyze</h3>
             <p>Run full static analysis on your Flutter/Dart project. This is the primary entry point for catching issues.</p>
             <p><strong>Full syntax:</strong></p>
-            <pre><code>falcon analyze [PATH] [OPTIONS]</code></pre>
+            <pre><code>falcon check [PATH] [OPTIONS]</code></pre>
             <p><strong>Flags:</strong></p>
             <table>
                 <thead><tr><th>Flag</th><th>Description</th></tr></thead>
@@ -242,13 +242,13 @@
                 </tbody>
             </table>
             <p><strong>Example:</strong></p>
-            <pre><code><span class="cmd">$</span> falcon analyze . --fix --json
+            <pre><code><span class="cmd">$</span> falcon check . --fix --json
 <span class="str">{"issues": 12, "fixed": 3, "warnings": 9}</span></code></pre>
 
             <h3 id="ai-score">ai-score</h3>
             <p>Get an AI-powered quality score (0–100) for your project. Uses static analysis plus optional AI models for deeper insights.</p>
             <p><strong>Full syntax:</strong></p>
-            <pre><code>falcon ai-score [PATH] [OPTIONS]</code></pre>
+            <pre><code>falcon score [PATH] [OPTIONS]</code></pre>
             <p><strong>Flags:</strong></p>
             <table>
                 <thead><tr><th>Flag</th><th>Description</th></tr></thead>
@@ -260,36 +260,34 @@
                 </tbody>
             </table>
             <p><strong>Example:</strong></p>
-            <pre><code><span class="cmd">$</span> falcon ai-score .
+            <pre><code><span class="cmd">$</span> falcon score .
 <span class="str">Analyzing project...</span>
 <span class="str">AI Score: 78/100</span>
 <span class="str">Suggestions: 3 improvements found</span></code></pre>
 
-            <h3 id="pr-comment">pr-comment</h3>
-            <p>Post analysis results as a comment on a pull request. Integrates with GitHub, GitLab, and Bitbucket.</p>
+            <h3 id="pr-comment">review --format gh</h3>
+            <p>Print PR-ready markdown for changed Dart files. Pipe the output into your GitHub CLI or CI comment step when you want to post it.</p>
             <p><strong>Full syntax:</strong></p>
-            <pre><code>falcon pr-comment [OPTIONS]</code></pre>
+            <pre><code>falcon review [PATH] --format gh [OPTIONS]</code></pre>
             <p><strong>Flags:</strong></p>
             <table>
                 <thead><tr><th>Flag</th><th>Description</th></tr></thead>
                 <tbody>
-                    <tr><td><code>--token</code></td><td>Git provider token (or GITHUB_TOKEN env)</td></tr>
-                    <tr><td><code>--pr</code></td><td>PR number (auto-detected in CI)</td></tr>
-                    <tr><td><code>--repo</code></td><td>Repository (owner/repo)</td></tr>
-                    <tr><td><code>--base</code></td><td>Base branch for diff</td></tr>
-                    <tr><td><code>--head</code></td><td>Head branch/commit</td></tr>
-                    <tr><td><code>--update</code></td><td>Update existing comment instead of new</td></tr>
+                    <tr><td><code>--base-ref</code></td><td>Git ref to diff against</td></tr>
+                    <tr><td><code>--strictness</code></td><td>Review strictness level</td></tr>
+                    <tr><td><code>--semantic</code></td><td>Run dart analyze and defer overlapping Falcon findings</td></tr>
+                    <tr><td><code>--baseline</code></td><td>Only report findings not present in a baseline file</td></tr>
                 </tbody>
             </table>
             <p><strong>Example:</strong></p>
-            <pre><code><span class="cmd">$</span> falcon pr-comment --token $GITHUB_TOKEN --pr 42
-<span class="str">Posted analysis to PR #42</span>
-<span class="str">Issues: 5 | Warnings: 12 | Score: 82/100</span></code></pre>
+            <pre><code><span class="cmd">$</span> falcon review . --base-ref origin/main --format gh | gh pr comment --body-file -
+<span class="str">## Falcon Review</span>
+<span class="str">Changed Dart files analyzed with PR-ready markdown output.</span></code></pre>
 
             <h3 id="mcp">mcp</h3>
             <p>Start the Model Context Protocol (MCP) server. Enables AI assistants like Cursor to query your codebase via Falcon.</p>
             <p><strong>Full syntax:</strong></p>
-            <pre><code>falcon mcp [OPTIONS]</code></pre>
+            <pre><code>falcon x mcp [OPTIONS]</code></pre>
             <p><strong>Flags:</strong></p>
             <table>
                 <thead><tr><th>Flag</th><th>Description</th></tr></thead>
@@ -300,14 +298,14 @@
                 </tbody>
             </table>
             <p><strong>Example:</strong></p>
-            <pre><code><span class="cmd">$</span> falcon mcp --stdio --project .
+            <pre><code><span class="cmd">$</span> falcon x mcp --stdio --project .
 <span class="str">MCP server listening on stdio</span>
 <span class="str">Ready for connections</span></code></pre>
 
             <h3 id="enterprise-check">enterprise check</h3>
             <p>Run enterprise compliance and policy checks. Validates licensing, security, and organizational standards.</p>
             <p><strong>Full syntax:</strong></p>
-            <pre><code>falcon enterprise check [PATH] [OPTIONS]</code></pre>
+            <pre><code>falcon x enterprise check [PATH] [OPTIONS]</code></pre>
             <p><strong>Flags:</strong></p>
             <table>
                 <thead><tr><th>Flag</th><th>Description</th></tr></thead>
@@ -320,7 +318,7 @@
                 </tbody>
             </table>
             <p><strong>Example:</strong></p>
-            <pre><code><span class="cmd">$</span> falcon enterprise check . --report
+            <pre><code><span class="cmd">$</span> falcon x enterprise check . --report
 <span class="str">Enterprise check complete</span>
 <span class="str">Compliance: PASS | Policy violations: 0</span>
 <span class="str">Report written to enterprise-report.md</span></code></pre>

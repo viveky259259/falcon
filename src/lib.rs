@@ -2,12 +2,14 @@ pub mod agents;
 pub mod ai;
 pub mod ai_score;
 pub mod analysis;
+pub mod analyzer_bridge;
 pub mod animation_audit;
 pub mod api;
 pub mod asset_audit;
 pub mod benchmark;
 pub mod benchmark_compare;
 pub mod ci;
+pub mod cli;
 pub mod community;
 pub mod config;
 pub mod dashboard;
@@ -17,12 +19,14 @@ pub mod flutter_run;
 pub mod golden_gen;
 pub mod incremental;
 pub mod l10n_coverage;
+pub mod leaderboard;
 pub mod lsp;
 pub mod manage;
 pub mod mcp;
 pub mod metrics;
 pub mod migration;
 pub mod parser;
+pub mod paths;
 pub mod platform;
 pub mod plugins;
 pub mod reporters;
@@ -46,7 +50,7 @@ use parser::DartParser;
 use rayon::prelude::*;
 use reporters::{AnalysisReport, Issue};
 use resolver::ProjectResolver;
-use rules::RuleRegistry;
+use rules::{RuleContext, RuleRegistry};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
@@ -68,6 +72,8 @@ impl Falcon {
     pub fn analyze(&self, path: &Path) -> Result<AnalysisReport> {
         let files = self.collect_dart_files(path)?;
         let file_count = files.len();
+        let resolver = ProjectResolver::new(path, &self.config)?;
+        let resolver_index = resolver.build_index()?;
 
         let file_results: Vec<_> = files
             .par_iter()
@@ -102,7 +108,14 @@ impl Falcon {
                     issues.push(violation);
                 }
 
-                let rule_issues = self.rule_registry.check(root, &source, file);
+                let resolver = resolver_index.resolver_for_file(file, &source);
+                let context = RuleContext {
+                    resolver_index: Some(&resolver_index),
+                    resolver: Some(&resolver),
+                };
+                let rule_issues = self
+                    .rule_registry
+                    .check_with_context(root, &source, file, &context);
                 issues.extend(rule_issues);
 
                 Some((file.clone(), issues, metrics))
@@ -117,7 +130,6 @@ impl Falcon {
         }
 
         let unused_issues = if self.config.unused.enabled {
-            let resolver = ProjectResolver::new(path, &self.config)?;
             resolver.find_unused()?
         } else {
             Vec::new()
@@ -185,6 +197,30 @@ impl Falcon {
 
     /// Analyze only a specific subset of files (for incremental mode).
     pub fn analyze_files(&self, files: &[PathBuf]) -> Result<AnalysisReport> {
+        self.analyze_files_with_rule_context(files, RuleContext::default(), None)
+    }
+
+    /// Analyze a subset of files with project-level resolver context.
+    pub fn analyze_files_with_project_context(
+        &self,
+        project_root: &Path,
+        files: &[PathBuf],
+    ) -> Result<AnalysisReport> {
+        let resolver = ProjectResolver::new(project_root, &self.config)?;
+        let resolver_index = resolver.build_index()?;
+        let context = RuleContext {
+            resolver_index: Some(&resolver_index),
+            resolver: None,
+        };
+        self.analyze_files_with_rule_context(files, context, Some(project_root.to_path_buf()))
+    }
+
+    fn analyze_files_with_rule_context(
+        &self,
+        files: &[PathBuf],
+        context: RuleContext<'_>,
+        project_path: Option<PathBuf>,
+    ) -> Result<AnalysisReport> {
         let file_count = files.len();
 
         let file_results: Vec<_> = files
@@ -220,7 +256,16 @@ impl Falcon {
                     issues.push(violation);
                 }
 
-                let rule_issues = self.rule_registry.check(root, &source, file);
+                let file_resolver = context
+                    .resolver_index
+                    .map(|index| index.resolver_for_file(file, &source));
+                let file_context = RuleContext {
+                    resolver_index: context.resolver_index,
+                    resolver: file_resolver.as_ref().or(context.resolver),
+                };
+                let rule_issues =
+                    self.rule_registry
+                        .check_with_context(root, &source, file, &file_context);
                 issues.extend(rule_issues);
 
                 Some((file.clone(), issues, metrics))
@@ -238,7 +283,7 @@ impl Falcon {
             issues: all_issues,
             metrics: all_metrics,
             file_count,
-            project_path: None,
+            project_path,
         })
     }
 
@@ -260,7 +305,7 @@ impl Falcon {
                 }
             })
             .filter(|e| e.file_type().is_file())
-            .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
             .filter(|e| {
                 let rel = e.path().strip_prefix(path).unwrap_or(e.path());
                 !exclude_patterns.iter().any(|p| p.matches_path(rel))

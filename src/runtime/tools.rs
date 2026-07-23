@@ -4,7 +4,7 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use colored::Colorize;
 use serde::Serialize;
 use serde_json::Value;
-use std::cmp::Ordering;
+use std::cmp::{Ordering, Reverse};
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::Duration;
@@ -462,10 +462,8 @@ pub async fn collect_reload_report(
         .or_else(|| resp["loadedLibraryCount"].as_u64());
 
     let mut reassembled = false;
-    if success {
-        if client.flutter_reassemble().await.is_ok() {
-            reassembled = true;
-        }
+    if success && client.flutter_reassemble().await.is_ok() {
+        reassembled = true;
     }
 
     Ok(ReloadToolReport {
@@ -908,16 +906,14 @@ fn extract_allocations(allocation_profile: &Value, limit: usize) -> Vec<Allocati
         .as_array()
         .into_iter()
         .flatten()
-        .filter_map(|item| {
-            Some(AllocationEntry {
-                class: item["class"]["name"]
-                    .as_str()
-                    .unwrap_or("unknown")
-                    .to_string(),
-                instances_current: item["instancesCurrent"].as_u64().unwrap_or(0),
-                bytes_current_mb: bytes_to_mb(item["bytesCurrent"].as_u64().unwrap_or(0)),
-                accumulated_size_mb: bytes_to_mb(item["accumulatedSize"].as_u64().unwrap_or(0)),
-            })
+        .map(|item| AllocationEntry {
+            class: item["class"]["name"]
+                .as_str()
+                .unwrap_or("unknown")
+                .to_string(),
+            instances_current: item["instancesCurrent"].as_u64().unwrap_or(0),
+            bytes_current_mb: bytes_to_mb(item["bytesCurrent"].as_u64().unwrap_or(0)),
+            accumulated_size_mb: bytes_to_mb(item["accumulatedSize"].as_u64().unwrap_or(0)),
         })
         .filter(|entry| entry.bytes_current_mb > 0.0)
         .collect::<Vec<_>>();
@@ -1055,7 +1051,7 @@ fn summarize_performance(timeline: &Value) -> PerformanceSummaryData {
         .into_iter()
         .map(|(name, count)| TimelineCount { name, count })
         .collect::<Vec<_>>();
-    top_event_counts.sort_by(|a, b| b.count.cmp(&a.count));
+    top_event_counts.sort_by_key(|entry| Reverse(entry.count));
     top_event_counts.truncate(DEFAULT_TOP_TIMELINE_COUNTS_LIMIT);
 
     durations.sort_by(|a, b| {
@@ -1106,7 +1102,7 @@ fn summarize_cpu_samples(cpu_samples: &Value) -> CpuSummaryData {
         .into_iter()
         .map(|(name, samples)| HotFunction { name, samples })
         .collect::<Vec<_>>();
-    hot_functions.sort_by(|a, b| b.samples.cmp(&a.samples));
+    hot_functions.sort_by_key(|entry| Reverse(entry.samples));
     hot_functions.truncate(DEFAULT_TOP_HOT_FUNCTIONS_LIMIT);
 
     CpuSummaryData {
@@ -1192,7 +1188,7 @@ fn summarize_logging(events: &[Value]) -> LoggingSummaryData {
         .into_iter()
         .map(|(name, count)| TimelineCount { name, count })
         .collect::<Vec<_>>();
-    stream_counts.sort_by(|a, b| b.count.cmp(&a.count));
+    stream_counts.sort_by_key(|entry| Reverse(entry.count));
 
     LoggingSummaryData {
         total_events: events.len(),
@@ -1338,7 +1334,7 @@ fn summarize_rebuilds(raw: &Value) -> RebuildSummary {
         }
     }
 
-    entries.sort_by(|a, b| b.count.cmp(&a.count));
+    entries.sort_by_key(|entry| Reverse(entry.count));
     let total_widgets = entries.len();
     entries.truncate(DEFAULT_TOP_HOT_FUNCTIONS_LIMIT);
 

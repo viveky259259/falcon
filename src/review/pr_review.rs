@@ -1,6 +1,7 @@
 use crate::config::FalconConfig;
 use crate::parser::DartParser;
 use colored::Colorize;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
@@ -63,12 +64,7 @@ pub fn review_diff(
     _config: &FalconConfig,
     strictness: ReviewStrictness,
 ) -> anyhow::Result<ReviewReport> {
-    let changed_files = get_changed_files(root, git_ref)?;
-    let dart_files: Vec<_> = changed_files
-        .iter()
-        .filter(|f| f.to_string_lossy().ends_with(".dart"))
-        .cloned()
-        .collect();
+    let dart_files = changed_dart_files(root, git_ref)?;
 
     if dart_files.is_empty() {
         return Ok(ReviewReport {
@@ -80,30 +76,33 @@ pub fn review_diff(
 
     let mut observations = Vec::new();
     let mut total_lines = 0;
+    let dart_files_relative: Vec<PathBuf> = dart_files
+        .iter()
+        .map(|file| relative_to_root(root, file))
+        .collect();
 
-    let project_patterns = collect_project_patterns(root, &dart_files);
+    let project_patterns = collect_project_patterns(root, &dart_files_relative);
 
-    for file in &dart_files {
-        let abs = root.join(file);
-        let source = match std::fs::read_to_string(&abs) {
+    for (file, relative_file) in dart_files.iter().zip(dart_files_relative.iter()) {
+        let source = match std::fs::read_to_string(file) {
             Ok(s) => s,
             Err(_) => continue,
         };
 
         total_lines += source.lines().count();
 
-        check_error_handling(&abs, &source, &mut observations);
-        check_naming_consistency(&abs, &source, &project_patterns, &mut observations);
+        check_error_handling(file, &source, &mut observations);
+        check_naming_consistency(file, &source, &project_patterns, &mut observations);
 
         match strictness {
             ReviewStrictness::Standard | ReviewStrictness::Thorough => {
-                check_pattern_consistency(&abs, &source, &project_patterns, &mut observations);
+                check_pattern_consistency(file, &source, &project_patterns, &mut observations);
             }
             ReviewStrictness::Quick => {}
         }
 
         if matches!(strictness, ReviewStrictness::Thorough) {
-            check_missing_tests(root, file, &source, &mut observations);
+            check_missing_tests(root, relative_file, &source, &mut observations);
         }
     }
 
@@ -114,24 +113,72 @@ pub fn review_diff(
     })
 }
 
-fn get_changed_files(root: &Path, git_ref: &str) -> anyhow::Result<Vec<PathBuf>> {
+/// Return existing Dart files changed relative to `base_ref...HEAD`.
+pub fn changed_dart_files(root: &Path, base_ref: &str) -> anyhow::Result<Vec<PathBuf>> {
     let output = std::process::Command::new("git")
-        .args(["diff", "--name-only", git_ref])
+        .args([
+            "diff",
+            "--name-only",
+            "--diff-filter=ACMR",
+            &format!("{}...HEAD", base_ref),
+        ])
         .current_dir(root)
         .output()?;
 
     if !output.status.success() {
         anyhow::bail!(
             "git diff failed: {}",
-            String::from_utf8_lossy(&output.stderr)
+            String::from_utf8_lossy(&output.stderr).trim()
         );
     }
 
     Ok(String::from_utf8_lossy(&output.stdout)
         .lines()
-        .filter(|l| !l.is_empty())
-        .map(PathBuf::from)
+        .filter(|line| line.ends_with(".dart"))
+        .map(|line| root.join(line))
+        .filter(|path| path.is_file())
         .collect())
+}
+
+/// Return Dart file renames relative to `base_ref...HEAD` as current path -> old path.
+pub fn renamed_dart_files(
+    root: &Path,
+    base_ref: &str,
+) -> anyhow::Result<HashMap<PathBuf, PathBuf>> {
+    let output = std::process::Command::new("git")
+        .args([
+            "diff",
+            "--name-status",
+            "--diff-filter=R",
+            "-M",
+            &format!("{}...HEAD", base_ref),
+        ])
+        .current_dir(root)
+        .output()?;
+
+    if !output.status.success() {
+        anyhow::bail!(
+            "git diff failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+
+    let mut renames = HashMap::new();
+    for line in String::from_utf8_lossy(&output.stdout).lines() {
+        let mut parts = line.split('\t');
+        let status = parts.next().unwrap_or_default();
+        let old = parts.next().unwrap_or_default();
+        let new = parts.next().unwrap_or_default();
+        if status.starts_with('R') && old.ends_with(".dart") && new.ends_with(".dart") {
+            renames.insert(root.join(new), root.join(old));
+        }
+    }
+
+    Ok(renames)
+}
+
+fn relative_to_root(root: &Path, file: &Path) -> PathBuf {
+    file.strip_prefix(root).unwrap_or(file).to_path_buf()
 }
 
 #[derive(Default)]
@@ -166,7 +213,7 @@ fn collect_project_patterns(root: &Path, _changed_files: &[PathBuf]) -> ProjectP
     for entry in walkdir::WalkDir::new(&lib_path)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .take(50)
     {
         if let Ok(source) = std::fs::read_to_string(entry.path()) {
@@ -250,7 +297,7 @@ fn check_naming_node(
                 .chars()
                 .take_while(|c| c.is_alphanumeric() || *c == '_')
                 .collect();
-            if !name.is_empty() && name.chars().next().map_or(false, |c| c.is_lowercase()) {
+            if !name.is_empty() && name.chars().next().is_some_and(|c| c.is_lowercase()) {
                 observations.push(ReviewObservation {
                     category: ObservationCategory::NamingConvention,
                     message: format!("Class '{}' should use UpperCamelCase.", name),

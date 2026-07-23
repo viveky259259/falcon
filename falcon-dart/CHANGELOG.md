@@ -2,7 +2,7 @@
 
 - Updated to Falcon 0.5.0
 - Added the Flutter navigation graph analysis API
-- 55 lint rules, 93 commands
+- 61 lint rules, 74 commands
 
 ## 0.4.0
 
@@ -20,11 +20,11 @@
 - Project properties from pubspec.yaml in report header
 - Level of Concern breakdown across 8 categories
 - Test coverage section mapping source to test files
-- Branch comparison: `falcon compare-branches --base main --branch dev`
+- Branch comparison: `falcon x compare-branches --base main --branch dev`
 - Report history with auto-save after every analysis
-- `falcon history` to view stored runs
-- `falcon compare-reports --run1 N --run2 M` for run comparison
-- Self-update: `falcon update` / `falcon update --version X`
+- `falcon x history` to view stored runs
+- `falcon x compare-reports --run1 N --run2 M` for run comparison
+- Self-update: `falcon x update` / `falcon x update --version X`
 - Rich console icons for improved UX
 - 61+ lint rules, 470+ tests
 

@@ -8,7 +8,7 @@
 #
 # The script:
 #   1. Finds all Flutter projects in the given directory
-#   2. Runs falcon ai-score, provenance, and discover-rules on each
+#   2. Runs falcon score, provenance, and discover-rules on each
 #   3. Records each into the benchmark database
 #   4. Generates an aggregated markdown report
 # =============================================================================
@@ -51,7 +51,7 @@ for project in "$PROJECTS_DIR"/*/; do
     echo "▸ Analyzing: $PROJECT_NAME"
 
     # Run ai-score
-    SCORE_JSON=$(falcon ai-score "$project" --json 2>/dev/null || echo '{"overall":0,"grade":"?","file_count":0,"total_issues":0}')
+    SCORE_JSON=$(falcon score "$project" --json 2>/dev/null || echo '{"overall":0,"grade":"?","file_count":0,"total_issues":0}')
 
     SCORE=$(echo "$SCORE_JSON" | grep -o '"overall":[0-9]*' | head -1 | cut -d: -f2)
     GRADE=$(echo "$SCORE_JSON" | grep -o '"grade":"[^"]*"' | head -1 | cut -d'"' -f4)
@@ -64,14 +64,14 @@ for project in "$PROJECTS_DIR"/*/; do
     ISSUES=${ISSUES:-0}
 
     # Count errors and warnings
-    ERRORS=$(falcon analyze "$project" --format json 2>/dev/null | grep -c '"Error"' || echo "0")
-    WARNINGS=$(falcon analyze "$project" --format json 2>/dev/null | grep -c '"Warning"' || echo "0")
+    ERRORS=$(falcon check "$project" --format json 2>/dev/null | grep -c '"Error"' || echo "0")
+    WARNINGS=$(falcon check "$project" --format json 2>/dev/null | grep -c '"Warning"' || echo "0")
 
     # Record to benchmark database
-    falcon benchmark-db "$project" --tool "$TOOL" 2>/dev/null || true
+    falcon x benchmark-db "$project" --tool "$TOOL" 2>/dev/null || true
 
     # Record to cross-project learning
-    falcon learn "$project" 2>/dev/null || true
+    falcon x learn "$project" 2>/dev/null || true
 
     # Add to report
     echo "| $PROJECT_NAME | $SCORE | $GRADE | $FILES | $ISSUES | $ERRORS | $WARNINGS |" >> "$REPORT_FILE"
@@ -107,12 +107,12 @@ cat >> "$REPORT_FILE" << EOF
 EOF
 
 # Add cross-project insights
-falcon learn --insights 2>/dev/null >> "$REPORT_FILE" || true
+falcon x learn --insights 2>/dev/null >> "$REPORT_FILE" || true
 
 # Add benchmark summary
 echo "## Benchmark Database" >> "$REPORT_FILE"
 echo "" >> "$REPORT_FILE"
-falcon benchmark-db --summary 2>/dev/null >> "$REPORT_FILE" || true
+falcon x benchmark-db --summary 2>/dev/null >> "$REPORT_FILE" || true
 
 echo ""
 echo "================================================"

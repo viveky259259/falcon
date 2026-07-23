@@ -360,4 +360,37 @@ fn test_test_gen_render_file() {
     assert!(content.contains("flutter_test"));
     assert!(content.contains("UserService"));
     assert!(content.contains("getUser works"));
+    assert!(content.contains("import '../lib/service.dart';"));
+    assert!(!content.contains("TODO"));
+    assert!(!content.contains("import for"));
+}
+
+#[test]
+fn test_test_gen_does_not_emit_speculative_error_todos() {
+    let tmp = tempfile::tempdir().unwrap();
+    let lib = tmp.path().join("lib");
+    std::fs::create_dir_all(&lib).unwrap();
+    std::fs::write(
+        lib.join("service.dart"),
+        r#"
+class UserService {
+  Future<User> getUser(String id) async {
+    return User(id: id);
+  }
+}
+"#,
+    )
+    .unwrap();
+
+    let stubs = falcon::analysis::test_gen::generate_test_stubs(tmp.path());
+    assert_eq!(stubs.len(), 1);
+    assert_eq!(stubs[0].test_cases.len(), 1, "{:#?}", stubs[0].test_cases);
+
+    let content = falcon::analysis::test_gen::render_test_file(&stubs[0]);
+    assert!(!content.contains("TODO"), "{content}");
+    assert!(!content.contains("throwsA"), "{content}");
+    assert!(
+        content.contains("import '../lib/service.dart';"),
+        "{content}"
+    );
 }

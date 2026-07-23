@@ -9,7 +9,7 @@
 //!
 //! # Example
 //!
-//! ```ignore
+//! ```text
 //! let report = audit_assets(Path::new("."))?;
 //! print_asset_report(&report);
 //! write_asset_html_report(&report, Path::new("asset_audit.html"))?;
@@ -62,14 +62,6 @@ impl AssetSeverity {
         }
     }
 
-    fn color_name(&self) -> &'static str {
-        match self {
-            AssetSeverity::Info => "blue",
-            AssetSeverity::Warning => "yellow",
-            AssetSeverity::Error => "red",
-        }
-    }
-
     fn symbol(&self) -> &'static str {
         match self {
             AssetSeverity::Info => "ℹ",
@@ -98,16 +90,6 @@ pub struct AssetAuditReport {
     pub issues: Vec<AssetIssue>,
     pub potential_savings_bytes: u64,
     pub score: u32,
-}
-
-/// Internal structure for tracking assets by category
-#[derive(Debug)]
-struct AssetAnalysis {
-    oversized: Vec<(PathBuf, u64)>,
-    unused: Vec<PathBuf>,
-    no_webp: Vec<(PathBuf, u64)>,
-    duplicates: Vec<Vec<PathBuf>>,
-    unoptimized_svgs: Vec<(PathBuf, String)>,
 }
 
 /// Parse pubspec.yaml to extract asset declarations
@@ -208,7 +190,7 @@ fn find_referenced_assets(project_path: &Path) -> Result<HashSet<PathBuf>> {
         let path = entry.path();
 
         // Only check Dart files
-        if path.extension().map_or(true, |ext| ext != "dart") {
+        if path.extension().is_none_or(|ext| ext != "dart") {
             continue;
         }
 
@@ -298,10 +280,7 @@ fn find_duplicates(project_path: &Path, assets: &[(PathBuf, u64)]) -> Result<Vec
     for (path, _) in assets {
         let full_path = project_path.join(path);
         if let Ok(hash) = compute_file_hash(&full_path) {
-            hash_map
-                .entry(hash)
-                .or_insert_with(Vec::new)
-                .push(path.clone());
+            hash_map.entry(hash).or_default().push(path.clone());
         }
     }
 
@@ -359,8 +338,10 @@ pub fn audit_assets_with_threshold(
     path: &Path,
     size_threshold_kb: u64,
 ) -> Result<AssetAuditReport> {
-    let mut config = AuditConfig::default();
-    config.oversized_threshold_bytes = size_threshold_kb * 1024;
+    let config = AuditConfig {
+        oversized_threshold_bytes: size_threshold_kb * 1024,
+        ..AuditConfig::default()
+    };
 
     // Parse pubspec.yaml for declared assets
     let declared_assets = parse_pubspec_assets(path)?;
@@ -463,7 +444,7 @@ pub fn audit_assets_with_threshold(
             severity: AssetSeverity::Info,
             category: "Unused".to_string(),
             file: file.clone(),
-            detail: format!("Declared in pubspec.yaml but never referenced"),
+            detail: "Declared in pubspec.yaml but never referenced".to_string(),
             suggestion: "Remove from pubspec.yaml and filesystem if no longer needed".to_string(),
             savings_bytes: fs::metadata(path.join(&file)).map(|m| m.len()).unwrap_or(0),
         });
@@ -562,22 +543,16 @@ pub fn print_asset_report(report: &AssetAuditReport) {
 
     // Summary cards
     println!(
-        "  {} {} assets  │  {} MB total",
-        "📦".to_string(),
+        "  📦 {} assets  │  {} MB total",
         report.total_assets.to_string().bold(),
         (report.total_size_bytes / 1024 / 1024).to_string().bold()
     );
     println!(
-        "  {} {} potential savings  │  {} issues found",
-        "💾".to_string(),
+        "  💾 {} potential savings  │  {} issues found",
         format_bytes(report.potential_savings_bytes).bold(),
         report.issues.len().to_string().bold()
     );
-    println!(
-        "  {} Health Score: {}",
-        "🎯".to_string(),
-        format_score(report.score)
-    );
+    println!("  🎯 Health Score: {}", format_score(report.score));
     println!();
 
     if report.issues.is_empty() {
@@ -591,7 +566,7 @@ pub fn print_asset_report(report: &AssetAuditReport) {
     for issue in &report.issues {
         by_category
             .entry(issue.category.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(issue);
     }
 
@@ -688,7 +663,7 @@ fn generate_html_report(report: &AssetAuditReport) -> String {
     for issue in &report.issues {
         issues_by_category
             .entry(issue.category.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(issue);
     }
 

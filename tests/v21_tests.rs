@@ -60,7 +60,12 @@ fn test_pr_comment_format_with_errors() {
     assert!(comment.contains("Errors | 2"));
     assert!(comment.contains("Warnings | 1"));
     assert!(comment.contains("`avoid-dynamic`"));
-    assert!(comment.contains("Errors (must fix)"));
+    // PR-C: findings are grouped per file with severity-icon prefixes; the
+    // top-level "Errors (must fix)" section only renders when total > 60.
+    assert!(comment.contains("### `lib/main.dart`"));
+    assert!(comment.contains("### `lib/app.dart`"));
+    assert!(comment.contains("🔴"));
+    assert!(comment.contains("🟡"));
 }
 
 #[test]
@@ -198,6 +203,43 @@ class BadService {
     assert!(
         !issues.is_empty(),
         "Should find issues in code with print and magic numbers"
+    );
+}
+
+#[test]
+fn test_sdk_analyze_source_with_project_context() {
+    let tmp = tempfile::tempdir().unwrap();
+    let lib = tmp.path().join("lib");
+    std::fs::create_dir_all(&lib).unwrap();
+    std::fs::write(
+        tmp.path().join("falcon.yaml"),
+        "rules:\n  - dispose-not-called:\n      severity: error\nunused:\n  enabled: false\n",
+    )
+    .unwrap();
+    std::fs::write(
+        lib.join("base.dart"),
+        "class BaseState extends State<W> {}\n",
+    )
+    .unwrap();
+
+    let sdk = falcon::sdk::FalconSdk::new();
+    let issues = sdk
+        .analyze_source_with_project_context(
+            r#"
+class _ScreenState extends BaseState {
+  final TextEditingController controller = TextEditingController();
+}
+"#,
+            "lib/screen.dart",
+            &tmp.path().to_string_lossy(),
+        )
+        .unwrap();
+
+    assert!(
+        issues
+            .iter()
+            .any(|issue| issue.rule == "dispose-not-called"),
+        "expected dispose-not-called with project context, got {issues:#?}"
     );
 }
 

@@ -148,9 +148,8 @@ impl Reporter for ConsoleReporter {
 }
 
 fn threshold_color(value: u32, noted: u32, warning: u32, alarm: u32) -> Color {
-    if value >= alarm {
-        Color::Red
-    } else if value >= warning {
+    let red_threshold = alarm.min(warning);
+    if value >= red_threshold {
         Color::Red
     } else if value >= noted {
         Color::Yellow
@@ -162,9 +161,7 @@ fn threshold_color(value: u32, noted: u32, warning: u32, alarm: u32) -> Color {
 fn threshold_color_inverted(value: f64, alarm: f64, warning: f64, noted: f64) -> Color {
     if value <= alarm {
         Color::Red
-    } else if value <= warning {
-        Color::Yellow
-    } else if value <= noted {
+    } else if value <= warning.max(noted) {
         Color::Yellow
     } else {
         Color::Green

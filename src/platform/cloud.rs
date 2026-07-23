@@ -119,8 +119,10 @@ pub fn save_cloud_config(root: &Path, config: &CloudConfig) -> anyhow::Result<()
 
 /// Initialize a cloud config with a team name.
 pub fn init_cloud(root: &Path, team_name: &str) -> anyhow::Result<()> {
-    let mut config = CloudConfig::default();
-    config.team_name = team_name.to_string();
+    let config = CloudConfig {
+        team_name: team_name.to_string(),
+        ..CloudConfig::default()
+    };
     save_cloud_config(root, &config)?;
     Ok(())
 }
@@ -283,8 +285,8 @@ pub fn print_dashboard(dashboard: &TeamDashboard) {
     if !dashboard.projects.is_empty() {
         println!();
         println!(
-            "  {:<25} {:<8} {:<6} {:<8} {:<8} {}",
-            "Project", "Score", "Grade", "Issues", "Files", "Trend"
+            "  {:<25} {:<8} {:<6} {:<8} {:<8} Trend",
+            "Project", "Score", "Grade", "Issues", "Files"
         );
         println!("  {}", "─".repeat(70));
 

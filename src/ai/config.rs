@@ -22,6 +22,9 @@ pub struct AiConfig {
     pub local: Option<LocalModelConfig>,
 
     #[serde(default)]
+    pub embedded: Option<EmbeddedModelConfig>,
+
+    #[serde(default)]
     pub features: AiFeatureToggles,
 }
 
@@ -34,6 +37,7 @@ impl Default for AiConfig {
             api_key_env: None,
             model: None,
             local: None,
+            embedded: None,
             features: AiFeatureToggles::default(),
         }
     }
@@ -51,7 +55,7 @@ impl AiConfig {
             AiProvider::OpenAi => std::env::var("OPENAI_API_KEY").ok(),
             AiProvider::Anthropic => std::env::var("ANTHROPIC_API_KEY").ok(),
             AiProvider::Gemini => std::env::var("GOOGLE_API_KEY").ok(),
-            AiProvider::Local | AiProvider::None => None,
+            AiProvider::Local | AiProvider::Embedded | AiProvider::None => None,
         }
     }
 
@@ -61,6 +65,7 @@ impl AiConfig {
         }
         match self.provider {
             AiProvider::Local => self.local.is_some(),
+            AiProvider::Embedded => self.embedded.is_some(),
             AiProvider::None => false,
             _ => self.resolve_api_key().is_some(),
         }
@@ -79,12 +84,17 @@ impl AiConfig {
                 .as_ref()
                 .map(|l| l.model.clone())
                 .unwrap_or_else(|| "codellama".to_string()),
+            AiProvider::Embedded => self
+                .embedded
+                .as_ref()
+                .map(|e| e.model_id.clone())
+                .unwrap_or_else(default_embedded_model_id),
             AiProvider::None => String::new(),
         }
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum AiProvider {
     #[serde(alias = "openai")]
@@ -92,13 +102,10 @@ pub enum AiProvider {
     Anthropic,
     Gemini,
     Local,
+    #[serde(alias = "embedded")]
+    Embedded,
+    #[default]
     None,
-}
-
-impl Default for AiProvider {
-    fn default() -> Self {
-        AiProvider::None
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -119,6 +126,56 @@ fn default_local_model() -> String {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmbeddedModelConfig {
+    #[serde(default = "default_embedded_model_id")]
+    pub model_id: String,
+
+    #[serde(default = "default_embedded_model_file")]
+    pub model_file: String,
+
+    #[serde(default = "default_embedded_max_tokens")]
+    pub max_tokens: usize,
+
+    #[serde(default = "default_embedded_context_lines")]
+    pub context_lines: usize,
+
+    #[serde(default = "default_embedded_max_issues")]
+    pub max_issues: usize,
+}
+
+impl Default for EmbeddedModelConfig {
+    fn default() -> Self {
+        Self {
+            model_id: default_embedded_model_id(),
+            model_file: default_embedded_model_file(),
+            max_tokens: default_embedded_max_tokens(),
+            context_lines: default_embedded_context_lines(),
+            max_issues: default_embedded_max_issues(),
+        }
+    }
+}
+
+fn default_embedded_model_id() -> String {
+    "Qwen/Qwen2.5-0.5B-Instruct-GGUF".to_string()
+}
+
+fn default_embedded_model_file() -> String {
+    "qwen2.5-0.5b-instruct-q4_k_m.gguf".to_string()
+}
+
+fn default_embedded_max_tokens() -> usize {
+    128
+}
+
+fn default_embedded_context_lines() -> usize {
+    12
+}
+
+fn default_embedded_max_issues() -> usize {
+    100
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AiFeatureToggles {
     #[serde(default)]
     pub confidence_scoring: bool,
@@ -131,17 +188,6 @@ pub struct AiFeatureToggles {
 
     #[serde(default)]
     pub false_positive_reduction: bool,
-}
-
-impl Default for AiFeatureToggles {
-    fn default() -> Self {
-        Self {
-            confidence_scoring: false,
-            smart_fixes: false,
-            explanations: false,
-            false_positive_reduction: false,
-        }
-    }
 }
 
 pub fn generate_ai_setup(path: &Path) -> anyhow::Result<()> {
@@ -160,7 +206,7 @@ pub fn generate_ai_setup(path: &Path) -> anyhow::Result<()> {
 # AI Configuration (all features off by default)
 ai:
   enabled: false
-  # Provider: openai, anthropic, gemini, local, none
+  # Provider: openai, anthropic, gemini, local, embedded, none
   provider: none
   # API key (or use api_key_env to reference an environment variable)
   # api_key: "sk-..."
@@ -171,6 +217,13 @@ ai:
   # local:
   #   endpoint: "http://localhost:11434"
   #   model: "codellama"
+  # Embedded model config (for opt-in ai-local builds)
+  # embedded:
+  #   model_id: "Qwen/Qwen2.5-0.5B-Instruct-GGUF"
+  #   model_file: "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+  #   max_tokens: 128
+  #   context_lines: 12
+  #   max_issues: 100
   features:
     confidence_scoring: false
     smart_fixes: false

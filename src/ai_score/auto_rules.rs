@@ -2,6 +2,7 @@
 
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -17,6 +18,8 @@ pub struct ProposedRule {
     pub category: String,
 }
 
+type PatternCheck = (&'static str, Box<dyn Fn(&str) -> bool>);
+
 /// Scan a project for repeated anti-patterns that could become new rules.
 pub fn discover_patterns(root: &Path) -> Vec<ProposedRule> {
     let mut proposed = Vec::new();
@@ -26,7 +29,7 @@ pub fn discover_patterns(root: &Path) -> Vec<ProposedRule> {
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .filter(|e| !e.path().to_string_lossy().contains("/test/"))
     {
         let source = match std::fs::read_to_string(entry.path()) {
@@ -45,12 +48,12 @@ pub fn discover_patterns(root: &Path) -> Vec<ProposedRule> {
         }
     }
 
-    proposed.sort_by(|a, b| b.occurrences.cmp(&a.occurrences));
+    proposed.sort_by_key(|rule| Reverse(rule.occurrences));
     proposed
 }
 
 fn detect_patterns(source: &str, counts: &mut HashMap<String, (usize, usize)>) {
-    let checks: Vec<(&str, Box<dyn Fn(&str) -> bool>)> = vec![
+    let checks: Vec<PatternCheck> = vec![
         (
             "toString-in-interpolation",
             Box::new(|l: &str| l.contains(".toString()") && l.contains("${")),

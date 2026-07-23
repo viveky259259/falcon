@@ -97,7 +97,7 @@ pub fn generate_health_report(root: &Path) -> anyhow::Result<HealthReport> {
         walkdir::WalkDir::new(&test_dir)
             .into_iter()
             .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
             .count()
     } else {
         0
@@ -166,7 +166,7 @@ pub fn generate_health_report(root: &Path) -> anyhow::Result<HealthReport> {
                 ai_score.resource_safety.score
             ),
             impact: "High — memory leaks".to_string(),
-            command: "falcon check-widgets".to_string(),
+            command: "falcon x check-widgets".to_string(),
         });
         rank += 1;
     }
@@ -176,7 +176,7 @@ pub fn generate_health_report(root: &Path) -> anyhow::Result<HealthReport> {
             category: "Performance".to_string(),
             description: format!("{} performance anti-patterns", perf_issues),
             impact: "Medium — janky UI".to_string(),
-            command: "falcon check-perf".to_string(),
+            command: "falcon x check-perf".to_string(),
         });
         rank += 1;
     }
@@ -198,7 +198,7 @@ pub fn generate_health_report(root: &Path) -> anyhow::Result<HealthReport> {
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
     {
         if let Ok(content) = std::fs::read_to_string(entry.path()) {
             total_lines += content.lines().count();

@@ -20,6 +20,14 @@ path = "src/lsp_main.rs"
 name = "falcon-mcp"
 path = "src/mcp_main.rs"
 
+[[bench]]
+name = "mcp_warm_cache"
+harness = false
+
+[[bench]]
+name = "review_p95"
+harness = false
+
 [lib]
 name = "falcon"
 path = "src/lib.rs"
@@ -38,6 +46,7 @@ glob = "0.3"
 anyhow = "1"
 base64 = "0.22"
 regex = "1"
+sha2 = "0.10"
 log = "0.4"
 env_logger = "0.11"
 tower-lsp = "0.20"
@@ -47,10 +56,26 @@ futures-util = "0.3"
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 url = "2"
 percent-encoding = "2"
+candle-core = { version = "=0.10.2", optional = true }
+candle-transformers = { version = "=0.10.2", optional = true }
+tokenizers = { version = "=0.22.2", default-features = false, features = ["onig"], optional = true }
+hf-hub = { version = "=0.4.3", optional = true }
+dirs = { version = "=6.0.0", optional = true }
+
+[features]
+default = []
+ai-local = [
+    "dep:candle-core",
+    "dep:candle-transformers",
+    "dep:tokenizers",
+    "dep:hf-hub",
+    "dep:dirs",
+]
 
 [dev-dependencies]
 tempfile = "3"
 pretty_assertions = "1"
+jsonschema = "0.18"
 
 [profile.release]
 opt-level = 3

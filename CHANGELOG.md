@@ -13,10 +13,10 @@
 
 ### Stats
 
-- 55 lint rules
-- 592 tests passing
-- 93 CLI commands
-- 220 source files (46,567 lines of Rust)
+- 61 lint rules
+- 924 test definitions
+- 74 CLI commands
+- 243 source files (55,289 lines of Rust)
 
 ## 0.4.0 (2026-05-05)
 
@@ -27,7 +27,32 @@
 - 214 source files (45480 lines of Rust)
 
 ### Changes
-- 
+- Began the four-verb CLI cutover: default `falcon --help` now highlights
+  `review`, `check`, `fix`, `score`, and `x`, while `falcon --legacy-help`
+  preserves the historical command list for one release.
+- Added `falcon check` as the stable project-checking verb. `falcon analyze`
+  remains available during the migration window.
+- Added `docs/cli-migration.md` with the command migration table for v1.0.
+
+### CLI Migration
+
+| Before | Now |
+|---|---|
+| `falcon analyze .` | `falcon check .` |
+| `falcon ai-score .` | `falcon score .` |
+| `falcon pr-comment . --base-ref origin/main` | `falcon review . --base-ref origin/main --format gh` |
+| `falcon asset-audit .` | `falcon x asset-audit .` |
+| `falcon theme-audit .` | `falcon x theme-audit .` |
+| `falcon l10n-coverage .` | `falcon x l10n-coverage .` |
+| `falcon deeplink-validate .` | `falcon x deeplink-validate .` |
+| `falcon animation-audit .` | `falcon x animation-audit .` |
+| `falcon golden-gen .` | `falcon x golden-gen .` |
+| `falcon dep-graph .` | `falcon x dep-graph .` |
+| `falcon workspace .` | `falcon x workspace .` |
+| `falcon docs docs/` | `falcon x docs docs/` |
+| `falcon vuln-scan .` | `falcon x vuln-scan .` |
+| `falcon refactor-sim . --scenario migrate-to-riverpod` | `falcon x refactor-sim . --scenario migrate-to-riverpod` |
+| `falcon test-gen .` | `falcon x test-gen .` |
 
 # Changelog
 
@@ -67,11 +92,11 @@ All notable changes to Falcon are documented in this file.
 - **Project Properties**: Parses `pubspec.yaml` and displays project name, version, SDK constraints, and dependencies in the report header
 - **Level of Concern**: Visual breakdown of issues across 8 categories (Security, Error Handling, Type Safety, Complexity, Performance, Resource Safety, Code Smells, Conventions) with severity gauges
 - **Test Coverage Section**: Maps source files to test files and shows coverage percentages with ring gauges and stacked bar visualization
-- **Branch Comparison** (`falcon compare-branches`): Analyzes two git branches side-by-side with auto stash/restore safety, shows delta with color-coded indicators, and generates HTML comparison reports
-- **Report History**: Auto-saves analysis snapshots after every `falcon analyze` run to `.falcon-data/history.json`
-- **History Viewer** (`falcon history`): Lists all stored analysis runs with timestamp, branch, health score, and issue counts
-- **Report Comparison** (`falcon compare-reports`): Compares any two stored runs with `--run1 N --run2 M` flags, supports HTML output
-- **Self-Update** (`falcon update`): Updates Falcon from GitHub releases, supports `--version X.Y.Z` for specific versions and `--list` for available versions
+- **Branch Comparison** (`falcon x compare-branches`): Analyzes two git branches side-by-side with auto stash/restore safety, shows delta with color-coded indicators, and generates HTML comparison reports
+- **Report History**: Auto-saves analysis snapshots after every `falcon check` run to `.falcon-data/history.json`
+- **History Viewer** (`falcon x history`): Lists all stored analysis runs with timestamp, branch, health score, and issue counts
+- **Report Comparison** (`falcon x compare-reports`): Compares any two stored runs with `--run1 N --run2 M` flags, supports HTML output
+- **Self-Update** (`falcon x update`): Updates Falcon from GitHub releases, supports `--version X.Y.Z` for specific versions and `--list` for available versions
 - **Rich Console Icons**: Icons throughout CLI output for branches, files, health, issues, errors, metrics, and more
 
 ### Fixed

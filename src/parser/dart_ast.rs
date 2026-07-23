@@ -130,12 +130,10 @@ pub fn get_function_parameters(node: Node) -> Vec<Node> {
 pub fn get_function_body(node: Node) -> Option<Node> {
     let parent = node.parent()?;
     let mut cursor = parent.walk();
-    for child in parent.children(&mut cursor) {
-        if child.kind() == "function_body" {
-            return Some(child);
-        }
-    }
-    None
+    let body = parent
+        .children(&mut cursor)
+        .find(|&child| child.kind() == "function_body");
+    body
 }
 
 pub fn get_class_methods(node: Node) -> Vec<Node> {
@@ -157,4 +155,210 @@ pub fn get_class_methods(node: Node) -> Vec<Node> {
         }
     }
     methods
+}
+
+pub fn get_class_superclass(node: Node, source: &str) -> Option<String> {
+    class_relation_names(node, source, SUPER_CLASS)
+        .into_iter()
+        .next()
+}
+
+pub fn get_class_mixins(node: Node, source: &str) -> Vec<String> {
+    class_relation_names(node, source, MIXINS)
+}
+
+pub fn get_class_interfaces(node: Node, source: &str) -> Vec<String> {
+    class_relation_names(node, source, INTERFACES)
+}
+
+pub fn get_method_names(node: Node, source: &str) -> Vec<String> {
+    get_class_methods(node)
+        .into_iter()
+        .filter_map(|method| get_declaration_name(method, source).map(ToString::to_string))
+        .collect()
+}
+
+fn class_relation_names(node: Node, source: &str, relation_kind: &str) -> Vec<String> {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() == relation_kind {
+            return relation_clause_names(&source[child.byte_range()]);
+        }
+    }
+    class_header_relation_names(&source[node.byte_range()], relation_kind)
+}
+
+fn class_header_relation_names(class_text: &str, relation_kind: &str) -> Vec<String> {
+    let keyword = match relation_kind {
+        SUPER_CLASS => "extends",
+        MIXINS => "with",
+        INTERFACES => "implements",
+        _ => return Vec::new(),
+    };
+
+    let header = class_text.split('{').next().unwrap_or(class_text);
+    let Some(start) = find_keyword(header, keyword) else {
+        return Vec::new();
+    };
+
+    let after_keyword = &header[start + keyword.len()..];
+    let end = match keyword {
+        "extends" => next_keyword_start(after_keyword, &["with", "implements"]),
+        "with" => next_keyword_start(after_keyword, &["implements"]),
+        "implements" => None,
+        _ => None,
+    }
+    .unwrap_or(after_keyword.len());
+
+    relation_clause_names(after_keyword[..end].trim())
+}
+
+fn find_keyword(haystack: &str, keyword: &str) -> Option<usize> {
+    haystack.match_indices(keyword).find_map(|(idx, _)| {
+        let before = haystack[..idx].chars().next_back();
+        let after = haystack[idx + keyword.len()..].chars().next();
+        let before_ok = before.is_none_or(|c| !is_ident_char(c));
+        let after_ok = after.is_none_or(|c| !is_ident_char(c));
+        (before_ok && after_ok).then_some(idx)
+    })
+}
+
+fn next_keyword_start(haystack: &str, keywords: &[&str]) -> Option<usize> {
+    keywords
+        .iter()
+        .filter_map(|keyword| find_keyword(haystack, keyword))
+        .min()
+}
+
+fn is_ident_char(c: char) -> bool {
+    c == '_' || c.is_ascii_alphanumeric()
+}
+
+fn relation_clause_names(clause: &str) -> Vec<String> {
+    let body = clause
+        .trim()
+        .strip_prefix("extends")
+        .or_else(|| clause.trim().strip_prefix("with"))
+        .or_else(|| clause.trim().strip_prefix("implements"))
+        .unwrap_or_else(|| clause.trim());
+
+    body.split(',').filter_map(normalize_type_name).collect()
+}
+
+fn normalize_type_name(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let end = trimmed
+        .find(|c: char| c == '<' || c == '?' || c.is_whitespace())
+        .unwrap_or(trimmed.len());
+    let name = trimmed[..end].trim();
+    (!name.is_empty()).then(|| name.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    //! Helper coverage for AST classification predicates and name extraction.
+    use super::*;
+    use crate::parser::{find_descendants_by_kind, DartParser};
+
+    fn parse(src: &str) -> tree_sitter::Tree {
+        let mut p = DartParser::new().unwrap();
+        p.parse(src).unwrap()
+    }
+
+    #[test]
+    fn classification_predicates_split_class_like_and_function_like() {
+        let src = r#"
+            class C {}
+            enum E { a, b }
+            mixin M {}
+            extension X on String { void foo() {} }
+            int top() => 1;
+        "#;
+        let tree = parse(src);
+        let root = tree.root_node();
+
+        for kind in [
+            "class_declaration",
+            "enum_declaration",
+            "mixin_declaration",
+            "extension_declaration",
+        ] {
+            for n in find_descendants_by_kind(root, kind) {
+                assert!(is_class_like(n), "{} should be class-like", kind);
+                assert!(is_declaration(n), "{} should be a declaration", kind);
+                assert!(!is_function_like(n), "{} should NOT be function-like", kind);
+            }
+        }
+
+        let fns = find_descendants_by_kind(root, "function_signature");
+        assert!(!fns.is_empty(), "expected at least one function_signature");
+        for n in fns {
+            assert!(is_function_like(n));
+            assert!(!is_class_like(n));
+        }
+    }
+
+    #[test]
+    fn get_declaration_name_extracts_class_name_and_handles_anonymous() {
+        let src = "class Widget {} void main() { { } }";
+        let tree = parse(src);
+        let root = tree.root_node();
+
+        let class = find_descendants_by_kind(root, "class_declaration")
+            .into_iter()
+            .next()
+            .expect("class_declaration");
+        assert_eq!(get_declaration_name(class, src), Some("Widget"));
+
+        // A `block` has no identifier child, so name extraction returns None.
+        let blocks = find_descendants_by_kind(root, "block");
+        assert!(!blocks.is_empty());
+        for b in blocks {
+            assert!(get_declaration_name(b, src).is_none());
+        }
+    }
+
+    #[test]
+    fn function_param_and_class_method_helpers_agree_with_grammar() {
+        // Two-arg function → two formal parameters.
+        let src1 = "int add(int a, int b) => a + b;";
+        let tree1 = parse(src1);
+        let sig = find_descendants_by_kind(tree1.root_node(), "function_signature")
+            .into_iter()
+            .next()
+            .expect("function_signature");
+        assert_eq!(get_function_parameters(sig).len(), 2);
+
+        // `class A` has two methods (`m`, `n`); `field` must NOT be counted.
+        let src2 = "class A { void m() {} int n(int x) => x; int field = 0; }";
+        let tree2 = parse(src2);
+        let class = find_descendants_by_kind(tree2.root_node(), "class_declaration")
+            .into_iter()
+            .next()
+            .unwrap();
+        let methods = get_class_methods(class);
+        assert!(methods.len() >= 2, "got {}", methods.len());
+        for m in methods {
+            assert!(is_function_like(m));
+        }
+    }
+
+    #[test]
+    fn class_relationship_helpers_extract_extends_with_implements() {
+        let src = "class _S extends State<W> with M, N implements I, J { void dispose() {} }";
+        let tree = parse(src);
+        let class = find_descendants_by_kind(tree.root_node(), "class_declaration")
+            .into_iter()
+            .next()
+            .unwrap();
+
+        assert_eq!(get_class_superclass(class, src), Some("State".to_string()));
+        assert_eq!(get_class_mixins(class, src), vec!["M", "N"]);
+        assert_eq!(get_class_interfaces(class, src), vec!["I", "J"]);
+        assert_eq!(get_method_names(class, src), vec!["dispose"]);
+    }
 }

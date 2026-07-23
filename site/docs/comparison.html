@@ -55,15 +55,15 @@
             <h1>Comparison &amp; history</h1>
             <p><strong>v0.2.0</strong> — Falcon keeps analysis snapshots so you can list past runs, diff two stored runs, or compare two git branches side by side.</p>
 
-            <h2><code>falcon history</code></h2>
+            <h2><code>falcon x history</code></h2>
             <p>List stored analysis runs for a project (timestamp, branch, files, health score, issues, commit).</p>
-            <pre><code><span class="cmd">$</span> falcon history /path/to/project</code></pre>
-            <p>Snapshots are saved automatically after <code>falcon analyze</code> and <code>falcon compare-branches</code>.</p>
+            <pre><code><span class="cmd">$</span> falcon x history /path/to/project</code></pre>
+            <p>Snapshots are saved automatically after <code>falcon check</code> and <code>falcon x compare-branches</code>.</p>
 
-            <h2><code>falcon compare-reports</code></h2>
+            <h2><code>falcon x compare-reports</code></h2>
             <p>Compare two numbered runs from history and optionally write an HTML diff.</p>
-            <pre><code><span class="cmd">$</span> falcon compare-reports /path/to/project --run1 1 --run2 3
-<span class="cmd">$</span> falcon compare-reports /path/to/project --run1 1 --run2 3 --output comparison.html</code></pre>
+            <pre><code><span class="cmd">$</span> falcon x compare-reports /path/to/project --run1 1 --run2 3
+<span class="cmd">$</span> falcon x compare-reports /path/to/project --run1 1 --run2 3 --output comparison.html</code></pre>
             <table>
                 <thead>
                     <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
@@ -75,10 +75,10 @@
                 </tbody>
             </table>
 
-            <h2><code>falcon compare-branches</code></h2>
+            <h2><code>falcon x compare-branches</code></h2>
             <p>Checks out each branch in turn, runs full analysis, restores your original branch, and produces a delta report.</p>
-            <pre><code><span class="cmd">$</span> falcon compare-branches /path/to/project --base main --branch feature/my-feature
-<span class="cmd">$</span> falcon compare-branches . --base main --branch dev --output comparison.html</code></pre>
+            <pre><code><span class="cmd">$</span> falcon x compare-branches /path/to/project --base main --branch feature/my-feature
+<span class="cmd">$</span> falcon x compare-branches . --base main --branch dev --output comparison.html</code></pre>
             <table>
                 <thead>
                     <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
@@ -99,7 +99,7 @@
                 <li>Metrics delta (e.g. complexity, maintainability, god files)</li>
                 <li>Top rule changes, new rules, and resolved rules</li>
             </ul>
-            <p>Both branch analyses are saved to history for later use with <code>compare-reports</code>. For the HTML analysis dashboard, see <a href="reports.html">HTML Reports</a>.</p>
+            <p>Both branch analyses are saved to history for later use with <code>x compare-reports</code>. For the HTML analysis dashboard, see <a href="reports.html">HTML Reports</a>.</p>
         </main>
     </div>
 </body>

@@ -44,7 +44,7 @@ impl Rule for AvoidLongParameterList {
         let functions = find_descendants_by_kind(root, "function_signature");
         let methods = find_descendants_by_kind(root, "method_signature");
 
-        for node in functions.into_iter().chain(methods.into_iter()) {
+        for node in functions.into_iter().chain(methods) {
             let count = parameters::count(node);
             if count > self.max_params {
                 let name = dart_ast::get_declaration_name(node, source).unwrap_or("<anonymous>");

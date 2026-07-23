@@ -154,7 +154,7 @@ pub fn print_benchmark_summary(stats: &[ToolStats]) {
     println!();
 
     if stats.is_empty() {
-        println!("  No benchmarks recorded yet. Run: falcon benchmark-db --tool <tool-name>");
+        println!("  No benchmarks recorded yet. Run: falcon x benchmark-db --tool <tool-name>");
         println!();
         return;
     }

@@ -100,7 +100,7 @@ fn is_likely_future_call(text: &str) -> bool {
     ];
 
     let call_name = trimmed.split('(').next().unwrap_or("");
-    let method_name = call_name.split('.').last().unwrap_or(call_name);
+    let method_name = call_name.split('.').next_back().unwrap_or(call_name);
 
     for prefix in &async_method_prefixes {
         if method_name.starts_with(prefix) && trimmed.contains('(') && !trimmed.contains("=>") {

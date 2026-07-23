@@ -11,7 +11,7 @@
 //!
 //! # Example
 //!
-//! ```ignore
+//! ```text
 //! let report = audit_theme(Path::new("."))?;
 //! print_theme_report(&report);
 //! write_theme_html_report(&report, Path::new("theme_audit.html"))?;
@@ -41,14 +41,6 @@ impl ThemeSeverity {
             ThemeSeverity::Info => 2,
             ThemeSeverity::Warning => 5,
             ThemeSeverity::Error => 10,
-        }
-    }
-
-    fn color_name(&self) -> &'static str {
-        match self {
-            ThemeSeverity::Info => "blue",
-            ThemeSeverity::Warning => "yellow",
-            ThemeSeverity::Error => "red",
         }
     }
 
@@ -100,9 +92,7 @@ struct ThemePatterns {
     hardcoded_font_size: Regex,
     hardcoded_edge_insets: Regex,
     theme_reference: Regex,
-    text_style_definition: Regex,
     material_color_shade: Regex,
-    material_app_pattern: Regex,
 }
 
 impl ThemePatterns {
@@ -120,20 +110,14 @@ impl ThemePatterns {
             )?,
             // Match Theme.of(context) or context.theme
             theme_reference: Regex::new(r"Theme\.of\s*\(\s*context\s*\)|context\.theme")?,
-            // Match TextStyle(...) definitions
-            text_style_definition: Regex::new(r"TextStyle\s*\(")?,
             // Match Colors.blue[700], Colors.red[500], etc.
             material_color_shade: Regex::new(r"Colors\.\w+\s*\[\s*\d+\s*\]")?,
-            // Match MaterialApp with darkTheme check
-            material_app_pattern: Regex::new(r"MaterialApp\s*\(")?,
         })
     }
 }
 
 /// File analysis state
 struct FileAnalysis {
-    path: PathBuf,
-    content: String,
     issues: Vec<ThemeIssue>,
     hardcoded_colors: usize,
     hardcoded_fonts: usize,
@@ -144,8 +128,6 @@ struct FileAnalysis {
 /// Parse file and detect theme issues
 fn analyze_file(path: &Path, content: &str, patterns: &ThemePatterns) -> Result<FileAnalysis> {
     let mut analysis = FileAnalysis {
-        path: path.to_path_buf(),
-        content: content.to_string(),
         issues: Vec::new(),
         hardcoded_colors: 0,
         hardcoded_fonts: 0,
@@ -293,7 +275,7 @@ fn collect_dart_files(project_path: &Path) -> Result<Vec<PathBuf>> {
             continue;
         }
 
-        if path.extension().map_or(false, |ext| ext == "dart") {
+        if path.extension().is_some_and(|ext| ext == "dart") {
             files.push(path.to_path_buf());
         }
     }
@@ -428,9 +410,9 @@ pub fn print_theme_report(report: &ThemeAuditReport) {
     // Details section
     println!("\n{}", "THEME USAGE BREAKDOWN".bold().underline());
     println!(
-        "  Theme References:    {} {}",
+        "  Theme References:    {} ({})",
         report.summary.theme_references.to_string().cyan(),
-        format!("({})", format_percentage(report.summary.consistency_ratio))
+        format_percentage(report.summary.consistency_ratio)
     );
     println!(
         "  Hardcoded Colors:    {}",
@@ -478,7 +460,7 @@ pub fn print_theme_report(report: &ThemeAuditReport) {
         for issue in &report.issues {
             categories
                 .entry(issue.category.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(issue);
         }
 

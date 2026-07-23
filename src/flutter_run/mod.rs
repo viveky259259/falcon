@@ -13,6 +13,8 @@
 //!        [--webhook <URL>]           # POST JSON summary to this URL on error
 //! ```
 
+pub mod monitor;
+
 use anyhow::{Context, Result};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
@@ -20,6 +22,7 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public types
@@ -40,6 +43,12 @@ pub struct FlutterRunConfig {
     pub notify: bool,
     /// Optional webhook URL to POST a JSON summary when errors are found.
     pub webhook: Option<String>,
+    /// Interval between live monitor snapshots (memory + issue count).
+    /// Defaults to 30 seconds.
+    pub monitor_interval: Duration,
+    /// Whether the live monitor is enabled. Defaults to `true`. Set to `false`
+    /// (e.g. via `--no-monitor`) to disable snapshots entirely.
+    pub monitor_enabled: bool,
 }
 
 impl FlutterRunConfig {
@@ -53,6 +62,8 @@ impl FlutterRunConfig {
             flavor: None,
             notify: false,
             webhook: None,
+            monitor_interval: Duration::from_secs(monitor::DEFAULT_MONITOR_INTERVAL_SECS),
+            monitor_enabled: true,
         }
     }
 }
@@ -122,16 +133,29 @@ pub fn run_flutter_app(config: &FlutterRunConfig) -> Result<FlutterRunReport> {
     let errors: Arc<Mutex<Vec<FlutterError>>> = Arc::new(Mutex::new(Vec::new()));
     let output_dir = config.output_dir.clone();
 
+    // ── Spawn the live monitor (if enabled) — owns its own tokio runtime ────
+    // Both pump threads need read-only access to the handle so they can call
+    // `notify_vm_uri`. After both pumps exit we'll `try_unwrap` the Arc and
+    // call `shutdown` (which joins the monitor thread).
+    let monitor_handle = monitor::spawn_monitor(
+        config.monitor_enabled,
+        config.monitor_interval,
+        Arc::clone(&errors),
+    );
+    let monitor_shared: Arc<Option<monitor::MonitorHandle>> = Arc::new(monitor_handle);
+
     // Read stdout
     let stdout = child.stdout.take().expect("stdout was piped");
     let errors_stdout = Arc::clone(&errors);
     let output_dir_stdout = output_dir.clone();
+    let monitor_stdout = Arc::clone(&monitor_shared);
     let stdout_thread = std::thread::spawn(move || {
         stream_lines(
             BufReader::new(stdout),
             &errors_stdout,
             &output_dir_stdout,
             "stdout",
+            monitor_stdout.as_ref().as_ref(),
         );
     });
 
@@ -139,12 +163,14 @@ pub fn run_flutter_app(config: &FlutterRunConfig) -> Result<FlutterRunReport> {
     let stderr = child.stderr.take().expect("stderr was piped");
     let errors_stderr = Arc::clone(&errors);
     let output_dir_stderr = output_dir.clone();
+    let monitor_stderr = Arc::clone(&monitor_shared);
     let stderr_thread = std::thread::spawn(move || {
         stream_lines(
             BufReader::new(stderr),
             &errors_stderr,
             &output_dir_stderr,
             "stderr",
+            monitor_stderr.as_ref().as_ref(),
         );
     });
 
@@ -153,6 +179,15 @@ pub fn run_flutter_app(config: &FlutterRunConfig) -> Result<FlutterRunReport> {
 
     let exit_status = child.wait().ok();
     let exit_code = exit_status.and_then(|s| s.code());
+
+    // ── Shut down the monitor before printing the run summary ───────────────
+    // Both pump threads have already been joined above so the only remaining
+    // Arc reference is `monitor_shared`. If `try_unwrap` ever fails (some
+    // future refactor adds another clone) we'll fall back to letting Drop
+    // shut the monitor down as the Arc goes out of scope.
+    if let Ok(Some(handle)) = Arc::try_unwrap(monitor_shared) {
+        handle.shutdown();
+    }
 
     let mut collected = errors.lock().unwrap();
 
@@ -234,11 +269,15 @@ fn is_error_end(line: &str) -> bool {
 
 /// Read lines from `reader`, echo them to stderr, accumulate error blocks, and
 /// write an `error_N.md` for each one.
+///
+/// When `monitor` is `Some`, each line is also scanned for a Dart VM Service
+/// URI announcement and the monitor is notified so it can begin sampling.
 fn stream_lines<R: BufRead>(
     reader: R,
     errors: &Arc<Mutex<Vec<FlutterError>>>,
     output_dir: &Path,
     _source: &str,
+    monitor: Option<&monitor::MonitorHandle>,
 ) {
     let mut in_error = false;
     let mut current_block: Vec<String> = Vec::new();
@@ -251,6 +290,13 @@ fn stream_lines<R: BufRead>(
 
         // Mirror all output to the terminal
         eprintln!("{}", line);
+
+        // Forward a VM service URI to the live monitor (no-op after first hit).
+        if let Some(m) = monitor {
+            if let Some(uri) = monitor::parse_vm_service_uri(&line) {
+                m.notify_vm_uri(uri);
+            }
+        }
 
         if !in_error && is_error_start(&line) {
             in_error = true;
@@ -422,7 +468,6 @@ pub fn send_os_notification(title: &str, message: &str) {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status();
-        return;
     }
 
     // Linux (notify-send)

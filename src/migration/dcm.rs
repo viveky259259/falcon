@@ -254,7 +254,7 @@ pub fn migrate_from_dcm(dcm_config_path: &Path) -> anyhow::Result<MigrationResul
         }
 
         if let Some(ref metrics) = section.metrics {
-            for (metric_name, _) in metrics {
+            for metric_name in metrics.keys() {
                 mapped_metrics.push(metric_name.clone());
             }
         }
@@ -266,15 +266,17 @@ pub fn migrate_from_dcm(dcm_config_path: &Path) -> anyhow::Result<MigrationResul
         }
     }
 
-    let mut falcon_config = crate::config::FalconConfig::default();
-    falcon_config.rules = mapped_rules
-        .iter()
-        .map(|(_, falcon_name)| crate::config::RuleConfig::Simple(falcon_name.clone()))
-        .collect();
-    falcon_config.exclude = if excludes.is_empty() {
-        crate::config::default_excludes()
-    } else {
-        excludes.clone()
+    let falcon_config = crate::config::FalconConfig {
+        rules: mapped_rules
+            .iter()
+            .map(|(_, falcon_name)| crate::config::RuleConfig::Simple(falcon_name.clone()))
+            .collect(),
+        exclude: if excludes.is_empty() {
+            crate::config::default_excludes()
+        } else {
+            excludes.clone()
+        },
+        ..crate::config::FalconConfig::default()
     };
 
     let yaml = serde_yaml::to_string(&falcon_config)?;
@@ -294,8 +296,8 @@ pub fn feature_gap_report() -> String {
     let mapping = rule_mapping();
 
     let mut report = String::new();
-    report.push_str(&format!("Falcon vs DCM Feature Gap Report\n"));
-    report.push_str(&format!("==================================\n\n"));
+    report.push_str("Falcon vs DCM Feature Gap Report\n");
+    report.push_str("==================================\n\n");
     report.push_str(&format!(
         "Mapped rules:   {} (direct equivalents in Falcon)\n",
         mapping.len()

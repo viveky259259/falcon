@@ -48,7 +48,7 @@ fn find_arb_files(root: &Path) -> Vec<PathBuf> {
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "arb"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "arb"))
         .map(|e| e.path().to_path_buf())
         .collect()
 }
@@ -87,7 +87,7 @@ fn collect_dart_identifiers(root: &Path, exclude: &[glob::Pattern]) -> HashSet<S
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .filter(|e| {
             let rel = e.path().strip_prefix(root).unwrap_or(e.path());
             !exclude.iter().any(|p| p.matches_path(rel))

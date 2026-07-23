@@ -4,28 +4,52 @@
 
 ![Falcon AI Score](https://img.shields.io/badge/Falcon_AI_Score-72/100-yellow)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Rules](https://img.shields.io/badge/rules-55%2B-brightgreen)
-![Tests](https://img.shields.io/badge/tests-592-brightgreen)
+![Rules](https://img.shields.io/badge/rules-61%2B-brightgreen)
+![Tests](https://img.shields.io/badge/tests-924-brightgreen)
 
-Falcon is the only Flutter linter specifically designed to catch the bugs AI tools leave behind — missing dispose() calls, empty catch blocks, unawaited futures, hardcoded credentials, and 54 other rules. It's 10-100x faster than alternatives, scores your code 0-100, and integrates with AI tools via MCP for real-time self-correction.
+Falcon is the only Flutter linter specifically designed to catch the bugs AI tools leave behind — missing dispose() calls, empty catch blocks, unawaited futures, hardcoded credentials, and 60 other rules. It's 10-100x faster than alternatives, scores your code 0-100, and integrates with AI tools via MCP for real-time self-correction.
 
 ## Quick Start
 
 ```bash
 # Install
+brew tap falcon-lint/tap
+brew install falcon
+
+# Or install from source
 cargo install --git https://github.com/viveky259259/falcon
 
+# Or run without a global install
+npx falcon@latest review
+
 # Score your project (2 seconds)
-falcon ai-score .
+falcon score .
+
+# Review changed Dart files for a PR
+falcon review . --base-ref origin/main --format gh
 
 # Full analysis
-falcon analyze .
+falcon check .
 ```
+
+## Semantic Analysis
+
+`falcon review` runs semantic analysis automatically when a Dart project has
+`.dart_tool/package_config.json`. Semantic mode shells out to
+`dart analyze --format=json`, then lets analyzer diagnostics win on the same
+file, line, and rule class. Falcon still reports behavioral and security
+findings that the analyzer does not own. Use `--semantic` to opt in explicitly
+or `--no-defer-to-analyzer` (`--no-defer`) when you need to audit the raw
+Falcon output.
+
+`falcon check` stays syntactic by default, including in editor-save and
+pre-commit flows. Use `falcon check --semantic` in CI when the Dart analyzer
+shellout is acceptable.
 
 ## AI Code Quality Score
 
 ```
-$ falcon ai-score .
+$ falcon score .
 
   AI Code Quality Score: 72/100 (Grade: C)
 
@@ -41,22 +65,22 @@ $ falcon ai-score .
 
 | Feature | Command | Description |
 |---|---|---|
-| **App Manager** | `falcon manage health` | Unified 0-100 health score across 6 dimensions |
-| **Dep Manager** | `falcon manage deps` | Unused deps, version issues, path/git deps |
-| **Architect** | `falcon manage arch` | Architecture governance, layer violations, hotspots |
-| **Maintenance** | `falcon manage maint` | Tech debt score, cleanup tasks, auto-fix pipeline |
-| **AI Score** | `falcon ai-score` | 0-100 AI Code Quality Score with 6-dimension breakdown |
-| **61+ Rules** | `falcon analyze` | Flutter, BLoC, Riverpod, accessibility rules |
+| **App Manager** | `falcon x manage health` | Unified 0-100 health score across 6 dimensions |
+| **Dep Manager** | `falcon x manage deps` | Unused deps, version issues, path/git deps |
+| **Architect** | `falcon x manage arch` | Architecture governance, layer violations, hotspots |
+| **Maintenance** | `falcon x manage maint` | Tech debt score, cleanup tasks, auto-fix pipeline |
+| **AI Score** | `falcon score` | 0-100 AI Code Quality Score with 6-dimension breakdown |
+| **61+ Rules** | `falcon check` | Flutter, BLoC, Riverpod, accessibility rules |
 | **MCP Server** | `falcon-mcp` | AI tools call Falcon during code generation |
-| **PR Comments** | `falcon pr-comment` | Auto-post analysis on GitHub PRs |
-| **Vulnerability** | `falcon vuln-scan` | Security radar with CWE classification |
-| **Risk Prediction** | `falcon predict` | Predict production issues from patterns |
-| **Test Generation** | `falcon test-gen` | Generate test stubs from code analysis |
-| **Refactoring Sim** | `falcon refactor-sim` | "What if we migrate to Riverpod?" impact |
-| **Enterprise** | `falcon enterprise` | Policies, audit logs, compliance |
-| **HTTP API** | `falcon api` | REST API for integrations |
+| **PR Comments** | `falcon review --format gh` | Generate GitHub-ready PR review markdown |
+| **Vulnerability** | `falcon x vuln-scan` | Security radar with CWE classification |
+| **Risk Prediction** | `falcon x predict` | Predict production issues from patterns |
+| **Test Generation** | `falcon x test-gen` | Generate test stubs from code analysis |
+| **Refactoring Sim** | `falcon x refactor-sim` | "What if we migrate to Riverpod?" impact |
+| **Enterprise** | `falcon x enterprise` | Policies, audit logs, compliance |
+| **HTTP API** | `falcon x api` | REST API for integrations |
 
-[See all 80+ commands →](docs/cli-reference.md)
+[See all 74 commands →](docs/cli-reference.md)
 
 ## AI Tool Integration (MCP)
 
@@ -80,17 +104,17 @@ Falcon analyzes Flutter code in real-time during generation — the AI self-corr
 - name: Install Falcon
   run: cargo install --git https://github.com/viveky259259/falcon
 - name: Analyze
-  run: falcon analyze . --fail-on error
+  run: falcon check . --fail-on error
 - name: PR Comment
-  run: falcon pr-comment . --dry-run
+  run: falcon review . --base-ref origin/main --format gh | gh pr comment --body-file -
 ```
 
 ### Presets
 
 ```bash
-falcon analyze --preset ai-generated    # 20 rules for AI code
-falcon analyze --preset strict          # All rules, max severity
-falcon analyze --preset flutter         # Flutter best practices
+falcon check --preset ai-generated    # 20 rules for AI code
+falcon check --preset strict          # All rules, max severity
+falcon check --preset flutter         # Flutter best practices
 ```
 
 ## Pricing
@@ -119,7 +143,7 @@ Compare: `dart analyze` takes 30-70 seconds on the same projects.
 
 - [Getting Started](docs/getting-started.md)
 - [CLI Reference](docs/cli-reference.md) (all 74 commands)
-- [Rule Catalog](docs/rule-catalog.md) (58+ rules)
+- [Rule Catalog](docs/rule-catalog.md) (61+ rules)
 - [State of AI-Generated Flutter Code 2026](content/state-of-ai-flutter-code-2026.md)
 
 ## Contributing
@@ -129,7 +153,7 @@ Contributions welcome! Falcon is MIT-licensed.
 ```bash
 git clone https://github.com/viveky259259/falcon
 cd falcon
-cargo test    # 286 tests
+cargo test    # 924 tests
 cargo build   # Fast build
 ```
 

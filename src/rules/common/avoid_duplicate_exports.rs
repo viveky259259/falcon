@@ -37,16 +37,15 @@ impl Rule for AvoidDuplicateExports {
 
             let mut uri = String::new();
             walk_tree(node, &mut |inner| {
-                if inner.kind() == "string_literal"
-                    || inner.kind() == "string_literal_single_quotes"
-                    || inner.kind() == "string_literal_double_quotes"
+                if uri.is_empty()
+                    && (inner.kind() == "string_literal"
+                        || inner.kind() == "string_literal_single_quotes"
+                        || inner.kind() == "string_literal_double_quotes")
                 {
-                    if uri.is_empty() {
-                        uri = source[inner.byte_range()]
-                            .trim_matches('\'')
-                            .trim_matches('"')
-                            .to_string();
-                    }
+                    uri = source[inner.byte_range()]
+                        .trim_matches('\'')
+                        .trim_matches('"')
+                        .to_string();
                 }
             });
 

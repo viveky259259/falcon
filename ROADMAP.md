@@ -197,7 +197,7 @@ is money saved — and Falcon does it for free.
 - [x] Watch mode for continuous analysis (`falcon watch`)
 
 ### Baseline Support (moved from v0.4 → here for CI)
-- [x] Baseline file management (`falcon baseline create`)
+- [x] Baseline file management (`falcon x baseline create`)
 - [x] Only report NEW violations mode (`--baseline`)
 - [x] Baseline diff for PRs (new issues introduced in this PR)
 - [x] `--exclude-public-api` flag
@@ -274,10 +274,10 @@ features are off by default.
 | Context-aware fix generation (LLM) | M | Matches codebase naming conventions |
 | "Existing constant available" detection | M | For magic numbers — find the constant that already exists |
 | `falcon fix --preview` | M | Batch auto-fix with diff preview |
-| `falcon explain <rule>` | M | AI-generated contextual explanation of any violation |
+| `falcon x explain <rule>` | M | AI-generated contextual explanation of any violation |
 
 **Exit criteria**: Dead code confidence scores match manual review 90%+ of
-the time. `falcon explain` produces useful, contextual explanations — not
+the time. `falcon x explain` produces useful, contextual explanations — not
 generic rule descriptions. False positive rate on magic numbers drops 60%+
 with context-aware mode.
 
@@ -471,9 +471,9 @@ Codebase intelligence produces actionable decomposition suggestions on 233-file 
 | Deliverable | Status |
 |---|---|
 | Shareable rule presets: recommended (14), strict (33), flutter (9), riverpod (8), bloc (8), performance (6) | ✅ |
-| `falcon preset list` | ✅ |
-| `falcon preset show <name>` | ✅ |
-| `falcon preset apply <name>` (writes to falcon.yaml) | ✅ |
+| `falcon x preset list` | ✅ |
+| `falcon x preset show <name>` | ✅ |
+| `falcon x preset apply <name>` (writes to falcon.yaml) | ✅ |
 | Plugin registry with search, ratings, downloads | ✅ |
 | Seeded registry (flutter-hooks, clean-arch, freezed, firebase, getx, accessibility) | ✅ |
 | Team configuration sharing (apply preset to falcon.yaml) | ✅ |
@@ -499,9 +499,9 @@ All 6 presets apply cleanly to falcon.yaml. Registry search returns relevant res
 |---|---|
 | Analysis snapshot capture (per-commit, with git info) | ✅ |
 | Snapshot history storage (.falcon-data/history.json) | ✅ |
-| `falcon dashboard snapshot` — capture current state | ✅ |
-| `falcon dashboard history` — view past snapshots | ✅ |
-| `falcon dashboard serve` — local web dashboard (Chart.js) | ✅ |
+| `falcon x dashboard snapshot` — capture current state | ✅ |
+| `falcon x dashboard history` — view past snapshots | ✅ |
+| `falcon x dashboard serve` — local web dashboard (Chart.js) | ✅ |
 | Health score over time chart | ✅ |
 | Issues over time chart | ✅ |
 | Avg complexity over time chart | ✅ |
@@ -513,8 +513,8 @@ All 6 presets apply cleanly to falcon.yaml. Registry search returns relevant res
 
 | Deliverable | Status |
 |---|---|
-| `falcon trends` — quality trend analysis (improving/stable/declining) | ✅ |
-| `falcon rule-impact` — rule impact measurement per rule | ✅ |
+| `falcon x trends` — quality trend analysis (improving/stable/declining) | ✅ |
+| `falcon x rule-impact` — rule impact measurement per rule | ✅ |
 | Signal-to-noise scoring (0-100%) per rule | ✅ |
 | Auto-tune recommendations (DISABLE, REDUCE, INCREASE severity) | ✅ |
 | Top improving/worsening rules detection | ✅ |
@@ -559,7 +559,7 @@ Prometheus export produces valid scrape-ready metrics.
 
 | Deliverable | Status | Notes |
 |---|---|---|
-| ✅ `falcon benchmark` command | Done | Performance profiling with throughput metrics |
+| ✅ `falcon x benchmark` command | Done | Performance profiling with throughput metrics |
 | ✅ Performance: 32K LOC in 794ms | Done | ~41K lines/sec, well under 5s target |
 | ✅ Graceful error handling | Done | Edge cases, large files, panic recovery |
 | ✅ Production stability | Done | 196 tests pass, zero known crashers |
@@ -571,7 +571,7 @@ Prometheus export produces valid scrape-ready metrics.
 | ✅ `falcon migrate-from-dcm` | Done | Auto-converts DCM YAML config to falcon.yaml |
 | ✅ Rule name mapping (DCM → Falcon) | Done | 40 rules mapped with name translation |
 | ✅ Feature gap report | Done | `falcon feature-gap` lists all unmapped rules |
-| ✅ `falcon rule-docs` | Done | Console + Markdown rule reference generation |
+| ✅ `falcon x rule-docs` | Done | Console + Markdown rule reference generation |
 | ✅ Rule documentation generator | Done | Per-rule markdown files with config examples |
 | 🔜 Side-by-side comparison mode | Future | Run both, diff results |
 | 🔜 Comprehensive docs site (`falcon.dev`) | Future | Every rule, metric, config option |
@@ -636,7 +636,7 @@ Prometheus export produces valid scrape-ready metrics.
 - [x] `prefer-named-boolean-parameters` — `MyWidget(true, false, true)` is unreadable
 
 ### Community & Credibility ✅
-- [x] `falcon compare` — benchmarks vs `dart analyze` (3.1x faster, 84% more issues found)
+- [x] `falcon x compare` — benchmarks vs `dart analyze` (3.1x faster, 84% more issues found)
 - [x] `falcon showcase` — analyze Flutter projects with console + markdown reports
 - 🔜 "Falcon Certified" badge for pub.dev packages
 - 🔜 Blog post: "Why AI-Generated Flutter Code Needs Static Analysis"
@@ -649,12 +649,12 @@ Prometheus export produces valid scrape-ready metrics.
 > make Falcon a CI gate unless they trust it won't break their workflow.
 
 ### Stability & Predictability ✅
-- [x] `falcon stability-contract` — 6 guarantees covering config, naming, exit codes, formats, performance, behavior
+- [x] `falcon x stability-contract` — 6 guarantees covering config, naming, exit codes, formats, performance, behavior
 - [x] Rule deprecation policy — 4-stage process with 6-month notice period
 - [x] Migration policy — auto-migration, backwards-compatible configs, migration guides
-- [x] `falcon deprecation-status` — view currently deprecated rules (none yet)
-- [x] `falcon perf-track` — record & track performance over time with regression detection (>20% = alert)
-- [x] `falcon suppress` — false-positive database with categories (FP, won't-fix, acknowledged, deferred)
+- [x] `falcon x deprecation-status` — view currently deprecated rules (none yet)
+- [x] `falcon x perf-track` — record & track performance over time with regression detection (>20% = alert)
+- [x] `falcon x suppress` — false-positive database with categories (FP, won't-fix, acknowledged, deferred)
 - [x] Suppression statistics with per-rule breakdown and false-positive rate
 
 ### Community Ownership ✅
@@ -678,20 +678,20 @@ Prometheus export produces valid scrape-ready metrics.
 - [x] `--json` flag for CI/CD pipeline integration and machine-readable output
 
 ### AI Report Generator ✅
-- [x] `falcon ai-report` — comprehensive "State of AI-Generated Flutter Code" report
+- [x] `falcon x ai-report` — comprehensive "State of AI-Generated Flutter Code" report
 - [x] Combines AI score + provenance analysis + top issues + actionable recommendations
 - [x] `--format markdown` for publishable reports with tables and structured output
 - [x] Automated recommendations based on dimension scores and provenance data
 
 ### Provenance Tagging ✅
-- [x] `falcon provenance` — detect AI-generated vs human-written vs code-generated files
+- [x] `falcon x provenance` — detect AI-generated vs human-written vs code-generated files
 - [x] Heuristic signals: AI comments, TODO density, empty catches, UnimplementedError patterns, comment ratio
 - [x] Code-gen detection: `.g.dart`, `.freezed.dart`, GENERATED CODE markers
 - [x] Per-file confidence scores with signal explanations (`--verbose`)
 - [x] Summary with percentages by origin category
 
 ### Convention Engine ✅
-- [x] `falcon conventions` — auto-detect team conventions without manual configuration
+- [x] `falcon x conventions` — auto-detect team conventions without manual configuration
 - [x] Naming conventions: file naming (snake_case/mixed), class naming (PascalCase/mixed)
 - [x] Architecture detection: Clean Architecture, Feature-First, MVC/MVVM, Flat/Custom
 - [x] Layer detection: domain, data, presentation, models, services, repositories, features, etc.
@@ -771,7 +771,7 @@ v1.x Architecture:                    v2.0 Architecture:
 - [x] Preset support in `falcon_analyze` for AI-generated code presets
 
 ### Drift Detector ✅
-- [x] `falcon drift` — detect convention drift in new or changed code
+- [x] `falcon x drift` — detect convention drift in new or changed code
 - [x] `--since` flag for analyzing only files changed since a git ref
 - [x] 4 drift categories: Naming, Architecture, ErrorHandling, StateManagement
 - [x] Drift score (0-100%) measuring convention adherence
@@ -780,13 +780,13 @@ v1.x Architecture:                    v2.0 Architecture:
 - [x] `--json` flag for CI/CD integration
 
 ### Self-Tuning Rules ✅
-- [x] `falcon self-tune` — auto-adjust rule recommendations based on usage patterns
+- [x] `falcon x self-tune` — auto-adjust rule recommendations based on usage patterns
 - [x] Signal ratio tracking: triggers vs. suppressions per rule
 - [x] Auto-recommendations: UPGRADE (high-value rules), DOWNGRADE (noisy rules), DISABLE (mostly suppressed)
 - [x] Tune history persistence (`.falcon-data/tune-history.json`)
 
 ### AI Score Trends ✅
-- [x] `falcon score-track` — record AI Code Quality Score snapshots over time
+- [x] `falcon x score-track` — record AI Code Quality Score snapshots over time
 - [x] `--history` flag to view score history with per-dimension breakdown
 - [x] Score deltas between snapshots (↑ improved / ↓ regressed)
 - [x] Git commit tracking per snapshot
@@ -797,7 +797,7 @@ v1.x Architecture:                    v2.0 Architecture:
 - [x] `falcon test-gen` — generate meaningful test stubs from code analysis (unit + widget tests, `--write` to save) ✅
 - [x] `falcon vuln-scan` — vulnerability & anti-pattern radar with CWE classification (insecure storage, HTTP, injection, crypto, data exposure) ✅
 - [x] State management migration assistant — covered by `falcon refactor-sim` (6 migration scenarios) ✅
-- [x] `falcon upgrade-check` — Flutter upgrade compatibility checker, detects deprecated/removed APIs with migration guidance ✅
+- [x] `falcon x upgrade-check` — Flutter upgrade compatibility checker, detects deprecated/removed APIs with migration guidance ✅
 
 ---
 
@@ -833,10 +833,10 @@ AI Tool Integration Flow:
 - [x] **Webhook Callbacks** — analysis.complete, score.changed, drift.detected event webhooks ✅
 
 ### Platform Expansion ✅
-- [x] Multi-language support — `falcon check-platform` analyzes Kotlin/Swift platform channel code for naming, error handling, thread safety ✅
-- [x] Code generation quality — `falcon check-codegen` analyzes .g.dart/.freezed.dart for staleness, size, missing headers ✅
+- [x] Multi-language support — `falcon x check-platform` analyzes Kotlin/Swift platform channel code for naming, error handling, thread safety ✅
+- [x] Code generation quality — `falcon x check-codegen` analyzes .g.dart/.freezed.dart for staleness, size, missing headers ✅
 - [x] Accessibility lint rules — `ensure-semantics-label`, `ensure-image-semantics`, `ensure-touch-target-size` (WCAG 2.5.5) ✅
-- [x] Performance profiling — `falcon check-perf` DevTools-style analysis for rebuilds, memory, rendering, network anti-patterns ✅
+- [x] Performance profiling — `falcon x check-perf` DevTools-style analysis for rebuilds, memory, rendering, network anti-patterns ✅
 
 ---
 
@@ -863,8 +863,8 @@ AI Code Quality Score: 72/100
 - [x] **AI Code Score (0-100)** — single number for production-readiness ✅ (v1.3)
 - [x] **Score Breakdown** — Resource Safety, Error Handling, Type Safety, Security, Convention Match, Complexity ✅ (v1.3)
 - [x] **Score API** — embeddable badge for READMEs, PR comments, dashboards ✅ (v1.3 `--badge`)
-- [x] **Benchmark Database** — `falcon benchmark-db` records per-tool scores, computes avg/min/max by AI tool ✅
-- [x] **Score Trends** — track score over time per project ✅ (v2.0 `score-track`)
+- [x] **Benchmark Database** — `falcon x benchmark-db` records per-tool scores, computes avg/min/max by AI tool ✅
+- [x] **Score Trends** — track score over time per project ✅ (v2.0 `x score-track`)
 - [x] **Certification** — "Falcon Certified: Production Ready" badge for repos maintaining 85+ ✅ (v1.3)
 
 ---
@@ -874,11 +874,11 @@ AI Code Quality Score: 72/100
 > **Thesis**: Falcon gets smarter with scale. Every project that uses Falcon makes
 > Falcon better for every other project.
 
-- [x] **Cross-Project Learning** — `falcon learn` records projects, `--insights` derives cross-project patterns and recommendations ✅
-- [x] **AI-Tool Profiling** — `falcon ai-profile` builds per-tool error profiles from benchmark database ✅
-- [x] **Auto-Rule Generation** — `falcon discover-rules` proposes new rules from observed code patterns ✅
-- [x] **Fix Effectiveness Tracking** — `falcon fix-track` records accept/reject outcomes per rule ✅
-- [x] **Regression Prediction** — `falcon predict` forecasts production risks with probability, timeframe, evidence, and recommendations ✅
+- [x] **Cross-Project Learning** — `falcon x learn` records projects, `--insights` derives cross-project patterns and recommendations ✅
+- [x] **AI-Tool Profiling** — `falcon x ai-profile` builds per-tool error profiles from benchmark database ✅
+- [x] **Auto-Rule Generation** — `falcon x discover-rules` proposes new rules from observed code patterns ✅
+- [x] **Fix Effectiveness Tracking** — `falcon x fix-track` records accept/reject outcomes per rule ✅
+- [x] **Regression Prediction** — `falcon x predict` forecasts production risks with probability, timeframe, evidence, and recommendations ✅
 
 ### v2.x Success Metrics
 
@@ -935,11 +935,11 @@ Level 5: "It's just part of Flutter"              ← v4.0+ (standard)
 
 ### The Platform
 
-- [x] **Falcon Cloud** — `falcon cloud` with team dashboards, multi-project tracking, alerts, trend monitoring ✅
-- [x] **Falcon for Enterprise** — `falcon enterprise` with custom policies, audit logs, compliance reporting ✅
-- [x] **Falcon Marketplace** — `falcon marketplace` to browse rule packs, convention configs, integrations ✅
-- [x] **Falcon Certification Program** — `falcon certify` with Bronze/Silver/Gold/Platinum levels and badges ✅
-- [x] **Falcon Partner Program** — `falcon partners` registry for AI tools, IDEs, CI/CD platforms ✅
+- [x] **Falcon Cloud** — `falcon x cloud` with team dashboards, multi-project tracking, alerts, trend monitoring ✅
+- [x] **Falcon for Enterprise** — `falcon x enterprise` with custom policies, audit logs, compliance reporting ✅
+- [x] **Falcon Marketplace** — `falcon x marketplace` to browse rule packs, convention configs, integrations ✅
+- [x] **Falcon Certification Program** — `falcon x certify` with Bronze/Silver/Gold/Platinum levels and badges ✅
+- [x] **Falcon Partner Program** — `falcon x partners` registry for AI tools, IDEs, CI/CD platforms ✅
 
 ### Revenue Model
 

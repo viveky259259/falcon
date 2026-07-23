@@ -118,7 +118,7 @@ command:
 
 scripts:
   analyze:
-    run: melos exec -- falcon analyze . --fail-on error
+    run: melos exec -- falcon check . --fail-on error
     description: Run Falcon on all packages
     
   test:
@@ -316,7 +316,7 @@ jobs:
       - run: |
           cd modules/${{ matrix.module }}
           flutter test --coverage
-          falcon analyze . --fail-on error
+          falcon check . --fail-on error
 
   test-shared:
     runs-on: ubuntu-latest
@@ -326,7 +326,7 @@ jobs:
       - run: |
           melos bootstrap
           melos run test -- --select-scope packages/
-          falcon manage health apps/shell
+          falcon x manage health apps/shell
 
   build-shell:
     needs: [test-changed, test-shared]
@@ -338,7 +338,7 @@ jobs:
           melos bootstrap
           cd apps/shell
           flutter build apk --release
-          falcon ai-score . --json > score.json
+          falcon score . --json > score.json
 ```
 
 ### 7. Team Ownership Model
@@ -354,10 +354,10 @@ Team Platform    → packages/* + apps/shell/ + tools/
 **Rules enforced by Falcon:**
 ```bash
 # Each team runs Falcon on their module
-falcon analyze modules/payments/ --fail-on error
-falcon manage arch modules/payments/  # No cross-module imports
-falcon check-layers modules/payments/ # Clean Architecture enforced
-falcon drift modules/payments/ --since main  # Convention adherence
+falcon check modules/payments/ --fail-on error
+falcon x manage arch modules/payments/  # No cross-module imports
+falcon x check-layers modules/payments/ # Clean Architecture enforced
+falcon x drift modules/payments/ --since main  # Convention adherence
 ```
 
 ### 8. Performance: Deferred Loading
@@ -409,14 +409,14 @@ exclude:
 # CI: Per-module quality gates
 for module in modules/*/; do
   echo "=== Analyzing $module ==="
-  falcon ai-score "$module"
-  falcon manage deps "$module"
-  falcon check-layers "$module"
+  falcon score "$module"
+  falcon x manage deps "$module"
+  falcon x check-layers "$module"
 done
 
 # Full app health
-falcon manage health apps/shell
-falcon manage all apps/shell
+falcon x manage health apps/shell
+falcon x manage all apps/shell
 ```
 
 ---
@@ -429,7 +429,7 @@ falcon manage all apps/shell
 | Shared mutable state | Race conditions, unpredictable behavior | Use Riverpod/BLoC for state isolation |
 | God packages (one package with everything) | Defeats the purpose of modularity | Split by domain, max 50 files per package |
 | Direct database access from UI | Violates Clean Architecture | Repository pattern + DI |
-| Skipping module boundaries for "quick fix" | Tech debt snowball | Falcon `check-layers` in CI blocks violations |
+| Skipping module boundaries for "quick fix" | Tech debt snowball | Falcon `x check-layers` in CI blocks violations |
 
 ---
 
@@ -441,7 +441,7 @@ falcon manage all apps/shell
 - [ ] GetIt DI is layered (core → auth → features)
 - [ ] Inter-module communication via EventBus or contracts
 - [ ] CI runs module-specific tests (only changed modules)
-- [ ] Falcon `check-layers` enforced in CI
+- [ ] Falcon `x check-layers` enforced in CI
 - [ ] Deferred loading for large modules
 - [ ] Code ownership (CODEOWNERS file) per module
 - [ ] Module creation template/generator script

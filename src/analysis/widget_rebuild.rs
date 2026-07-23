@@ -134,11 +134,8 @@ fn count_nesting(node: Node, source: &str, depth: usize, max: &mut usize) {
 
     let new_depth = if is_widget_call
         && text.len() > 1
-        && text.chars().next().map_or(false, |c| c.is_uppercase())
-        && (text.contains('(')
-            || node
-                .next_sibling()
-                .map_or(false, |n| n.kind() == "selector"))
+        && text.chars().next().is_some_and(|c| c.is_uppercase())
+        && (text.contains('(') || node.next_sibling().is_some_and(|n| n.kind() == "selector"))
     {
         depth + 1
     } else {

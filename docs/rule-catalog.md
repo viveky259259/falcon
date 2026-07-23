@@ -16,7 +16,7 @@ Falcon includes 61+ lint rules across 7 categories.
 | `avoid-nested-conditionals` | Warning | Max nesting depth for readability |
 | `avoid-non-ascii-symbols` | Warning | Use ASCII identifiers |
 | `avoid-print-in-production` | Warning | Use logging framework instead of print() |
-| `avoid-throw-in-catch` | Error | Don't throw in catch blocks |
+| `avoid-throw-in-catch-block` | Error | Don't throw in catch blocks |
 | `avoid-unawaited-futures` | Warning | Always await or wrap in unawaited() |
 | `avoid-unnecessary-type-assertions` | Warning | Remove redundant `is` checks |
 | `avoid-unnecessary-type-casts` | Warning | Remove redundant `as` casts |
@@ -32,7 +32,7 @@ Falcon includes 61+ lint rules across 7 categories.
 | `prefer-specific-catch-type` | Warning | Use `on SpecificException` not `catch (e)` |
 | `prefer-trailing-comma` | Warning | Trailing commas in multi-line constructs |
 | `avoid-cascade-after-if-null` | Warning | Cascade after ?? is confusing |
-| `avoid-collection-methods-unrelated-types` | Warning | Type-safe collection methods |
+| `avoid-collection-methods-with-unrelated-types` | Warning | Type-safe collection methods |
 | `avoid-double-negation` | Warning | Simplify `!!` |
 | `avoid-duplicate-exports` | Warning | No duplicate exports |
 | `avoid-missing-enum-constant-in-map` | Warning | All enum values in map |
@@ -89,7 +89,7 @@ Falcon includes 61+ lint rules across 7 categories.
 
 | Rule | Severity | Description |
 |---|---|---|
-| `always-override-equals-hashcode` | Warning | Override both or neither |
+| `always-override-equals-and-hashcode` | Warning | Override both or neither |
 | `avoid-mutable-equatable` | Warning | Equatable props should be final |
 | `prefer-equatable` | Info | Use Equatable for value objects |
 
@@ -109,11 +109,11 @@ Falcon includes 61+ lint rules across 7 categories.
 Use `--preset` to apply a curated rule set:
 
 ```bash
-falcon analyze --preset ai-generated    # 20 rules for AI-generated code
-falcon analyze --preset strict          # 33 rules at max severity
-falcon analyze --preset recommended     # 14 balanced rules
-falcon analyze --preset flutter         # 9 Flutter-specific rules
-falcon analyze --preset riverpod        # 8 Riverpod rules
-falcon analyze --preset bloc            # 8 BLoC rules
-falcon analyze --preset performance     # 6 performance rules
+falcon check --preset ai-generated    # 20 rules for AI-generated code
+falcon check --preset strict          # 33 rules at max severity
+falcon check --preset recommended     # 14 balanced rules
+falcon check --preset flutter         # 9 Flutter-specific rules
+falcon check --preset riverpod        # 8 Riverpod rules
+falcon check --preset bloc            # 8 BLoC rules
+falcon check --preset performance     # 6 performance rules
 ```

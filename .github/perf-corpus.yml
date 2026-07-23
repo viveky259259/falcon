@@ -1,0 +1,21 @@
+# Reference repos for the June review-performance guardrail.
+#
+# The synthetic `review_p95` benchmark enforces the 200-file changed-diff budget
+# in CI. These repos are the external corpus to use for periodic/manual runs as
+# the guardrail expands beyond synthetic coverage.
+review:
+  budget:
+    cold_p95_ms: 10000
+    warm_p95_ms: 3000
+    regression_budget_percent: 10
+    changed_files: 200
+  reference_repos:
+    - name: flutter-samples
+      url: https://github.com/flutter/samples.git
+      ref: main
+    - name: awesome-flutter
+      url: https://github.com/Solido/awesome-flutter.git
+      ref: master
+    - name: openfoodfacts-smooth-app
+      url: https://github.com/openfoodfacts/smooth-app.git
+      ref: develop

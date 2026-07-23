@@ -15,7 +15,7 @@ Turn Falcon into a live runtime copilot for Flutter apps:
 Primary command:
 
 ```bash
-falcon live --attach <vm-service-uri>
+falcon x live --attach <vm-service-uri>
 ```
 
 The command should stream issue cards while the app is running and print a final summary.
@@ -94,7 +94,7 @@ In a later phase, Falcon should compare issue fingerprints and metric deltas bef
 
 The first implementation should be intentionally narrow:
 
-- new top-level `falcon live` command
+- new `falcon x live` command
 - fixed-duration session with configurable interval
 - JSON and console output
 - runtime issue model
@@ -131,7 +131,7 @@ The session runner should:
 ## CLI Shape
 
 ```bash
-falcon live [path] [--attach <uri>] [--duration 30] [--interval 10] [--json]
+falcon x live [path] [--attach <uri>] [--duration 30] [--interval 10] [--json]
 ```
 
 Recommended semantics:

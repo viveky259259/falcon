@@ -31,7 +31,7 @@ pub fn enforce_import_restrictions(
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .filter(|e| {
             let rel = e.path().strip_prefix(root).unwrap_or(e.path());
             !exclude.iter().any(|p| p.matches_path(rel))
@@ -116,7 +116,7 @@ pub fn check_package_boundaries(root: &Path, exclude: &[glob::Pattern]) -> Vec<I
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "dart"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .filter(|e| {
             let rel = e.path().strip_prefix(root).unwrap_or(e.path());
             !exclude.iter().any(|p| p.matches_path(rel))
@@ -151,9 +151,7 @@ pub fn check_package_boundaries(root: &Path, exclude: &[glob::Pattern]) -> Vec<I
                     if !file_in_lib_src {
                         issues.push(Issue {
                             rule: "package-boundary".to_string(),
-                            message: format!(
-                                "Importing from 'lib/src/' violates package boundary. Use the public API in 'lib/' instead."
-                            ),
+                            message: "Importing from 'lib/src/' violates package boundary. Use the public API in 'lib/' instead.".to_string(),
                             severity: Severity::Warning,
                             file: file.clone(),
                             line: line_num + 1,
@@ -173,8 +171,8 @@ fn read_package_name(root: &Path) -> Option<String> {
     let content = std::fs::read_to_string(pubspec).ok()?;
     for line in content.lines() {
         let trimmed = line.trim();
-        if trimmed.starts_with("name:") {
-            return Some(trimmed[5..].trim().to_string());
+        if let Some(stripped) = trimmed.strip_prefix("name:") {
+            return Some(stripped.trim().to_string());
         }
     }
     None

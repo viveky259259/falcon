@@ -1,5 +1,5 @@
 {
-  "name": "falcon-lint",
+  "name": "falcon-vscode",
   "displayName": "Falcon — Flutter/Dart Static Analysis",
   "description": "Rust-powered static analysis for Flutter/Dart. Real-time diagnostics, quick fixes, and AI-powered code quality.",
   "version": "0.1.0",
@@ -27,6 +27,7 @@
   ],
   "activationEvents": [
     "onLanguage:dart",
+    "onChatParticipant:falcon.chat",
     "workspaceContains:**/pubspec.yaml"
   ],
   "main": "./out/extension.js",
@@ -77,6 +78,21 @@
           "default": "off",
           "enum": ["off", "messages", "verbose"],
           "description": "Traces the communication between VS Code and the Falcon language server."
+        },
+        "falcon.deferToAnalyzer": {
+          "type": "boolean",
+          "default": true,
+          "description": "Suppress Falcon diagnostics on lines where the Dart analyzer already reported a problem."
+        },
+        "falcon.quietMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Reduce informational noise — suppress info- and hint-level diagnostics from Falcon."
+        },
+        "falcon.scoreLens.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a file-header CodeLens with the Falcon score and delta from the previous save."
         }
       }
     },
@@ -90,12 +106,35 @@
         "title": "Falcon: Fix All Auto-fixable Issues"
       },
       {
+        "command": "falcon.quickFix",
+        "title": "Falcon: Quick Fix"
+      },
+      {
         "command": "falcon.restart",
         "title": "Falcon: Restart Language Server"
       },
       {
         "command": "falcon.showOutput",
         "title": "Falcon: Show Output"
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "falcon.chat",
+        "name": "falcon",
+        "fullName": "Falcon",
+        "description": "Ask Falcon about local score changes and lint rules.",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "score",
+            "description": "Explain the current Falcon score delta."
+          },
+          {
+            "name": "explain",
+            "description": "Explain a Falcon rule by id."
+          }
+        ]
       }
     ]
   },

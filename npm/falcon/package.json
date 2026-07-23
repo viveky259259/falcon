@@ -1,0 +1,30 @@
+{
+  "name": "falcon",
+  "version": "0.5.0",
+  "description": "Rust-powered static analysis CLI for Flutter/Dart",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/viveky259259/falcon.git"
+  },
+  "homepage": "https://github.com/viveky259259/falcon#readme",
+  "bugs": {
+    "url": "https://github.com/viveky259259/falcon/issues"
+  },
+  "bin": {
+    "falcon": "bin/falcon.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "scripts/",
+    "README.md"
+  ],
+  "scripts": {
+    "postinstall": "node scripts/install.js",
+    "test": "node test/install-local.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

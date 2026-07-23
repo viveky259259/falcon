@@ -53,18 +53,20 @@ impl Rule for AvoidMutableEquatable {
                             if !trimmed.starts_with("final")
                                 && !trimmed.starts_with("static")
                                 && !trimmed.starts_with("const")
+                                && !dart_ast::is_function_like(mc_child)
                             {
-                                if !dart_ast::is_function_like(mc_child) {
-                                    issues.push(Issue {
-                                        rule: self.name().to_string(),
-                                        message: format!("Equatable class '{}' has mutable field. Make it final.", name),
-                                        severity: self.default_severity(),
-                                        file: file.to_path_buf(),
-                                        line: node_start_line(mc_child),
-                                        column: mc_child.start_position().column + 1,
-                                    });
-                                    break;
-                                }
+                                issues.push(Issue {
+                                    rule: self.name().to_string(),
+                                    message: format!(
+                                        "Equatable class '{}' has mutable field. Make it final.",
+                                        name
+                                    ),
+                                    severity: self.default_severity(),
+                                    file: file.to_path_buf(),
+                                    line: node_start_line(mc_child),
+                                    column: mc_child.start_position().column + 1,
+                                });
+                                break;
                             }
                         }
                     }

@@ -1,5 +1,6 @@
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use std::cmp::Reverse;
 use std::path::Path;
 
 const COMMUNITY_FILE: &str = ".falcon-data/community.json";
@@ -171,13 +172,15 @@ pub fn print_rule_requests(requests: &[RuleRequest]) {
 
     if requests.is_empty() {
         println!("  No rule requests yet.");
-        println!("  Submit one: falcon community request --name <rule-name> --desc <description>");
+        println!(
+            "  Submit one: falcon x community request --name <rule-name> --desc <description>"
+        );
         println!();
         return;
     }
 
     let mut sorted = requests.to_vec();
-    sorted.sort_by(|a, b| b.votes.cmp(&a.votes));
+    sorted.sort_by_key(|request| Reverse(request.votes));
 
     println!(
         "  {:<10} {:<6} {:<35} {:<15} {}",

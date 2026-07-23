@@ -26,7 +26,7 @@ impl Rule for PreferTrailingComma {
         let param_lists = find_descendants_by_kind(root, "formal_parameter_list");
         let arg_lists = find_descendants_by_kind(root, "arguments");
 
-        for list in param_lists.into_iter().chain(arg_lists.into_iter()) {
+        for list in param_lists.into_iter().chain(arg_lists) {
             let start_line = list.start_position().row;
             let end_line = list.end_position().row;
             if start_line == end_line {
