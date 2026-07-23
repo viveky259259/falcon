@@ -69,8 +69,7 @@ fn write_if_allowed(target: &Path, content: &str, force: bool) -> Result<bool> {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("creating parent dir for {}", target.display()))?;
     }
-    std::fs::write(target, content)
-        .with_context(|| format!("writing {}", target.display()))?;
+    std::fs::write(target, content).with_context(|| format!("writing {}", target.display()))?;
     Ok(true)
 }
 
@@ -102,7 +101,12 @@ mod tests {
 
         let report = run_init(root, false).unwrap();
         assert!(report.root_written.is_some());
-        assert_eq!(report.feature_files.len(), 2, "got {:?}", report.feature_files);
+        assert_eq!(
+            report.feature_files.len(),
+            2,
+            "got {:?}",
+            report.feature_files
+        );
     }
 
     #[test]

@@ -244,7 +244,7 @@ enum Commands {
         trailing_var_arg = true,
         allow_hyphen_values = true,
         disable_help_flag = true,
-        disable_help_subcommand = true,
+        disable_help_subcommand = true
     )]
     Flutter {
         /// Arguments forwarded verbatim to the `flutter` CLI (e.g. `falcon flutter build apk --release`)
@@ -266,7 +266,7 @@ enum Commands {
         trailing_var_arg = true,
         allow_hyphen_values = true,
         disable_help_flag = true,
-        disable_help_subcommand = true,
+        disable_help_subcommand = true
     )]
     Fvm {
         /// Arguments forwarded verbatim to the `fvm` CLI
@@ -1905,10 +1905,8 @@ fn run(cli: Cli) -> Result<()> {
             // 3. Unused files (so dead-folder rollup has data to work from)
             let resolver = falcon::resolver::ProjectResolver::new(&path, &falcon_config)?;
             let unused_file_issues = resolver.find_unused_files().unwrap_or_default();
-            let unused_set: std::collections::HashSet<std::path::PathBuf> = unused_file_issues
-                .iter()
-                .map(|i| i.file.clone())
-                .collect();
+            let unused_set: std::collections::HashSet<std::path::PathBuf> =
+                unused_file_issues.iter().map(|i| i.file.clone()).collect();
             all_issues.extend(unused_file_issues);
 
             // 4. Dead-folder rollup
@@ -2024,7 +2022,11 @@ fn run(cli: Cli) -> Result<()> {
             let status = std::process::Command::new("flutter")
                 .args(&args)
                 .status()
-                .map_err(|e| anyhow::anyhow!("failed to invoke `flutter`: {e}. Is the Flutter SDK on your PATH?"))?;
+                .map_err(|e| {
+                    anyhow::anyhow!(
+                        "failed to invoke `flutter`: {e}. Is the Flutter SDK on your PATH?"
+                    )
+                })?;
             process::exit(status.code().unwrap_or(1));
         }
 
@@ -4275,10 +4277,7 @@ fn print_smells_summary(
             println!("      {}/", rel.display().to_string().bright_yellow());
         }
         if summary.dead_folders.len() > limit {
-            println!(
-                "      ... and {} more",
-                summary.dead_folders.len() - limit
-            );
+            println!("      ... and {} more", summary.dead_folders.len() - limit);
         }
         println!();
     }

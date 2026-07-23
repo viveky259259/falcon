@@ -121,7 +121,9 @@ impl SmellsSummary {
         let mut grouped = group_by_category(issues);
         Self {
             dead_code: grouped.remove(&SmellCategory::DeadCode).unwrap_or_default(),
-            code_smells: grouped.remove(&SmellCategory::CodeSmell).unwrap_or_default(),
+            code_smells: grouped
+                .remove(&SmellCategory::CodeSmell)
+                .unwrap_or_default(),
             security_smells: grouped
                 .remove(&SmellCategory::SecuritySmell)
                 .unwrap_or_default(),
@@ -177,12 +179,21 @@ mod tests {
 
     #[test]
     fn classifies_code_smell_rules() {
-        assert_eq!(classify("avoid-print-in-production"), SmellCategory::CodeSmell);
-        assert_eq!(classify("prefer-const-constructors"), SmellCategory::CodeSmell);
+        assert_eq!(
+            classify("avoid-print-in-production"),
+            SmellCategory::CodeSmell
+        );
+        assert_eq!(
+            classify("prefer-const-constructors"),
+            SmellCategory::CodeSmell
+        );
         assert_eq!(classify("no-magic-numbers"), SmellCategory::CodeSmell);
         assert_eq!(classify("cognitive-complexity"), SmellCategory::CodeSmell);
         assert_eq!(classify("avoid-long-functions"), SmellCategory::CodeSmell);
-        assert_eq!(classify("avoid-unused-parameters"), SmellCategory::CodeSmell);
+        assert_eq!(
+            classify("avoid-unused-parameters"),
+            SmellCategory::CodeSmell
+        );
     }
 
     #[test]
@@ -193,7 +204,10 @@ mod tests {
 
     #[test]
     fn classify_is_case_insensitive() {
-        assert_eq!(classify("Avoid-Hardcoded-Credentials"), SmellCategory::SecuritySmell);
+        assert_eq!(
+            classify("Avoid-Hardcoded-Credentials"),
+            SmellCategory::SecuritySmell
+        );
         assert_eq!(classify("DEAD-CODE-PATH"), SmellCategory::DeadCode);
     }
 
