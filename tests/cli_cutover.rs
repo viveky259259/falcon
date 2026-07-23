@@ -129,12 +129,10 @@ fn legacy_help_lists_historical_commands() {
 
     assert_success(&output);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    for command in ["analyze"] {
-        assert!(
-            stdout.contains(command),
-            "missing legacy command {command} in legacy help:\n{stdout}"
-        );
-    }
+    assert!(
+        stdout.contains("analyze"),
+        "missing legacy command analyze in legacy help:\n{stdout}"
+    );
 }
 
 #[test]

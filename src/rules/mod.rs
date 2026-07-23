@@ -13,18 +13,10 @@ use std::collections::HashMap;
 use std::path::Path;
 use tree_sitter::Node;
 
+#[derive(Default)]
 pub struct RuleContext<'a> {
     pub resolver_index: Option<&'a ResolverIndex>,
     pub resolver: Option<&'a Resolver<'a>>,
-}
-
-impl Default for RuleContext<'_> {
-    fn default() -> Self {
-        Self {
-            resolver_index: None,
-            resolver: None,
-        }
-    }
 }
 
 pub trait Rule: Send + Sync {

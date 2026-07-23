@@ -74,7 +74,7 @@ fn check_a11y_json_format() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
     assert_eq!(parsed["schema_version"], serde_json::json!(1));
-    assert!(parsed["issues"].as_array().unwrap().len() >= 1);
+    assert!(!parsed["issues"].as_array().unwrap().is_empty());
     assert_eq!(
         parsed["issues"][0]["rule_id"],
         "a11y/missing-ensure-semantics"
