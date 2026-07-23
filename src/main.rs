@@ -115,6 +115,25 @@ fn run(cli: Cli) -> Result<()> {
             json,
         } => handle_live(path, attach, duration, interval, json)?,
         Commands::Devtools { action } => handle_devtools(action)?,
+        Commands::Journey {
+            path,
+            attach,
+            device,
+            duration,
+            interval,
+            output_dir,
+            no_html,
+            json,
+        } => handle_journey(
+            path, attach, device, duration, interval, output_dir, no_html, json,
+        )?,
+        Commands::Trace {
+            path,
+            attach,
+            duration,
+            jank_ms,
+            json,
+        } => handle_trace(path, attach, duration, jank_ms, json)?,
         Commands::AssetAudit {
             path,
             output,
@@ -156,6 +175,12 @@ fn run(cli: Cli) -> Result<()> {
 
         Commands::Baseline { action } => handle_baseline(action)?,
         Commands::DepGraph { path, file } => handle_dep_graph(path, file)?,
+        Commands::ArchMap {
+            path,
+            output,
+            no_html,
+            json,
+        } => handle_arch_map(path, output, no_html, json)?,
         Commands::Workspace { path } => handle_workspace(path)?,
         Commands::Docs { output } => handle_docs(output)?,
         Commands::Validate { path } => handle_validate(path)?,
@@ -425,6 +450,67 @@ fn run(cli: Cli) -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
+fn handle_journey(
+    path: PathBuf,
+    attach: Option<String>,
+    device: Option<String>,
+    duration: u64,
+    interval: u64,
+    output_dir: PathBuf,
+    no_html: bool,
+    json: bool,
+) -> Result<()> {
+    let rt = tokio::runtime::Runtime::new()?;
+    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+        &path,
+        attach.as_deref(),
+    ))?;
+    let config = falcon::runtime::journey::JourneyConfig {
+        project_path: path,
+        device,
+        duration: std::time::Duration::from_secs(duration),
+        interval: std::time::Duration::from_secs(interval),
+        output_dir,
+        write_html: !no_html,
+    };
+    let report = rt.block_on(falcon::runtime::journey::record_journey(
+        &client, &vm_uri, &config,
+    ))?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    } else {
+        falcon::runtime::journey::print_journey_report(&report);
+    }
+    Ok(())
+}
+
+fn handle_trace(
+    path: PathBuf,
+    attach: Option<String>,
+    duration: u64,
+    jank_ms: f64,
+    json: bool,
+) -> Result<()> {
+    let rt = tokio::runtime::Runtime::new()?;
+    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+        &path,
+        attach.as_deref(),
+    ))?;
+    let report = rt.block_on(falcon::runtime::tools::collect_trace_report(
+        &client,
+        &vm_uri,
+        std::time::Duration::from_secs(duration),
+        jank_ms,
+    ))?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    } else {
+        falcon::runtime::tools::print_trace_report(&report);
+    }
+    Ok(())
+}
+
 fn handle_devtools(action: DevtoolsAction) -> Result<()> {
     let rt = tokio::runtime::Runtime::new()?;
     match action {
@@ -616,6 +702,72 @@ fn handle_devtools(action: DevtoolsAction) -> Result<()> {
             }
             if !report.success {
                 process::exit(1);
+            }
+        }
+        DevtoolsAction::TreeDiff {
+            path,
+            attach,
+            settle,
+            json,
+        } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_tree_diff(
+                &client,
+                &vm_uri,
+                std::time::Duration::from_secs(settle),
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_tree_diff(&report);
+            }
+        }
+        DevtoolsAction::RouteLog {
+            path,
+            attach,
+            duration,
+            json,
+        } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_route_log(
+                &client,
+                &vm_uri,
+                std::time::Duration::from_secs(duration),
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_route_log(&report);
+            }
+        }
+        DevtoolsAction::Screenshot {
+            path,
+            attach,
+            out,
+            device,
+            json,
+        } => {
+            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+                &path,
+                attach.as_deref(),
+            ))?;
+            let report = rt.block_on(falcon::runtime::tools::collect_screenshot(
+                &client,
+                &vm_uri,
+                &out,
+                &path,
+                device.as_deref(),
+            ))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                falcon::runtime::tools::print_screenshot_report(&report);
             }
         }
     }
@@ -1080,6 +1232,35 @@ fn handle_golden_gen(
             "✓".green().bold(),
             html_output.display()
         );
+    }
+    Ok(())
+}
+
+fn handle_arch_map(path: PathBuf, output: PathBuf, no_html: bool, json: bool) -> Result<()> {
+    let config = FalconConfig::load(&path)?;
+    let exclude: Vec<glob::Pattern> = config
+        .exclude
+        .iter()
+        .filter_map(|p| glob::Pattern::new(p).ok())
+        .collect();
+
+    let report = falcon::analysis::arch_map::build_arch_map(&path, &exclude);
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    } else {
+        falcon::analysis::arch_map::print_report(&report);
+    }
+
+    if !no_html {
+        falcon::analysis::arch_map::write_html(&report, &output)?;
+        if !json {
+            println!(
+                "\n{} {}",
+                "HTML report:".bright_cyan(),
+                output.display().to_string().bright_white()
+            );
+        }
     }
     Ok(())
 }

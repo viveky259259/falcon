@@ -326,6 +326,66 @@ pub enum Commands {
         action: DevtoolsAction,
     },
 
+    /// Trace an interaction window — correlate frame jank with hot-rebuilding widgets
+    #[command(name = "trace", display_order = 8)]
+    Trace {
+        /// Path to the Flutter project (used for `flutter run` when not attaching)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Attach to an already-running app by VM Service URI instead of launching
+        #[arg(long)]
+        attach: Option<String>,
+
+        /// Window in seconds to record frames + rebuilds
+        #[arg(short, long, default_value = "10")]
+        duration: u64,
+
+        /// Frame build time (ms) above which a frame counts as jank
+        #[arg(long, default_value = "16")]
+        jank_ms: f64,
+
+        /// Print machine-readable JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Record a user journey through a running app (screenshots + screens + metrics)
+    #[command(name = "journey", display_order = 8)]
+    Journey {
+        /// Path to the Flutter project (used for `flutter run` when not attaching)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Attach to an already-running app by VM Service URI instead of launching
+        #[arg(long)]
+        attach: Option<String>,
+
+        /// Target device ID for the screenshot device-capture fallback
+        #[arg(long)]
+        device: Option<String>,
+
+        /// Total recording duration in seconds
+        #[arg(short, long, default_value = "30")]
+        duration: u64,
+
+        /// Seconds between captures
+        #[arg(long, default_value = "3")]
+        interval: u64,
+
+        /// Directory for screenshots + journey.html
+        #[arg(short, long, default_value = "falcon-journey")]
+        output_dir: PathBuf,
+
+        /// Skip HTML report generation
+        #[arg(long)]
+        no_html: bool,
+
+        /// Print machine-readable JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Audit Flutter project assets — find unused, oversized, and WebP-convertible files
     #[command(name = "asset-audit", display_order = 9)]
     AssetAudit {
@@ -439,6 +499,26 @@ pub enum Commands {
     Baseline {
         #[command(subcommand)]
         action: BaselineAction,
+    },
+
+    /// Map the codebase architecture — modules, layers, and dependencies (Mermaid + HTML)
+    #[command(name = "arch-map", display_order = 1)]
+    ArchMap {
+        /// Path to analyze
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Output HTML report path
+        #[arg(short, long, default_value = "falcon-arch-map.html")]
+        output: PathBuf,
+
+        /// Skip HTML report (console only)
+        #[arg(long)]
+        no_html: bool,
+
+        /// Print machine-readable JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Show file dependency graph
@@ -1787,6 +1867,48 @@ pub enum DevtoolsAction {
         path: PathBuf,
         #[arg(long)]
         attach: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Diff the widget tree across a settle window (added/removed subtrees)
+    TreeDiff {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long)]
+        attach: Option<String>,
+        /// Seconds to wait between the before/after tree snapshots
+        #[arg(short, long, default_value = "5")]
+        settle: u64,
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Log navigation/route changes from a running app over a window
+    RouteLog {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long)]
+        attach: Option<String>,
+        /// Duration in seconds to record navigation events
+        #[arg(short, long, default_value = "15")]
+        duration: u64,
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Capture a PNG screenshot of the running Flutter app
+    Screenshot {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long)]
+        attach: Option<String>,
+        /// Output file path for the PNG
+        #[arg(short, long, default_value = "falcon-screenshot.png")]
+        out: PathBuf,
+        /// Target device ID for the `flutter screenshot` device-capture fallback
+        #[arg(long)]
+        device: Option<String>,
         #[arg(long)]
         json: bool,
     },

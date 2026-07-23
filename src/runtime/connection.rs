@@ -371,6 +371,25 @@ impl VmServiceClient {
         .or_else(|_| Ok(json!({})))
     }
 
+    // ── Screenshot ──────────────────────────────────────────────────
+
+    /// Capture a screenshot of the running app via the engine RPC
+    /// `_flutter.screenshot`, which renders the current layer tree to a PNG and
+    /// returns it base64-encoded under the `screenshot` field. Not every
+    /// embedder registers this RPC (e.g. some headless/test modes), so callers
+    /// should treat an error as "unsupported on this device".
+    pub async fn capture_screenshot(&self) -> Result<String> {
+        let resp = self
+            .call("_flutter.screenshot", json!({}))
+            .await
+            .context("Engine RPC `_flutter.screenshot` failed — the running device may not support screenshots")?;
+
+        resp["screenshot"]
+            .as_str()
+            .map(ToString::to_string)
+            .context("`_flutter.screenshot` response did not contain a `screenshot` field")
+    }
+
     // ── CPU / timeline diagnostics ──────────────────────────────────
 
     pub async fn get_cpu_samples(&self) -> Result<Value> {

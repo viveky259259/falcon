@@ -6,6 +6,7 @@
 
 pub mod connection;
 pub mod diagnostics;
+pub mod journey;
 pub mod live;
 pub mod report;
 pub mod tools;
