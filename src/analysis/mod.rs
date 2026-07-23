@@ -4,6 +4,7 @@ pub mod cognitive_complexity;
 pub mod devtools_bridge;
 pub mod import_rules;
 pub mod layer_enforcement;
+pub mod nav_graph;
 pub mod platform_channels;
 pub mod refactor_sim;
 pub mod test_gen;
