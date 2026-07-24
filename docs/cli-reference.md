@@ -275,7 +275,7 @@ jobs:
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1
 
-      - run: cargo install falcon-lint
+      - run: cargo install falcon-flutter
 
       - run: falcon review . --base-ref origin/main --format sarif > falcon-results.sarif
 

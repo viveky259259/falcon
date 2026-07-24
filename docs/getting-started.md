@@ -17,7 +17,7 @@ includes all three binaries: `falcon`, `falcon-lsp`, and `falcon-mcp`.
 ### From source
 
 ```bash
-cargo install falcon-lint
+cargo install falcon-flutter
 ```
 
 ### Without a global install
@@ -179,7 +179,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Falcon
-        run: cargo install falcon-lint
+        run: cargo install falcon-flutter
       - name: Run Analysis
         run: falcon check . --fail-on error
       - name: Generate Report

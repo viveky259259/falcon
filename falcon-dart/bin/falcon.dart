@@ -26,7 +26,7 @@ Future<String> _ensureBinary() async {
 
   // Prompt to install
   stderr.writeln('Falcon CLI not found. Install with:');
-  stderr.writeln('  cargo install falcon-lint');
+  stderr.writeln('  cargo install falcon-flutter');
   stderr.writeln('');
   stderr.writeln('Or download from: https://github.com/viveky259259/falcon/releases');
   exit(1);

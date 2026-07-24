@@ -12,7 +12,7 @@ dart pub global activate falcon_cli
 
 > **Prerequisite**: Requires the Falcon Rust binary:
 > ```bash
-> cargo install falcon-lint
+> cargo install falcon-flutter
 > ```
 > Or download from [GitHub Releases](https://github.com/viveky259259/falcon/releases).
 
@@ -84,7 +84,7 @@ falcon x compare-reports . --run1 1 --run2 3  # Compare any two
 
 ```yaml
 # GitHub Actions
-- run: cargo install falcon-lint
+- run: cargo install falcon-flutter
 - run: falcon check . --fail-on error
 - run: falcon check . --format html --output report.html
 ```

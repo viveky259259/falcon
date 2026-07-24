@@ -701,7 +701,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "falcon-lint"
+name = "falcon-flutter"
 version = "0.5.1"
 dependencies = [
  "anyhow",
