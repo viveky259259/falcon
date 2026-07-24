@@ -1,12 +1,22 @@
 [package]
-name = "falcon"
+name = "falcon-lint"
 version = "0.5.1"
 edition = "2021"
 description = "Rust-powered static analysis CLI for Flutter/Dart"
 license = "MIT"
-repository = "https://github.com/falcon-lint/falcon"
+repository = "https://github.com/viveky259259/falcon"
 keywords = ["dart", "flutter", "linter", "static-analysis"]
 categories = ["development-tools", "command-line-utilities"]
+include = [
+    "/Cargo.toml",
+    "/Cargo.lock",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/src/**/*.rs",
+    "/tests/**",
+    "/benches/**/*.rs",
+    "/docs/**",
+]
 
 [[bin]]
 name = "falcon"

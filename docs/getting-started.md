@@ -17,7 +17,7 @@ includes all three binaries: `falcon`, `falcon-lsp`, and `falcon-mcp`.
 ### From source
 
 ```bash
-cargo install --git https://github.com/viveky259259/falcon
+cargo install falcon-lint
 ```
 
 ### Without a global install
@@ -179,7 +179,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Falcon
-        run: cargo install --git https://github.com/viveky259259/falcon
+        run: cargo install falcon-lint
       - name: Run Analysis
         run: falcon check . --fail-on error
       - name: Generate Report

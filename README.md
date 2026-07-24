@@ -17,7 +17,7 @@ brew tap falcon-lint/tap
 brew install falcon
 
 # Or install from source
-cargo install --git https://github.com/viveky259259/falcon
+cargo install falcon-lint
 
 # Or run without a global install
 npx falcon@latest review
@@ -102,7 +102,7 @@ Falcon analyzes Flutter code in real-time during generation — the AI self-corr
 
 ```yaml
 - name: Install Falcon
-  run: cargo install --git https://github.com/viveky259259/falcon
+  run: cargo install falcon-lint
 - name: Analyze
   run: falcon check . --fail-on error
 - name: PR Comment
