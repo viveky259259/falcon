@@ -556,30 +556,40 @@ fn handle_devtools(action: DevtoolsAction) -> Result<()> {
                 falcon::runtime::tools::print_route_log(&report);
             }
         }
-        DevtoolsAction::Screenshot {
-            path,
-            attach,
-            out,
-            device,
-            json,
-        } => {
-            let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
-                &path,
-                attach.as_deref(),
-            ))?;
-            let report = rt.block_on(falcon::runtime::tools::collect_screenshot(
-                &client,
-                &vm_uri,
-                &out,
-                &path,
-                device.as_deref(),
-            ))?;
-            if json {
-                println!("{}", serde_json::to_string_pretty(&report)?);
-            } else {
-                falcon::runtime::tools::print_screenshot_report(&report);
-            }
-        }
+    }
+    Ok(())
+}
+
+fn handle_screenshot(
+    path: PathBuf,
+    attach: Option<String>,
+    out: PathBuf,
+    device: Option<String>,
+    window: bool,
+    json: bool,
+) -> Result<()> {
+    if window {
+        falcon::runtime::screenshot::capture_current_app(&path, &out)?;
+        println!("Saved window screenshot: {}", out.display());
+        return Ok(());
+    }
+
+    let rt = tokio::runtime::Runtime::new()?;
+    let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
+        &path,
+        attach.as_deref(),
+    ))?;
+    let report = rt.block_on(falcon::runtime::tools::collect_screenshot(
+        &client,
+        &vm_uri,
+        &out,
+        &path,
+        device.as_deref(),
+    ))?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    } else {
+        falcon::runtime::tools::print_screenshot_report(&report);
     }
     Ok(())
 }

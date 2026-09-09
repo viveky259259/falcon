@@ -88,6 +88,7 @@ fn command_group(command: &Commands) -> CommandGroup {
         | Commands::RuntimeCheck { .. }
         | Commands::Live { .. }
         | Commands::Devtools { .. }
+        | Commands::Screenshot { .. }
         | Commands::Journey { .. }
         | Commands::Trace { .. }
         | Commands::Workspace { .. }

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.2 (2026-09-09)
+
+### Added
+
+- `falcon screenshot` for one-command Flutter screenshots
+- `--window` for native macOS app-window capture when a VM-service screenshot is unavailable
+
+### Changed
+
+- Moved screenshot capture out of the nested `falcon devtools` command group while preserving VM-service capture options
+
 ## 0.5.1 (2026-07-23)
 
 ### Changed

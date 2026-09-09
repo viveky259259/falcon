@@ -33,7 +33,7 @@ SEMANTIC COMMAND GROUPS:
   CI/CD             pr-comment, webhook, export, fix
   Tracking          trends, history, benchmark, score-track, perf-track, fix-track
   Configuration     init, validate, explain, preset, suppress, baseline, self-tune
-  App Management    manage, review, watch, runtime-check, live, devtools, workspace
+  App Management    manage, review, watch, runtime-check, live, screenshot, devtools, workspace
   Flutter Quality   asset-audit, theme-audit, l10n-coverage, deeplink-validate,
                     animation-audit, golden-gen
   Integration       mcp, api
@@ -396,6 +396,29 @@ pub enum Commands {
     Devtools {
         #[command(subcommand)]
         action: DevtoolsAction,
+    },
+
+    /// Capture a PNG of the running Flutter app
+    #[command(name = "screenshot", display_order = 8)]
+    Screenshot {
+        /// Path to the Flutter project (used for `flutter run` when not attaching)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        /// Attach to an already-running app by VM Service URI instead of launching
+        #[arg(long, conflicts_with = "window")]
+        attach: Option<String>,
+        /// Output file path for the PNG
+        #[arg(short, long, default_value = "falcon-screenshot.png")]
+        out: PathBuf,
+        /// Target device ID for the `flutter screenshot` device-capture fallback
+        #[arg(long, conflicts_with = "window")]
+        device: Option<String>,
+        /// Capture the macOS app window rather than the Flutter-rendered app
+        #[arg(long, conflicts_with = "json")]
+        window: bool,
+        /// Print machine-readable capture metadata
+        #[arg(long, conflicts_with = "window")]
+        json: bool,
     },
 
     /// Trace an interaction window — correlate frame jank with hot-rebuilding widgets
@@ -2000,22 +2023,6 @@ pub enum DevtoolsAction {
         json: bool,
     },
 
-    /// Capture a PNG screenshot of the running Flutter app
-    Screenshot {
-        #[arg(default_value = ".")]
-        path: PathBuf,
-        #[arg(long)]
-        attach: Option<String>,
-        /// Output file path for the PNG
-        #[arg(short, long, default_value = "falcon-screenshot.png")]
-        out: PathBuf,
-        /// Target device ID for the `flutter screenshot` device-capture fallback
-        #[arg(long)]
-        device: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-
     /// Trigger a hot reload of the running Flutter app
     Reload {
         #[arg(default_value = ".")]
@@ -2217,4 +2224,58 @@ pub enum ExportFormat {
 pub enum DocFormat {
     Console,
     Markdown,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The generated Clap command for Falcon's broad CLI exceeds the default
+    // macOS test-thread stack while parsing. Exercise the parser on a stack
+    // sized for that command graph.
+    fn parse(args: &[&str]) -> Result<Cli, clap::Error> {
+        let args = args.iter().map(|arg| (*arg).to_owned()).collect::<Vec<_>>();
+        std::thread::Builder::new()
+            .stack_size(16 * 1024 * 1024)
+            .spawn(move || Cli::try_parse_from(args))
+            .expect("spawn parser test thread")
+            .join()
+            .expect("parser test thread should not panic")
+    }
+
+    #[test]
+    fn screenshot_defaults_to_flutter_capture() {
+        let cli = parse(&["falcon", "screenshot"]).unwrap();
+        match cli.command {
+            Commands::Screenshot {
+                path,
+                attach,
+                out,
+                device,
+                window,
+                json,
+            } => {
+                assert_eq!(path, PathBuf::from("."));
+                assert!(attach.is_none());
+                assert_eq!(out, PathBuf::from("falcon-screenshot.png"));
+                assert!(device.is_none());
+                assert!(!window);
+                assert!(!json);
+            }
+            _ => panic!("expected screenshot command"),
+        }
+    }
+
+    #[test]
+    fn screenshot_window_mode_rejects_vm_service_options() {
+        assert!(parse(&[
+            "falcon",
+            "screenshot",
+            "--window",
+            "--attach",
+            "ws://127.0.0.1:1234/ws",
+        ])
+        .is_err());
+        assert!(parse(&["falcon", "screenshot", "--window", "--json"]).is_err());
+    }
 }

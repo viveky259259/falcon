@@ -39,6 +39,14 @@ pub(super) fn handle_command(command: Commands) -> Result<()> {
             json,
         } => handle_live(path, attach, duration, interval, json)?,
         Commands::Devtools { action } => handle_devtools(action)?,
+        Commands::Screenshot {
+            path,
+            attach,
+            out,
+            device,
+            window,
+            json,
+        } => handle_screenshot(path, attach, out, device, window, json)?,
         Commands::Journey {
             path,
             attach,

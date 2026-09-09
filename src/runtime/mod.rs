@@ -9,6 +9,7 @@ pub mod diagnostics;
 pub mod journey;
 pub mod live;
 pub mod report;
+pub mod screenshot;
 pub mod tools;
 
 use anyhow::Result;
