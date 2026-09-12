@@ -5,7 +5,10 @@
 //! how it was launched.
 
 use anyhow::{bail, Context, Result};
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(target_os = "macos")]
+use std::path::PathBuf;
+#[cfg(target_os = "macos")]
 use std::process::Command;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -187,6 +190,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "macos")]
     fn finds_the_built_macos_app_name() {
         let temp = tempfile::tempdir().unwrap();
         let products = temp.path().join("build/macos/Build/Products/Debug");
