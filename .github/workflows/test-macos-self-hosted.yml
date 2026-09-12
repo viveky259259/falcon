@@ -1,0 +1,59 @@
+name: Test on macOS runner
+
+# This is intentionally manual. A self-hosted runner is the user's Mac, so a
+# pull request from an untrusted contributor must not be able to run arbitrary
+# code there just by opening a PR. Start it from Actions after reviewing the
+# ref that should be tested.
+on:
+  workflow_dispatch:
+
+# The test job neither publishes a release nor touches any deploy credentials.
+# Keep its GitHub token read-only.
+permissions:
+  contents: read
+
+# One test job at a time avoids competing for the local Cargo target directory
+# and keeps the Mac responsive. Unlike a release, a superseded test is safe to
+# stop because it has no external side effects.
+concurrency:
+  group: macos-self-hosted-tests
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+
+jobs:
+  test:
+    name: Run repository tests on the self-hosted Mac
+    runs-on: [self-hosted, macOS, X64]
+    timeout-minutes: 45
+
+    steps:
+      # Immutable action SHA prevents a tag update from changing what runs on
+      # the developer-owned machine.
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Verify runner tools
+        run: |
+          set -euo pipefail
+          sw_vers
+          rustc --version
+          cargo --version
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy (deny warnings)
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Build (default features)
+        run: cargo build --locked --all-targets
+
+      - name: Test (default features)
+        run: cargo test --locked
+
+      - name: Build with ai-local feature
+        run: cargo build --locked --features ai-local
