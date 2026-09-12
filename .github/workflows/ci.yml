@@ -58,7 +58,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-14]
+        # macOS coverage runs on the self-hosted Mac via the manual
+        # test-macos-self-hosted.yml workflow instead of a hosted runner here,
+        # since this job triggers automatically on every pull_request and a
+        # self-hosted leg in that path would let an untrusted PR run code on
+        # the local machine just by being opened.
+        os: [ubuntu-22.04]
     steps:
       - uses: actions/checkout@v4
 
