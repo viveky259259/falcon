@@ -146,8 +146,13 @@ if ! $DRY_RUN; then
     # Update description stats in pubspec
     sed -i '' "s/[0-9]\+\+ rules/${RULE_COUNT}+ rules/" falcon-dart/pubspec.yaml
     ok "Updated rule count in pubspec description"
+
+    # npm/falcon/package.json — CI's "Verify npm package version matches tag"
+    # step fails the release if this drifts from Cargo.toml, so keep it in sync.
+    sed -i '' "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$NEW_VERSION\"/" npm/falcon/package.json
+    ok "npm/falcon/package.json → $NEW_VERSION"
 else
-    info "[DRY RUN] Would update Cargo.toml, pubspec.yaml to $NEW_VERSION"
+    info "[DRY RUN] Would update Cargo.toml, pubspec.yaml, npm/falcon/package.json to $NEW_VERSION"
 fi
 
 # ─── Step 2: Build & Test ────────────────────────────────────────────────────

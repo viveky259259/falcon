@@ -55,12 +55,12 @@ runs:
       shell: bash
       run: |
         if [ "${{ inputs.version }}" = "latest" ]; then
-          cargo install falcon --locked || {
+          cargo install falcon-flutter --locked || {
             echo "::warning::cargo install failed, trying from source"
             cargo install --path . --locked
           }
         else
-          cargo install falcon@${{ inputs.version }} --locked
+          cargo install falcon-flutter@${{ inputs.version }} --locked
         fi
 
     - name: Run Falcon Analysis

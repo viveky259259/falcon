@@ -7,7 +7,7 @@
 #       script:
 #         - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 #         - source "$HOME/.cargo/env"
-#         - cargo install falcon --locked
+#         - cargo install falcon-flutter --locked
 #         - falcon analyze . --format checkstyle --output falcon-report.xml --fail-on error
 #
 # Or use the full template below:
@@ -23,7 +23,7 @@ pipelines:
         script:
           - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
           - source "$HOME/.cargo/env"
-          - cargo install falcon --locked
+          - cargo install falcon-flutter --locked
           - falcon analyze . --format checkstyle --output falcon-report.xml --fail-on error
         artifacts:
           - falcon-report.xml
@@ -37,7 +37,7 @@ pipelines:
           script:
             - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             - source "$HOME/.cargo/env"
-            - cargo install falcon --locked
+            - cargo install falcon-flutter --locked
             - falcon analyze . --format checkstyle --output falcon-report.xml --since origin/main --fail-on error
           artifacts:
             - falcon-report.xml

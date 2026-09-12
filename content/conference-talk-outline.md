@@ -91,7 +91,7 @@ falcon check --preset ai-generated
 ### Part 4: Call to Action (5 min)
 
 **Slide 14**: "3 things you can do right now"
-1. `cargo install falcon` — takes 30 seconds
+1. `cargo install falcon-flutter` — takes 30 seconds
 2. `falcon score .` — know your score today
 3. Add `falcon-mcp` to your AI tool — self-correction loop
 

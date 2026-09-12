@@ -4,35 +4,44 @@ Falcon is a Rust-powered static analysis tool for Flutter and Dart. It catches i
 
 ## Installation
 
-### Homebrew on macOS (recommended)
+### Install script on macOS/Linux (recommended)
 
 ```bash
-brew tap falcon-lint/tap
-brew install falcon
+curl -fsSL https://raw.githubusercontent.com/viveky259259/falcon/master/scripts/install.sh | sh
 ```
 
-The preview Homebrew tap installs the release archives from GitHub Releases and
-includes all three binaries: `falcon`, `falcon-lsp`, and `falcon-mcp`.
+Downloads the release archive for your platform from GitHub Releases, verifies
+it against `SHA256SUMS`, and installs `falcon`, `falcon-lsp`, and `falcon-mcp`
+to `~/.local/bin` — no Rust toolchain required. It also offers to add a short
+`ff` alias for `falcon` (so `falcon run` becomes `ff run`); pass `--no-shortcut`
+to skip that, or `--install-dir DIR` to install elsewhere. See
+`scripts/install.sh --help` for all options.
 
-### From source
+### With Rust installed
 
 ```bash
-cargo install falcon-flutter
+cargo binstall falcon-flutter   # fetches the prebuilt binary — seconds
+cargo install falcon-flutter    # builds from source — a few minutes
 ```
 
 ### Without a global install
 
 ```bash
-npx falcon@latest review
+npx falcon-flutter@latest review
 ```
 
 The npm package downloads the native binary from GitHub Releases once, verifies
 it with `SHA256SUMS`, and reuses it on later runs.
 
-This installs three binaries:
+Each of these installs three binaries:
 - `falcon` — the main CLI
 - `falcon-lsp` — Language Server Protocol for VS Code
 - `falcon-mcp` — MCP server for AI tool integration
+
+### Homebrew
+
+Not published yet — the `falcon-lint/homebrew-tap` repository doesn't exist.
+See [docs/install/homebrew.md](install/homebrew.md) for status.
 
 ### Verify installation
 

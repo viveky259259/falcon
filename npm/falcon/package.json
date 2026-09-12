@@ -1,6 +1,6 @@
 {
-  "name": "falcon",
-  "version": "0.5.1",
+  "name": "falcon-flutter",
+  "version": "0.5.3",
   "description": "Rust-powered static analysis CLI for Flutter/Dart",
   "license": "MIT",
   "repository": {

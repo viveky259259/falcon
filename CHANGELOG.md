@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.3 (2026-09-12)
+
+### Fixed
+
+- `cargo install falcon` references (VS Code extension docs, GitLab/Bitbucket CI templates, the `falcon-lint/action` GitHub Action) updated to `falcon-flutter` — these installed an unrelated crate after the package rename in 0.5.2
+- npm package renamed from the squatted `falcon` (an unrelated abandoned package) to `falcon-flutter`, so `npx falcon-flutter@latest` actually installs this project
+- `scripts/release.sh` now keeps `npm/falcon/package.json`'s version in sync with `Cargo.toml`
+
+### Added
+
+- `scripts/install.sh` — a `curl | sh` installer that downloads, checksum-verifies, and installs the release binaries with no Rust/npm/Homebrew required, with an optional `ff` shortcut alias for `falcon`
+- `cargo binstall` support via `[package.metadata.binstall]` in `Cargo.toml`
+
 ## 0.5.2 (2026-09-09)
 
 ### Added

@@ -12,15 +12,16 @@ Falcon is the only Flutter linter specifically designed to catch the bugs AI too
 ## Quick Start
 
 ```bash
-# Install
-brew tap falcon-lint/tap
-brew install falcon
+# Install (macOS/Linux, no Rust toolchain needed)
+curl -fsSL https://raw.githubusercontent.com/viveky259259/falcon/master/scripts/install.sh | sh
 
-# Or install from source
+# Or with Rust installed — cargo binstall fetches a prebuilt binary,
+# cargo install builds from source
+cargo binstall falcon-flutter
 cargo install falcon-flutter
 
-# Or run without a global install
-npx falcon@latest review
+# Or run without installing anything
+npx falcon-flutter@latest review
 
 # Score your project (2 seconds)
 falcon score .
@@ -31,6 +32,8 @@ falcon review . --base-ref origin/main --format gh
 # Full analysis
 falcon check .
 ```
+
+See [Installation](docs/getting-started.md#installation) for platform notes and other package managers.
 
 ## Semantic Analysis
 

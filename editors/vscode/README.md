@@ -20,7 +20,7 @@ Real-time diagnostics, quick fixes, and AI-powered code quality.
 Install the Falcon CLI:
 
 ```bash
-cargo install falcon
+cargo install falcon-flutter
 ```
 
 ## Extension Settings

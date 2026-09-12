@@ -3,7 +3,7 @@
 Run Falcon without a global Rust install:
 
 ```bash
-npx falcon@latest review
+npx falcon-flutter@latest review
 ```
 
 The package downloads the native `falcon` binary for macOS arm64, macOS x64, or
