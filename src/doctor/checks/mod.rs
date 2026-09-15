@@ -1,5 +1,6 @@
 //! Toolchain checks. Each one probes the host and, when it can, offers a fix.
 
+pub mod android;
 pub mod cocoapods;
 pub mod dart;
 pub mod flutter;

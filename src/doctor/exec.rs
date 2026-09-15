@@ -234,6 +234,17 @@ fn run_step(
             if let Err(e) = dl.fetch(url, dest) {
                 return Outcome::Failed { error: e };
             }
+            if sha256.is_empty() {
+                // Upstream publishes no checksum for this archive. Say so
+                // rather than silently trusting it.
+                log::warn!(
+                    "no published checksum for {} — cannot verify integrity",
+                    url
+                );
+                return Outcome::Done {
+                    step_id: id.clone(),
+                };
+            }
             match dl.sha256(dest) {
                 Ok(actual) if &actual == sha256 => Outcome::Done {
                     step_id: id.clone(),
@@ -332,6 +343,28 @@ mod tests {
                 },
             ],
         }
+    }
+
+    #[test]
+    fn an_empty_checksum_is_accepted_but_warned_about() {
+        let runner = FakeRunner::default();
+        let dl = FakeDownloader::new("whatever");
+        let plan = Plan {
+            check_id: "android".into(),
+            steps: vec![Step::Download {
+                id: "download".into(),
+                url: "https://dl.google.test/tools.zip".into(),
+                sha256: String::new(),
+                dest: PathBuf::from("/tmp/scratch/tools.zip"),
+            }],
+        };
+        let out = execute_plan(&plan, &runner, &dl, HandoffPolicy::Report, false);
+        assert_eq!(
+            out,
+            vec![Outcome::Done {
+                step_id: "download".into()
+            }]
+        );
     }
 
     fn extract_plan(dest: &std::path::Path) -> Plan {
