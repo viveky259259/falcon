@@ -4,7 +4,7 @@
 //! agreements back to the user — accepting a legal agreement on someone
 //! else's behalf is not Falcon's call.
 
-use super::{Check, CheckContext};
+use super::{skipped, Check, CheckContext};
 use crate::doctor::host::HostInfo;
 use crate::doctor::types::{
     CheckResult, FixKind, FixOffer, Plan, Probe, Status, Step, StepSummary,
@@ -86,14 +86,7 @@ impl Check for AndroidCheck {
 
     fn probe(&self, ctx: &CheckContext) -> CheckResult {
         if !ctx.root.join("android").is_dir() {
-            return CheckResult {
-                id: self.id().to_string(),
-                status: Status::Skipped {
-                    because: "no android/ directory in this project".into(),
-                },
-                required_by: vec![],
-                fix: None,
-            };
+            return skipped(self.id(), "no android/ directory in this project");
         }
 
         let found = ctx

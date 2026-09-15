@@ -1,6 +1,6 @@
 //! CocoaPods, needed only when the project has an iOS Podfile.
 
-use super::{Check, CheckContext};
+use super::{skipped, Check, CheckContext};
 use crate::doctor::types::{
     CheckResult, FixKind, FixOffer, Plan, Probe, Status, Step, StepSummary,
 };
@@ -113,17 +113,6 @@ impl Check for CocoaPodsCheck {
                 },
             ],
         })
-    }
-}
-
-fn skipped(id: &str, because: &str) -> CheckResult {
-    CheckResult {
-        id: id.to_string(),
-        status: Status::Skipped {
-            because: because.to_string(),
-        },
-        required_by: vec![],
-        fix: None,
     }
 }
 
