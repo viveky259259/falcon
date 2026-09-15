@@ -1433,6 +1433,49 @@ pub enum Commands {
         json: bool,
     },
 
+    /// Diagnose the project's toolchain and install or repair what's missing
+    Doctor {
+        /// Path to the Flutter project (defaults to current directory)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Apply fixes without asking to confirm each one
+        #[arg(long)]
+        fix: bool,
+
+        /// Accept every recommended default; never prompt
+        #[arg(long)]
+        yes: bool,
+
+        /// Print the plan without executing anything
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Only run these checks (flutter, dart, cocoapods, android, xcode)
+        #[arg(long, value_delimiter = ',')]
+        only: Vec<String>,
+
+        /// Skip these checks
+        #[arg(long, value_delimiter = ',')]
+        skip: Vec<String>,
+
+        /// Flutter channel to install (stable, beta, master)
+        #[arg(long)]
+        channel: Option<String>,
+
+        /// Flutter version to install (x.y.z, `latest`, or `project`)
+        #[arg(long)]
+        flutter_version: Option<String>,
+
+        /// Directory to install the SDK into
+        #[arg(long)]
+        dir: Option<PathBuf>,
+
+        /// Output format
+        #[arg(long, value_enum, default_value = "text")]
+        format: falcon::preflight::OutputFormat,
+    },
+
     /// Experimental / extended commands (see council roadmap)
     #[command(
         name = "x",
