@@ -1472,9 +1472,9 @@ pub enum Commands {
         #[arg(long)]
         dir: Option<PathBuf>,
 
-        /// Output format (text or json)
+        /// Output format
         #[arg(long, value_enum, default_value = "text")]
-        format: falcon::preflight::OutputFormat,
+        format: DoctorFormat,
     },
 
     /// Experimental / extended commands (see council roadmap)
@@ -2086,6 +2086,15 @@ pub enum DevtoolsAction {
         #[arg(long)]
         json: bool,
     },
+}
+
+/// `falcon doctor` renders a toolchain diagnosis, not static-analysis
+/// findings, so it offers only these two formats — SARIF has nothing to
+/// describe here and is deliberately absent rather than rejected at runtime.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
+pub enum DoctorFormat {
+    Text,
+    Json,
 }
 
 #[derive(Clone, Debug, clap::ValueEnum)]
