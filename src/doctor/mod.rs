@@ -52,6 +52,7 @@ fn registry() -> Vec<Box<dyn Check>> {
         Box::new(checks::dart::DartCheck),
         Box::new(checks::cocoapods::CocoaPodsCheck),
         Box::new(checks::android::AndroidCheck),
+        Box::new(checks::xcode::XcodeCheck),
     ]
 }
 
