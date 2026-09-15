@@ -20,18 +20,6 @@ pub enum PinSource {
     ChannelHead,
 }
 
-impl PinSource {
-    pub fn rationale_prefix(&self) -> &'static str {
-        match self {
-            PinSource::Fvm => "pinned by FVM",
-            PinSource::Asdf => "pinned by asdf",
-            PinSource::CiWorkflow => "what CI builds with",
-            PinSource::Pubspec => "newest release satisfying pubspec constraints",
-            PinSource::ChannelHead => "latest on channel",
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VersionCandidate {
     pub version: String,
@@ -357,6 +345,46 @@ mod tests {
             dart: Some(">=3.6.0".into()),
         };
         assert!(resolve_from_constraints(&manifest(), "stable", Arch::X64, &c).is_none());
+    }
+
+    #[test]
+    fn release_without_dart_version_never_satisfies_a_dart_constraint() {
+        // No `dart_sdk_version` key at all — `#[serde(default)]` produces `None`,
+        // distinct from an explicit `null`.
+        let json = r#"{
+            "base_url": "https://example.test",
+            "current_release": {},
+            "releases": [
+                {
+                    "hash": "deadbeef",
+                    "channel": "stable",
+                    "version": "3.30.0",
+                    "dart_sdk_arch": "x64",
+                    "archive": "stable/macos/flutter_macos_3.30.0-stable.zip",
+                    "sha256": "5555555555555555555555555555555555555555555555555555555555555555"
+                }
+            ]
+        }"#;
+        let m = ReleaseManifest::parse(json).unwrap();
+
+        let with_dart_constraint = SdkConstraints {
+            flutter: None,
+            dart: Some(">=3.0.0".into()),
+        };
+        assert!(
+            resolve_from_constraints(&m, "stable", Arch::X64, &with_dart_constraint).is_none(),
+            "a release with unknown Dart version must not satisfy a declared Dart constraint"
+        );
+
+        let without_dart_constraint = SdkConstraints {
+            flutter: None,
+            dart: None,
+        };
+        assert!(
+            resolve_from_constraints(&m, "stable", Arch::X64, &without_dart_constraint).is_some(),
+            "the same release must resolve when no Dart constraint is declared, \
+             proving the negative case above isn't vacuous"
+        );
     }
 
     #[test]
