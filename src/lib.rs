@@ -50,6 +50,7 @@ pub mod smells;
 pub mod stability;
 pub mod theme_audit;
 pub mod unused;
+pub mod version_util;
 pub mod workspace;
 
 use anyhow::Result;
