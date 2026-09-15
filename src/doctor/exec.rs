@@ -101,6 +101,7 @@ impl Downloader for CurlDownloader {
 pub struct FakeRunner {
     calls: Mutex<Vec<String>>,
     failing: Mutex<Vec<String>>,
+    stdout: Mutex<std::collections::HashMap<String, String>>,
 }
 
 impl FakeRunner {
@@ -110,6 +111,17 @@ impl FakeRunner {
 
     pub fn fail_on(&mut self, invocation: &str) {
         self.failing.lock().unwrap().push(invocation.to_string());
+    }
+
+    /// Build a runner that answers one invocation with canned stdout.
+    pub fn with_stdout(invocation: &str, stdout: &str) -> Self {
+        let runner = Self::default();
+        runner
+            .stdout
+            .lock()
+            .unwrap()
+            .insert(invocation.to_string(), stdout.to_string());
+        runner
     }
 }
 
@@ -133,9 +145,16 @@ impl CommandRunner for FakeRunner {
                 stderr: "boom".into(),
             });
         }
+        let stdout = self
+            .stdout
+            .lock()
+            .unwrap()
+            .get(&invocation)
+            .cloned()
+            .unwrap_or_default();
         Ok(CommandOutput {
             status: 0,
-            stdout: String::new(),
+            stdout,
             stderr: String::new(),
         })
     }
