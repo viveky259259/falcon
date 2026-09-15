@@ -1,5 +1,6 @@
 //! Toolchain checks. Each one probes the host and, when it can, offers a fix.
 
+pub mod dart;
 pub mod flutter;
 
 use crate::doctor::exec::CommandRunner;

@@ -47,7 +47,10 @@ impl DoctorOptions {
 }
 
 fn registry() -> Vec<Box<dyn Check>> {
-    vec![Box::new(checks::flutter::FlutterCheck)]
+    vec![
+        Box::new(checks::flutter::FlutterCheck),
+        Box::new(checks::dart::DartCheck),
+    ]
 }
 
 /// Fetch the release manifest. A failure is not fatal — fixes degrade to Manual.
