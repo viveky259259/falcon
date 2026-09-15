@@ -70,6 +70,49 @@ fn fetch_manifest(host_os: host::Os) -> Option<ReleaseManifest> {
     ReleaseManifest::parse(&String::from_utf8_lossy(&out.stdout)).ok()
 }
 
+/// The context a check probes against. Re-probing after a fix must ask the
+/// machine exactly the way the first probe did, so both go through here.
+fn context(
+    opts: &DoctorOptions,
+    host_info: &host::HostInfo,
+    arch: host::Arch,
+    manifest: &Option<ReleaseManifest>,
+) -> CheckContext {
+    CheckContext {
+        root: opts.root.clone(),
+        host: host_info.clone(),
+        arch,
+        manifest: manifest.clone(),
+        runner: Box::new(RealRunner),
+    }
+}
+
+/// Did this plan actually change the machine? A dry run reports every step
+/// `Skipped`, so it completed nothing and must not be treated as a repair.
+fn plan_completed(outcomes: &[Outcome]) -> bool {
+    outcomes.iter().any(|o| matches!(o, Outcome::Done { .. }))
+        && !outcomes
+            .iter()
+            .any(|o| matches!(o, Outcome::Failed { .. } | Outcome::AwaitingManual { .. }))
+}
+
+/// The exit code must describe the machine as it is *now*, not as it was before
+/// we repaired it. Any check whose plan ran to completion is asked again rather
+/// than assumed fixed — the honest answer comes from the machine, not the plan.
+fn settle(
+    checks: Vec<CheckResult>,
+    applied: &HashMap<String, Vec<Outcome>>,
+    reprobe: impl Fn(&str) -> Option<CheckResult>,
+) -> Vec<CheckResult> {
+    checks
+        .into_iter()
+        .map(|c| match applied.get(&c.id) {
+            Some(outcomes) if plan_completed(outcomes) => reprobe(&c.id).unwrap_or(c),
+            _ => c,
+        })
+        .collect()
+}
+
 pub fn run(opts: &DoctorOptions) -> Result<i32> {
     let host_info = host::detect();
     let arch = host::current_arch();
@@ -80,14 +123,7 @@ pub fn run(opts: &DoctorOptions) -> Result<i32> {
         if !opts.wants(check.id()) {
             continue;
         }
-        let ctx = CheckContext {
-            root: opts.root.clone(),
-            host: host_info.clone(),
-            arch,
-            manifest: manifest.clone(),
-            runner: Box::new(RealRunner),
-        };
-        results.push(check.probe(&ctx));
+        results.push(check.probe(&context(opts, &host_info, arch, &manifest)));
     }
 
     let diagnosis = Diagnosis {
@@ -106,22 +142,51 @@ pub fn run(opts: &DoctorOptions) -> Result<i32> {
     }
     print!("{}", report::render_text(&diagnosis));
 
-    let mut outcomes: Vec<Outcome> = Vec::new();
+    let applied = apply_fixes(&diagnosis, &manifest, &host_info, arch, opts)?;
+    let settled = settle(diagnosis.checks.clone(), &applied, |id| {
+        registry()
+            .into_iter()
+            .find(|c| c.id() == id)
+            .map(|c| c.probe(&context(opts, &host_info, arch, &manifest)))
+    });
+    let outcomes: Vec<Outcome> = applied.into_values().flatten().collect();
+    Ok(exit_code(&settled, &outcomes))
+}
+
+/// Offer, confirm and run every fix the diagnosis makes available, keyed by
+/// check id so each check's outcomes can be judged on their own.
+fn apply_fixes(
+    diagnosis: &Diagnosis,
+    manifest: &Option<ReleaseManifest>,
+    host_info: &host::HostInfo,
+    arch: host::Arch,
+    opts: &DoctorOptions,
+) -> Result<HashMap<String, Vec<Outcome>>> {
+    let mut applied: HashMap<String, Vec<Outcome>> = HashMap::new();
     for check in &diagnosis.checks {
         let Some(offer) = &check.fix else { continue };
         if offer.kind == FixKind::Manual {
             continue;
         }
         if !opts.fix && !confirm(&format!("Fix {} now?", check.id), opts)? {
+            if !opts.interactive() {
+                println!(
+                    "\n  a fix is available for {} — run with --fix to apply",
+                    check.id
+                );
+            }
             continue;
         }
         let Some(decisions) = collect_decisions(offer, opts)? else {
+            println!("\n  skipping {}: no answer given", check.id);
             continue;
         };
-        outcomes.extend(apply(check, &decisions, &manifest, &host_info, arch, opts)?);
+        applied.insert(
+            check.id.clone(),
+            apply(check, &decisions, manifest, host_info, arch, opts)?,
+        );
     }
-
-    Ok(exit_code(&diagnosis.checks, &outcomes))
+    Ok(applied)
 }
 
 fn confirm(question: &str, opts: &DoctorOptions) -> Result<bool> {
@@ -222,6 +287,9 @@ fn apply(
     } else {
         HandoffPolicy::Report
     };
+    if opts.dry_run {
+        print!("{}", report::render_plan_preview(&plan));
+    }
     let outcomes = execute_plan(&plan, &RealRunner, &CurlDownloader, policy, opts.dry_run);
     announce(&outcomes);
     if !outcomes.iter().any(|o| matches!(o, Outcome::Failed { .. })) {
@@ -246,7 +314,7 @@ fn announced_failure(error: &str) -> Outcome {
 fn announce(outcomes: &[Outcome]) {
     for o in outcomes {
         match o {
-            Outcome::Failed { error } => println!("\n  failed: {}", error),
+            Outcome::Failed { error } => eprintln!("\n  failed: {}", error),
             Outcome::AwaitingManual { command } => {
                 println!("\n  waiting on you to run: {}", command)
             }
@@ -278,6 +346,136 @@ mod tests {
             root: PathBuf::from("."),
             ..Default::default()
         }
+    }
+
+    use crate::doctor::checks::flutter::FlutterCheck;
+    use crate::doctor::exec::FakeRunner;
+    use crate::doctor::host::HostInfo;
+
+    fn missing_flutter() -> CheckResult {
+        CheckResult {
+            id: "flutter".into(),
+            status: Status::Missing,
+            required_by: vec![],
+            fix: None,
+        }
+    }
+
+    fn done(step: &str) -> Outcome {
+        Outcome::Done {
+            step_id: step.into(),
+        }
+    }
+
+    /// A probe context backed by a fake runner: no network, no filesystem
+    /// writes, and `flutter --version` answers with whatever we say it does.
+    fn fake_ctx(root: &std::path::Path, version_output: &str) -> CheckContext {
+        CheckContext {
+            root: root.to_path_buf(),
+            host: HostInfo {
+                os: "macos".into(),
+                arch: "arm64".into(),
+                home: None,
+                shell_rc: None,
+                package_managers: vec![],
+            },
+            arch: host::Arch::Arm64,
+            manifest: None,
+            runner: Box::new(FakeRunner::with_stdout("flutter --version", version_output)),
+        }
+    }
+
+    #[test]
+    fn a_fix_that_completed_is_re_probed_so_a_repaired_machine_exits_zero() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let ctx = fake_ctx(
+            tmp.path(),
+            "Flutter 3.24.5 • channel stable • https://github.com",
+        );
+        let applied = HashMap::from([(
+            "flutter".to_string(),
+            vec![
+                done("download"),
+                done("extract"),
+                done("prime"),
+                done("verify"),
+            ],
+        )]);
+
+        let settled = settle(vec![missing_flutter()], &applied, |_| {
+            Some(FlutterCheck.probe(&ctx))
+        });
+
+        assert!(
+            matches!(settled[0].status, Status::Ok { .. }),
+            "the re-probe should see the SDK we just installed, got {:?}",
+            settled[0].status
+        );
+        let outcomes: Vec<Outcome> = applied.into_values().flatten().collect();
+        assert_eq!(
+            exit_code(&settled, &outcomes),
+            0,
+            "a machine we just repaired is healthy"
+        );
+    }
+
+    #[test]
+    fn a_fix_that_failed_is_not_re_probed_and_still_exits_two() {
+        let applied = HashMap::from([(
+            "flutter".to_string(),
+            vec![
+                done("download"),
+                Outcome::Failed {
+                    error: "checksum mismatch".into(),
+                },
+            ],
+        )]);
+
+        let settled = settle(
+            vec![missing_flutter()],
+            &applied,
+            |_| -> Option<CheckResult> { panic!("a failed fix must not be re-probed") },
+        );
+
+        assert!(matches!(settled[0].status, Status::Missing));
+        let outcomes: Vec<Outcome> = applied.into_values().flatten().collect();
+        assert_eq!(exit_code(&settled, &outcomes), 2);
+    }
+
+    #[test]
+    fn a_dry_run_changed_nothing_so_nothing_is_re_probed() {
+        let applied = HashMap::from([(
+            "flutter".to_string(),
+            vec![
+                Outcome::Skipped {
+                    step_id: "download".into(),
+                },
+                Outcome::Skipped {
+                    step_id: "extract".into(),
+                },
+            ],
+        )]);
+
+        let settled = settle(
+            vec![missing_flutter()],
+            &applied,
+            |_| -> Option<CheckResult> {
+                panic!("a dry run installed nothing, so there is nothing to re-probe")
+            },
+        );
+
+        assert!(matches!(settled[0].status, Status::Missing));
+        assert_eq!(exit_code(&settled, &[]), 2);
+    }
+
+    #[test]
+    fn a_handoff_is_not_a_completed_plan() {
+        assert!(!plan_completed(&[
+            done("download"),
+            Outcome::AwaitingManual {
+                command: "sudo xcodebuild -license".into()
+            },
+        ]));
     }
 
     #[test]

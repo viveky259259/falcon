@@ -57,7 +57,14 @@ pub fn answer(
 
         let mut line = String::new();
         match input.read_line(&mut line) {
-            Ok(0) | Err(_) => return None,
+            // End of input: the user is done (Ctrl-D, or a piped script that
+            // ran out). Distinct from a reader that is broken, which must say
+            // so rather than pass silently as a decision not taken.
+            Ok(0) => return None,
+            Err(e) => {
+                let _ = writeln!(out, "\ncould not read your answer: {}", e);
+                return None;
+            }
             Ok(_) => {}
         }
         let trimmed = line.trim();
@@ -153,6 +160,35 @@ mod tests {
     fn eof_returns_none_rather_than_looping_forever() {
         let (got, _) = ask("", None, false);
         assert_eq!(got, None);
+    }
+
+    /// stdin that is broken rather than merely finished.
+    struct BrokenReader;
+
+    impl std::io::Read for BrokenReader {
+        fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::other("stdin exploded"))
+        }
+    }
+
+    impl std::io::BufRead for BrokenReader {
+        fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
+            Err(std::io::Error::other("stdin exploded"))
+        }
+        fn consume(&mut self, _: usize) {}
+    }
+
+    #[test]
+    fn a_broken_reader_says_so_instead_of_passing_as_end_of_input() {
+        let mut out: Vec<u8> = Vec::new();
+        let got = answer(&question(), None, false, &mut BrokenReader, &mut out);
+        assert_eq!(got, None);
+        let printed = String::from_utf8(out).unwrap();
+        assert!(
+            printed.contains("stdin exploded"),
+            "a read error must be reported, not silently treated as EOF: {}",
+            printed
+        );
     }
 
     #[test]
