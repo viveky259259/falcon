@@ -73,7 +73,11 @@ fn read_tool_versions(root: &Path) -> Option<VersionCandidate> {
         if parts.next() != Some("flutter") {
             continue;
         }
-        let raw = parts.next()?;
+        let Some(raw) = parts.next() else {
+            // Malformed line (e.g. `flutter` with no version) — keep scanning
+            // rather than abandoning the whole file.
+            continue;
+        };
         // asdf spells versions `3.19.0-stable`.
         let (version, channel) = match raw.split_once('-') {
             Some((v, c)) => (v.to_string(), Some(c.to_string())),
@@ -152,6 +156,12 @@ pub fn resolve_from_constraints(
     arch: Arch,
     constraints: &SdkConstraints,
 ) -> Option<VersionCandidate> {
+    // With no declared constraint at all, there is nothing pubspec-derived to
+    // report — fabricating a "satisfying" rationale here would be a lie no
+    // matter who calls this function.
+    if constraints.flutter.is_none() && constraints.dart.is_none() {
+        return None;
+    }
     let release = manifest.for_channel(channel, arch).into_iter().find(|r| {
         let flutter_ok = constraints
             .flutter
@@ -376,8 +386,15 @@ mod tests {
             "a release with unknown Dart version must not satisfy a declared Dart constraint"
         );
 
+        // A trivially-satisfied Flutter constraint with no Dart constraint at
+        // all — not `SdkConstraints::default()`, since resolve_from_constraints
+        // now refuses to fabricate a rationale when *no* constraint is
+        // declared at all (see `no_constraint_at_all_never_resolves_from_pubspec`
+        // below). This keeps the release itself, and the missing-dart-version
+        // interaction specifically, as the only variable, proving the negative
+        // case above isn't vacuous.
         let without_dart_constraint = SdkConstraints {
-            flutter: None,
+            flutter: Some(">=3.0.0".into()),
             dart: None,
         };
         assert!(
@@ -437,5 +454,47 @@ mod tests {
             "conflict must be stated: {:?}",
             pin.rationale
         );
+    }
+
+    #[test]
+    fn no_constraint_at_all_never_resolves_from_pubspec() {
+        // No pin, no pubspec.yaml at all — the overwhelmingly common case.
+        // candidates() must not fabricate a pubspec-sourced entry with an
+        // empty "satisfying " rationale; the single candidate offered should
+        // be the properly-labeled channel head.
+        let dir = project();
+        let got = candidates(dir.path(), &manifest(), "stable", Arch::X64);
+        assert_eq!(got.len(), 1, "expected only the channel head: {:?}", got);
+        assert_eq!(got[0].source, PinSource::ChannelHead);
+        assert_eq!(got[0].rationale, "latest on stable");
+    }
+
+    #[test]
+    fn interpolated_ci_flutter_version_is_not_a_usable_pin() {
+        let dir = project();
+        fs::create_dir_all(dir.path().join(".github/workflows")).unwrap();
+        fs::write(
+            dir.path().join(".github/workflows/ci.yml"),
+            "      - uses: subosito/flutter-action@v2\n        with:\n          flutter-version: ${{ matrix.flutter }}\n",
+        )
+        .unwrap();
+        assert!(
+            discover_pin(dir.path()).is_none(),
+            "an interpolated value must never be reported as a pin"
+        );
+    }
+
+    #[test]
+    fn malformed_tool_versions_line_is_skipped_not_fatal() {
+        let dir = project();
+        // The first `flutter` line has no version at all; a real pin follows.
+        fs::write(
+            dir.path().join(".tool-versions"),
+            "flutter\nflutter 3.19.0-stable\n",
+        )
+        .unwrap();
+        let pin = discover_pin(dir.path()).unwrap();
+        assert_eq!(pin.version, "3.19.0");
+        assert_eq!(pin.source, PinSource::Asdf);
     }
 }
