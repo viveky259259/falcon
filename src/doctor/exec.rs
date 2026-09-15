@@ -251,6 +251,15 @@ fn run_step(
             }
         }
         Step::Extract { id, archive, dest } => {
+            // The destination is the *parent* of the install dir, which on a
+            // fresh machine (`$HOME/development`) does not exist yet. `unzip -d`
+            // would create it but `tar -C` would not, so the Linux archive path
+            // failed only after the whole SDK had been downloaded.
+            if let Err(e) = std::fs::create_dir_all(dest) {
+                return Outcome::Failed {
+                    error: format!("could not create {}: {}", dest.display(), e),
+                };
+            }
             let archive_s = archive.to_string_lossy().to_string();
             let dest_s = dest.to_string_lossy().to_string();
             let (program, args) = if archive_s.ends_with(".zip") {
@@ -323,6 +332,84 @@ mod tests {
                 },
             ],
         }
+    }
+
+    fn extract_plan(dest: &std::path::Path) -> Plan {
+        Plan {
+            check_id: "flutter".into(),
+            steps: vec![Step::Extract {
+                id: "extract".into(),
+                archive: PathBuf::from("/tmp/scratch/flutter.tar.xz"),
+                dest: dest.to_path_buf(),
+            }],
+        }
+    }
+
+    #[test]
+    fn extract_creates_a_missing_destination_before_unpacking() {
+        // The extract destination is the *parent* of the install dir, so on a
+        // fresh machine `$HOME/development` does not exist yet. `tar -C` will
+        // not create it, and failing here would waste the whole download.
+        let tmp = tempfile::TempDir::new().unwrap();
+        let dest = tmp.path().join("development");
+        assert!(
+            !dest.exists(),
+            "precondition: the destination must be missing"
+        );
+
+        let runner = FakeRunner::default();
+        let dl = FakeDownloader::new("abc123");
+        let outcomes = execute_plan(
+            &extract_plan(&dest),
+            &runner,
+            &dl,
+            HandoffPolicy::Report,
+            false,
+        );
+
+        assert!(dest.is_dir(), "the executor must create the destination");
+        assert_eq!(
+            outcomes,
+            vec![Outcome::Done {
+                step_id: "extract".into()
+            }]
+        );
+        assert_eq!(
+            runner.calls(),
+            vec![format!(
+                "tar -xf /tmp/scratch/flutter.tar.xz -C {}",
+                dest.display()
+            )],
+            "the extract command must still run"
+        );
+    }
+
+    #[test]
+    fn extract_reports_a_failure_to_create_the_destination() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let blocker = tmp.path().join("blocker");
+        std::fs::write(&blocker, "not a directory").unwrap();
+        let dest = blocker.join("development");
+
+        let runner = FakeRunner::default();
+        let dl = FakeDownloader::new("abc123");
+        let outcomes = execute_plan(
+            &extract_plan(&dest),
+            &runner,
+            &dl,
+            HandoffPolicy::Report,
+            false,
+        );
+
+        assert!(
+            matches!(outcomes.as_slice(), [Outcome::Failed { .. }]),
+            "an undiggable destination must fail loudly, got {:?}",
+            outcomes
+        );
+        assert!(
+            runner.calls().is_empty(),
+            "nothing should be unpacked when the destination cannot be made"
+        );
     }
 
     #[test]

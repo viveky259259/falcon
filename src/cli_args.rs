@@ -1443,7 +1443,8 @@ pub enum Commands {
         #[arg(long)]
         fix: bool,
 
-        /// Accept every recommended default; never prompt
+        /// Accept the recommended answer to every decision question and never
+        /// prompt; combine with --fix to install unattended
         #[arg(long)]
         yes: bool,
 
@@ -1471,7 +1472,7 @@ pub enum Commands {
         #[arg(long)]
         dir: Option<PathBuf>,
 
-        /// Output format
+        /// Output format (text or json)
         #[arg(long, value_enum, default_value = "text")]
         format: falcon::preflight::OutputFormat,
     },

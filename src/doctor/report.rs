@@ -34,6 +34,28 @@ pub fn render_json(d: &Diagnosis) -> serde_json::Value {
     serde_json::to_value(d).unwrap_or(serde_json::Value::Null)
 }
 
+/// Why `--format json` diagnoses but never installs.
+pub const FIX_SKIPPED_REASON: &str = "--format json is diagnosis-only; use \
+     --format text --fix, or the MCP doctor tool with execute:true";
+
+/// JSON mode never executes a fix. Say so in the payload — a caller that passed
+/// `--fix` must be able to see the no-op rather than infer it from an unchanged
+/// machine.
+pub fn render_json_with_fix_status(d: &Diagnosis, fix_requested: bool) -> serde_json::Value {
+    let mut value = render_json(d);
+    let Some(obj) = value.as_object_mut() else {
+        return value;
+    };
+    obj.insert("fixes_applied".into(), serde_json::Value::Bool(false));
+    if fix_requested {
+        obj.insert(
+            "fixes_skipped_reason".into(),
+            serde_json::Value::String(FIX_SKIPPED_REASON.to_string()),
+        );
+    }
+    value
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -86,6 +108,30 @@ mod tests {
         assert_eq!(json["checks"][0]["id"], "flutter");
         assert_eq!(json["checks"][0]["status"]["state"], "missing");
         assert_eq!(json["host"]["arch"], "arm64");
+    }
+
+    #[test]
+    fn json_report_states_plainly_that_it_applied_no_fixes() {
+        let json = render_json_with_fix_status(&diagnosis(), false);
+        assert_eq!(json["fixes_applied"], serde_json::Value::Bool(false));
+    }
+
+    #[test]
+    fn json_report_explains_why_a_requested_fix_was_not_applied() {
+        let json = render_json_with_fix_status(&diagnosis(), true);
+        assert_eq!(json["fixes_applied"], serde_json::Value::Bool(false));
+        let reason = json["fixes_skipped_reason"].as_str().unwrap_or_default();
+        assert!(
+            reason.contains("--format text --fix"),
+            "the reason must name the working alternative: {}",
+            reason
+        );
+    }
+
+    #[test]
+    fn json_report_omits_the_reason_when_no_fix_was_asked_for() {
+        let json = render_json_with_fix_status(&diagnosis(), false);
+        assert!(json.get("fixes_skipped_reason").is_none());
     }
 
     #[test]

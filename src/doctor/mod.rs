@@ -98,7 +98,9 @@ pub fn run(opts: &DoctorOptions) -> Result<i32> {
     if opts.json {
         println!(
             "{}",
-            serde_json::to_string_pretty(&report::render_json(&diagnosis))?
+            serde_json::to_string_pretty(&report::render_json_with_fix_status(
+                &diagnosis, opts.fix
+            ))?
         );
         return Ok(exit_code(&diagnosis.checks, &[]));
     }
