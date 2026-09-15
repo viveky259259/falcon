@@ -12,7 +12,7 @@ pub use types::*;
 
 use crate::doctor::checks::{Check, CheckContext};
 use crate::doctor::exec::{execute_plan, CurlDownloader, HandoffPolicy, RealRunner};
-use crate::doctor::flutter::install::{dir_is_usable, InstallDecisions};
+use crate::doctor::flutter::install::dir_is_usable;
 use crate::doctor::flutter::releases::{manifest_url, ReleaseManifest};
 use anyhow::Result;
 use std::collections::HashMap;
@@ -50,6 +50,7 @@ fn registry() -> Vec<Box<dyn Check>> {
     vec![
         Box::new(checks::flutter::FlutterCheck),
         Box::new(checks::dart::DartCheck),
+        Box::new(checks::cocoapods::CocoaPodsCheck),
     ]
 }
 
@@ -166,27 +167,33 @@ fn apply_fixes(
     opts: &DoctorOptions,
 ) -> Result<HashMap<String, Vec<Outcome>>> {
     let mut applied: HashMap<String, Vec<Outcome>> = HashMap::new();
-    for check in &diagnosis.checks {
-        let Some(offer) = &check.fix else { continue };
+    // `apply()` needs the `Check` itself (to call `.plan()`), not just its
+    // probed `CheckResult`, so pair each registered check with its result.
+    for check in registry() {
+        let Some(probed) = diagnosis.checks.iter().find(|c| c.id == check.id()) else {
+            continue;
+        };
+        let Some(offer) = &probed.fix else { continue };
         if offer.kind == FixKind::Manual {
             continue;
         }
-        if !opts.fix && !confirm(&format!("Fix {} now?", check.id), opts)? {
+        if !opts.fix && !confirm(&format!("Fix {} now?", probed.id), opts)? {
             if !opts.interactive() {
                 println!(
                     "\n  a fix is available for {} — run with --fix to apply",
-                    check.id
+                    probed.id
                 );
             }
             continue;
         }
         let Some(decisions) = collect_decisions(offer, opts)? else {
-            println!("\n  skipping {}: no answer given", check.id);
+            println!("\n  skipping {}: no answer given", probed.id);
             continue;
         };
+        let ctx = context(opts, host_info, arch, manifest);
         applied.insert(
-            check.id.clone(),
-            apply(check, &decisions, manifest, host_info, arch, opts)?,
+            probed.id.clone(),
+            apply(check.as_ref(), &ctx, &decisions, opts)?,
         );
     }
     Ok(applied)
@@ -239,51 +246,33 @@ fn collect_decisions(
     Ok(Some(answers))
 }
 
+/// Build and run one check's fix. Check-agnostic: the plan itself comes from
+/// `check.plan()`, so this has no `if check.id == "flutter"` branch — a new
+/// check only needs to implement `plan()` to be fixable here.
 fn apply(
-    check: &CheckResult,
+    check: &dyn Check,
+    ctx: &CheckContext,
     decisions: &HashMap<String, String>,
-    manifest: &Option<ReleaseManifest>,
-    host_info: &host::HostInfo,
-    arch: host::Arch,
     opts: &DoctorOptions,
 ) -> Result<Vec<Outcome>> {
-    if check.id != "flutter" {
-        return Ok(vec![]);
-    }
-    let Some(manifest) = manifest else {
-        return Ok(vec![announced_failure(
-            "Flutter release manifest unavailable; install manually from \
-             https://docs.flutter.dev/get-started/install",
-        )]);
-    };
-
-    let dir = decisions
-        .get("flutter.dir")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| flutter::install::default_install_dir(host_info.home.as_deref()));
-    if !opts.dry_run {
-        if let Err(e) = dir_is_usable(&dir) {
-            return Ok(vec![announced_failure(&e)]);
-        }
-    }
-
-    let install = InstallDecisions {
-        channel: decisions
-            .get("flutter.channel")
-            .cloned()
-            .unwrap_or_else(|| "stable".into()),
-        version: decisions
-            .get("flutter.version")
-            .cloned()
-            .unwrap_or_else(|| "latest".into()),
-        dir,
-    };
-
-    let scratch = std::env::temp_dir().join("falcon-doctor");
-    let plan = match flutter::install::build_plan(manifest, host_info, arch, &install, &scratch) {
+    let plan = match check.plan(ctx, decisions) {
         Ok(p) => p,
         Err(e) => return Ok(vec![announced_failure(&e)]),
     };
+    if plan.steps.is_empty() {
+        return Ok(vec![]);
+    }
+
+    // Only Flutter's plan carries a `flutter.dir` decision; for every other
+    // check this is a no-op, so the check stays generic rather than gated on
+    // check id.
+    if !opts.dry_run {
+        if let Some(dir) = decisions.get("flutter.dir") {
+            if let Err(e) = dir_is_usable(std::path::Path::new(dir)) {
+                return Ok(vec![announced_failure(&e)]);
+            }
+        }
+    }
 
     let policy = if opts.interactive() {
         HandoffPolicy::Prompt

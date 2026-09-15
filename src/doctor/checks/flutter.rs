@@ -65,6 +65,43 @@ impl Check for FlutterCheck {
             fix,
         }
     }
+
+    fn plan(
+        &self,
+        ctx: &CheckContext,
+        decisions: &std::collections::HashMap<String, String>,
+    ) -> Result<crate::doctor::types::Plan, String> {
+        let manifest = ctx.manifest.as_ref().ok_or_else(|| {
+            "Flutter release manifest unavailable; install manually from \
+             https://docs.flutter.dev/get-started/install"
+                .to_string()
+        })?;
+        let dir = decisions
+            .get("flutter.dir")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                crate::doctor::flutter::install::default_install_dir(ctx.host.home.as_deref())
+            });
+        let install_decisions = crate::doctor::flutter::install::InstallDecisions {
+            channel: decisions
+                .get("flutter.channel")
+                .cloned()
+                .unwrap_or_else(|| "stable".into()),
+            version: decisions
+                .get("flutter.version")
+                .cloned()
+                .unwrap_or_else(|| "latest".into()),
+            dir,
+        };
+        let scratch = std::env::temp_dir().join("falcon-doctor");
+        crate::doctor::flutter::install::build_plan(
+            manifest,
+            &ctx.host,
+            ctx.arch,
+            &install_decisions,
+            &scratch,
+        )
+    }
 }
 
 fn build_offer(
