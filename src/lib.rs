@@ -23,6 +23,7 @@ pub mod config;
 pub mod dashboard;
 pub mod deeplink;
 pub mod docs;
+pub mod doctor;
 pub mod flutter_run;
 pub mod golden_gen;
 pub mod incremental;
