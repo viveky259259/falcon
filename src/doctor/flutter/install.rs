@@ -42,6 +42,86 @@ pub fn path_export_line(dir: &Path) -> String {
     format!(r#"export PATH="$PATH:{}/bin""#, dir.display())
 }
 
+/// Download + extract steps for a channel that publishes archives.
+///
+/// The archive unpacks a top-level `flutter/` directory, so it is extracted
+/// into the *parent* of the install dir — which is only correct when the
+/// install dir is itself named `flutter`.
+fn archive_steps(
+    manifest: &ReleaseManifest,
+    host: &HostInfo,
+    arch: Arch,
+    decisions: &InstallDecisions,
+    scratch: &Path,
+) -> Result<Vec<Step>, String> {
+    // Refuse a mismatched directory here, before a few hundred megabytes are
+    // spent downloading an SDK that would land where nothing looks for it.
+    if decisions.dir.file_name().and_then(|n| n.to_str()) != Some("flutter") {
+        return Err(format!(
+            "cannot install into {}: the Flutter archive unpacks a top-level \
+             `flutter/` directory, so the install directory must itself be \
+             named `flutter` (for example {}/flutter)",
+            decisions.dir.display(),
+            decisions.dir.display()
+        ));
+    }
+
+    let release = manifest
+        .find(&decisions.channel, &decisions.version, arch)
+        .ok_or_else(|| {
+            format!(
+                "no {} {} build for {} on the {} channel",
+                decisions.version,
+                arch.manifest_name(),
+                host.os,
+                decisions.channel
+            )
+        })?;
+    let archive_name = Path::new(&release.archive)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "flutter-sdk-archive".to_string());
+    let archive_path = scratch.join(archive_name);
+    let parent = decisions
+        .dir
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| PathBuf::from("."));
+
+    Ok(vec![
+        Step::Download {
+            id: "download".into(),
+            url: manifest.archive_url(release),
+            sha256: release.sha256.clone(),
+            dest: archive_path.clone(),
+        },
+        Step::Extract {
+            id: "extract".into(),
+            archive: archive_path,
+            dest: parent,
+        },
+    ])
+}
+
+/// `master` ships no archive, so it is cloned straight into the target dir —
+/// no top-level `flutter/` wrapper, and so no directory-name requirement.
+fn clone_step(decisions: &InstallDecisions) -> Step {
+    Step::Run {
+        id: "clone".into(),
+        program: "git".into(),
+        args: vec![
+            "clone".into(),
+            "--depth".into(),
+            "1".into(),
+            "-b".into(),
+            decisions.channel.clone(),
+            "https://github.com/flutter/flutter.git".into(),
+            decisions.dir.to_string_lossy().to_string(),
+        ],
+        cwd: None,
+    }
+}
+
 pub fn build_plan(
     manifest: &ReleaseManifest,
     host: &HostInfo,
@@ -52,59 +132,11 @@ pub fn build_plan(
     let flutter_bin = decisions.dir.join("bin").join("flutter");
     let flutter_bin_s = flutter_bin.to_string_lossy().to_string();
 
-    let mut steps: Vec<Step> = Vec::new();
-
-    if channel_has_archives(&decisions.channel) {
-        let release = manifest
-            .find(&decisions.channel, &decisions.version, arch)
-            .ok_or_else(|| {
-                format!(
-                    "no {} {} build for {} on the {} channel",
-                    decisions.version,
-                    arch.manifest_name(),
-                    host.os,
-                    decisions.channel
-                )
-            })?;
-        let archive_name = Path::new(&release.archive)
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| "flutter-sdk-archive".to_string());
-        let archive_path = scratch.join(archive_name);
-        let parent = decisions
-            .dir
-            .parent()
-            .map(|p| p.to_path_buf())
-            .unwrap_or_else(|| PathBuf::from("."));
-
-        steps.push(Step::Download {
-            id: "download".into(),
-            url: manifest.archive_url(release),
-            sha256: release.sha256.clone(),
-            dest: archive_path.clone(),
-        });
-        steps.push(Step::Extract {
-            id: "extract".into(),
-            archive: archive_path,
-            dest: parent,
-        });
+    let mut steps: Vec<Step> = if channel_has_archives(&decisions.channel) {
+        archive_steps(manifest, host, arch, decisions, scratch)?
     } else {
-        // master ships no archive; clone it instead.
-        steps.push(Step::Run {
-            id: "clone".into(),
-            program: "git".into(),
-            args: vec![
-                "clone".into(),
-                "--depth".into(),
-                "1".into(),
-                "-b".into(),
-                decisions.channel.clone(),
-                "https://github.com/flutter/flutter.git".into(),
-                decisions.dir.to_string_lossy().to_string(),
-            ],
-            cwd: None,
-        });
-    }
+        vec![clone_step(decisions)]
+    };
 
     // Priming downloads the bundled Dart SDK and proves the binary runs.
     steps.push(Step::Run {
@@ -296,6 +328,49 @@ mod tests {
                 assert!(!args.iter().any(|a| a == "sudo"));
             }
         }
+    }
+
+    #[test]
+    fn an_install_dir_not_named_flutter_is_refused_before_any_download() {
+        let err = build_plan(
+            &manifest(),
+            &host(),
+            Arch::Arm64,
+            &InstallDecisions {
+                channel: "stable".into(),
+                version: "3.24.5".into(),
+                dir: PathBuf::from("/Users/ada/development/mysdk"),
+            },
+            Path::new("/tmp/scratch"),
+        )
+        .unwrap_err();
+        assert!(
+            err.contains("/Users/ada/development/mysdk"),
+            "error must name the offending directory: {}",
+            err
+        );
+        assert!(
+            err.contains("flutter"),
+            "error must state the requirement: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn the_git_clone_path_accepts_any_directory_name() {
+        let plan = build_plan(
+            &manifest(),
+            &host(),
+            Arch::Arm64,
+            &InstallDecisions {
+                channel: "master".into(),
+                version: "master".into(),
+                dir: PathBuf::from("/Users/ada/development/mysdk"),
+            },
+            Path::new("/tmp/scratch"),
+        )
+        .expect("a git clone writes straight into the target directory");
+        assert!(matches!(&plan.steps[0], Step::Run { program, .. } if program == "git"));
     }
 
     #[test]
