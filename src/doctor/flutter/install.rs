@@ -105,14 +105,18 @@ fn archive_steps(
 
 /// `master` ships no archive, so it is cloned straight into the target dir —
 /// no top-level `flutter/` wrapper, and so no directory-name requirement.
+///
+/// Not a shallow (`--depth 1`) clone: Flutter derives its own version from
+/// `git describe --tags` in `bin/internal/shared.sh`, which needs the tag
+/// history a depth-1 clone doesn't carry — a shallow clone reports an
+/// unknown version and leaves `flutter upgrade`/`flutter channel` broken on
+/// the result.
 fn clone_step(decisions: &InstallDecisions) -> Step {
     Step::Run {
         id: "clone".into(),
         program: "git".into(),
         args: vec![
             "clone".into(),
-            "--depth".into(),
-            "1".into(),
             "-b".into(),
             decisions.channel.clone(),
             "https://github.com/flutter/flutter.git".into(),
@@ -293,6 +297,32 @@ mod tests {
                 .any(|s| matches!(s, Step::Download { .. })),
             "master has no published archive"
         );
+    }
+
+    #[test]
+    fn the_clone_is_not_shallow_so_flutter_can_derive_its_own_version() {
+        // Flutter's `bin/internal/shared.sh` runs `git describe --tags` to
+        // find its own version; a `--depth 1` clone carries no tags, so it
+        // reports an unknown version and breaks `flutter upgrade`/`flutter
+        // channel` on the result.
+        let plan = build_plan(
+            &manifest(),
+            &host(),
+            Arch::Arm64,
+            &decisions("master", "master"),
+            Path::new("/tmp/scratch"),
+        )
+        .unwrap();
+        match &plan.steps[0] {
+            Step::Run { args, .. } => {
+                assert!(
+                    !args.iter().any(|a| a == "--depth"),
+                    "the clone must not be shallow: {:?}",
+                    args
+                );
+            }
+            other => panic!("expected a git clone, got {:?}", other),
+        }
     }
 
     #[test]

@@ -128,22 +128,25 @@ mod invariant_tests {
         let dir = tempfile::TempDir::new().unwrap();
         let ctx = maximal_ctx(dir.path());
         let decisions = full_decisions();
-        let checks: Vec<Box<dyn Check>> = vec![
-            Box::new(flutter::FlutterCheck),
-            Box::new(dart::DartCheck),
-            Box::new(cocoapods::CocoaPodsCheck),
-            Box::new(android::AndroidCheck),
-            Box::new(xcode::XcodeCheck),
-        ];
-        for check in checks {
+        // Iterates the real registry (`crate::doctor::registry()`) rather
+        // than a hand-copied `vec![]` of checks — a sixth check added there
+        // but not duplicated here would otherwise escape this invariant
+        // with no compile error, no test failure, nothing.
+        for check in crate::doctor::registry() {
             let plan = plan_or_fail(check.as_ref(), &ctx, &decisions);
             for step in &plan.steps {
                 if let Step::Run { program, args, .. } = step {
-                    assert_ne!(program, "sudo", "{} planned a sudo Run step", check.id());
                     assert!(
-                        !args.iter().any(|a| a == "sudo"),
-                        "{} planned a sudo argument",
-                        check.id()
+                        !program.contains("sudo"),
+                        "{} planned a sudo program: {:?}",
+                        check.id(),
+                        step
+                    );
+                    assert!(
+                        !args.iter().any(|a| a.contains("sudo")),
+                        "{} planned a sudo argument: {:?}",
+                        check.id(),
+                        step
                     );
                 }
             }
@@ -155,9 +158,7 @@ mod invariant_tests {
         let dir = tempfile::TempDir::new().unwrap();
         let ctx = maximal_ctx(dir.path());
         let decisions = full_decisions();
-        let checks: Vec<Box<dyn Check>> =
-            vec![Box::new(android::AndroidCheck), Box::new(xcode::XcodeCheck)];
-        for check in checks {
+        for check in crate::doctor::registry() {
             let plan = plan_or_fail(check.as_ref(), &ctx, &decisions);
             for step in &plan.steps {
                 if let Step::Run { args, .. } = step {
