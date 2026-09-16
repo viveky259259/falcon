@@ -25,6 +25,8 @@ pub(super) fn handle_command(command: Commands) -> Result<()> {
                 flutter_version,
                 dir,
                 json: matches!(format, DoctorFormat::Json),
+                // The CLI always has a terminal to print to.
+                silent: false,
             };
             let code = falcon::doctor::run(&opts)?;
             std::process::exit(code);

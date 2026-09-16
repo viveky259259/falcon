@@ -529,6 +529,9 @@ fn execute_doctor(args: &Value, trust: Trust) -> Result<Value, String> {
         flutter_version: parsed.decisions.get("flutter.version").cloned(),
         dir: parsed.decisions.get("flutter.dir").map(PathBuf::from),
         json: false,
+        // MCP stdio speaks JSON-RPC over stdout; any println! reached while
+        // applying a fix would corrupt that stream. See `DoctorOptions::silent`.
+        silent: true,
     };
 
     if !parsed.execute {
