@@ -54,7 +54,11 @@ impl DoctorOptions {
     }
 }
 
-fn registry() -> Vec<Box<dyn Check>> {
+/// `pub(crate)` (rather than private) so `checks::mod`'s invariant tests can
+/// iterate the real registry instead of hard-coding their own copy of it — a
+/// duplicated `vec![]` there would let a sixth check silently escape both
+/// invariants (no sudo, no auto-accepted licence) with no compile error.
+pub(crate) fn registry() -> Vec<Box<dyn Check>> {
     vec![
         Box::new(checks::flutter::FlutterCheck),
         Box::new(checks::dart::DartCheck),
@@ -65,11 +69,25 @@ fn registry() -> Vec<Box<dyn Check>> {
 }
 
 /// Fetch the release manifest. A failure is not fatal — fixes degrade to Manual.
+///
+/// When `FALCON_DOCTOR_MANIFEST_FILE` is set, the manifest is read from that
+/// path instead of curled — this is what makes `tests/doctor_cli.rs` (which
+/// runs the real binary, including on `--dry-run`) hermetic, rather than
+/// paying a `curl --max-time 20` per test in a network-isolated sandbox.
 fn fetch_manifest(host_os: host::Os) -> Option<ReleaseManifest> {
+    if let Ok(path) = std::env::var("FALCON_DOCTOR_MANIFEST_FILE") {
+        let text = std::fs::read_to_string(&path).ok()?;
+        return ReleaseManifest::parse(&text).ok();
+    }
     let out = std::process::Command::new("curl")
         .args([
             "-fsSL",
             "--proto",
+            "=https",
+            // See the matching comment in exec.rs's `CurlDownloader::fetch`:
+            // `--proto` alone does not stop a redirect from downgrading to
+            // plain http.
+            "--proto-redir",
             "=https",
             "--tlsv1.2",
             "--max-time",
@@ -278,7 +296,12 @@ fn apply_fixes(
         if offer.kind == FixKind::Manual {
             continue;
         }
-        if !opts.fix && !confirm(&format!("Fix {} now?", probed.id), opts)? {
+        // `--dry-run` alone must still show the plan preview — it executes
+        // nothing by construction (see the `dry_run` gate in
+        // `execute_plan`), so asking "Fix now?" first buys nothing and the
+        // README promises `--dry-run` shows the plan without requiring
+        // `--fix` too.
+        if !opts.fix && !opts.dry_run && !confirm(&format!("Fix {} now?", probed.id), opts)? {
             if !opts.interactive() && !opts.silent {
                 println!(
                     "\n  a fix is available for {} — run with --fix to apply",
@@ -391,7 +414,9 @@ fn apply(
     }
     let outcomes = execute_plan(&plan, &RealRunner, &CurlDownloader, policy, opts.dry_run);
     announce(&outcomes, opts.silent);
-    let hints = if outcomes.iter().any(|o| matches!(o, Outcome::Failed { .. })) {
+    // A dry run's outcomes are all `Skipped` — nothing was installed, so a
+    // PATH hint here would point at an SDK that was never written to disk.
+    let hints = if opts.dry_run || outcomes.iter().any(|o| matches!(o, Outcome::Failed { .. })) {
         vec![]
     } else {
         let hints = path_hints(&plan);
@@ -790,6 +815,34 @@ mod tests {
             vec![Outcome::AwaitingManual {
                 command: "run-this-when-not-silent".into()
             }]
+        );
+    }
+
+    #[test]
+    fn dry_run_never_returns_a_path_hint_for_an_sdk_it_did_not_install() {
+        // `apply()`'s hint gate used to fire on any non-`Failed` outcome, and
+        // a dry run's outcomes are all `Skipped` (never `Failed`) — so the
+        // old gate told the user to add a PATH entry for a directory that
+        // was never written, because nothing was ever installed.
+        let ctx = fake_ctx(std::path::Path::new("."), "");
+        let decisions = HashMap::new();
+        let check = FixedPlanCheck(path_hint_plan("/tmp/falcon-test-dry-run-marker-dir"));
+        let opts = DoctorOptions {
+            dry_run: true,
+            ..opts()
+        };
+        let (outcomes, hints) = apply(&check, &ctx, &decisions, &opts).unwrap();
+        assert!(
+            outcomes
+                .iter()
+                .all(|o| matches!(o, Outcome::Skipped { .. })),
+            "a dry run must execute nothing: {:?}",
+            outcomes
+        );
+        assert!(
+            hints.is_empty(),
+            "a dry run must not report a PATH hint for an SDK it never installed: {:?}",
+            hints
         );
     }
 
