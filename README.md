@@ -85,6 +85,30 @@ $ falcon score .
 
 [See all 90+ commands →](docs/cli-reference.md)
 
+### `falcon doctor` — fix your toolchain
+
+```
+falcon doctor                      # diagnose, then offer to fix what's broken
+falcon doctor --fix --yes          # unattended: install everything with recommended defaults
+falcon doctor --dry-run            # show the plan without touching anything
+falcon doctor --only flutter --channel stable --flutter-version 3.24.5
+```
+
+Falcon checks Flutter, Dart, CocoaPods, the Android SDK and Xcode — but only
+the ones your project actually needs. A project with no `ios/` directory is
+never asked about Xcode.
+
+When the Flutter SDK is missing, Falcon reads Google's release manifest,
+offers the version your project pins (`.fvmrc`, `.tool-versions`, your CI
+workflow, or the constraints in `pubspec.yaml`) alongside the latest on your
+chosen channel, downloads it, verifies its checksum, and extracts it.
+
+Two things Falcon will never do: run `sudo`, or accept a licence agreement for
+you. Those steps are printed for you to run, and Falcon re-checks afterwards.
+
+Exit codes: `0` healthy, `1` warnings, `2` a check or fix failed,
+`3` manual action required.
+
 ## AI Tool Integration (MCP)
 
 Add Falcon to Cursor, Windsurf, or any MCP-compatible AI tool:
