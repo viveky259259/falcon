@@ -139,8 +139,18 @@ impl Check for AndroidCheck {
         let api = compile_sdk_version(&ctx.root).unwrap_or(FALLBACK_COMPILE_SDK);
         let scratch = std::env::temp_dir().join("falcon-doctor");
         let archive = scratch.join("android-cmdline-tools.zip");
-        let sdkmanager = root
-            .join("cmdline-tools")
+        // The zip's own top-level entry is `cmdline-tools/`, so it is
+        // extracted into a scratch location first, then moved into place —
+        // extracting it directly into `<sdk>/cmdline-tools` would collide
+        // with the `latest` layout `sdkmanager` requires (see below).
+        let extract_dir = scratch.join("android-cmdline-tools-extracted");
+        let cmdline_tools_root = root.join("cmdline-tools");
+        let cmdline_tools_latest = cmdline_tools_root.join("latest");
+        // `sdkmanager` derives the SDK root by walking up from its own `bin`
+        // directory and requires the `cmdline-tools/<channel>/bin/` layout —
+        // run from `cmdline-tools/bin` directly, it resolves the SDK root one
+        // level too high and fails with "Could not determine SDK root".
+        let sdkmanager = cmdline_tools_latest
             .join("bin")
             .join("sdkmanager")
             .to_string_lossy()
@@ -152,16 +162,57 @@ impl Check for AndroidCheck {
                 Step::Download {
                     id: "download-cmdline-tools".into(),
                     url: cmdline_tools_url(&ctx.host.os),
-                    // Google does not publish a checksum alongside this zip;
-                    // the empty string tells the executor the archive is
-                    // unverifiable and it will refuse unless --yes is set.
+                    // Google does not publish a checksum alongside this zip,
+                    // so this download cannot be integrity-verified. The
+                    // executor warns the user about this loudly (see
+                    // exec.rs) before extracting it.
                     sha256: String::new(),
                     dest: archive.clone(),
                 },
                 Step::Extract {
                     id: "extract-cmdline-tools".into(),
                     archive,
-                    dest: root.clone(),
+                    dest: extract_dir.clone(),
+                },
+                Step::Run {
+                    id: "prepare-sdk-root".into(),
+                    program: "mkdir".into(),
+                    args: vec![
+                        "-p".into(),
+                        cmdline_tools_root.to_string_lossy().to_string(),
+                    ],
+                    cwd: None,
+                },
+                Step::Run {
+                    id: "install-cmdline-tools".into(),
+                    program: "mv".into(),
+                    args: vec![
+                        extract_dir
+                            .join("cmdline-tools")
+                            .to_string_lossy()
+                            .to_string(),
+                        cmdline_tools_latest.to_string_lossy().to_string(),
+                    ],
+                    cwd: None,
+                },
+                // The licence handoff must come before `sdk-packages`:
+                // `sdkmanager "platform-tools" ...` prompts `Accept? (y/N)`
+                // for unaccepted licences, and `RealRunner` uses
+                // `Command::output()`, which inherits stdin but captures
+                // stdout — so that prompt is invisible while the process
+                // blocks forever waiting for input nobody knows to give it.
+                // The executor stops at the first `AwaitingManual`, so the
+                // user accepts the licences and re-runs `falcon doctor
+                // --fix`, after which `sdk-packages` proceeds unattended.
+                Step::Handoff {
+                    id: "licenses".into(),
+                    reason: "Android SDK licence agreements must be accepted by you".into(),
+                    command: "flutter doctor --android-licenses".into(),
+                    docs_url: LICENSES_DOCS.into(),
+                    verify: Probe {
+                        program: "flutter".into(),
+                        args: vec!["doctor".into(), "--android-licenses".into()],
+                    },
                 },
                 Step::Run {
                     id: "sdk-packages".into(),
@@ -172,16 +223,6 @@ impl Check for AndroidCheck {
                         format!("build-tools;{}.0.0", api),
                     ],
                     cwd: None,
-                },
-                Step::Handoff {
-                    id: "licenses".into(),
-                    reason: "Android SDK licence agreements must be accepted by you".into(),
-                    command: "flutter doctor --android-licenses".into(),
-                    docs_url: LICENSES_DOCS.into(),
-                    verify: Probe {
-                        program: "flutter".into(),
-                        args: vec!["doctor".into(), "--android-licenses".into()],
-                    },
                 },
             ],
         })
@@ -299,7 +340,7 @@ mod tests {
     }
 
     #[test]
-    fn the_plan_installs_packages_then_hands_off_the_licences() {
+    fn the_plan_installs_the_tools_hands_off_licences_then_installs_packages() {
         let dir = android_project();
         let mut runner = FakeRunner::default();
         runner.fail_on("sdkmanager --version");
@@ -311,24 +352,32 @@ mod tests {
             vec![
                 "download-cmdline-tools",
                 "extract-cmdline-tools",
+                "prepare-sdk-root",
+                "install-cmdline-tools",
+                "licenses",
                 "sdk-packages",
-                "licenses"
             ]
         );
         assert!(
-            matches!(plan.steps.last(), Some(Step::Handoff { .. })),
+            matches!(plan.steps[4], Step::Handoff { .. }),
             "licences must be a handoff, never automated"
+        );
+        assert!(
+            matches!(plan.steps[5], Step::Run { .. }),
+            "sdk-packages must come after the licence handoff, so the \
+             executor stops for licences before it can hang on the \
+             interactive accept prompt"
         );
     }
 
     #[test]
-    fn the_licence_handoff_names_the_exact_command() {
+    fn the_licence_handoff_names_the_exact_command_and_precedes_sdk_packages() {
         let dir = android_project();
         let mut runner = FakeRunner::default();
         runner.fail_on("sdkmanager --version");
         let c = ctx(dir.path(), runner, "macos");
         let plan = AndroidCheck.plan(&c, &HashMap::new()).unwrap();
-        match plan.steps.last().unwrap() {
+        match &plan.steps[4] {
             Step::Handoff {
                 command, reason, ..
             } => {
@@ -349,7 +398,7 @@ mod tests {
         runner.fail_on("sdkmanager --version");
         let c = ctx(dir.path(), runner, "macos");
         let plan = AndroidCheck.plan(&c, &HashMap::new()).unwrap();
-        match &plan.steps[2] {
+        match &plan.steps[5] {
             Step::Run { args, .. } => {
                 assert!(
                     args.iter().any(|a| a == "platforms;android-34"),
@@ -358,6 +407,57 @@ mod tests {
                 );
             }
             other => panic!("expected sdkmanager run, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn the_sdkmanager_path_uses_the_cmdline_tools_latest_layout() {
+        // `sdkmanager` derives the SDK root by walking up from its own `bin`
+        // directory and requires `cmdline-tools/<channel>/bin/` — invoked
+        // from `cmdline-tools/bin` directly it resolves the SDK root one
+        // level too high and fails with "Could not determine SDK root".
+        let dir = android_project();
+        let mut runner = FakeRunner::default();
+        runner.fail_on("sdkmanager --version");
+        let c = ctx(dir.path(), runner, "macos");
+        let plan = AndroidCheck.plan(&c, &HashMap::new()).unwrap();
+        match &plan.steps[5] {
+            Step::Run { program, .. } => {
+                assert!(
+                    program.contains("cmdline-tools/latest/bin"),
+                    "sdkmanager must be invoked from the `latest` layout: {}",
+                    program
+                );
+            }
+            other => panic!("expected sdkmanager run, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn the_extracted_archive_is_moved_into_the_latest_layout_not_extracted_straight_into_it() {
+        let dir = android_project();
+        let mut runner = FakeRunner::default();
+        runner.fail_on("sdkmanager --version");
+        let c = ctx(dir.path(), runner, "macos");
+        let plan = AndroidCheck.plan(&c, &HashMap::new()).unwrap();
+        match &plan.steps[1] {
+            Step::Extract { dest, .. } => assert!(
+                !dest.ends_with("cmdline-tools"),
+                "must not extract directly into the sdk root's cmdline-tools/: {}",
+                dest.display()
+            ),
+            other => panic!("expected an extract step, got {:?}", other),
+        }
+        match &plan.steps[3] {
+            Step::Run { program, args, .. } => {
+                assert_eq!(program, "mv");
+                assert!(
+                    args.last().map(|a| a.ends_with("cmdline-tools/latest")) == Some(true),
+                    "must move the extracted tools into cmdline-tools/latest: {:?}",
+                    args
+                );
+            }
+            other => panic!("expected a move step, got {:?}", other),
         }
     }
 
