@@ -1,5 +1,9 @@
 //! End-to-end checks on the `falcon doctor` CLI. These run the built binary
-//! with `--dry-run`, so nothing is installed and nothing is downloaded.
+//! with `--dry-run`, so nothing is ever installed, and no assertion here
+//! depends on the Flutter release manifest's contents — so these tests pass
+//! offline. `--dry-run` still attempts a manifest fetch (the preview needs
+//! it to resolve a concrete version and URL), so a network-isolated run can
+//! pay up to the fetch's `curl --max-time 20` per test before falling back.
 
 use std::process::Command;
 use tempfile::TempDir;
