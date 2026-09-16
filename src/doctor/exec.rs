@@ -72,6 +72,12 @@ impl Downloader for CurlDownloader {
                 "-fL",
                 "--proto",
                 "=https",
+                // `--proto` constrains only the initial request; curl's
+                // default redirect protocol set still includes plain http,
+                // so without this a redirect could silently downgrade the
+                // connection and hand back an arbitrary payload.
+                "--proto-redir",
+                "=https",
                 "--tlsv1.2",
                 "--retry",
                 "2",
@@ -90,11 +96,26 @@ impl Downloader for CurlDownloader {
 
     fn sha256(&self, path: &Path) -> Result<String, String> {
         use sha2::{Digest, Sha256};
-        let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+        // Hash by streaming through the file rather than `std::fs::read`ing
+        // it whole — the Flutter macOS arm64 archive alone runs to roughly a
+        // gigabyte, and reading that into memory is an RSS spike that can
+        // OOM a constrained CI container.
+        let mut file = std::fs::File::open(path).map_err(|e| e.to_string())?;
         let mut hasher = Sha256::new();
-        hasher.update(&bytes);
+        std::io::copy(&mut file, &mut hasher).map_err(|e| e.to_string())?;
         Ok(format!("{:x}", hasher.finalize()))
     }
+}
+
+/// The message shown to the user before an archive with no published
+/// checksum is installed. Factored out so the exact user-visible text is
+/// assertable from a test without redirecting the process's real stderr.
+fn unverifiable_download_warning(url: &str) -> String {
+    format!(
+        "warning: installing {} without integrity verification — no \
+         checksum is published for this archive",
+        url
+    )
 }
 
 #[derive(Default)]
@@ -236,7 +257,12 @@ fn run_step(
             }
             if sha256.is_empty() {
                 // Upstream publishes no checksum for this archive. Say so
-                // rather than silently trusting it.
+                // loudly — this must reach the user, so it goes to stderr,
+                // not just the `log` crate, which the CLI does not surface
+                // by default and which would otherwise leave the user
+                // watching an unverified archive get extracted and its
+                // binary executed with no visible warning at all.
+                eprintln!("\n  {}", unverifiable_download_warning(url));
                 log::warn!(
                     "no published checksum for {} — cannot verify integrity",
                     url
@@ -250,11 +276,16 @@ fn run_step(
                     step_id: id.clone(),
                 },
                 Ok(actual) => {
-                    let _ = std::fs::remove_file(dest);
+                    let deleted = std::fs::remove_file(dest).is_ok();
+                    let disposition = if deleted {
+                        "download deleted"
+                    } else {
+                        "download NOT deleted — remove it manually before retrying"
+                    };
                     Outcome::Failed {
                         error: format!(
-                            "checksum mismatch for {} (expected {}, got {}); download deleted",
-                            url, sha256, actual
+                            "checksum mismatch for {} (expected {}, got {}); {}",
+                            url, sha256, actual, disposition
                         ),
                     }
                 }
@@ -364,6 +395,28 @@ mod tests {
             vec![Outcome::Done {
                 step_id: "download".into()
             }]
+        );
+    }
+
+    #[test]
+    fn the_unverifiable_download_warning_names_the_url_and_says_why() {
+        // `run_step` prints exactly this string to stderr for an empty
+        // checksum (see the `eprintln!` in the `Step::Download` arm) — this
+        // is the actual user-visible text, not a paraphrase of it, so
+        // asserting on it here is equivalent to capturing the real stderr
+        // output without needing to redirect the process's own fd.
+        let msg = unverifiable_download_warning("https://dl.google.test/tools.zip");
+        assert!(
+            msg.contains("https://dl.google.test/tools.zip"),
+            "warning must name the URL: {}",
+            msg
+        );
+        assert!(
+            msg.to_lowercase().contains("integrity")
+                || msg.to_lowercase().contains("checksum")
+                || msg.to_lowercase().contains("verif"),
+            "warning must say the archive is unverifiable: {}",
+            msg
         );
     }
 
@@ -479,6 +532,61 @@ mod tests {
             runner.calls().is_empty(),
             "must not proceed after a bad checksum"
         );
+    }
+
+    #[test]
+    fn checksum_mismatch_message_reflects_whether_the_download_was_actually_deleted() {
+        // `download_plan`'s dest (`/tmp/scratch/flutter.tar.xz`) never
+        // actually exists on disk (the `FakeDownloader` never writes it), so
+        // `remove_file` fails — the message must say so rather than blindly
+        // claiming "download deleted" regardless of what really happened.
+        let runner = FakeRunner::default();
+        let dl = FakeDownloader::new("deadbeef");
+        let out = execute_plan(
+            &download_plan("abc123"),
+            &runner,
+            &dl,
+            HandoffPolicy::Report,
+            false,
+        );
+        match out.last() {
+            Some(Outcome::Failed { error }) => {
+                assert!(
+                    error.contains("NOT deleted"),
+                    "a delete that failed must not be reported as having \
+                     succeeded: {}",
+                    error
+                );
+            }
+            other => panic!("expected a failed outcome, got {:?}", other),
+        }
+
+        // Now the inverse: a dest that really is on disk really does get
+        // removed, and the message must say that instead.
+        let tmp = tempfile::TempDir::new().unwrap();
+        let dest = tmp.path().join("archive.tar.xz");
+        std::fs::write(&dest, b"not the real archive").unwrap();
+        let plan = Plan {
+            check_id: "flutter".into(),
+            steps: vec![Step::Download {
+                id: "download".into(),
+                url: "https://example.test/flutter.tar.xz".into(),
+                sha256: "abc123".into(),
+                dest: dest.clone(),
+            }],
+        };
+        let out = execute_plan(&plan, &runner, &dl, HandoffPolicy::Report, false);
+        match out.last() {
+            Some(Outcome::Failed { error }) => {
+                assert!(
+                    error.contains("download deleted") && !error.contains("NOT deleted"),
+                    "a delete that succeeded must say so: {}",
+                    error
+                );
+            }
+            other => panic!("expected a failed outcome, got {:?}", other),
+        }
+        assert!(!dest.exists(), "the bad download must actually be gone");
     }
 
     #[test]
