@@ -127,6 +127,11 @@ pub enum Step {
         reason: String,
         command: String,
         docs_url: String,
+        /// Reserved for a follow-up: an interactive prompt/verify/retry loop
+        /// (re-running this probe after the user says they've done the
+        /// handoff, to confirm before continuing) is not implemented in this
+        /// wave. Nothing reads this field yet, and Falcon does not currently
+        /// re-check a handoff after printing it — see the README.
         verify: Probe,
     },
 }

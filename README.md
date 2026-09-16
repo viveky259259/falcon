@@ -113,7 +113,8 @@ chosen channel, downloads it, verifies its checksum, and extracts it. Pass
 at plan-build time, before anything is downloaded.
 
 Two things Falcon will never do: run `sudo`, or accept a licence agreement for
-you. Those steps are printed for you to run, and Falcon re-checks afterwards.
+you. Those steps are printed for you to run — Falcon does not re-check
+afterwards; re-run `falcon doctor` yourself once you've done them.
 
 Exit codes: `0` healthy, `1` warnings, `2` a check or fix failed,
 `3` manual action required. `--format json` is diagnosis-only — it never
