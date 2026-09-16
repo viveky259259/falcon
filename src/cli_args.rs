@@ -1439,12 +1439,17 @@ pub enum Commands {
         #[arg(default_value = ".")]
         path: PathBuf,
 
-        /// Apply fixes without asking to confirm each one
+        /// Apply fixes without asking to confirm each one. Any
+        /// non-interactive session (CI, a pipe, no TTY) already installs
+        /// unattended on --fix alone, answering every question with its
+        /// recommended default — --yes is not required for that.
         #[arg(long)]
         fix: bool,
 
         /// Accept the recommended answer to every decision question and never
-        /// prompt; combine with --fix to install unattended
+        /// prompt. Non-interactive sessions (CI, a pipe, no TTY) already
+        /// behave this way without --yes; this flag matters only for an
+        /// interactive terminal that should not be asked.
         #[arg(long)]
         yes: bool,
 
