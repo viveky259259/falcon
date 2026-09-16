@@ -15,6 +15,7 @@ use crate::doctor::exec::{execute_plan, CurlDownloader, HandoffPolicy, RealRunne
 use crate::doctor::flutter::install::dir_is_usable;
 use crate::doctor::flutter::releases::{manifest_url, ReleaseManifest};
 use anyhow::Result;
+use colored::Colorize;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -326,8 +327,20 @@ pub fn execute(opts: &DoctorOptions) -> Result<ExecutionReport> {
 }
 
 pub fn run(opts: &DoctorOptions) -> Result<i32> {
-    validate_root(&opts.root)?;
-    validate_check_names(opts)?;
+    // A validation failure here is a *usage* error — the same category as
+    // clap's own "invalid value for --channel", which already exits 2 —
+    // so it must exit the same way clap does, not propagate as a generic
+    // `Err` and hit main.rs's catch-all exit(1). Exit 1 means "warnings";
+    // a CI gate written as `falcon doctor "$p"; [ $? -le 1 ] && proceed`
+    // would treat a typo'd --only as pass-with-warnings and carry on —
+    // the exact false-green this validation exists to prevent, just moved
+    // from exit 0 to exit 1. `diagnose()`/`execute()` (the MCP path) still
+    // propagate these as a normal `Err` via `?` below unchanged — MCP has
+    // no process exit code to get wrong, only an error string.
+    if let Err(e) = validate_root(&opts.root).and_then(|_| validate_check_names(opts)) {
+        eprintln!("{}: {}", "error".red(), e);
+        return Ok(2);
+    }
     let host_info = host::detect();
     let arch = host::current_arch();
     let manifest = maybe_fetch_manifest(opts, host::current_os());
@@ -847,6 +860,55 @@ mod tests {
             ..opts()
         };
         assert!(maybe_fetch_manifest(&o, host::Os::MacOs).is_none());
+    }
+
+    // ─── run() must exit 2 (not 1) on a usage error ─────────────────────
+    //
+    // exit 1 is documented as "warnings" — a CI gate written as
+    // `falcon doctor "$p"; [ $? -le 1 ] && proceed` treats exit 1 as safe
+    // to continue. A typo'd --only used to be a `validate_check_names`
+    // `Err` that propagated all the way to main.rs's catch-all handler,
+    // which prints "error: ..." and exits 1 — reporting a usage mistake as
+    // a mere warning. clap's own usage errors (e.g. an unknown --channel)
+    // already exit 2, so `run()`'s own validation must match that, not 1.
+
+    #[test]
+    fn an_unknown_only_name_makes_run_exit_two_not_one() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let o = DoctorOptions {
+            root: tmp.path().to_path_buf(),
+            only: vec!["bogus".into()],
+            ..opts()
+        };
+        assert_eq!(
+            run(&o).unwrap(),
+            2,
+            "a typo'd --only is a usage error, not a warning"
+        );
+    }
+
+    #[test]
+    fn an_unknown_skip_name_makes_run_exit_two_not_one() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let o = DoctorOptions {
+            root: tmp.path().to_path_buf(),
+            skip: vec!["bogus".into()],
+            ..opts()
+        };
+        assert_eq!(run(&o).unwrap(), 2);
+    }
+
+    #[test]
+    fn a_nonexistent_path_makes_run_exit_two_not_one() {
+        let o = DoctorOptions {
+            root: PathBuf::from("/no/such/path/falcon-doctor-exit-code-test"),
+            ..opts()
+        };
+        assert_eq!(
+            run(&o).unwrap(),
+            2,
+            "a nonexistent path is a usage error, not a warning"
+        );
     }
 
     // ─── DoctorOptions::silent: apply() must not write to stdout ──────────

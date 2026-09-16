@@ -283,8 +283,12 @@ fn an_unknown_only_name_is_a_loud_error_not_an_empty_healthy_report() {
     );
     assert_eq!(
         out.status.code(),
-        Some(1),
-        "must exit non-zero on the error path"
+        Some(2),
+        "a usage error must exit 2, matching clap's own usage-error exit \
+         code — exit 1 is documented as \"warnings\", and a CI gate written \
+         as `[ $? -le 1 ] && proceed` would treat a typo'd --only as safe \
+         to continue on: {:?}",
+        out.status.code()
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(
@@ -314,6 +318,12 @@ fn an_unknown_skip_name_is_also_a_loud_error() {
         .output()
         .expect("falcon should run");
     assert!(!out.status.success());
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "a usage error must exit 2, not 1 (\"warnings\"): {:?}",
+        out.status.code()
+    );
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains("not-a-real-check"), "stderr: {}", stderr);
 }
@@ -330,6 +340,12 @@ fn a_nonexistent_path_is_a_loud_error_not_a_confident_report() {
     assert!(
         !out.status.success(),
         "a nonexistent path must exit non-zero"
+    );
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "a usage error must exit 2, not 1 (\"warnings\"): {:?}",
+        out.status.code()
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(

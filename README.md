@@ -123,11 +123,11 @@ Two things Falcon will never do: run `sudo`, or accept a licence agreement for
 you. Those steps are printed for you to run — Falcon does not re-check
 afterwards; re-run `falcon doctor` yourself once you've done them.
 
-Exit codes: `0` healthy, `1` warnings, `2` a check or fix failed,
-`3` manual action required. `--format json` is diagnosis-only — it never
-prompts and never installs, even with `--fix` — and reports
-`fixes_applied: false` with a reason instead. Agents that need to drive an
-install use the MCP `doctor` tool instead.
+Exit codes: `0` healthy, `1` warnings, `2` a check or fix failed, or the
+command was used incorrectly, `3` manual action required. `--format json`
+is diagnosis-only — it never prompts and never installs, even with `--fix`
+— and reports `fixes_applied: false` with a reason instead. Agents that
+need to drive an install use the MCP `doctor` tool instead.
 
 ## AI Tool Integration (MCP)
 
