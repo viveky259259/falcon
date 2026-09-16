@@ -38,6 +38,46 @@ pub struct FixSafeArgs {
     pub preview: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DoctorArgs {
+    pub path: String,
+    #[serde(default)]
+    pub execute: bool,
+    #[serde(default)]
+    pub decisions: std::collections::BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub only: Vec<String>,
+}
+
+pub fn doctor_input_schema() -> Value {
+    serde_json::json!({
+        "$schema": JSON_SCHEMA_DRAFT_07,
+        "type": "object",
+        "properties": {
+            "path": {
+                "type": "string",
+                "description": "Path to the Flutter project to diagnose"
+            },
+            "execute": {
+                "type": "boolean",
+                "default": false,
+                "description": "Apply the fixes. Requires `decisions` to answer every question returned by the diagnosis call. Never available over the HTTP bridge."
+            },
+            "decisions": {
+                "type": "object",
+                "additionalProperties": { "type": "string" },
+                "description": "Answers keyed by question id, e.g. {\"flutter.channel\":\"stable\",\"flutter.version\":\"3.24.5\"}"
+            },
+            "only": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Restrict to these checks: flutter, dart, cocoapods, android, xcode"
+            }
+        },
+        "required": ["path"]
+    })
+}
+
 pub fn default_base_ref() -> String {
     "origin/main".to_string()
 }

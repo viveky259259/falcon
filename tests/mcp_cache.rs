@@ -1,3 +1,4 @@
+use falcon::doctor::Trust;
 use falcon::mcp::cache::McpCache;
 use serde_json::json;
 
@@ -11,6 +12,7 @@ fn lint_file_mcp_call_stores_disk_cache_entry() {
     let result = falcon::mcp::tools::execute_tool(
         "lint_file",
         &json!({ "file_path": file.to_string_lossy() }),
+        Trust::Local,
     )
     .expect("lint_file should analyze disk-backed source");
 
@@ -30,6 +32,7 @@ fn lint_file_mcp_cache_invalidates_changed_content() {
     let clean = falcon::mcp::tools::execute_tool(
         "lint_file",
         &json!({ "file_path": file.to_string_lossy() }),
+        Trust::Local,
     )
     .expect("initial lint_file should analyze");
 
@@ -38,6 +41,7 @@ fn lint_file_mcp_cache_invalidates_changed_content() {
     let noisy = falcon::mcp::tools::execute_tool(
         "lint_file",
         &json!({ "file_path": file.to_string_lossy() }),
+        Trust::Local,
     )
     .expect("changed lint_file should analyze");
 

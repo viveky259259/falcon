@@ -1,8 +1,9 @@
 //! Integration test: PR-E MCP tool surface lockdown.
 //!
-//! Pins the contract: exactly 5 advertised tools, with old names accepted
+//! Pins the contract: exactly 6 advertised tools, with old names accepted
 //! as aliases. Council mapping: EPIC 2.1.
 
+use falcon::doctor::Trust;
 use serde_json::json;
 use std::path::Path;
 use std::process::Command;
@@ -22,7 +23,7 @@ const DEPRECATED: &[&str] = &[
 #[test]
 fn list_tools_returns_exactly_five_canonical_entries() {
     let tools = falcon::mcp::tools::list_tools();
-    assert_eq!(tools.len(), 5, "locked surface size is 5");
+    assert_eq!(tools.len(), 6, "locked surface size is 6");
     let names: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
     for canon in CANONICAL {
         assert!(names.contains(canon), "missing canonical '{}'", canon);
@@ -45,7 +46,7 @@ fn deprecated_names_absent_from_list_tools() {
 #[test]
 fn each_canonical_name_is_dispatchable() {
     for name in CANONICAL {
-        let result = falcon::mcp::tools::execute_tool(name, &json!({}));
+        let result = falcon::mcp::tools::execute_tool(name, &json!({}), Trust::Local);
         if let Err(e) = &result {
             assert!(
                 !e.starts_with("Unknown tool"),
@@ -60,7 +61,7 @@ fn each_canonical_name_is_dispatchable() {
 #[test]
 fn each_deprecated_name_is_still_dispatchable_as_alias() {
     for name in DEPRECATED {
-        let result = falcon::mcp::tools::execute_tool(name, &json!({}));
+        let result = falcon::mcp::tools::execute_tool(name, &json!({}), Trust::Local);
         if let Err(e) = &result {
             assert!(
                 !e.starts_with("Unknown tool"),
@@ -74,7 +75,7 @@ fn each_deprecated_name_is_still_dispatchable_as_alias() {
 
 #[test]
 fn unknown_tool_yields_clear_error() {
-    let result = falcon::mcp::tools::execute_tool("this_does_not_exist", &json!({}));
+    let result = falcon::mcp::tools::execute_tool("this_does_not_exist", &json!({}), Trust::Local);
     let err = result.expect_err("unknown tool must error");
     assert!(
         err.starts_with("Unknown tool"),
@@ -105,6 +106,7 @@ fn lint_diff_analyzes_changed_dart_files() {
     let result = falcon::mcp::tools::execute_tool(
         "lint_diff",
         &json!({ "path": repo.path().to_string_lossy(), "base_ref": "HEAD~1" }),
+        Trust::Local,
     )
     .expect("lint_diff should analyze changed Dart files");
 
@@ -172,6 +174,7 @@ class _ScreenState extends BaseState {
     let result = falcon::mcp::tools::execute_tool(
         "lint_diff",
         &json!({ "path": repo.path().to_string_lossy(), "base_ref": "HEAD~1" }),
+        Trust::Local,
     )
     .expect("lint_diff should analyze changed Dart files with project context");
 
@@ -207,6 +210,7 @@ class _ScreenState extends BaseState {
 }
 "#
         }),
+        Trust::Local,
     )
     .expect("lint_file should analyze source with project context");
 
@@ -287,5 +291,99 @@ fn assert_has_rule(result: &serde_json::Value, rule: &str) {
             .any(|issue| issue["rule"] == rule),
         "expected rule {rule} in result:\n{}",
         serde_json::to_string_pretty(result).unwrap()
+    );
+}
+
+// ─── `doctor` tool: surface and the Trust gate ─────────────────────────────
+//
+// `doctor`'s diagnosis path (`execute: false`, the default) calls
+// `falcon::doctor::diagnose`, which unconditionally shells out to `curl` to
+// fetch the Flutter release manifest — regardless of the project path, even
+// a tempdir. Per the task's "no test touches the network" constraint, none
+// of these tests drive a real diagnosis to completion; they check the
+// surface, the schema default, and — the security-relevant part — that the
+// Trust gate refuses a `Remote` execute *before* any network- or
+// filesystem-mutating code runs, and that it does not refuse diagnosis.
+
+#[test]
+fn doctor_is_advertised_on_the_local_surface() {
+    let tools = falcon::mcp::tools::list_tools();
+    assert!(
+        tools.iter().any(|t| t.name == "doctor"),
+        "doctor must be advertised"
+    );
+}
+
+#[test]
+fn doctor_defaults_to_not_executing() {
+    let schema = falcon::mcp::schema::doctor_input_schema();
+    assert_eq!(schema["properties"]["execute"]["default"], json!(false));
+}
+
+#[test]
+fn remote_trust_refuses_to_execute() {
+    // `execute: true` must be refused for `Trust::Remote` before the call
+    // ever reaches `doctor::execute` (which would download and run
+    // installers) — this is the actual security boundary, and it must not
+    // require network access to prove.
+    let args = json!({ "path": ".", "execute": true, "decisions": {} });
+    let err = falcon::mcp::tools::execute_tool("doctor", &args, Trust::Remote)
+        .expect_err("remote execution must be refused");
+    assert!(
+        err.to_lowercase().contains("not permitted") || err.to_lowercase().contains("refus"),
+        "refusal must be explicit: {}",
+        err
+    );
+}
+
+#[test]
+fn remote_trust_does_not_gate_diagnosis_mode() {
+    // The Trust gate must trip only on `execute: true`, never on `execute:
+    // false` (the default). To prove that without running the
+    // network-touching diagnosis pipeline, this omits the required `path`
+    // field: argument parsing fails before `diagnose()` is ever called, so
+    // the resulting error is a parse error, not the Trust refusal — showing
+    // the refusal is specific to `execute: true` and not a blanket block on
+    // `Trust::Remote`.
+    let args = json!({ "execute": false });
+    let err = falcon::mcp::tools::execute_tool("doctor", &args, Trust::Remote)
+        .expect_err("missing required `path` must fail to parse");
+    assert!(
+        !err.to_lowercase().contains("not permitted") && !err.to_lowercase().contains("refus"),
+        "diagnosis mode must never be refused on trust grounds: {}",
+        err
+    );
+    assert!(
+        err.contains("invalid doctor args"),
+        "expected an argument-parsing error, not a trust refusal: {}",
+        err
+    );
+}
+
+#[test]
+fn remote_listing_marks_doctor_diagnosis_only() {
+    let remote = falcon::mcp::tools::list_tools_for(Trust::Remote);
+    let doctor = remote
+        .iter()
+        .find(|t| t.name == "doctor")
+        .expect("still listed");
+    assert!(
+        doctor.description.contains("diagnosis only"),
+        "remote description must say so: {}",
+        doctor.description
+    );
+}
+
+#[test]
+fn local_listing_keeps_the_full_doctor_description() {
+    let local = falcon::mcp::tools::list_tools_for(Trust::Local);
+    let doctor = local
+        .iter()
+        .find(|t| t.name == "doctor")
+        .expect("still listed");
+    assert!(
+        !doctor.description.contains("diagnosis only"),
+        "local (stdio) transport may install, so it must not be relabeled: {}",
+        doctor.description
     );
 }

@@ -3,6 +3,7 @@ use serde_json::Value;
 use std::io::{self, BufRead, Write};
 
 use super::tools;
+use crate::doctor::Trust;
 
 const SERVER_NAME: &str = "falcon";
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -137,7 +138,7 @@ fn handle_request(request: &JsonRpcRequest) -> JsonRpcResponse {
                 .cloned()
                 .unwrap_or(Value::Object(serde_json::Map::new()));
 
-            match tools::execute_tool(tool_name, &arguments) {
+            match tools::execute_tool(tool_name, &arguments, Trust::Local) {
                 Ok(result) => JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
                     id,

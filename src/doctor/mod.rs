@@ -119,23 +119,102 @@ fn settle(
         .collect()
 }
 
-pub fn run(opts: &DoctorOptions) -> Result<i32> {
-    let host_info = host::detect();
-    let arch = host::current_arch();
-    let manifest = fetch_manifest(host::current_os());
-
+/// Probe every relevant check against one shared host/arch/manifest snapshot.
+/// The single loop both `run()` and `diagnose()` build their result on, so
+/// the two phases can never drift on what counts as "relevant" or how a
+/// check is probed.
+fn probe_all(
+    opts: &DoctorOptions,
+    host_info: &host::HostInfo,
+    arch: host::Arch,
+    manifest: &Option<ReleaseManifest>,
+) -> Diagnosis {
     let mut results = Vec::new();
     for check in registry() {
         if !opts.wants(check.id()) {
             continue;
         }
-        results.push(check.probe(&context(opts, &host_info, arch, &manifest)));
+        results.push(check.probe(&context(opts, host_info, arch, manifest)));
     }
-
-    let diagnosis = Diagnosis {
+    Diagnosis {
         host: host_info.clone(),
         checks: results,
+    }
+}
+
+/// Phase one: probe every relevant check. Never mutates anything — safe to
+/// call speculatively (this is what the MCP `doctor` tool does by default).
+pub fn diagnose(opts: &DoctorOptions) -> Result<Diagnosis> {
+    let host_info = host::detect();
+    let arch = host::current_arch();
+    let manifest = fetch_manifest(host::current_os());
+    Ok(probe_all(opts, &host_info, arch, &manifest))
+}
+
+/// What an `execute()` call reports back.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ExecutionReport {
+    pub steps: Vec<Outcome>,
+    /// "ok" | "awaiting_manual_step" | "failed"
+    pub status: String,
+}
+
+/// Phase two: run every fixable check's plan using the decisions already on
+/// `opts` (`channel` / `flutter_version` / `dir`). Never prompts — this is
+/// the non-interactive path the MCP `doctor` tool's `execute: true` call
+/// uses, so every question it needs must already be answered by the caller.
+pub fn execute(opts: &DoctorOptions) -> Result<ExecutionReport> {
+    let host_info = host::detect();
+    let arch = host::current_arch();
+    let manifest = fetch_manifest(host::current_os());
+    let diagnosis = probe_all(opts, &host_info, arch, &manifest);
+
+    let mut outcomes = Vec::new();
+    for check in registry() {
+        let Some(probed) = diagnosis.checks.iter().find(|c| c.id == check.id()) else {
+            continue;
+        };
+        let Some(offer) = &probed.fix else { continue };
+        if offer.kind == FixKind::Manual {
+            continue;
+        }
+        let mut decisions = HashMap::new();
+        if let Some(c) = &opts.channel {
+            decisions.insert("flutter.channel".to_string(), c.clone());
+        }
+        if let Some(v) = &opts.flutter_version {
+            decisions.insert("flutter.version".to_string(), v.clone());
+        }
+        if let Some(d) = &opts.dir {
+            decisions.insert("flutter.dir".to_string(), d.to_string_lossy().to_string());
+        }
+        let ctx = context(opts, &host_info, arch, &manifest);
+        outcomes.extend(apply(check.as_ref(), &ctx, &decisions, opts)?);
+    }
+
+    let status = if outcomes
+        .iter()
+        .any(|o| matches!(o, Outcome::AwaitingManual { .. }))
+    {
+        "awaiting_manual_step"
+    } else if outcomes.iter().any(|o| matches!(o, Outcome::Failed { .. })) {
+        "failed"
+    } else {
+        "ok"
     };
+
+    Ok(ExecutionReport {
+        steps: outcomes,
+        status: status.to_string(),
+    })
+}
+
+pub fn run(opts: &DoctorOptions) -> Result<i32> {
+    let host_info = host::detect();
+    let arch = host::current_arch();
+    let manifest = fetch_manifest(host::current_os());
+
+    let diagnosis = probe_all(opts, &host_info, arch, &manifest);
 
     if opts.json {
         println!(
