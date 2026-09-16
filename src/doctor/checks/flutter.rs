@@ -48,8 +48,24 @@ impl Check for FlutterCheck {
             },
         };
 
-        let fix = match status {
+        let fix = match &status {
             Status::Ok { .. } => None,
+            // `Status::Outdated` is only ever produced above when `found`
+            // is `Some` — i.e. a Flutter binary is already on PATH. Offering
+            // the same fresh-install plan here either hard-refuses (the
+            // default install dir is occupied by the SDK we just found) or
+            // silently lands a second SDK in a directory PATH never
+            // resolves, leaving the machine looking untouched. A real
+            // in-place upgrade is a follow-up; for now, say what actually
+            // works.
+            Status::Outdated { .. } => Some(FixOffer {
+                kind: FixKind::Manual,
+                questions: vec![],
+                steps: vec![StepSummary {
+                    id: "manual-upgrade".into(),
+                    describe: "Run `flutter upgrade` to update the SDK already on PATH".into(),
+                }],
+            }),
             _ => Some(build_offer(
                 &ctx.root,
                 ctx.manifest.as_ref(),
@@ -82,15 +98,18 @@ impl Check for FlutterCheck {
             .unwrap_or_else(|| {
                 crate::doctor::flutter::install::default_install_dir(ctx.host.home.as_deref())
             });
+        let channel = decisions
+            .get("flutter.channel")
+            .cloned()
+            .unwrap_or_else(|| "stable".into());
+        let requested_version = decisions
+            .get("flutter.version")
+            .cloned()
+            .unwrap_or_else(|| "latest".into());
+        let version = resolve_version(&requested_version, &channel, &ctx.root, manifest, ctx.arch)?;
         let install_decisions = crate::doctor::flutter::install::InstallDecisions {
-            channel: decisions
-                .get("flutter.channel")
-                .cloned()
-                .unwrap_or_else(|| "stable".into()),
-            version: decisions
-                .get("flutter.version")
-                .cloned()
-                .unwrap_or_else(|| "latest".into()),
+            channel,
+            version,
             dir,
         };
         let scratch = std::env::temp_dir().join("falcon-doctor");
@@ -101,6 +120,46 @@ impl Check for FlutterCheck {
             &install_decisions,
             &scratch,
         )
+    }
+}
+
+/// Resolve the `--flutter-version` sentinels `latest` and `project` into a
+/// concrete version string before handing decisions to `build_plan`, which
+/// only ever does an exact `manifest.find(channel, version, arch)` lookup.
+/// Left unresolved, the literal string `"latest"` (the CLI's own documented
+/// value, and `execute()`'s silent fallback when an MCP caller answers only
+/// `flutter.channel`) is passed straight through and fails with "no latest
+/// arm64 build for macos on the stable channel" — there is no release
+/// literally named `latest`.
+fn resolve_version(
+    version: &str,
+    channel: &str,
+    root: &Path,
+    manifest: &ReleaseManifest,
+    arch: Arch,
+) -> Result<String, String> {
+    match version {
+        "latest" => manifest
+            .latest(channel, arch)
+            .map(|r| r.version.clone())
+            .ok_or_else(|| {
+                format!(
+                    "no releases found for the {} channel ({})",
+                    channel,
+                    arch.manifest_name()
+                )
+            }),
+        "project" => crate::doctor::flutter::version::candidates(root, manifest, channel, arch)
+            .into_iter()
+            .next()
+            .map(|c| c.version)
+            .ok_or_else(|| {
+                format!(
+                    "no version candidates found for this project on the {} channel",
+                    channel
+                )
+            }),
+        exact => Ok(exact.to_string()),
     }
 }
 
@@ -343,6 +402,130 @@ mod tests {
             result.fix.is_some(),
             "an outdated SDK must still offer an upgrade"
         );
+    }
+
+    #[test]
+    fn an_outdated_sdk_already_on_path_offers_a_manual_upgrade_not_a_fresh_install() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(
+            dir.path().join("pubspec.yaml"),
+            "name: app\nenvironment:\n  flutter: '>=3.22.0'\n",
+        )
+        .unwrap();
+        let runner = FakeRunner::with_stdout(
+            "flutter --version",
+            "Flutter 3.19.0 • channel stable • https://github.com/flutter/flutter.git",
+        );
+        let result = FlutterCheck.probe(&ctx(dir.path(), runner));
+        assert_eq!(
+            result.status,
+            Status::Outdated {
+                found: "3.19.0".into(),
+                needed: ">=3.22.0".into()
+            }
+        );
+        let fix = result.fix.expect("an outdated SDK must still offer a fix");
+        assert_eq!(
+            fix.kind,
+            FixKind::Manual,
+            "a fresh-install plan either refuses (dir occupied by the SDK \
+             we just found) or silently lands a second SDK PATH never sees"
+        );
+        assert!(
+            fix.steps
+                .iter()
+                .any(|s| s.describe.contains("flutter upgrade")),
+            "the manual step must name the actual fix: {:?}",
+            fix.steps
+        );
+    }
+
+    #[test]
+    fn resolve_version_turns_latest_into_the_channel_head() {
+        let m = ReleaseManifest::parse(FIXTURE).unwrap();
+        let dir = TempDir::new().unwrap();
+        let got = resolve_version("latest", "stable", dir.path(), &m, Arch::Arm64).unwrap();
+        assert_eq!(got, "3.24.5", "must match manifest.latest(\"stable\", ..)");
+    }
+
+    #[test]
+    fn resolve_version_turns_project_into_the_top_candidate() {
+        let m = ReleaseManifest::parse(FIXTURE).unwrap();
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join(".fvmrc"), r#"{"flutter":"3.19.0"}"#).unwrap();
+        let got = resolve_version("project", "stable", dir.path(), &m, Arch::X64).unwrap();
+        assert_eq!(
+            got, "3.19.0",
+            "must match candidates(..).first(), the project's own pin"
+        );
+    }
+
+    #[test]
+    fn resolve_version_leaves_an_exact_version_untouched() {
+        let m = ReleaseManifest::parse(FIXTURE).unwrap();
+        let dir = TempDir::new().unwrap();
+        let got = resolve_version("3.24.5", "stable", dir.path(), &m, Arch::Arm64).unwrap();
+        assert_eq!(got, "3.24.5");
+    }
+
+    #[test]
+    fn plan_resolves_the_latest_sentinel_before_building_the_install_plan() {
+        // This is the exact bug: `--flutter-version latest` (the CLI's own
+        // documented value) and the MCP silent fallback both used to pass
+        // the literal string "latest" straight to `manifest.find`, which
+        // has no release named that, and the plan failed with "no latest
+        // arm64 build for macos on the stable channel".
+        let dir = TempDir::new().unwrap();
+        let mut runner = FakeRunner::default();
+        runner.fail_on("flutter --version");
+        let c = ctx(dir.path(), runner);
+        let mut decisions = std::collections::HashMap::new();
+        decisions.insert("flutter.channel".to_string(), "stable".to_string());
+        decisions.insert("flutter.version".to_string(), "latest".to_string());
+        let plan = FlutterCheck.plan(&c, &decisions).unwrap();
+        match &plan.steps[0] {
+            crate::doctor::types::Step::Download { url, .. } => {
+                assert!(
+                    url.contains("3.24.5"),
+                    "must have resolved `latest` to a concrete release: {}",
+                    url
+                );
+            }
+            other => panic!("expected a download step, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn plan_resolves_the_project_sentinel_before_building_the_install_plan() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join(".fvmrc"), r#"{"flutter":"3.19.0"}"#).unwrap();
+        let mut runner = FakeRunner::default();
+        runner.fail_on("flutter --version");
+        // X64, not the shared `ctx()` helper's Arm64: the fixture's 3.19.0
+        // entry carries no `dart_sdk_arch` (so it is X64 by default), and
+        // this test needs the pin to actually resolve to a real release
+        // rather than coincidentally match the channel head.
+        let c = CheckContext {
+            root: dir.path().to_path_buf(),
+            host: host(),
+            arch: Arch::X64,
+            manifest: Some(ReleaseManifest::parse(FIXTURE).unwrap()),
+            runner: Box::new(runner),
+        };
+        let mut decisions = std::collections::HashMap::new();
+        decisions.insert("flutter.channel".to_string(), "stable".to_string());
+        decisions.insert("flutter.version".to_string(), "project".to_string());
+        let plan = FlutterCheck.plan(&c, &decisions).unwrap();
+        match &plan.steps[0] {
+            crate::doctor::types::Step::Download { url, .. } => {
+                assert!(
+                    url.contains("3.19.0"),
+                    "must have resolved `project` to the pinned version: {}",
+                    url
+                );
+            }
+            other => panic!("expected a download step, got {:?}", other),
+        }
     }
 
     #[test]
