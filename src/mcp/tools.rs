@@ -499,6 +499,18 @@ fn execute_lint_diff(args: &Value) -> Result<Value, String> {
     }))
 }
 
+/// The Trust gate's actual condition, factored out so it can be tested as a
+/// pure truth table (see `remote_execute_refused_truth_table` below) rather
+/// than only indirectly through `execute_doctor`'s early-return control
+/// flow — a test that only ever supplies malformed args to `execute_doctor`
+/// can pass whether this returns `true` unconditionally for `Trust::Remote`
+/// or only when `execute` is also `true`, because a parse error short-circuits
+/// before this is ever reached either way. Calling this directly closes that
+/// gap.
+fn remote_execute_refused(execute: bool, trust: Trust) -> bool {
+    execute && trust == Trust::Remote
+}
+
 /// The `doctor` MCP tool: diagnose by default, execute only when explicitly
 /// asked and only when the transport is trusted to run installers.
 ///
@@ -510,7 +522,7 @@ fn execute_doctor(args: &Value, trust: Trust) -> Result<Value, String> {
     let parsed: DoctorArgs =
         serde_json::from_value(args.clone()).map_err(|e| format!("invalid doctor args: {}", e))?;
 
-    if parsed.execute && trust == Trust::Remote {
+    if remote_execute_refused(parsed.execute, trust) {
         return Err(
             "executing a fix is not permitted over this transport; run `falcon doctor --fix` \
              locally, or call this tool from the MCP stdio server"
@@ -766,5 +778,32 @@ mod tests {
                 expected
             );
         }
+    }
+
+    /// The Trust gate's full truth table, exercised directly against
+    /// `remote_execute_refused` rather than through `execute_doctor`'s
+    /// early-return control flow. A test that only ever hands
+    /// `execute_doctor` malformed args (missing `path`) can't distinguish
+    /// "refused only when execute is true" from "refused for any Remote
+    /// call" — a parse error short-circuits before the gate runs either
+    /// way. This asserts the condition itself, for all four combinations.
+    #[test]
+    fn remote_execute_refused_truth_table() {
+        assert!(
+            remote_execute_refused(true, Trust::Remote),
+            "execute:true over Trust::Remote must be refused"
+        );
+        assert!(
+            !remote_execute_refused(true, Trust::Local),
+            "execute:true over Trust::Local must be permitted"
+        );
+        assert!(
+            !remote_execute_refused(false, Trust::Remote),
+            "diagnosis (execute:false) over Trust::Remote must be permitted"
+        );
+        assert!(
+            !remote_execute_refused(false, Trust::Local),
+            "diagnosis (execute:false) over Trust::Local must be permitted"
+        );
     }
 }

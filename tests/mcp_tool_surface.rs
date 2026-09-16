@@ -336,29 +336,15 @@ fn remote_trust_refuses_to_execute() {
     );
 }
 
-#[test]
-fn remote_trust_does_not_gate_diagnosis_mode() {
-    // The Trust gate must trip only on `execute: true`, never on `execute:
-    // false` (the default). To prove that without running the
-    // network-touching diagnosis pipeline, this omits the required `path`
-    // field: argument parsing fails before `diagnose()` is ever called, so
-    // the resulting error is a parse error, not the Trust refusal — showing
-    // the refusal is specific to `execute: true` and not a blanket block on
-    // `Trust::Remote`.
-    let args = json!({ "execute": false });
-    let err = falcon::mcp::tools::execute_tool("doctor", &args, Trust::Remote)
-        .expect_err("missing required `path` must fail to parse");
-    assert!(
-        !err.to_lowercase().contains("not permitted") && !err.to_lowercase().contains("refus"),
-        "diagnosis mode must never be refused on trust grounds: {}",
-        err
-    );
-    assert!(
-        err.contains("invalid doctor args"),
-        "expected an argument-parsing error, not a trust refusal: {}",
-        err
-    );
-}
+// The property "the Trust gate trips only on `execute: true`, never on
+// `execute: false`" used to be checked here by a test that fed
+// `execute_tool` args missing the required `path` field: parsing failed
+// before the gate was ever reached, so the test could not actually tell
+// "refused only when execute is true" apart from "refused for any Remote
+// call" — both would fail identically on a parse error. It is superseded by
+// `remote_execute_refused_truth_table` in `src/mcp/tools.rs`, which asserts
+// the gate's condition directly, for all four `(execute, trust)`
+// combinations, without going through argument parsing at all.
 
 #[test]
 fn remote_listing_marks_doctor_diagnosis_only() {
