@@ -82,6 +82,13 @@ pub struct CheckResult {
 pub struct Diagnosis {
     pub host: crate::doctor::host::HostInfo,
     pub checks: Vec<CheckResult>,
+    /// Set when the diagnosed root has no `pubspec.yaml` — this does not
+    /// look like a Dart/Flutter project. Every check still runs and reports
+    /// real information (e.g. "flutter is missing" stays true), but a
+    /// reader must not be able to mistake the report for an ordinary clean
+    /// bill of health when the directory was never a Dart project at all.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_warning: Option<String>,
 }
 
 /// A command run purely to confirm a step worked.

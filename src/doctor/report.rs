@@ -9,6 +9,12 @@ pub fn render_text(d: &Diagnosis) -> String {
         "Falcon doctor \u{2014} {} {}\n\n",
         d.host.os, d.host.arch
     ));
+    // A confident-looking five-row report over a directory that was never a
+    // Dart project is misleading unless this is impossible to miss — printed
+    // before the table, not folded into a row.
+    if let Some(warning) = &d.project_warning {
+        s.push_str(&format!("{} {}\n\n", "warning:".yellow().bold(), warning));
+    }
     for c in &d.checks {
         let (mark, detail) = match &c.status {
             Status::Ok { version } => ("ok".green().to_string(), version.clone()),
@@ -26,6 +32,18 @@ pub fn render_text(d: &Diagnosis) -> String {
                 s.push_str(&format!("               \u{b7} {}\n", step.describe));
             }
         }
+    }
+    // A first-time reader can mistake "skipped" for "Falcon couldn't check
+    // this" rather than "your project doesn't need this" — one line clears
+    // it up without touching the per-row rendering above.
+    if d.checks
+        .iter()
+        .any(|c| matches!(c.status, Status::Skipped { .. }))
+    {
+        s.push_str(
+            "\n  skipped means this project doesn't need that tool — not that Falcon \
+             couldn't check it.\n",
+        );
     }
     s
 }
@@ -122,7 +140,52 @@ mod tests {
                     fix: None,
                 },
             ],
+            project_warning: None,
         }
+    }
+
+    #[test]
+    fn a_project_warning_is_printed_prominently_before_the_table() {
+        let mut d = diagnosis();
+        d.project_warning = Some("/tmp/not-a-flutter-project has no pubspec.yaml".into());
+        let text = render_text(&d);
+        assert!(
+            text.contains("no pubspec.yaml"),
+            "the warning must appear in the report: {}",
+            text
+        );
+        let warning_pos = text.find("no pubspec.yaml").unwrap();
+        let first_check_pos = text.find("missing").unwrap();
+        assert!(
+            warning_pos < first_check_pos,
+            "the warning must come before the check table, not after: {}",
+            text
+        );
+    }
+
+    #[test]
+    fn no_project_warning_means_no_warning_text() {
+        let text = render_text(&diagnosis());
+        assert!(!text.to_lowercase().contains("warning:"));
+    }
+
+    #[test]
+    fn a_skipped_check_gets_an_explanatory_legend() {
+        let text = render_text(&diagnosis());
+        assert!(
+            text.contains("doesn't need that tool"),
+            "skipped must be explained on first appearance: {}",
+            text
+        );
+    }
+
+    #[test]
+    fn no_skipped_checks_means_no_legend() {
+        let mut d = diagnosis();
+        d.checks
+            .retain(|c| !matches!(c.status, Status::Skipped { .. }));
+        let text = render_text(&d);
+        assert!(!text.contains("doesn't need that tool"));
     }
 
     #[test]

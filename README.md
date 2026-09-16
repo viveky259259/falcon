@@ -92,6 +92,7 @@ falcon doctor                      # diagnose, then offer to fix what's broken
 falcon doctor --fix --yes          # unattended: install everything with recommended defaults
 falcon doctor --dry-run            # show the plan without touching anything
 falcon doctor --only flutter --channel stable --flutter-version 3.24.5
+falcon doctor --offline               # diagnose only — never fetch the release manifest
 ```
 
 `--fix --yes` installs unattended, but one step never happens for you: Falcon
@@ -111,6 +112,12 @@ chosen channel, downloads it, verifies its checksum, and extracts it. Pass
 `flutter/` directory, so the path you name must itself end in `flutter`
 (`~/sdks/flutter`, not `~/sdks/myflutter`). A mismatched `--dir` is rejected
 at plan-build time, before anything is downloaded.
+
+Even without `--fix`, plain `falcon doctor` fetches Google's release manifest
+so it can name a concrete version to offer. On a locked-down network that
+fetch can stall for many seconds before giving up. Pass `--offline` to skip
+it entirely — every check still runs and reports real information, but any
+offered fix degrades to a manual instruction instead of an automatic install.
 
 Two things Falcon will never do: run `sudo`, or accept a licence agreement for
 you. Those steps are printed for you to run — Falcon does not re-check

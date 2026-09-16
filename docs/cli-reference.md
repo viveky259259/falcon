@@ -317,6 +317,7 @@ falcon doctor --fix --yes
 | `--flutter-version` | Flutter version to install (x.y.z, `latest`, or `project`) | latest |
 | `--dir` | Directory to install the SDK into | `~/development/flutter` |
 | `--format` | Output format: text, json | text |
+| `--offline` | Skip fetching the Flutter release manifest — no network access; fixes degrade to a manual instruction | false |
 
 Falcon never runs `sudo` and never accepts a licence agreement on your
 behalf — those steps print as instructions for you to run yourself. See the

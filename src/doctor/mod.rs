@@ -30,6 +30,11 @@ pub struct DoctorOptions {
     pub flutter_version: Option<String>,
     pub dir: Option<PathBuf>,
     pub json: bool,
+    /// Skip `fetch_manifest` entirely — no release manifest is fetched over
+    /// the network. Diagnosis itself never needed the network; without a
+    /// manifest, fixes degrade to `FixKind::Manual` the same way they do
+    /// when the fetch fails on its own. Set by `--offline`.
+    pub offline: bool,
     /// Suppress every stdout write reached while applying a fix. The CLI
     /// (`run()`) never sets this — it always stays `false`, so `run()`'s
     /// printed output is unchanged. The MCP tool sets it, because MCP stdio
@@ -66,6 +71,64 @@ pub(crate) fn registry() -> Vec<Box<dyn Check>> {
         Box::new(checks::android::AndroidCheck),
         Box::new(checks::xcode::XcodeCheck),
     ]
+}
+
+/// The project root must exist and be a directory before anything probes
+/// it — otherwise every check either quietly reports `Missing` (there is
+/// nothing on that path to find a toolchain in) or errors in a way that
+/// looks like a real diagnosis, and `falcon doctor /no/such/path` prints a
+/// confident five-row report and exits 0.
+fn validate_root(root: &std::path::Path) -> Result<()> {
+    if !root.exists() {
+        anyhow::bail!("{} does not exist", root.display());
+    }
+    if !root.is_dir() {
+        anyhow::bail!("{} is not a directory", root.display());
+    }
+    Ok(())
+}
+
+/// `--only`/`--skip` must name real checks. Left unvalidated, `--only
+/// bogus` restricts the registry to zero checks (`DoctorOptions::wants`
+/// matches nothing), which prints an empty table and exits 0 — a silent
+/// false-green from a typo, the worst failure mode a diagnostic tool has.
+/// Valid ids are derived from `registry()` rather than a second hardcoded
+/// list, so a future sixth check is covered automatically.
+fn validate_check_names(opts: &DoctorOptions) -> Result<()> {
+    let valid: Vec<&'static str> = registry().iter().map(|c| c.id()).collect();
+    check_names_known("--only", &opts.only, &valid)?;
+    check_names_known("--skip", &opts.skip, &valid)?;
+    Ok(())
+}
+
+fn check_names_known(flag: &str, names: &[String], valid: &[&str]) -> Result<()> {
+    for name in names {
+        if !valid.contains(&name.as_str()) {
+            anyhow::bail!(
+                "{} names an unknown check {:?} — valid checks are: {}",
+                flag,
+                name,
+                valid.join(", ")
+            );
+        }
+    }
+    Ok(())
+}
+
+/// `None` when `root` looks like a Dart/Flutter project. Called only after
+/// `validate_root` has confirmed `root` exists, so "no pubspec.yaml" here
+/// means exactly that — not a nonexistent path masquerading as one.
+fn project_warning(root: &std::path::Path) -> Option<String> {
+    if root.join("pubspec.yaml").exists() {
+        return None;
+    }
+    Some(format!(
+        "{} has no pubspec.yaml — this does not look like a Dart/Flutter \
+         project. The checks below still ran and report real information \
+         (e.g. a missing Flutter SDK is still missing), but do not read \
+         this as an ordinary clean bill of health.",
+        root.display()
+    ))
 }
 
 /// Fetch the release manifest. A failure is not fatal — fixes degrade to Manual.
@@ -165,15 +228,28 @@ fn probe_all(
     Diagnosis {
         host: host_info.clone(),
         checks: results,
+        project_warning: project_warning(&opts.root),
     }
+}
+
+/// Fetch the manifest unless `--offline` asked us not to. Diagnosis never
+/// needs the network on its own; without a manifest, fixes degrade to
+/// `FixKind::Manual` exactly as they do when a fetch fails on its own.
+fn maybe_fetch_manifest(opts: &DoctorOptions, os: host::Os) -> Option<ReleaseManifest> {
+    if opts.offline {
+        return None;
+    }
+    fetch_manifest(os)
 }
 
 /// Phase one: probe every relevant check. Never mutates anything — safe to
 /// call speculatively (this is what the MCP `doctor` tool does by default).
 pub fn diagnose(opts: &DoctorOptions) -> Result<Diagnosis> {
+    validate_root(&opts.root)?;
+    validate_check_names(opts)?;
     let host_info = host::detect();
     let arch = host::current_arch();
-    let manifest = fetch_manifest(host::current_os());
+    let manifest = maybe_fetch_manifest(opts, host::current_os());
     Ok(probe_all(opts, &host_info, arch, &manifest))
 }
 
@@ -198,9 +274,11 @@ pub struct ExecutionReport {
 /// the non-interactive path the MCP `doctor` tool's `execute: true` call
 /// uses, so every question it needs must already be answered by the caller.
 pub fn execute(opts: &DoctorOptions) -> Result<ExecutionReport> {
+    validate_root(&opts.root)?;
+    validate_check_names(opts)?;
     let host_info = host::detect();
     let arch = host::current_arch();
-    let manifest = fetch_manifest(host::current_os());
+    let manifest = maybe_fetch_manifest(opts, host::current_os());
     let diagnosis = probe_all(opts, &host_info, arch, &manifest);
 
     let mut outcomes = Vec::new();
@@ -248,9 +326,11 @@ pub fn execute(opts: &DoctorOptions) -> Result<ExecutionReport> {
 }
 
 pub fn run(opts: &DoctorOptions) -> Result<i32> {
+    validate_root(&opts.root)?;
+    validate_check_names(opts)?;
     let host_info = host::detect();
     let arch = host::current_arch();
-    let manifest = fetch_manifest(host::current_os());
+    let manifest = maybe_fetch_manifest(opts, host::current_os());
 
     let diagnosis = probe_all(opts, &host_info, arch, &manifest);
 
@@ -673,6 +753,100 @@ mod tests {
             ..opts()
         };
         assert!(o.wants("flutter"));
+    }
+
+    // ─── FINDING 1: --only/--skip must name real checks ────────────────────
+
+    #[test]
+    fn an_unknown_only_name_is_a_loud_error_not_an_empty_healthy_report() {
+        let o = DoctorOptions {
+            only: vec!["bogus".into()],
+            ..opts()
+        };
+        let err = validate_check_names(&o).unwrap_err().to_string();
+        assert!(err.contains("bogus"), "error must name the offender: {err}");
+        assert!(
+            err.contains("flutter") && err.contains("dart") && err.contains("xcode"),
+            "error must list the valid ids: {err}"
+        );
+        assert!(err.contains("--only"), "error must name the flag: {err}");
+    }
+
+    #[test]
+    fn an_unknown_skip_name_is_also_a_loud_error() {
+        let o = DoctorOptions {
+            skip: vec!["typo-check".into()],
+            ..opts()
+        };
+        let err = validate_check_names(&o).unwrap_err().to_string();
+        assert!(err.contains("typo-check"));
+        assert!(err.contains("--skip"));
+    }
+
+    #[test]
+    fn every_real_check_id_is_accepted_by_only_and_skip() {
+        let ids: Vec<String> = registry().iter().map(|c| c.id().to_string()).collect();
+        let o = DoctorOptions {
+            only: ids.clone(),
+            ..opts()
+        };
+        assert!(validate_check_names(&o).is_ok());
+        let o = DoctorOptions {
+            skip: ids,
+            ..opts()
+        };
+        assert!(validate_check_names(&o).is_ok());
+    }
+
+    // ─── FINDING 2: a nonexistent path must never produce a report ─────────
+
+    #[test]
+    fn a_nonexistent_root_is_rejected_before_anything_is_probed() {
+        let err = validate_root(std::path::Path::new("/no/such/path/falcon-doctor-test"))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("does not exist"), "unclear error: {err}");
+    }
+
+    #[test]
+    fn a_root_that_is_a_file_not_a_directory_is_rejected() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let file = tmp.path().join("not-a-dir");
+        std::fs::write(&file, "x").unwrap();
+        let err = validate_root(&file).unwrap_err().to_string();
+        assert!(err.contains("not a directory"), "unclear error: {err}");
+    }
+
+    #[test]
+    fn an_existing_directory_passes_validation() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        assert!(validate_root(tmp.path()).is_ok());
+    }
+
+    #[test]
+    fn a_project_without_pubspec_yaml_gets_a_prominent_warning() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let warning = project_warning(tmp.path()).expect("no pubspec.yaml must warn");
+        assert!(warning.contains("pubspec.yaml"));
+        assert!(warning.contains(&tmp.path().display().to_string()));
+    }
+
+    #[test]
+    fn a_real_dart_project_gets_no_warning() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        std::fs::write(tmp.path().join("pubspec.yaml"), "name: app\n").unwrap();
+        assert!(project_warning(tmp.path()).is_none());
+    }
+
+    // ─── FINDING 5: --offline must skip the manifest fetch entirely ────────
+
+    #[test]
+    fn offline_never_fetches_a_manifest() {
+        let o = DoctorOptions {
+            offline: true,
+            ..opts()
+        };
+        assert!(maybe_fetch_manifest(&o, host::Os::MacOs).is_none());
     }
 
     // ─── DoctorOptions::silent: apply() must not write to stdout ──────────

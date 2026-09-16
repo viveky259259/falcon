@@ -1460,9 +1460,9 @@ pub enum Commands {
         #[arg(long, value_delimiter = ',')]
         skip: Vec<String>,
 
-        /// Flutter channel to install (stable, beta, master)
-        #[arg(long)]
-        channel: Option<String>,
+        /// Flutter channel to install
+        #[arg(long, value_enum)]
+        channel: Option<FlutterChannel>,
 
         /// Flutter version to install (x.y.z, `latest`, or `project`)
         #[arg(long)]
@@ -1475,6 +1475,13 @@ pub enum Commands {
         /// Output format
         #[arg(long, value_enum, default_value = "text")]
         format: DoctorFormat,
+
+        /// Skip fetching the Flutter release manifest — no network access.
+        /// Diagnosis itself never needs the network; without a manifest,
+        /// any offered fix degrades to a manual instruction instead of an
+        /// automatic install.
+        #[arg(long)]
+        offline: bool,
     },
 
     /// Experimental / extended commands (see council roadmap)
@@ -2095,6 +2102,29 @@ pub enum DevtoolsAction {
 pub enum DoctorFormat {
     Text,
     Json,
+}
+
+/// The only channels Flutter actually publishes. A bare `Option<String>`
+/// here let `--channel nightly` slip past argument parsing and get baked
+/// into an install plan — `channel_has_archives` treats anything that
+/// isn't stable/beta as master's git-clone path, so the typo only surfaced
+/// as a confusing git failure mid-install. `clap::ValueEnum` rejects it at
+/// parse time instead, listing the valid values.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
+pub enum FlutterChannel {
+    Stable,
+    Beta,
+    Master,
+}
+
+impl FlutterChannel {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            FlutterChannel::Stable => "stable",
+            FlutterChannel::Beta => "beta",
+            FlutterChannel::Master => "master",
+        }
+    }
 }
 
 #[derive(Clone, Debug, clap::ValueEnum)]

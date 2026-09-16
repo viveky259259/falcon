@@ -544,6 +544,9 @@ fn execute_doctor(args: &Value, trust: Trust) -> Result<Value, String> {
         // MCP stdio speaks JSON-RPC over stdout; any println! reached while
         // applying a fix would corrupt that stream. See `DoctorOptions::silent`.
         silent: true,
+        // MCP has no CLI-level equivalent of --offline today; the manifest
+        // fetch stays on for this transport.
+        offline: false,
     };
 
     if !parsed.execute {

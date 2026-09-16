@@ -13,6 +13,7 @@ pub(super) fn handle_command(command: Commands) -> Result<()> {
             flutter_version,
             dir,
             format,
+            offline,
         } => {
             let opts = falcon::doctor::DoctorOptions {
                 root: path,
@@ -21,12 +22,13 @@ pub(super) fn handle_command(command: Commands) -> Result<()> {
                 dry_run,
                 only,
                 skip,
-                channel,
+                channel: channel.map(|c| c.as_str().to_string()),
                 flutter_version,
                 dir,
                 json: matches!(format, DoctorFormat::Json),
                 // The CLI always has a terminal to print to.
                 silent: false,
+                offline,
             };
             let code = falcon::doctor::run(&opts)?;
             std::process::exit(code);

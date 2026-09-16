@@ -102,6 +102,20 @@ impl Check for FlutterCheck {
             .get("flutter.channel")
             .cloned()
             .unwrap_or_else(|| "stable".into());
+        // The CLI's `--channel` flag is a `clap::ValueEnum` and rejects a
+        // typo before this ever runs, but the MCP `doctor` tool takes
+        // `decisions` as free-form strings — that surface has no such
+        // gate. Left unchecked, `channel_has_archives` returns false for
+        // any unrecognised channel and the plan falls straight through to
+        // a `git clone -b <channel>` against a branch that does not exist,
+        // and the typo only surfaces as a confusing git failure mid-install.
+        if !CHANNELS.contains(&channel.as_str()) {
+            return Err(format!(
+                "unknown Flutter channel {:?} — valid channels are: {}",
+                channel,
+                CHANNELS.join(", ")
+            ));
+        }
         let requested_version = decisions
             .get("flutter.version")
             .cloned()
@@ -526,6 +540,33 @@ mod tests {
             }
             other => panic!("expected a download step, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn plan_rejects_an_unknown_channel_before_touching_the_manifest() {
+        // This is FINDING 3: `channel_has_archives` returns false for
+        // anything that isn't stable/beta, so an unrecognised channel used
+        // to fall straight through to the git-clone path and get baked
+        // into the plan — the typo only surfaced as a confusing git
+        // failure mid-install. The MCP surface takes `decisions` as
+        // free-form strings, so this must be checked here, not only by the
+        // CLI's `clap::ValueEnum`.
+        let dir = TempDir::new().unwrap();
+        let mut runner = FakeRunner::default();
+        runner.fail_on("flutter --version");
+        let c = ctx(dir.path(), runner);
+        let mut decisions = std::collections::HashMap::new();
+        decisions.insert("flutter.channel".to_string(), "nightly".to_string());
+        decisions.insert("flutter.version".to_string(), "latest".to_string());
+        let err = FlutterCheck.plan(&c, &decisions).unwrap_err();
+        assert!(
+            err.contains("nightly"),
+            "error must name the offender: {err}"
+        );
+        assert!(
+            err.contains("stable") && err.contains("beta") && err.contains("master"),
+            "error must list the valid channels: {err}"
+        );
     }
 
     #[test]
