@@ -319,6 +319,9 @@ falcon doctor --fix --yes
 | `--format` | Output format: text, json | text |
 | `--offline` | Skip fetching the Flutter release manifest — no network access; fixes degrade to a manual instruction | false |
 
+Exit codes: `0` healthy, `1` warnings, `2` a check or fix failed, `3` manual
+action required.
+
 Falcon never runs `sudo` and never accepts a licence agreement on your
 behalf — those steps print as instructions for you to run yourself. See the
 "`falcon doctor` — fix your toolchain" section in [README.md](../README.md)
