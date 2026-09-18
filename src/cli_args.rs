@@ -1433,6 +1433,62 @@ pub enum Commands {
         json: bool,
     },
 
+    /// Diagnose the project's toolchain and install or repair what's missing
+    Doctor {
+        /// Path to the Flutter project (defaults to current directory)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        /// Apply fixes without asking to confirm each one. Any
+        /// non-interactive session (CI, a pipe, no TTY) already installs
+        /// unattended on --fix alone, answering every question with its
+        /// recommended default — --yes is not required for that.
+        #[arg(long)]
+        fix: bool,
+
+        /// Accept the recommended answer to every decision question and never
+        /// prompt. Non-interactive sessions (CI, a pipe, no TTY) already
+        /// behave this way without --yes; this flag matters only for an
+        /// interactive terminal that should not be asked.
+        #[arg(long)]
+        yes: bool,
+
+        /// Print the plan without executing anything
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Only run these checks (flutter, dart, cocoapods, android, xcode)
+        #[arg(long, value_delimiter = ',')]
+        only: Vec<String>,
+
+        /// Skip these checks
+        #[arg(long, value_delimiter = ',')]
+        skip: Vec<String>,
+
+        /// Flutter channel to install
+        #[arg(long, value_enum)]
+        channel: Option<FlutterChannel>,
+
+        /// Flutter version to install (x.y.z, `latest`, or `project`)
+        #[arg(long)]
+        flutter_version: Option<String>,
+
+        /// Directory to install the SDK into
+        #[arg(long)]
+        dir: Option<PathBuf>,
+
+        /// Output format
+        #[arg(long, value_enum, default_value = "text")]
+        format: DoctorFormat,
+
+        /// Skip fetching the Flutter release manifest — no network access.
+        /// Diagnosis itself never needs the network; without a manifest,
+        /// any offered fix degrades to a manual instruction instead of an
+        /// automatic install.
+        #[arg(long)]
+        offline: bool,
+    },
+
     /// Experimental / extended commands (see council roadmap)
     #[command(
         name = "x",
@@ -2042,6 +2098,38 @@ pub enum DevtoolsAction {
         #[arg(long)]
         json: bool,
     },
+}
+
+/// `falcon doctor` renders a toolchain diagnosis, not static-analysis
+/// findings, so it offers only these two formats — SARIF has nothing to
+/// describe here and is deliberately absent rather than rejected at runtime.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
+pub enum DoctorFormat {
+    Text,
+    Json,
+}
+
+/// The only channels Flutter actually publishes. A bare `Option<String>`
+/// here let `--channel nightly` slip past argument parsing and get baked
+/// into an install plan — `channel_has_archives` treats anything that
+/// isn't stable/beta as master's git-clone path, so the typo only surfaced
+/// as a confusing git failure mid-install. `clap::ValueEnum` rejects it at
+/// parse time instead, listing the valid values.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
+pub enum FlutterChannel {
+    Stable,
+    Beta,
+    Master,
+}
+
+impl FlutterChannel {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            FlutterChannel::Stable => "stable",
+            FlutterChannel::Beta => "beta",
+            FlutterChannel::Master => "master",
+        }
+    }
 }
 
 #[derive(Clone, Debug, clap::ValueEnum)]

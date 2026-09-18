@@ -4,6 +4,8 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::version_util::version_cmp;
+
 const GITHUB_REPO: &str = "viveky259259/falcon";
 const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -287,17 +289,6 @@ fn extract_binary_from_archive(archive: &Path, binary_name: &str, dest: &Path) -
     }
 
     Ok(())
-}
-
-fn version_cmp(a: &str, b: &str) -> std::cmp::Ordering {
-    let parse = |v: &str| -> Vec<u32> {
-        v.strip_prefix('v')
-            .unwrap_or(v)
-            .split('.')
-            .filter_map(|s| s.parse().ok())
-            .collect()
-    };
-    parse(a).cmp(&parse(b))
 }
 
 pub fn check_for_update() -> Result<Option<ReleaseInfo>> {

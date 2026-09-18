@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `falcon doctor` — diagnoses Flutter, Dart, CocoaPods, Android SDK and Xcode for the current project, and installs or repairs what it can. Reads the Flutter release manifest to offer the version your project pins alongside the latest on your channel; verifies checksums; prints (never edits) the PATH line.
+- `doctor` MCP tool — two-phase: call it with a path to get every check's status and the questions each fix needs, then again with `execute: true` and `decisions` to perform the install. Execution is refused over the HTTP bridge.
+
 ## 0.5.3 (2026-09-12)
 
 ### Fixed

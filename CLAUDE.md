@@ -28,6 +28,7 @@ Binaries: `falcon` (CLI), `falcon-lsp` (LSP server), `falcon-mcp` (MCP server).
 - `src/ai/` — AI features (explain, fix, confidence)
 - `src/ai_score/` — AI Code Quality Score (6 dimensions)
 - `src/manage/` — app health, deps, architect, maintenance
+- `src/doctor/` — environment diagnosis and repair (`falcon doctor`): checks, fixers, Flutter installer
 - `src/lsp/`, `src/mcp/`, `src/api/` — protocol servers
 - `src/dashboard/`, `src/ci/` — reporting/CI integrations
 - `falcon_dart/`, `falcon-dart/` — Dart-side companion package

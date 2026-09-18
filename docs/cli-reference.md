@@ -294,6 +294,39 @@ The bundled GitHub Action can do the same upload for full-project analysis:
     sarif-upload: "true"
 ```
 
+## Toolchain
+
+| Command | Description |
+|---|---|
+| `falcon doctor [path]` | Diagnose the project's toolchain (Flutter, Dart, CocoaPods, Android SDK, Xcode) and offer to fix what's missing |
+
+### falcon doctor
+
+```bash
+falcon doctor --fix --yes
+```
+
+| Flag | Description | Default |
+|---|---|---|
+| `--fix` | Apply fixes without asking to confirm each one | false |
+| `--yes` | Accept the recommended answer to every decision question and never prompt | false |
+| `--dry-run` | Print the plan without executing anything | false |
+| `--only` | Only run these checks (comma-separated: flutter, dart, cocoapods, android, xcode) | all |
+| `--skip` | Skip these checks | none |
+| `--channel` | Flutter channel to install (stable, beta, master) | stable |
+| `--flutter-version` | Flutter version to install (x.y.z, `latest`, or `project`) | latest |
+| `--dir` | Directory to install the SDK into | `~/development/flutter` |
+| `--format` | Output format: text, json | text |
+| `--offline` | Skip fetching the Flutter release manifest — no network access; fixes degrade to a manual instruction | false |
+
+Exit codes: `0` healthy, `1` warnings, `2` a check or fix failed, or the
+command was used incorrectly, `3` manual action required.
+
+Falcon never runs `sudo` and never accepts a licence agreement on your
+behalf — those steps print as instructions for you to run yourself. See the
+"`falcon doctor` — fix your toolchain" section in [README.md](../README.md)
+for the full behavior.
+
 ## Dashboard
 
 | Command | Description |

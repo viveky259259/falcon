@@ -80,7 +80,10 @@ fn handle_connection(stream: &mut std::net::TcpStream) -> anyhow::Result<()> {
         }
 
         ("GET", "/tools") => {
-            let tools = crate::mcp::tools::list_tools();
+            // This HTTP bridge binds a configurable host with no authentication
+            // (see module docs), so it must never advertise `doctor` as capable
+            // of installing anything — `Trust::Remote` relabels it diagnosis-only.
+            let tools = crate::mcp::tools::list_tools_for(crate::doctor::Trust::Remote);
             let resp = ApiResponse {
                 success: true,
                 data: Some(serde_json::json!({ "tools": tools })),

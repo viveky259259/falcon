@@ -141,7 +141,8 @@ fn test_sdk_analyze_to_json_valid() {
 #[test]
 fn test_mcp_tool_missing_argument() {
     let args = serde_json::json!({});
-    let result = falcon::mcp::tools::execute_tool("falcon_check_file", &args);
+    let result =
+        falcon::mcp::tools::execute_tool("falcon_check_file", &args, falcon::doctor::Trust::Local);
     assert!(result.is_err());
 }
 
@@ -154,7 +155,8 @@ fn test_mcp_tool_analyze_empty_project() {
     )
     .unwrap();
     let args = serde_json::json!({"path": tmp.path().to_string_lossy().to_string()});
-    let result = falcon::mcp::tools::execute_tool("falcon_analyze", &args);
+    let result =
+        falcon::mcp::tools::execute_tool("falcon_analyze", &args, falcon::doctor::Trust::Local);
     assert!(result.is_ok());
     let val = result.unwrap();
     assert_eq!(val["file_count"], 0);
@@ -163,7 +165,8 @@ fn test_mcp_tool_analyze_empty_project() {
 #[test]
 fn test_mcp_tool_check_file_empty_source() {
     let args = serde_json::json!({"file_path": "test.dart", "source": ""});
-    let result = falcon::mcp::tools::execute_tool("falcon_check_file", &args);
+    let result =
+        falcon::mcp::tools::execute_tool("falcon_check_file", &args, falcon::doctor::Trust::Local);
     assert!(result.is_ok());
 }
 

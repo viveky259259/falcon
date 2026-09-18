@@ -85,6 +85,50 @@ $ falcon score .
 
 [See all 90+ commands →](docs/cli-reference.md)
 
+### `falcon doctor` — fix your toolchain
+
+```
+falcon doctor                      # diagnose, then offer to fix what's broken
+falcon doctor --fix --yes          # unattended: install everything with recommended defaults
+falcon doctor --dry-run            # show the plan without touching anything
+falcon doctor --only flutter --channel stable --flutter-version 3.24.5
+falcon doctor --offline               # diagnose only — never fetch the release manifest
+```
+
+`--fix --yes` installs unattended, but one step never happens for you: Falcon
+does not edit your shell rc file. It prints the `export PATH=` line and names
+the rc file your shell reads — `flutter` stays off PATH in your current shell
+until you run that line yourself (or open a new one).
+
+Falcon checks Flutter, Dart, CocoaPods, the Android SDK and Xcode — but only
+the ones your project actually needs. A project with no `ios/` directory is
+never asked about Xcode.
+
+When the Flutter SDK is missing, Falcon reads Google's release manifest,
+offers the version your project pins (`.fvmrc`, `.tool-versions`, your CI
+workflow, or the constraints in `pubspec.yaml`) alongside the latest on your
+chosen channel, downloads it, verifies its checksum, and extracts it. Pass
+`--dir` to choose where it goes — the SDK archive contains a top-level
+`flutter/` directory, so the path you name must itself end in `flutter`
+(`~/sdks/flutter`, not `~/sdks/myflutter`). A mismatched `--dir` is rejected
+at plan-build time, before anything is downloaded.
+
+Even without `--fix`, plain `falcon doctor` fetches Google's release manifest
+so it can name a concrete version to offer. On a locked-down network that
+fetch can stall for many seconds before giving up. Pass `--offline` to skip
+it entirely — every check still runs and reports real information, but any
+offered fix degrades to a manual instruction instead of an automatic install.
+
+Two things Falcon will never do: run `sudo`, or accept a licence agreement for
+you. Those steps are printed for you to run — Falcon does not re-check
+afterwards; re-run `falcon doctor` yourself once you've done them.
+
+Exit codes: `0` healthy, `1` warnings, `2` a check or fix failed, or the
+command was used incorrectly, `3` manual action required. `--format json`
+is diagnosis-only — it never prompts and never installs, even with `--fix`
+— and reports `fixes_applied: false` with a reason instead. Agents that
+need to drive an install use the MCP `doctor` tool instead.
+
 ## AI Tool Integration (MCP)
 
 Add Falcon to Cursor, Windsurf, or any MCP-compatible AI tool:

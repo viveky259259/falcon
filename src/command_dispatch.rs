@@ -4,6 +4,7 @@ mod analysis;
 mod checks;
 mod config;
 mod enterprise;
+mod environment;
 mod experimental;
 mod flutter_quality;
 mod intelligence;
@@ -20,6 +21,7 @@ pub(crate) fn run(cli: Cli) -> Result<()> {
         CommandGroup::Intelligence => intelligence::handle_command(cli.command),
         CommandGroup::Tracking => tracking::handle_command(cli.command),
         CommandGroup::Enterprise => enterprise::handle_command(cli.command),
+        CommandGroup::Environment => environment::handle_command(cli.command),
         CommandGroup::Experimental => experimental::handle_command(cli.command),
     }
 }
@@ -33,6 +35,7 @@ enum CommandGroup {
     Intelligence,
     Tracking,
     Enterprise,
+    Environment,
     Experimental,
 }
 
@@ -146,6 +149,8 @@ fn command_group(command: &Commands) -> CommandGroup {
         | Commands::Certify { .. }
         | Commands::Partners
         | Commands::Drift { .. } => CommandGroup::Enterprise,
+
+        Commands::Doctor { .. } => CommandGroup::Environment,
 
         Commands::X { .. } => CommandGroup::Experimental,
     }

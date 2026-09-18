@@ -5,9 +5,11 @@ use std::time::Instant;
 
 use super::cache::McpCache;
 use super::schema::{
-    explain_input_schema, fix_safe_input_schema, lint_diff_input_schema, lint_file_input_schema,
-    review_input_schema, ExplainArgs, FixSafeArgs, LintDiffArgs, LintFileArgs, ReviewArgs,
+    doctor_input_schema, explain_input_schema, fix_safe_input_schema, lint_diff_input_schema,
+    lint_file_input_schema, review_input_schema, DoctorArgs, ExplainArgs, FixSafeArgs,
+    LintDiffArgs, LintFileArgs, ReviewArgs,
 };
+use crate::doctor::Trust;
 
 /// MCP tool definitions for Falcon.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,7 +35,7 @@ pub const DEPRECATED_TOOLS: &[(&str, Option<&str>)] = &[
     ("falcon_provenance", None),
 ];
 
-/// The locked surface — exactly 5 tools advertised to clients.
+/// The locked surface — exactly 6 tools advertised to clients.
 pub fn list_tools() -> Vec<ToolDefinition> {
     vec![
         ToolDefinition {
@@ -61,17 +63,44 @@ pub fn list_tools() -> Vec<ToolDefinition> {
             description: "Generate auto-fix suggestions for lint issues in a project. Returns original and replacement code. Safe by default (preview-only).".to_string(),
             input_schema: fix_safe_input_schema(),
         },
+        ToolDefinition {
+            name: "doctor".to_string(),
+            description: "Diagnose the project's Flutter toolchain and install what is missing. Call with just `path` to get every check's status plus the questions each fix needs (channel, version, install directory), each option carrying the reason it is suggested. Call again with `execute: true` and `decisions` filled in to perform the install.".to_string(),
+            input_schema: doctor_input_schema(),
+        },
     ]
+}
+
+/// The surface as seen from a given transport. Remote callers (the HTTP
+/// bridge) see `doctor` described as diagnosis-only, because remote
+/// execution is refused by the `Trust` gate in `execute_doctor`.
+pub fn list_tools_for(trust: Trust) -> Vec<ToolDefinition> {
+    let mut tools = list_tools();
+    if trust == Trust::Remote {
+        for tool in tools.iter_mut() {
+            if tool.name == "doctor" {
+                tool.description =
+                    "Diagnose the project's Flutter toolchain (diagnosis only over this transport; \
+                     installing is refused)"
+                        .to_string();
+            }
+        }
+    }
+    tools
 }
 
 /// Execute a tool by name with the given arguments.
 ///
 /// Accepts both the new canonical names and the deprecated old names. When an
 /// old name is used we log a deprecation warning and route to the same handler.
-pub fn execute_tool(name: &str, args: &Value) -> Result<Value, String> {
+///
+/// `trust` says how much the caller is trusted: `Trust::Local` for the CLI
+/// and the MCP stdio server, `Trust::Remote` for the unauthenticated HTTP
+/// bridge. It gates `doctor`'s `execute: true` path — see `execute_doctor`.
+pub fn execute_tool(name: &str, args: &Value, trust: Trust) -> Result<Value, String> {
     let started = Instant::now();
     let canonical_name = canonical_tool_name(name);
-    let result = execute_tool_inner(name, args);
+    let result = execute_tool_inner(name, args, trust);
     super::telemetry::record_mcp_tool_invocation(
         name,
         canonical_name,
@@ -83,14 +112,17 @@ pub fn execute_tool(name: &str, args: &Value) -> Result<Value, String> {
 
 fn canonical_tool_name(name: &str) -> Option<&'static str> {
     match name {
-        "lint_file" | "lint_diff" | "review" | "explain" | "fix_safe" => Some(match name {
-            "lint_file" => "lint_file",
-            "lint_diff" => "lint_diff",
-            "review" => "review",
-            "explain" => "explain",
-            "fix_safe" => "fix_safe",
-            _ => unreachable!(),
-        }),
+        "lint_file" | "lint_diff" | "review" | "explain" | "fix_safe" | "doctor" => {
+            Some(match name {
+                "lint_file" => "lint_file",
+                "lint_diff" => "lint_diff",
+                "review" => "review",
+                "explain" => "explain",
+                "fix_safe" => "fix_safe",
+                "doctor" => "doctor",
+                _ => unreachable!(),
+            })
+        }
         old => DEPRECATED_TOOLS
             .iter()
             .find_map(|(deprecated, canonical)| (*deprecated == old).then_some(*canonical))
@@ -98,7 +130,7 @@ fn canonical_tool_name(name: &str) -> Option<&'static str> {
     }
 }
 
-fn execute_tool_inner(name: &str, args: &Value) -> Result<Value, String> {
+fn execute_tool_inner(name: &str, args: &Value, trust: Trust) -> Result<Value, String> {
     // Deprecation routing: log + map old name to handler.
     if let Some((_, new_opt)) = DEPRECATED_TOOLS.iter().find(|(old, _)| *old == name) {
         match new_opt {
@@ -121,6 +153,7 @@ fn execute_tool_inner(name: &str, args: &Value) -> Result<Value, String> {
         "review" => execute_analyze(args),
         "explain" => execute_explain_rule(args),
         "fix_safe" => execute_fix(args),
+        "doctor" => execute_doctor(args, trust),
 
         // Backward-compat aliases (still dispatchable, not in list_tools()).
         "falcon_check_file" => execute_check_file(args),
@@ -466,6 +499,65 @@ fn execute_lint_diff(args: &Value) -> Result<Value, String> {
     }))
 }
 
+/// The Trust gate's actual condition, factored out so it can be tested as a
+/// pure truth table (see `remote_execute_refused_truth_table` below) rather
+/// than only indirectly through `execute_doctor`'s early-return control
+/// flow — a test that only ever supplies malformed args to `execute_doctor`
+/// can pass whether this returns `true` unconditionally for `Trust::Remote`
+/// or only when `execute` is also `true`, because a parse error short-circuits
+/// before this is ever reached either way. Calling this directly closes that
+/// gap.
+fn remote_execute_refused(execute: bool, trust: Trust) -> bool {
+    execute && trust == Trust::Remote
+}
+
+/// The `doctor` MCP tool: diagnose by default, execute only when explicitly
+/// asked and only when the transport is trusted to run installers.
+///
+/// The trust check runs before anything else touches the machine — parsing
+/// `decisions`/`only` and building `DoctorOptions` never runs a fix, but
+/// `crate::doctor::execute` shells out and downloads, so a `Remote` caller
+/// must be refused before that path is ever reached, not partway through it.
+fn execute_doctor(args: &Value, trust: Trust) -> Result<Value, String> {
+    let parsed: DoctorArgs =
+        serde_json::from_value(args.clone()).map_err(|e| format!("invalid doctor args: {}", e))?;
+
+    if remote_execute_refused(parsed.execute, trust) {
+        return Err(
+            "executing a fix is not permitted over this transport; run `falcon doctor --fix` \
+             locally, or call this tool from the MCP stdio server"
+                .to_string(),
+        );
+    }
+
+    let opts = crate::doctor::DoctorOptions {
+        root: PathBuf::from(&parsed.path),
+        fix: parsed.execute,
+        yes: true,
+        dry_run: false,
+        only: parsed.only.clone(),
+        skip: vec![],
+        channel: parsed.decisions.get("flutter.channel").cloned(),
+        flutter_version: parsed.decisions.get("flutter.version").cloned(),
+        dir: parsed.decisions.get("flutter.dir").map(PathBuf::from),
+        json: false,
+        // MCP stdio speaks JSON-RPC over stdout; any println! reached while
+        // applying a fix would corrupt that stream. See `DoctorOptions::silent`.
+        silent: true,
+        // MCP has no CLI-level equivalent of --offline today; the manifest
+        // fetch stays on for this transport.
+        offline: false,
+    };
+
+    if !parsed.execute {
+        let diagnosis = crate::doctor::diagnose(&opts).map_err(|e| e.to_string())?;
+        return serde_json::to_value(&diagnosis).map_err(|e| e.to_string());
+    }
+
+    let report = crate::doctor::execute(&opts).map_err(|e| e.to_string())?;
+    serde_json::to_value(&report).map_err(|e| e.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -481,8 +573,8 @@ mod tests {
         let tools = list_tools();
         assert_eq!(
             tools.len(),
-            5,
-            "MCP surface must be exactly 5 tools, got {}",
+            6,
+            "MCP surface must be exactly 6 tools, got {}",
             tools.len()
         );
         let names: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
@@ -526,7 +618,7 @@ mod tests {
         // Use intentionally-bad args so handlers exit early without doing work.
         // We only assert that we DO NOT get the "Unknown tool" error path.
         for name in CANONICAL_TOOLS {
-            let result = execute_tool(name, &json!({}));
+            let result = execute_tool(name, &json!({}), Trust::Local);
             if let Err(e) = &result {
                 assert!(
                     !e.starts_with("Unknown tool"),
@@ -541,7 +633,7 @@ mod tests {
     #[test]
     fn deprecated_names_still_dispatchable() {
         for (old, _) in DEPRECATED_TOOLS {
-            let result = execute_tool(old, &json!({}));
+            let result = execute_tool(old, &json!({}), Trust::Local);
             if let Err(e) = &result {
                 assert!(
                     !e.starts_with("Unknown tool"),
@@ -555,7 +647,7 @@ mod tests {
 
     #[test]
     fn unknown_tool_returns_clear_error() {
-        let result = execute_tool("totally_made_up_tool", &json!({}));
+        let result = execute_tool("totally_made_up_tool", &json!({}), Trust::Local);
         match result {
             Err(e) => assert!(
                 e.starts_with("Unknown tool"),
@@ -588,6 +680,7 @@ mod tests {
         let result = execute_tool(
             "lint_diff",
             &json!({ "path": repo.path().to_string_lossy(), "base_ref": "HEAD~1" }),
+            Trust::Local,
         )
         .expect("lint_diff should analyze changed Dart files");
 
@@ -625,6 +718,7 @@ mod tests {
         let result = execute_tool(
             "lint_diff",
             &json!({ "path": repo.path().to_string_lossy() }),
+            Trust::Local,
         )
         .expect_err("missing default origin/main should surface git diff error");
         assert!(
@@ -636,6 +730,7 @@ mod tests {
         let result = execute_tool(
             "lint_diff",
             &json!({ "path": repo.path().to_string_lossy(), "base_ref": "HEAD" }),
+            Trust::Local,
         )
         .expect("explicit HEAD base should work");
         assert_eq!(result.get("base_ref"), Some(&json!("HEAD")));
@@ -686,5 +781,32 @@ mod tests {
                 expected
             );
         }
+    }
+
+    /// The Trust gate's full truth table, exercised directly against
+    /// `remote_execute_refused` rather than through `execute_doctor`'s
+    /// early-return control flow. A test that only ever hands
+    /// `execute_doctor` malformed args (missing `path`) can't distinguish
+    /// "refused only when execute is true" from "refused for any Remote
+    /// call" — a parse error short-circuits before the gate runs either
+    /// way. This asserts the condition itself, for all four combinations.
+    #[test]
+    fn remote_execute_refused_truth_table() {
+        assert!(
+            remote_execute_refused(true, Trust::Remote),
+            "execute:true over Trust::Remote must be refused"
+        );
+        assert!(
+            !remote_execute_refused(true, Trust::Local),
+            "execute:true over Trust::Local must be permitted"
+        );
+        assert!(
+            !remote_execute_refused(false, Trust::Remote),
+            "diagnosis (execute:false) over Trust::Remote must be permitted"
+        );
+        assert!(
+            !remote_execute_refused(false, Trust::Local),
+            "diagnosis (execute:false) over Trust::Local must be permitted"
+        );
     }
 }

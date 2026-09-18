@@ -2,12 +2,12 @@
 
 #[test]
 fn test_mcp_tool_list() {
-    // Locked surface: exactly 5 canonical tools (PR-E / EPIC 2.1).
+    // Locked surface: exactly 6 canonical tools (PR-E / EPIC 2.1, plus `doctor`).
     let tools = falcon::mcp::tools::list_tools();
     assert_eq!(
         tools.len(),
-        5,
-        "MCP surface must be exactly 5 tools, got {}",
+        6,
+        "MCP surface must be exactly 6 tools, got {}",
         tools.len()
     );
 
@@ -68,7 +68,8 @@ fn test_mcp_check_file() {
     .unwrap();
 
     let args = serde_json::json!({ "file_path": file.to_string_lossy() });
-    let result = falcon::mcp::tools::execute_tool("falcon_check_file", &args);
+    let result =
+        falcon::mcp::tools::execute_tool("falcon_check_file", &args, falcon::doctor::Trust::Local);
     assert!(result.is_ok(), "check_file should succeed");
 
     let val = result.unwrap();
@@ -82,14 +83,19 @@ fn test_mcp_check_file_with_source() {
         "file_path": "virtual.dart",
         "source": "class Hello {\n  String greet() => 'hello';\n}\n"
     });
-    let result = falcon::mcp::tools::execute_tool("falcon_check_file", &args);
+    let result =
+        falcon::mcp::tools::execute_tool("falcon_check_file", &args, falcon::doctor::Trust::Local);
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_mcp_explain_rule() {
     let args = serde_json::json!({ "rule": "avoid-long-functions" });
-    let result = falcon::mcp::tools::execute_tool("falcon_explain_rule", &args);
+    let result = falcon::mcp::tools::execute_tool(
+        "falcon_explain_rule",
+        &args,
+        falcon::doctor::Trust::Local,
+    );
     assert!(
         result.is_ok(),
         "explain_rule should succeed for known rules"
@@ -103,14 +109,19 @@ fn test_mcp_explain_rule() {
 #[test]
 fn test_mcp_explain_unknown_rule() {
     let args = serde_json::json!({ "rule": "nonexistent-rule-xyz" });
-    let result = falcon::mcp::tools::execute_tool("falcon_explain_rule", &args);
+    let result = falcon::mcp::tools::execute_tool(
+        "falcon_explain_rule",
+        &args,
+        falcon::doctor::Trust::Local,
+    );
     assert!(result.is_err());
 }
 
 #[test]
 fn test_mcp_unknown_tool() {
     let args = serde_json::json!({});
-    let result = falcon::mcp::tools::execute_tool("nonexistent_tool", &args);
+    let result =
+        falcon::mcp::tools::execute_tool("nonexistent_tool", &args, falcon::doctor::Trust::Local);
     assert!(result.is_err());
 }
 
@@ -127,7 +138,8 @@ fn test_mcp_analyze_project() {
     .unwrap();
 
     let args = serde_json::json!({ "path": tmp.path().to_string_lossy() });
-    let result = falcon::mcp::tools::execute_tool("falcon_analyze", &args);
+    let result =
+        falcon::mcp::tools::execute_tool("falcon_analyze", &args, falcon::doctor::Trust::Local);
     assert!(result.is_ok());
 
     let val = result.unwrap();
@@ -143,7 +155,8 @@ fn test_mcp_conventions() {
     std::fs::write(lib.join("app.dart"), "class AppWidget {}\n").unwrap();
 
     let args = serde_json::json!({ "path": tmp.path().to_string_lossy() });
-    let result = falcon::mcp::tools::execute_tool("falcon_conventions", &args);
+    let result =
+        falcon::mcp::tools::execute_tool("falcon_conventions", &args, falcon::doctor::Trust::Local);
     assert!(result.is_ok());
 }
 
