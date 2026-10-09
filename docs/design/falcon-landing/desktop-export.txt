@@ -1,0 +1,247 @@
+(
+    <div style={{ backgroundColor: 'var(--color-surface)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', fontSize: '12px', fontSynthesis: 'none', height: 'fit-content', lineHeight: '16px', MozOsxFontSmoothing: 'grayscale', overflow: 'clip', overflowWrap: 'anywhere', WebkitFontSmoothing: 'antialiased', width: '1440px' }}>
+      <div style={{ alignItems: 'center', borderBottomColor: 'var(--color-line)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between', paddingBlock: '28px', paddingInline: '80px', width: '1440px' }}>
+        <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '12px' }}>
+          <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+            <path d="M3 5H29L17 15H24L6 28L10 16H3Z" fill="#2455F5" />
+          </svg>
+          <div style={{ boxSizing: 'border-box', color: '#000000', fontFamily: 'system-ui, sans-serif', fontSize: '28px', fontWeight: 700, letterSpacing: '-0.04em', lineHeight: '34px' }}>
+            falcon
+          </div>
+        </div>
+        <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '36px' }}>
+          <div style={{ boxSizing: 'border-box', color: '#000000', fontFamily: 'system-ui, sans-serif', fontSize: '16px', lineHeight: '20px' }}>
+            Why Falcon
+          </div>
+          <div style={{ boxSizing: 'border-box', color: '#000000', fontFamily: 'system-ui, sans-serif', fontSize: '16px', lineHeight: '20px' }}>
+            Workflow
+          </div>
+          <div style={{ boxSizing: 'border-box', color: '#000000', fontFamily: 'system-ui, sans-serif', fontSize: '16px', lineHeight: '20px' }}>
+            Docs ↗
+          </div>
+          <div style={{ borderColor: 'var(--color-line)', borderRadius: '6px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', paddingBlock: '12px', paddingInline: '20px' }}>
+            <div style={{ boxSizing: 'border-box', color: '#000000', fontFamily: 'system-ui, sans-serif', fontSize: '16px', lineHeight: '20px' }}>
+              GitHub ↗
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '64px', paddingBottom: '64px', paddingInline: '80px', paddingTop: '80px' }}>
+        <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '28px', width: '600px' }}>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-accent)', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '13px', letterSpacing: '0.06em', lineHeight: '17px' }}>
+            BUILT FOR FLUTTER. READY FOR AI.
+          </div>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-ink)', fontFamily: 'system-ui, sans-serif', fontSize: '72px', fontWeight: 600, letterSpacing: '-0.055em', lineHeight: '76px', whiteSpace: 'pre-wrap' }}>
+            Catch what<br />AI leaves behind.
+          </div>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted)', fontFamily: 'system-ui, sans-serif', fontSize: '20px', lineHeight: '30px', maxWidth: '550px' }}>
+            Ship Flutter code with fewer blind spots. Falcon catches resource leaks, silent errors, and risky patterns in AI-generated Dart.
+          </div>
+          <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '12px' }}>
+            <div style={{ backgroundColor: 'var(--color-accent)', borderRadius: '6px', boxSizing: 'border-box', paddingBlock: '16px', paddingInline: '24px' }}>
+              <div style={{ boxSizing: 'border-box', color: '#FFFFFF', fontFamily: 'system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '20px' }}>
+                Try Falcon free ↗
+              </div>
+            </div>
+            <div style={{ borderColor: 'var(--color-line)', borderRadius: '6px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', paddingBlock: '16px', paddingInline: '24px' }}>
+              <div style={{ boxSizing: 'border-box', color: '#000000', fontFamily: 'system-ui, sans-serif', fontSize: '16px', lineHeight: '20px' }}>
+                Read the docs
+              </div>
+            </div>
+          </div>
+          <div style={{ alignItems: 'center', borderColor: 'var(--color-line)', borderRadius: '6px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between', paddingBlock: '16px', paddingInline: '18px', width: '550px' }}>
+            <div style={{ boxSizing: 'border-box', color: '#000000', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '14px', lineHeight: '18px' }}>
+              npx falcon-flutter@latest review
+            </div>
+            <div style={{ boxSizing: 'border-box', color: '#000000', fontFamily: 'system-ui, sans-serif', fontSize: '14px', lineHeight: '18px' }}>
+              Copy
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted)', fontFamily: 'system-ui, sans-serif', fontSize: '14px', lineHeight: '18px' }}>
+            Open source · MIT licensed · No Rust toolchain needed
+          </div>
+        </div>
+        <div style={{ backgroundColor: '#111318', borderRadius: '12px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', overflow: 'clip', width: '552px' }}>
+          <div style={{ alignItems: 'center', borderBottomColor: '#353A43', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between', paddingBlock: '20px', paddingInline: '24px' }}>
+            <div style={{ boxSizing: 'border-box', color: '#C5CBD5', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '13px', lineHeight: '16px' }}>
+              FALCON / REVIEW
+            </div>
+            <div style={{ boxSizing: 'border-box', color: '#C5CBD5', fontFamily: 'system-ui, sans-serif', fontSize: '13px', lineHeight: '16px' }}>
+              Illustrative output
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', paddingBlock: '28px', paddingInline: '24px' }}>
+            <div style={{ boxSizing: 'border-box', color: '#FFFFFF', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '16px', lineHeight: '20px' }}>
+              $ falcon review .
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '14px', paddingBottom: '24px', paddingInline: '24px' }}>
+            <div style={{ boxSizing: 'border-box', color: '#B9C0CD', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '13px', lineHeight: '16px' }}>
+              lib/profile_page.dart
+            </div>
+            <div style={{ boxSizing: 'border-box', color: '#E5E9F0', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '15px', lineHeight: '26px', whiteSpace: 'pre', width: 'max-content' }}>
+              final controller = TextEditingController();<br /><br />@override<br />void dispose() {<br />{'  '}super.dispose();<br />}
+            </div>
+          </div>
+          <div style={{ backgroundColor: '#232935', borderLeftColor: '#95AEFF', borderLeftStyle: 'solid', borderLeftWidth: '3px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px', marginLeft: '20px', marginRight: '20px', padding: '20px' }}>
+            <div style={{ boxSizing: 'border-box', color: '#FFFFFF', fontFamily: 'system-ui, sans-serif', fontSize: '17px', fontWeight: 600, lineHeight: '22px' }}>
+              A controller outlives its widget.
+            </div>
+            <div style={{ boxSizing: 'border-box', color: '#C5CBD5', fontFamily: 'system-ui, sans-serif', fontSize: '15px', lineHeight: '23px' }}>
+              Dispose the controller before calling super.dispose() to release its resources.
+            </div>
+          </div>
+          <div style={{ borderTopColor: '#353A43', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between', paddingBlock: '18px', paddingInline: '24px' }}>
+            <div style={{ boxSizing: 'border-box', color: '#C5CBD5', fontFamily: 'system-ui, sans-serif', fontSize: '13px', lineHeight: '16px' }}>
+              Resource safety
+            </div>
+            <div style={{ boxSizing: 'border-box', color: '#C5CBD5', fontFamily: 'system-ui, sans-serif', fontSize: '13px', lineHeight: '16px' }}>
+              Find → understand → fix
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{ borderBottomColor: 'var(--color-line)', borderBottomStyle: 'solid', borderBottomWidth: '1px', borderTopColor: 'var(--color-line)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between', paddingBlock: '30px', paddingInline: '80px' }}>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted)', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '14px', lineHeight: '18px' }}>
+          FLUTTER + DART
+        </div>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted)', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '14px', lineHeight: '18px' }}>
+          RUST-POWERED ANALYSIS
+        </div>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted)', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '14px', lineHeight: '18px' }}>
+          CLI / LSP / MCP
+        </div>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted)', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '14px', lineHeight: '18px' }}>
+          FREE & OPEN SOURCE
+        </div>
+      </div>
+      <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '48px', padding: '80px' }}>
+        <div style={{ alignItems: 'end', boxSizing: 'border-box', display: 'flex', gap: '64px', justifyContent: 'space-between' }}>
+          <div style={{ boxSizing: 'border-box', color: '#000000', flexShrink: '0', fontFamily: 'system-ui, sans-serif', fontSize: '48px', fontWeight: 600, letterSpacing: '-0.04em', lineHeight: '54px', whiteSpace: 'pre-wrap', width: '600px' }}>
+            Generated fast.<br />Reviewed with care.
+          </div>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted)', flexShrink: '0', fontFamily: 'system-ui, sans-serif', fontSize: '18px', lineHeight: '28px', width: '430px' }}>
+            AI can write the code. Falcon helps you see what still needs your attention.
+          </div>
+        </div>
+        <div style={{ boxSizing: 'border-box', display: 'flex', gap: '48px' }}>
+          <div style={{ borderTopColor: 'var(--color-ink)', borderTopStyle: 'solid', borderTopWidth: '2px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '20px', paddingTop: '24px', width: '394px' }}>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-accent)', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '14px', lineHeight: '18px' }}>
+              01
+            </div>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-ink)', fontFamily: 'system-ui, sans-serif', fontSize: '26px', fontWeight: 600, letterSpacing: '-0.025em', lineHeight: '34px' }}>
+              Catch the quiet failures
+            </div>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-muted)', fontFamily: 'system-ui, sans-serif', fontSize: '18px', lineHeight: '28px', minHeight: '84px' }}>
+              Spot missing dispose calls, empty catch blocks, and unawaited futures.
+            </div>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-ink)', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '14px', lineHeight: '18px' }}>
+              falcon check .
+            </div>
+          </div>
+          <div style={{ borderTopColor: 'var(--color-ink)', borderTopStyle: 'solid', borderTopWidth: '2px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '20px', paddingTop: '24px', width: '394px' }}>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-accent)', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '14px', lineHeight: '18px' }}>
+              02
+            </div>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-ink)', fontFamily: 'system-ui, sans-serif', fontSize: '26px', fontWeight: 600, letterSpacing: '-0.025em', lineHeight: '34px' }}>
+              Know where to focus
+            </div>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-muted)', fontFamily: 'system-ui, sans-serif', fontSize: '18px', lineHeight: '28px', minHeight: '84px' }}>
+              See a six-dimension quality score across safety, security, and maintainability.
+            </div>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-ink)', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '14px', lineHeight: '18px' }}>
+              falcon score .
+            </div>
+          </div>
+          <div style={{ borderTopColor: 'var(--color-ink)', borderTopStyle: 'solid', borderTopWidth: '2px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '20px', paddingTop: '24px', width: '394px' }}>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-accent)', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '14px', lineHeight: '18px' }}>
+              03
+            </div>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-ink)', fontFamily: 'system-ui, sans-serif', fontSize: '26px', fontWeight: 600, letterSpacing: '-0.025em', lineHeight: '34px' }}>
+              Review every change
+            </div>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-muted)', fontFamily: 'system-ui, sans-serif', fontSize: '18px', lineHeight: '28px', minHeight: '84px' }}>
+              Review changed Dart files and generate GitHub-ready feedback for your PR.
+            </div>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-ink)', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '14px', lineHeight: '18px' }}>
+              falcon review . --format gh
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{ backgroundColor: 'var(--color-wash)', boxSizing: 'border-box', display: 'flex', gap: '80px', padding: '80px' }}>
+        <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '24px', width: '560px' }}>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-accent)', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '13px', letterSpacing: '0.06em', lineHeight: '17px' }}>
+            IN YOUR AGENT’S TOOLKIT
+          </div>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-ink)', fontFamily: 'system-ui, sans-serif', fontSize: '48px', fontWeight: 600, letterSpacing: '-0.04em', lineHeight: '54px', whiteSpace: 'pre-wrap' }}>
+            Give your AI<br />a second pair of eyes.
+          </div>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted)', fontFamily: 'system-ui, sans-serif', fontSize: '20px', lineHeight: '30px' }}>
+            Connect Falcon through MCP so your agent can analyze Flutter code during generation and act on the findings.
+          </div>
+          <div style={{ boxSizing: 'border-box', paddingTop: '8px' }}>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-accent)', fontFamily: 'system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '21px' }}>
+              Explore MCP integration ↗
+            </div>
+          </div>
+        </div>
+        <div style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-line)', borderRadius: '8px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '24px', padding: '32px', width: '640px' }}>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-ink)', fontFamily: 'system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '26px' }}>
+            A small config. A better feedback loop.
+          </div>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-ink)', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '15px', lineHeight: '26px', whiteSpace: 'pre', width: 'max-content' }}>
+            {<br />{'  '}"mcpServers": {<br />{'    '}"falcon": {<br />{'      '}"command": "falcon-mcp"<br />{'    '}}<br />{'  '}}<br />}
+          </div>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted)', fontFamily: 'system-ui, sans-serif', fontSize: '14px', lineHeight: '18px' }}>
+            Requires Falcon installed and on PATH.
+          </div>
+        </div>
+      </div>
+      <div style={{ boxSizing: 'border-box', display: 'flex', gap: '64px', justifyContent: 'space-between', padding: '80px' }}>
+        <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '24px', width: '560px' }}>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-accent)', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '13px', letterSpacing: '0.06em', lineHeight: '17px' }}>
+            YOUR NEXT PR, WITH FEWER SURPRISES
+          </div>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-ink)', fontFamily: 'system-ui, sans-serif', fontSize: '48px', fontWeight: 600, letterSpacing: '-0.04em', lineHeight: '54px', whiteSpace: 'pre-wrap' }}>
+            Start with the code<br />you already have.
+          </div>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted)', fontFamily: 'system-ui, sans-serif', fontSize: '20px', lineHeight: '30px', whiteSpace: 'pre-wrap' }}>
+            Run your first review. Follow the findings.<br />Keep building.
+          </div>
+        </div>
+        <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '24px', width: '600px' }}>
+          <div style={{ backgroundColor: 'var(--color-ink)', borderRadius: '6px', boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between', padding: '24px' }}>
+            <div style={{ boxSizing: 'border-box', color: '#FFFFFF', fontFamily: '"JetBrains Mono", system-ui, sans-serif', fontSize: '16px', lineHeight: '20px' }}>
+              npx falcon-flutter@latest review
+            </div>
+            <div style={{ boxSizing: 'border-box', color: '#FFFFFF', fontFamily: 'system-ui, sans-serif', fontSize: '14px', lineHeight: '18px' }}>
+              Copy
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted)', fontFamily: 'system-ui, sans-serif', fontSize: '16px', lineHeight: '25px' }}>
+            Node.js/npm required for npx. Prefer a native binary? See installation options.
+          </div>
+          <div style={{ boxSizing: 'border-box', display: 'flex', gap: '28px', paddingTop: '8px' }}>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-accent)', fontFamily: 'system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '20px' }}>
+              Installation guide ↗
+            </div>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-accent)', fontFamily: 'system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '20px' }}>
+              View source ↗
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{ alignItems: 'center', borderTopColor: 'var(--color-line)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between', paddingBlock: '32px', paddingInline: '80px' }}>
+        <div style={{ boxSizing: 'border-box', color: '#000000', fontFamily: 'system-ui, sans-serif', fontSize: '24px', fontWeight: 700, letterSpacing: '-0.04em', lineHeight: '30px' }}>
+          falcon
+        </div>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted)', fontFamily: 'system-ui, sans-serif', fontSize: '14px', lineHeight: '18px' }}>
+          Built for Flutter developers. Open source under MIT.
+        </div>
+        <div style={{ boxSizing: 'border-box', color: '#000000', fontFamily: 'system-ui, sans-serif', fontSize: '16px', lineHeight: '20px' }}>
+          Docs ↗   GitHub ↗
+        </div>
+      </div>
+    </div>
+  )

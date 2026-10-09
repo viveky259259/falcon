@@ -1,0 +1,73 @@
+{
+  "paper_url": "https://app.paper.design/file/01M4GYRCSYHFEMVQ3MHCXC4ZFZ/p-1-0",
+  "phase": "Design complete; website implementation remains",
+  "artboards": {
+    "desktop": [
+      1440,
+      2409
+    ],
+    "mobile": [
+      390,
+      3944
+    ]
+  },
+  "direction": "Editorial, white with ink typography and cobalt accent",
+  "typography": {
+    "display": "System Sans-Serif, 600; 72px desktop, 48px mobile",
+    "section": "System Sans-Serif, 600; 48px desktop, 34px mobile",
+    "body": "System Sans-Serif, 16\u201320px",
+    "code": "JetBrains Mono, 13\u201316px",
+    "brief_refinement": "Paper exports confirmed system sans rather than the initially proposed IBM Plex Sans; record actual exported styling as source of truth."
+  },
+  "sections": [
+    "Navigation",
+    "Hero with illustrative resource-safety finding",
+    "Capability strip",
+    "Three review workflows",
+    "MCP integration",
+    "Quickstart",
+    "Footer"
+  ],
+  "palette": {
+    "surface": "#FFFFFF",
+    "ink": "#111318",
+    "muted": "#505762",
+    "line": "#DDE1E8",
+    "accent": "#2455F5",
+    "wash": "#EDF2FF"
+  },
+  "contrast": {
+    "accent_on_white": 5.69,
+    "muted_on_white": 7.29,
+    "muted_on_wash": 6.51
+  },
+  "implementation": {
+    "existing_entry": "site/index.html",
+    "stack": "Static HTML with inline CSS; no frontend package manager needed",
+    "navigation": {
+      "Why Falcon": "#features",
+      "Workflow": "#workflow",
+      "Try Falcon free": "#install",
+      "Read the docs": "docs/",
+      "GitHub": "https://github.com/viveky259259/falcon",
+      "MCP integration": "docs/integrations.html",
+      "Installation guide": "docs/getting-started.html"
+    },
+    "copy_action": {
+      "normal": "Copy",
+      "success": "Copied; announce via polite live region",
+      "failure": "Select command text and explain manual copy; do not claim success",
+      "target": "44px minimum interactive target"
+    },
+    "responsive": "Stack hero and workflow columns; 24px mobile horizontal inset; wrap code without horizontal overflow",
+    "accessibility": "Native links and buttons, keyboard-visible focus, 44px minimum targets, semantic headings, reduced-motion handling",
+    "mobile_status_bar": "Paper mockup chrome only; exclude from website implementation"
+  },
+  "verification": [
+    "Each section reviewed using fresh Paper screenshots",
+    "Corrected mobile hero overflow and wrapped illustrative code",
+    "Paper file confirms two artboards and six color tokens",
+    "No Rust or website runtime code changed; runtime tests not run"
+  ],
+  "claim_policy": "No unverified speed comparisons, testimonials, adoption figures, or paid-plan pricing. Output example explicitly illustrative."
+}
