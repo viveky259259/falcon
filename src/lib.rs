@@ -39,6 +39,7 @@ pub mod paths;
 pub mod platform;
 pub mod plugins;
 pub mod preflight;
+pub mod project_graph;
 pub mod reporters;
 pub mod resolver;
 pub mod review;
@@ -78,6 +79,11 @@ impl Falcon {
             config,
             rule_registry,
         })
+    }
+
+    /// Generate a read-only, content-pinned graph of the configured Dart inventory.
+    pub fn generate_project_graph(&self, path: &Path) -> Result<project_graph::ProjectGraph> {
+        project_graph::build(path, self.collect_dart_files(path)?, &self.config.exclude)
     }
 
     pub fn analyze(&self, path: &Path) -> Result<AnalysisReport> {

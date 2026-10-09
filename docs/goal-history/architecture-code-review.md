@@ -8,11 +8,13 @@
 - History begins: 2026-10-09 22:39:30 Asia/Kolkata, after initial repository discovery. Earlier elapsed time unmeasured.
 
 ## Current state
-- As of: 2026-10-09 23:49:00 Asia/Kolkata.
+- As of: 2026-10-10 02:45:21 Asia/Kolkata.
 - Status: All twelve review findings and the observed Clippy blocker are fixed; final verification passed. User's later remediation instruction supersedes the original read-only scope.
 - Verified progress: Full default-feature tests: 2,657 passed, 0 failed, 3 ignored. Formatting, Clippy with denied warnings, default all-targets build and optional ai-local build pass. Mocked webhook and Action regressions, npm installer fixtures and extension TypeScript checks pass. HTTP and LSP regression tests exercise live child processes.
 - Limits: Local verification uses Rust 1.101 nightly on macOS; remote stable/Linux CI, release downloads and marketplace installation were not run. Webhook external calls are mocked.
-- Next milestone: Remediation complete locally. Remote stable/Linux CI can be verified when a push is explicitly authorized.
+- Additional assessment: Compared the user's linked loops/graphs post with the completed development workflow and Falcon's implementation. Verified loops and durable regression constraints are present; a persistent task scheduler and feedback into task planning are absent from inspected paths.
+- Graph status: Authorized project graph generation implemented. Directory checks persist the full graph; explicit graph export and library/SDK methods are available. Final tests: 2,676 passed, 3 ignored; format, Clippy and default/ai-local builds pass. Source graph inference limits are documented.
+- Next milestone: Local atomic commit of graph generation and delivery. Unrelated in-progress site files are excluded from staging; no push authorized.
 - Reproduction scripts and logs remain under ignored `target/`; task scratch was excluded from staging and removed after completion.
 
 ## Chronological history
@@ -28,6 +30,10 @@ Timezone: Asia/Kolkata (UTC+05:30). Durations are elapsed wall-clock intervals.
 | 4 | 2026-10-09 23:28:35 → 2026-10-09 23:48:00 | 19m 25s | Implement all authorized review fixes with regression-first verification | Initial CLI suite failed 11 of 12 cases; HTTP, LSP and adapter reproductions failed before fixes. Final cargo test --locked: 2,657 passed, 3 ignored, exit 0; fmt, Clippy, both builds, Node contracts, npm and tsc pass | Remote stable/Linux and real release/editor installation unverified | Share parsed syntax edits across CLI/LSP; preserve existing public signatures with additive fallible APIs; add adapter CI checks | Local atomic commit and delivery |
 
 | 5 | 2026-10-09 23:49:00 | Not measured | Commit the task changes locally | Conventional Commit `fix: enforce analysis and developer tooling contracts` succeeded; 39 task files staged, scratch excluded; no push | Remote CI remains outside authorized scope | Mark local remediation complete; refresh history in the same local commit | Deliver verification and commit reference |
+
+| 6 | 2026-10-09 23:55:07 → 2026-10-09 23:56:13 | 1m 6s | Compare linked loops/graphs concept with our workflow and Falcon code; initial fetch attempts occurred before this measured interval | X direct fetch returned 403; public FxTwitter JSON exposed the post and quoted guide. Inspected Rayon analysis, import graph, fix tracking, tuning, AGENTS generators and previous verified task evidence | Video and attributed Karpathy quotation not verified; no runtime orchestrator demonstrated | Distinguish source dependency graphs from work orchestration; stored history and printed recommendations do not establish automatic planning feedback | Deliver evidence-backed present/partial/missing assessment; no implementation authorized |
+
+| 7 | 2026-10-10 00:03:37 | Not measured | Locate Ocean Assurance graph proofs after user clarification that Falcon is a tool | Local repository has Code-Graph-RAG evaluation record, own repository graph assembly, and a PostgreSQL continuous-work-graph experiment documenting 16 passing scenarios | Historical counts and experiment results inspected, not rerun; production qualification remains outstanding | Reuse source-graph provenance and delta patterns as design references; distinguish continuous-work orchestration from Falcon analysis needs | Explain prior POCs and their relevance; no implementation authorized |
 
 ## Verified findings and evidence
 
@@ -72,3 +78,31 @@ User requested “Fix all of them” after both reviews. Scope now includes fixi
 - Explicit config files are loaded directly and missing explicit configs fail. Preflight findings join the structured report. File report IO errors propagate through additive fallible Reporter methods, preserving existing public methods.
 - Existing tests expecting nonexistent sources to appear clean, and double-literal tests expecting the reverse of the rule's documented behavior, were updated to the corrected contracts. Cases were retained; malformed syntax fixtures were made parseable. A further regression verifies existing const Spacer transformations.
 - Final Rust suite log: ignored `target/remediation-final-tests.log`. Focused red evidence: `target/remediation-red.log`, `target/http-red.log`, `target/lsp-red.log`, `target/github-red.log`, `target/action-red.log`. Commands: `cargo test --locked`, `cargo fmt --all -- --check`, `cargo clippy --locked --all-targets -- -D warnings`, `cargo build --locked --all-targets`, `cargo build --locked --features ai-local`, Node adapter tests, `npm test` in npm/falcon, and existing extension `tsc -p . --noEmit`; all final executions exited 0.
+
+## Loops and graphs comparison
+
+Source: [user's post](https://x.com/callanxai/status/2108285248223986139), quoting [Hanako's guide](https://x.com/hanakoxbt/status/2091515787366306154). Text was retrieved from the public FxTwitter JSON mirror after X blocked direct access. Attribution to Karpathy and the embedded video remain unverified.
+
+Our development workflow already reproduces failures, corrects scoped changes, checks deterministic tests/lints/builds, and retains regression tests and a durable goal history. Independent verification calls are batched where appropriate. This is an evidence-backed manual workflow, not a persisted graph scheduler.
+
+Falcon provides deterministic rule/metric workers in `src/lib.rs:83`, parallel file execution at line 90, and a source import/dependent graph in `src/incremental/dep_graph.rs:8`. The import graph controls re-analysis scope, not agent jobs. `src/agents/mod.rs` generates instructions rather than scheduling agents. `src/ai_score/fix_tracking.rs:74` persists explicitly recorded outcomes. `src/ai_score/self_tune.rs:76` records trigger/suppression counts; its acceptance/rejection fields are initialized to zero and are not wired to fix-history consumption. `src/main.rs:2408` prints tuning recommendations rather than applying constraints to future task planning.
+
+Missing capability in inspected paths: persisted work-unit IDs, declared task dependencies, resumable state, targeted bounded retries, and accepted evidence converted into constraints consumed by the next task planner. Regression tests are already durable executable constraints. A small future orchestration layer could connect them to planning without replacing Falcon's analysis engine or adding a graph database.
+
+## Ocean Assurance reference and scope correction
+
+User clarified Falcon is a tool and asked whether Ocean Assurance already has a graph POC. Inspected `/Users/advait/Documents/Codex/from-daily/other-folders/Documents/ocean/repo/ocean-assurance`: `docs/decisions/agent-conversation-decisions.md` records an opt-in Code-Graph-RAG 0.0.945 trial (15,185 nodes; 58,696 relationships); `repository-analysis/src/graph.ts` implements snapshot-pinned repository/file/symbol graphs with observed/inferred edges and provenance, with graph deltas. Separately, `experiments/continuous-work-graph/README.md` reports 16 PostgreSQL scenarios passing on 2026-10-01, with production qualification still outstanding. These are different graph purposes. Earlier suggestion to add agent-task orchestration was a possible extension, not a requirement; for Falcon the relevant reference is the source relationship graph and evidence identity. No Ocean files changed; no experiment rerun.
+
+## Project graph implementation authorization
+
+User requested automatic graph generation when Falcon is used on a project. Work began with repository/skill inspection; measured history starts 2026-10-10 02:30:39 Asia/Kolkata (UTC+05:30). Starting tracked change is this task-owned history from prior discussions. Success criteria: deterministic source graph with provenance and unresolved facts, project check persistence, explicit JSON export, preserved library APIs, targeted regressions and existing checks. Scope is code relationships, not agent orchestration.
+
+| # | Time (start → end) | Duration | Action / investigation | Evidence / result | Gaps | Decision and reason | Next step |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| G1 | 2026-10-10 02:30:39 → 2026-10-10 02:45:21 | 14m 42s | Inspect existing analysis/parser/resolver, define additive source graph and CLI contracts, write integration regressions before production | Eight initial contract tests failed before production implementation (target/graph-red.log); scope regressions exposed prefix/parameter/part visibility, repeated show, type parameter and export/import distinctions, then passed after corrections. Final 18 graph contracts plus atomic-temp preservation regression pass; full suite 2,676 passed, 3 ignored; fmt, Clippy, both builds pass. Real companion export: 23 nodes, 25 valid-endpoint edges | External SDK/packages and receiver dispatch remain unresolved; graph is disk-content observation rather than atomic filesystem/Git snapshot | Existing tree-sitter/sha2, versioned deterministic relative identities, provenance, explicit ambiguity; default check persistence with no-graph opt-out; preserve old public API/result structs | Local task-only commit and delivery |
+
+## Project graph outcome
+
+Implemented `src/project_graph/{types,extract,resolve,mod}.rs`, public `Falcon::generate_project_graph` and SDK method; `falcon graph` exports JSON and directory `check` persists `.falcon-data/project-graph.json` atomically. Full graph generation also occurs for incremental checks; single-file checks preserve the existing artifact. `--graph-output` selects an output path; `--no-graph` opts out. Existing source edits and report stdout are unchanged. Types, source/identity contracts, coverage and performance limits are documented in `docs/project-graph.md`; no external dependency added.
+
+Verification: final `cargo test --locked` exits 0 (2,676 passed, 3 ignored); `cargo fmt --all -- --check`, `cargo clippy --locked --all-targets -- -D warnings`, `cargo build --locked --all-targets`, `cargo build --locked --features ai-local` exit 0. Final suite log is ignored `target/graph-final-tests.log`. Red evidence is `target/graph-red.log`, `target/graph-scope-red.log`, `target/graph-visibility-red.log`, `target/graph-library-red.log`, `target/graph-write-red.log`. Actual CLI export of falcon_dart to ignored `target/falcon-dart-project-graph.json` passes ID uniqueness and edge endpoint checks (23 nodes/25 edges). Remote CI was not run. Other work produced untracked site files during verification; those are not graph task files and remain untouched.

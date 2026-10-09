@@ -30,3 +30,7 @@ Thumbs.db
 .credentials
 .credentials_rsaparams
 .runner
+
+# Automatically generated project source graph
+**/.falcon-data/project-graph.json
+**/.falcon-data/.project-graph.json.*.tmp

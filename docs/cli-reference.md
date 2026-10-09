@@ -373,3 +373,16 @@ for the full behavior.
 16 KiB header limit and two-second request deadline. It uses eight workers and
 a bounded queue of 32 connections. Chunked request bodies are rejected; clients
 must supply `Content-Length` for POST bodies. Responses close the connection.
+
+### Project source graphs
+
+Directory checks automatically save `.falcon-data/project-graph.json`. Use
+`--no-graph` to skip graph generation or `--graph-output FILE` to change the
+destination. Incremental checks still generate a complete graph. Single-file
+checks preserve the project artifact.
+
+`falcon graph [PATH] [--config FILE] [--output FILE]` exports a versioned graph
+with source hashes, declarations, dependencies and conservative symbol links.
+The default output is one JSON document on stdout. See
+[Project source graph](project-graph.md) for schema, identity, provenance and
+coverage limits.

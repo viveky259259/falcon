@@ -41,7 +41,8 @@ enum CommandGroup {
 
 fn command_group(command: &Commands) -> CommandGroup {
     match command {
-        Commands::Analyze { .. }
+        Commands::Graph { .. }
+        | Commands::Analyze { .. }
         | Commands::Smells { .. }
         | Commands::Metrics { .. }
         | Commands::CognitiveComplexity { .. }

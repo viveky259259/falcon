@@ -22,7 +22,7 @@ pub struct Cli {
 const GROUPED_HELP: &str = r#"
 SEMANTIC COMMAND GROUPS:
 
-  Analysis          analyze, metrics, ai-score, cognitive-complexity, codebase-intel
+  Analysis          check, graph, metrics, ai-score, cognitive-complexity, codebase-intel
   Code Checks       check-unused-code, check-unused-files, check-cycles, check-async,
                     check-widgets, check-dead-code, check-layers, check-imports,
                     check-platform, check-codegen, check-perf, check-unused-params,
@@ -93,9 +93,28 @@ pub enum Commands {
         #[arg(long)]
         preset: Option<String>,
 
+        /// Skip automatic project graph persistence
+        #[arg(long, conflicts_with = "graph_output")]
+        no_graph: bool,
+
+        /// Save the project graph to this path instead of .falcon-data/project-graph.json
+        #[arg(long, value_name = "FILE")]
+        graph_output: Option<PathBuf>,
+
         /// Exclude public API from analysis
         #[arg(long)]
         exclude_public_api: bool,
+    },
+
+    /// Export a deterministic project source graph as JSON
+    Graph {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        /// Write graph JSON to a file instead of stdout
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+        #[arg(short, long)]
+        config: Option<PathBuf>,
     },
 
     /// Categorized smells report: Dead Code, Code Smells, Security Smells.

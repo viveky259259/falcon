@@ -608,6 +608,8 @@ fn handle_analyze(
     no_defer_to_analyzer: bool,
     fail_on: FailLevel,
     preset: Option<String>,
+    no_graph: bool,
+    graph_output: Option<PathBuf>,
 ) -> Result<()> {
     let mut falcon_config = load_command_config(&path, config.as_deref())?;
 
@@ -639,6 +641,16 @@ fn handle_analyze(
     } else {
         falcon.analyze(&path)?
     };
+
+    if !no_graph && (path.is_dir() || graph_output.is_some()) {
+        let graph = falcon.generate_project_graph(&path)?;
+        match graph_output {
+            Some(output) => graph.write_to(&output)?,
+            None => {
+                graph.save_project(&path)?;
+            }
+        }
+    }
 
     let mut issues = report.issues;
 

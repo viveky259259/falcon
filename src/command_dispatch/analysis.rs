@@ -14,6 +14,8 @@ pub(super) fn handle_command(command: Commands) -> Result<()> {
             no_defer_to_analyzer,
             fail_on,
             preset,
+            no_graph,
+            graph_output,
             exclude_public_api: _,
         } => handle_analyze(
             path,
@@ -27,7 +29,25 @@ pub(super) fn handle_command(command: Commands) -> Result<()> {
             no_defer_to_analyzer,
             fail_on,
             preset,
+            no_graph,
+            graph_output,
         )?,
+        Commands::Graph {
+            path,
+            output,
+            config,
+        } => {
+            let engine = Falcon::new(load_command_config(&path, config.as_deref())?)?;
+            let graph = engine.generate_project_graph(&path)?;
+            if let Some(output) = output {
+                graph.write_to(&output)?;
+            } else {
+                use std::io::Write;
+                let mut stdout = std::io::stdout().lock();
+                serde_json::to_writer_pretty(&mut stdout, &graph)?;
+                writeln!(stdout)?;
+            }
+        }
         Commands::Smells {
             path,
             format,

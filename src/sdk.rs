@@ -76,6 +76,16 @@ impl FalconSdk {
         Self
     }
 
+    /// Generate a project graph without writing files or running lint rules.
+    pub fn generate_project_graph(
+        &self,
+        path: &str,
+    ) -> anyhow::Result<crate::project_graph::ProjectGraph> {
+        let root = Path::new(path);
+        let config = crate::config::FalconConfig::load(root)?;
+        crate::Falcon::new(config)?.generate_project_graph(root)
+    }
+
     /// Analyze a Flutter/Dart project directory.
     pub fn analyze_project(
         &self,
