@@ -12,6 +12,30 @@ pub struct SarifReporter {
 }
 
 impl Reporter for SarifReporter {
+    fn try_report_analysis(&self, report: &AnalysisReport) -> anyhow::Result<()> {
+        super::write_report(
+            &(serde_json::to_string_pretty(&build_sarif(
+                &report.issues,
+                report.project_path.as_deref(),
+            ))?),
+            self.output_path.as_deref(),
+        )
+    }
+
+    fn try_report_metrics(&self, _metrics: &[(PathBuf, MetricsResults)]) -> anyhow::Result<()> {
+        super::write_report(
+            &(serde_json::to_string_pretty(&build_sarif(&[], None))?),
+            self.output_path.as_deref(),
+        )
+    }
+
+    fn try_report_issues(&self, issues: &[Issue]) -> anyhow::Result<()> {
+        super::write_report(
+            &(serde_json::to_string_pretty(&build_sarif(issues, None))?),
+            self.output_path.as_deref(),
+        )
+    }
+
     fn report_analysis(&self, report: &AnalysisReport) {
         let sarif = build_sarif(&report.issues, report.project_path.as_deref());
         output_sarif(&sarif, &self.output_path);

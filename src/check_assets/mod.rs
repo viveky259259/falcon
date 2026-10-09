@@ -14,6 +14,12 @@ const RULE_ID_GLOB_PATTERN: &str = "assets/glob-pattern";
 
 /// Run the check. Returns exit code: 0 clean, 1 warnings only, 2 errors.
 pub fn run(root: &Path, format: OutputFormat, config: &FalconConfig) -> Result<i32> {
+    let issues = inspect(root, config)?;
+    print!("{}", reporter::render(&issues, format));
+    Ok(exit_code_for_issues(&issues))
+}
+
+pub fn inspect(root: &Path, config: &FalconConfig) -> Result<Vec<PreflightIssue>> {
     let pubspec_path = root.join("pubspec.yaml");
     if !pubspec_path.exists() {
         anyhow::bail!(
@@ -43,10 +49,7 @@ pub fn run(root: &Path, format: OutputFormat, config: &FalconConfig) -> Result<i
         }
     }
 
-    let exit = exit_code_for_issues(&issues);
-    let rendered = reporter::render(&issues, format);
-    print!("{rendered}");
-    Ok(exit)
+    Ok(issues)
 }
 
 fn inspect_decl(

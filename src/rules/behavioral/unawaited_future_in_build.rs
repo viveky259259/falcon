@@ -169,11 +169,7 @@ fn is_unawaited_future_call(text: &str) -> bool {
 
     // Chained Future methods anywhere in the call (e.g. `foo().then(...)`).
     let future_chains = [".then(", ".catchError(", ".whenComplete(", ".onError("];
-    if future_chains.iter().any(|p| stripped.contains(p)) {
-        return true;
-    }
-
-    false
+    future_chains.iter().any(|p| stripped.contains(p))
 }
 
 #[cfg(test)]

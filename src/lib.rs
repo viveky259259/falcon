@@ -54,7 +54,7 @@ pub mod unused;
 pub mod version_util;
 pub mod workspace;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use config::FalconConfig;
 use metrics::MetricsResults;
 use parser::DartParser;
@@ -88,28 +88,13 @@ impl Falcon {
 
         let file_results: Vec<_> = files
             .par_iter()
-            .filter_map(|file| {
-                let source = match std::fs::read_to_string(file) {
-                    Ok(s) => s,
-                    Err(e) => {
-                        log::warn!("Failed to read {}: {}", file.display(), e);
-                        return None;
-                    }
-                };
-                let mut parser = match DartParser::new() {
-                    Ok(p) => p,
-                    Err(e) => {
-                        log::warn!("Failed to create parser for {}: {}", file.display(), e);
-                        return None;
-                    }
-                };
-                let tree = match parser.parse(&source) {
-                    Some(t) => t,
-                    None => {
-                        log::warn!("Failed to parse {}", file.display());
-                        return None;
-                    }
-                };
+            .map(|file| -> Result<_> {
+                let source = std::fs::read_to_string(file)
+                    .with_context(|| format!("Reading {}", file.display()))?;
+                let mut parser = DartParser::new()?;
+                let tree = parser
+                    .parse(&source)
+                    .ok_or_else(|| anyhow::anyhow!("Failed to parse {}", file.display()))?;
                 let root = tree.root_node();
 
                 let mut issues = Vec::new();
@@ -129,9 +114,9 @@ impl Falcon {
                     .check_with_context(root, &source, file, &context);
                 issues.extend(rule_issues);
 
-                Some((file.clone(), issues, metrics))
+                Ok((file.clone(), issues, metrics))
             })
-            .collect();
+            .collect::<Result<Vec<_>>>()?;
 
         let mut all_issues = Vec::new();
         let mut all_metrics = Vec::new();
@@ -160,33 +145,18 @@ impl Falcon {
 
         let results: Vec<_> = files
             .par_iter()
-            .filter_map(|file| {
-                let source = match std::fs::read_to_string(file) {
-                    Ok(s) => s,
-                    Err(e) => {
-                        log::warn!("Failed to read {}: {}", file.display(), e);
-                        return None;
-                    }
-                };
-                let mut parser = match DartParser::new() {
-                    Ok(p) => p,
-                    Err(e) => {
-                        log::warn!("Failed to create parser: {}", e);
-                        return None;
-                    }
-                };
-                let tree = match parser.parse(&source) {
-                    Some(t) => t,
-                    None => {
-                        log::warn!("Failed to parse {}", file.display());
-                        return None;
-                    }
-                };
+            .map(|file| -> Result<_> {
+                let source = std::fs::read_to_string(file)
+                    .with_context(|| format!("Reading {}", file.display()))?;
+                let mut parser = DartParser::new()?;
+                let tree = parser
+                    .parse(&source)
+                    .ok_or_else(|| anyhow::anyhow!("Failed to parse {}", file.display()))?;
                 let root = tree.root_node();
                 let metrics = metrics::calculate_file_metrics(root, &source, &self.config.metrics);
-                Some((file.clone(), metrics))
+                Ok((file.clone(), metrics))
             })
-            .collect();
+            .collect::<Result<Vec<_>>>()?;
 
         Ok(results)
     }
@@ -236,28 +206,13 @@ impl Falcon {
 
         let file_results: Vec<_> = files
             .par_iter()
-            .filter_map(|file| {
-                let source = match std::fs::read_to_string(file) {
-                    Ok(s) => s,
-                    Err(e) => {
-                        log::warn!("Failed to read {}: {}", file.display(), e);
-                        return None;
-                    }
-                };
-                let mut parser = match DartParser::new() {
-                    Ok(p) => p,
-                    Err(e) => {
-                        log::warn!("Failed to create parser: {}", e);
-                        return None;
-                    }
-                };
-                let tree = match parser.parse(&source) {
-                    Some(t) => t,
-                    None => {
-                        log::warn!("Failed to parse {}", file.display());
-                        return None;
-                    }
-                };
+            .map(|file| -> Result<_> {
+                let source = std::fs::read_to_string(file)
+                    .with_context(|| format!("Reading {}", file.display()))?;
+                let mut parser = DartParser::new()?;
+                let tree = parser
+                    .parse(&source)
+                    .ok_or_else(|| anyhow::anyhow!("Failed to parse {}", file.display()))?;
                 let root = tree.root_node();
 
                 let mut issues = Vec::new();
@@ -279,9 +234,9 @@ impl Falcon {
                         .check_with_context(root, &source, file, &file_context);
                 issues.extend(rule_issues);
 
-                Some((file.clone(), issues, metrics))
+                Ok((file.clone(), issues, metrics))
             })
-            .collect();
+            .collect::<Result<Vec<_>>>()?;
 
         let mut all_issues = Vec::new();
         let mut all_metrics = Vec::new();
@@ -306,15 +261,12 @@ impl Falcon {
             .filter_map(|p| glob::Pattern::new(p).ok())
             .collect();
 
+        std::fs::metadata(path)
+            .with_context(|| format!("Reading analysis root {}", path.display()))?;
         let files: Vec<PathBuf> = WalkDir::new(path)
             .into_iter()
-            .filter_map(|e| match e {
-                Ok(entry) => Some(entry),
-                Err(err) => {
-                    log::warn!("Failed to read directory entry: {}", err);
-                    None
-                }
-            })
+            .collect::<std::result::Result<Vec<_>, _>>()?
+            .into_iter()
             .filter(|e| e.file_type().is_file())
             .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
             .filter(|e| {

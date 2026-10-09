@@ -3,7 +3,10 @@
  * Automatically analyzes Flutter PRs and posts quality reports.
  */
 
-const { execSync } = require("child_process");
+const { execFileSync } = require("child_process");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 
 module.exports = (app) => {
   app.log.info("Falcon GitHub App loaded");
@@ -19,19 +22,17 @@ module.exports = (app) => {
 
     app.log.info(`Analyzing PR #${pr.number} on ${owner}/${repoName}`);
 
+    const cloneDir = fs.mkdtempSync(path.join(os.tmpdir(), "falcon-pr-"));
     try {
-      // Clone the PR branch
-      const cloneDir = `/tmp/falcon-${owner}-${repoName}-${pr.number}`;
-      execSync(`rm -rf ${cloneDir}`);
-      execSync(
-        `git clone --depth 1 --branch ${pr.head.ref} ${pr.head.repo.clone_url} ${cloneDir}`,
+      execFileSync(
+        "git", ["clone", "--depth", "1", "--branch", pr.head.ref, "--", pr.head.repo.clone_url, cloneDir],
         { timeout: 60000 }
       );
 
       // Run Falcon analysis
       let scoreJson;
       try {
-        scoreJson = execSync(`falcon ai-score ${cloneDir} --json`, {
+        scoreJson = execFileSync("falcon", ["score", cloneDir, "--format", "json"], {
           timeout: 120000,
         }).toString();
       } catch (e) {
@@ -41,7 +42,7 @@ module.exports = (app) => {
       // Generate PR comment
       let comment;
       try {
-        comment = execSync(`falcon pr-comment ${cloneDir} --dry-run`, {
+        comment = execFileSync("falcon", ["review", cloneDir, "--format", "gh"], {
           timeout: 120000,
         }).toString();
       } catch (e) {
@@ -76,12 +77,11 @@ module.exports = (app) => {
         });
       }
 
-      // Cleanup
-      execSync(`rm -rf ${cloneDir}`);
-
       app.log.info(`Posted Falcon analysis for PR #${pr.number}`);
     } catch (error) {
       app.log.error(`Falcon analysis failed: ${error.message}`);
+    } finally {
+      fs.rmSync(cloneDir, { recursive: true, force: true });
     }
   }
 };

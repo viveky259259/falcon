@@ -10,6 +10,27 @@ pub struct SonarReporter {
 }
 
 impl Reporter for SonarReporter {
+    fn try_report_analysis(&self, report: &AnalysisReport) -> anyhow::Result<()> {
+        super::write_report(
+            &(serde_json::to_string_pretty(&build_sonar(&report.issues))?),
+            self.output_path.as_deref(),
+        )
+    }
+
+    fn try_report_metrics(&self, _metrics: &[(PathBuf, MetricsResults)]) -> anyhow::Result<()> {
+        super::write_report(
+            &(serde_json::to_string_pretty(&build_sonar(&[]))?),
+            self.output_path.as_deref(),
+        )
+    }
+
+    fn try_report_issues(&self, issues: &[Issue]) -> anyhow::Result<()> {
+        super::write_report(
+            &(serde_json::to_string_pretty(&build_sonar(issues))?),
+            self.output_path.as_deref(),
+        )
+    }
+
     fn report_analysis(&self, report: &AnalysisReport) {
         output_sonar(&build_sonar(&report.issues), &self.output_path);
     }

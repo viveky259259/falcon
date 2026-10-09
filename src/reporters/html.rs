@@ -9,6 +9,27 @@ pub struct HtmlReporter {
 }
 
 impl Reporter for HtmlReporter {
+    fn try_report_analysis(&self, report: &AnalysisReport) -> anyhow::Result<()> {
+        super::write_report(
+            &(build_full_report(report)),
+            Some(self.output_path.as_path()),
+        )
+    }
+
+    fn try_report_metrics(&self, metrics: &[(PathBuf, MetricsResults)]) -> anyhow::Result<()> {
+        super::write_report(
+            &(build_metrics_report(metrics)),
+            Some(self.output_path.as_path()),
+        )
+    }
+
+    fn try_report_issues(&self, issues: &[Issue]) -> anyhow::Result<()> {
+        super::write_report(
+            &(build_issues_report(issues)),
+            Some(self.output_path.as_path()),
+        )
+    }
+
     fn report_analysis(&self, report: &AnalysisReport) {
         let html = build_full_report(report);
         match std::fs::write(&self.output_path, &html) {

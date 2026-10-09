@@ -191,7 +191,16 @@ impl FalconSdk {
         let mut all_issues = if let Some(root) = project_root {
             let resolver = crate::resolver::ProjectResolver::new(root, &config)?;
             let base_index = resolver.build_index()?;
-            let mut classes = base_index.classes().to_vec();
+            let identity = std::fs::canonicalize(&file_path).unwrap_or_else(|_| file_path.clone());
+            let mut classes: Vec<_> = base_index
+                .classes()
+                .iter()
+                .filter(|class| {
+                    std::fs::canonicalize(&class.file).unwrap_or_else(|_| class.file.clone())
+                        != identity
+                })
+                .cloned()
+                .collect();
             classes.extend(crate::resolver::classes::collect_classes(
                 tree.root_node(),
                 source,

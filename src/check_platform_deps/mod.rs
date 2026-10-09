@@ -26,6 +26,17 @@ pub fn run(
     refresh: bool,
     platform: Option<TargetPlatform>,
 ) -> Result<i32> {
+    let issues = inspect(root, config, refresh, platform)?;
+    print!("{}", reporter::render(&issues, format));
+    Ok(exit_code_for_issues(&issues))
+}
+
+pub fn inspect(
+    root: &Path,
+    config: &FalconConfig,
+    refresh: bool,
+    platform: Option<TargetPlatform>,
+) -> Result<Vec<PreflightIssue>> {
     let pub_cache = locate_pub_cache();
     let installed = match iter_installed_plugins(root, &pub_cache) {
         Ok(p) => p,
@@ -131,9 +142,7 @@ pub fn run(
     }
 
     issues.retain(|issue| !is_suppressed(issue, config));
-    let exit = exit_code_for_issues(&issues);
-    print!("{}", reporter::render(&issues, format));
-    Ok(exit)
+    Ok(issues)
 }
 
 fn scan_all(

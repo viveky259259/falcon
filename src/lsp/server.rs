@@ -1,6 +1,6 @@
 use crate::config::FalconConfig;
 use crate::lsp::actions::generate_code_actions;
-use crate::lsp::diagnostics::{analyze_source, issues_to_diagnostics};
+use crate::lsp::diagnostics::{analyze_source, issues_to_diagnostics_with_source};
 use crate::rules::RuleRegistry;
 use dashmap::DashMap;
 use serde_json::Value;
@@ -34,7 +34,7 @@ impl FalconLspServer {
         registry.register_defaults(&config);
 
         let issues = analyze_source(source, &file_path, &config, &registry);
-        let diagnostics = issues_to_diagnostics(&issues);
+        let diagnostics = issues_to_diagnostics_with_source(&issues, source);
 
         self.diagnostics_cache
             .insert(uri.clone(), diagnostics.clone());
@@ -195,9 +195,39 @@ impl LanguageServer for FalconLspServer {
                     .await;
             }
             "falcon.fixAll" => {
-                self.client
-                    .log_message(MessageType::INFO, "Falcon: Fix all command executed")
-                    .await;
+                let documents: Vec<_> = self
+                    .documents
+                    .iter()
+                    .map(|entry| (entry.key().clone(), entry.value().clone()))
+                    .collect();
+                let mut changes = std::collections::HashMap::new();
+                for (uri, source) in documents {
+                    let diagnostics = self
+                        .diagnostics_cache
+                        .get(&uri)
+                        .map(|entry| entry.clone())
+                        .unwrap_or_default();
+                    let edits = crate::lsp::actions::fix_all_edits(&source, &diagnostics);
+                    if !edits.is_empty() {
+                        changes.insert(uri, edits);
+                    }
+                }
+                if !changes.is_empty() {
+                    let response = self
+                        .client
+                        .apply_edit(WorkspaceEdit {
+                            changes: Some(changes),
+                            ..Default::default()
+                        })
+                        .await?;
+                    if !response.applied {
+                        return Err(tower_lsp::jsonrpc::Error::invalid_params(
+                            response
+                                .failure_reason
+                                .unwrap_or_else(|| "Client declined Falcon fixes".into()),
+                        ));
+                    }
+                }
             }
             _ => {}
         }

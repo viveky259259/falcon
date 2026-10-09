@@ -17,6 +17,12 @@ mapping. The full historical help remains available for one release with
 
 ### falcon check
 
+Explicit `--config FILE` paths are loaded directly; missing or unreadable files
+fail the command. Missing analysis inputs and report-write errors also fail.
+When preflight is enabled, its findings are included in the selected report,
+so `--format json` emits one JSON document. Preflight errors retain exit code 2.
+
+
 ```bash
 falcon check . --format console --preset ai-generated --fail-on error
 ```
@@ -27,7 +33,7 @@ falcon check . --format console --preset ai-generated --fail-on error
 | `--output` | Output file path | falcon-report.html |
 | `--config` | Path to falcon.yaml | auto-detect |
 | `--since` | Only analyze files changed since git ref | none |
-| `--baseline` | Only report new violations | false |
+| `--baseline FILE` | Only report violations absent from the baseline JSON file | none |
 | `--fail-on` | Minimum severity to fail: error, warning, info | error |
 | `--preset` | Rule preset: recommended, strict, flutter, ai-generated | none |
 
@@ -360,3 +366,10 @@ for the full behavior.
 | `falcon x watch` | Watch for file changes and re-analyze |
 | `falcon x dep-graph` | Show file dependency graph |
 | `falcon x workspace` | Analyze all packages in a monorepo |
+
+## HTTP bridge limits
+
+`falcon x api` reads complete `Content-Length` bodies, with a 1 MiB body limit,
+16 KiB header limit and two-second request deadline. It uses eight workers and
+a bounded queue of 32 connections. Chunked request bodies are rejected; clients
+must supply `Content-Length` for POST bodies. Responses close the connection.

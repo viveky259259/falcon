@@ -10,6 +10,18 @@ pub struct CheckstyleReporter {
 }
 
 impl Reporter for CheckstyleReporter {
+    fn try_report_analysis(&self, report: &AnalysisReport) -> anyhow::Result<()> {
+        super::write_report(&(build_xml(&report.issues)), self.output_path.as_deref())
+    }
+
+    fn try_report_metrics(&self, _metrics: &[(PathBuf, MetricsResults)]) -> anyhow::Result<()> {
+        super::write_report(&(build_xml(&[])), self.output_path.as_deref())
+    }
+
+    fn try_report_issues(&self, issues: &[Issue]) -> anyhow::Result<()> {
+        super::write_report(&(build_xml(issues)), self.output_path.as_deref())
+    }
+
     fn report_analysis(&self, report: &AnalysisReport) {
         output_xml(&build_xml(&report.issues), &self.output_path);
     }

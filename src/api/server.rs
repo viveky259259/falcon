@@ -8,7 +8,6 @@
 //! - `GET /tools` — list available analysis capabilities
 
 use serde::{Deserialize, Serialize};
-use std::io::{Read, Write};
 use std::net::TcpListener;
 
 #[derive(Debug, Deserialize)]
@@ -42,16 +41,38 @@ pub fn start_api_server(host: &str, port: u16) -> anyhow::Result<()> {
     eprintln!("    GET  /health       — health check");
     eprintln!("    GET  /tools        — list capabilities");
 
+    let (sender, receiver) = std::sync::mpsc::sync_channel::<std::net::TcpStream>(32);
+    let receiver = std::sync::Arc::new(std::sync::Mutex::new(receiver));
+    for _ in 0..8 {
+        let receiver = receiver.clone();
+        std::thread::spawn(move || loop {
+            let stream = match receiver.lock() {
+                Ok(queue) => queue.recv(),
+                Err(_) => return,
+            };
+            let Ok(mut stream) = stream else {
+                return;
+            };
+            if let Err(error) = stream
+                .set_read_timeout(Some(super::http::CLIENT_TIMEOUT))
+                .and_then(|_| stream.set_write_timeout(Some(super::http::CLIENT_TIMEOUT)))
+            {
+                log::warn!("Could not set client timeout: {}", error);
+                continue;
+            }
+            if let Err(error) = handle_connection(&mut stream) {
+                log::warn!("Request handling error: {}", error);
+            }
+        });
+    }
     for stream in listener.incoming() {
         match stream {
-            Ok(mut stream) => {
-                if let Err(e) = handle_connection(&mut stream) {
-                    log::warn!("Request handling error: {}", e);
+            Ok(stream) => {
+                if let Err(error) = sender.try_send(stream) {
+                    log::warn!("Client queue unavailable: {}", error);
                 }
             }
-            Err(e) => {
-                log::warn!("Connection error: {}", e);
-            }
+            Err(error) => log::warn!("Connection error: {}", error),
         }
     }
 
@@ -59,9 +80,18 @@ pub fn start_api_server(host: &str, port: u16) -> anyhow::Result<()> {
 }
 
 fn handle_connection(stream: &mut std::net::TcpStream) -> anyhow::Result<()> {
-    let mut buf = vec![0u8; 65536];
-    let n = stream.read(&mut buf)?;
-    let request = String::from_utf8_lossy(&buf[..n]).to_string();
+    let request = match super::http::read_request(stream) {
+        Ok(request) => request,
+        Err((status, error)) => {
+            let body = serde_json::to_string(&ApiResponse {
+                success: false,
+                data: None,
+                error: Some(error),
+            })?;
+            super::http::write_response(stream, status, &body)?;
+            return Ok(());
+        }
+    };
 
     let (method, path, body) = parse_http_request(&request);
 
@@ -108,14 +138,7 @@ fn handle_connection(stream: &mut std::net::TcpStream) -> anyhow::Result<()> {
         }
     };
 
-    let http_response = format!(
-        "HTTP/1.1 {}\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\n\r\n{}",
-        status,
-        response_body.len(),
-        response_body
-    );
-    stream.write_all(http_response.as_bytes())?;
-    stream.flush()?;
+    super::http::write_response(stream, status, &response_body)?;
 
     Ok(())
 }
@@ -441,20 +464,15 @@ mod tests {
 
     #[test]
     fn test_handle_analyze_path_nonexistent() {
-        // The SDK gracefully handles nonexistent paths (returns empty result),
-        // so the API returns 200 OK with success:true and zero file_count.
-        let body = serde_json::json!({
-            "path": "/nonexistent/path/to/project"
-        })
-        .to_string();
+        let body = serde_json::json!({ "path": "/nonexistent/path/to/project" }).to_string();
         let (status, resp_body) = handle_analyze(&body).unwrap();
-        let v: serde_json::Value = serde_json::from_str(&resp_body).unwrap();
-        // Either success (SDK returns empty) or failure (SDK errors) — both valid
-        if status == "200 OK" {
-            assert_eq!(v["success"], true);
-        } else {
-            assert_eq!(v["success"], false);
-        }
+        let response: serde_json::Value = serde_json::from_str(&resp_body).unwrap();
+        assert_eq!(status, "500 Internal Server Error");
+        assert_eq!(response["success"], false);
+        assert!(response["error"]
+            .as_str()
+            .unwrap()
+            .contains("analysis root"));
     }
 
     // ── handle_score ──────────────────────────────────────────────────────────

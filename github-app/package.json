@@ -1,11 +1,12 @@
 {
   "name": "falcon-github-app",
   "version": "1.0.0",
-  "description": "Falcon GitHub App — auto-analyze Flutter PRs",
+  "description": "Falcon GitHub App \u2014 auto-analyze Flutter PRs",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "test": "node test/execution.test.js"
   },
   "dependencies": {
     "probot": "^13.0.0",

@@ -38,7 +38,8 @@ impl ProjectResolver {
 
         let dart_files: Vec<PathBuf> = WalkDir::new(root)
             .into_iter()
-            .filter_map(|e| e.ok())
+            .collect::<std::result::Result<Vec<_>, _>>()?
+            .into_iter()
             .filter(|e| e.file_type().is_file())
             .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
             .filter(|e| {
@@ -67,10 +68,7 @@ impl ProjectResolver {
         let mut classes = Vec::new();
 
         for file in &self.dart_files {
-            let source = match std::fs::read_to_string(file) {
-                Ok(s) => s,
-                Err(_) => continue,
-            };
+            let source = std::fs::read_to_string(file)?;
 
             let mut parser = DartParser::new()?;
             let tree = match parser.parse(&source) {
@@ -118,10 +116,7 @@ impl ProjectResolver {
         let mut all_references: HashMap<String, HashSet<PathBuf>> = HashMap::new();
 
         for file in &self.dart_files {
-            let source = match std::fs::read_to_string(file) {
-                Ok(s) => s,
-                Err(_) => continue,
-            };
+            let source = std::fs::read_to_string(file)?;
 
             let mut parser = DartParser::new()?;
             let tree = match parser.parse(&source) {
@@ -187,10 +182,7 @@ impl ProjectResolver {
 
         let mut used_packages: HashSet<String> = HashSet::new();
         for file in &self.dart_files {
-            let source = match std::fs::read_to_string(file) {
-                Ok(s) => s,
-                Err(_) => continue,
-            };
+            let source = std::fs::read_to_string(file)?;
 
             for line in source.lines() {
                 let trimmed = line.trim();
@@ -225,10 +217,7 @@ impl ProjectResolver {
         let mut imports = HashSet::new();
 
         for file in &self.dart_files {
-            let source = match std::fs::read_to_string(file) {
-                Ok(s) => s,
-                Err(_) => continue,
-            };
+            let source = std::fs::read_to_string(file)?;
 
             for line in source.lines() {
                 let trimmed = line.trim();

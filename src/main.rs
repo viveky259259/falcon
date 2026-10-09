@@ -609,8 +609,7 @@ fn handle_analyze(
     fail_on: FailLevel,
     preset: Option<String>,
 ) -> Result<()> {
-    let config_path = config.as_deref().unwrap_or(&path);
-    let mut falcon_config = FalconConfig::load(config_path)?;
+    let mut falcon_config = load_command_config(&path, config.as_deref())?;
 
     if let Some(ref preset_name) = preset {
         match falcon::plugins::presets::get_preset(preset_name) {
@@ -654,6 +653,21 @@ fn handle_analyze(
         }
     }
 
+    let (preflight_issues, preflight_exit) =
+        run_analyze_preflight_rollup(&path, &falcon_config, &format)?;
+    issues.extend(preflight_issues.into_iter().map(|issue| {
+        falcon::reporters::Issue {
+            rule: issue.rule_id,
+            message: format!("{}: {}", issue.title, issue.message),
+            severity: issue.severity,
+            file: issue
+                .file
+                .map(|file| path.join(file))
+                .unwrap_or_else(|| path.clone()),
+            line: issue.line.unwrap_or(1),
+            column: 1,
+        }
+    }));
     let unfiltered_issues = issues.clone();
 
     if let Some(ref baseline_path) = baseline {
@@ -673,7 +687,7 @@ fn handle_analyze(
         project_path: report.project_path,
     };
 
-    get_reporter(&format, &output).report_analysis(&final_report);
+    get_reporter(&format, &output).try_report_analysis(&final_report)?;
 
     // Auto-save snapshot for history tracking
     let snap_root = if path.is_dir() {
@@ -692,7 +706,6 @@ fn handle_analyze(
     } else {
         0
     };
-    let preflight_exit = run_analyze_preflight_rollup(&path, &falcon_config)?;
     exit_code = exit_code.max(preflight_exit);
 
     if exit_code != 0 {
@@ -701,51 +714,46 @@ fn handle_analyze(
     Ok(())
 }
 
-fn run_analyze_preflight_rollup(path: &Path, config: &FalconConfig) -> Result<i32> {
+fn run_analyze_preflight_rollup(
+    path: &Path,
+    config: &FalconConfig,
+    format: &OutputFormat,
+) -> Result<(Vec<falcon::preflight::PreflightIssue>, i32)> {
     if !config.analyze.preflight.enabled {
-        return Ok(0);
+        return Ok((Vec::new(), 0));
     }
-
-    let skip = &config.analyze.preflight.skip;
-    let mut exit_code = 0;
-
-    if !skip.iter().any(|s| s == "check-assets") {
-        println!("\n── pre-flight: check-assets ──");
-        exit_code = exit_code.max(falcon::check_assets::run(
-            path,
-            falcon::preflight::OutputFormat::Text,
-            config,
-        )?);
+    let mut issues = Vec::new();
+    for check in [
+        "check-assets",
+        "check-a11y",
+        "check-pods",
+        "check-platform-deps",
+    ] {
+        if config
+            .analyze
+            .preflight
+            .skip
+            .iter()
+            .any(|skip| skip == check)
+        {
+            continue;
+        }
+        if matches!(format, OutputFormat::Console) {
+            println!("\n── pre-flight: {} ──", check);
+        }
+        let findings = match check {
+            "check-assets" => falcon::check_assets::inspect(path, config)?,
+            "check-a11y" => falcon::check_a11y::inspect(path, config)?,
+            "check-pods" => falcon::check_pods::inspect(path, config, false)?,
+            "check-platform-deps" => {
+                falcon::check_platform_deps::inspect(path, config, false, None)?
+            }
+            _ => unreachable!(),
+        };
+        issues.extend(findings);
     }
-    if !skip.iter().any(|s| s == "check-a11y") {
-        println!("\n── pre-flight: check-a11y ──");
-        exit_code = exit_code.max(falcon::check_a11y::run(
-            path,
-            falcon::preflight::OutputFormat::Text,
-            config,
-        )?);
-    }
-    if !skip.iter().any(|s| s == "check-pods") {
-        println!("\n── pre-flight: check-pods ──");
-        exit_code = exit_code.max(falcon::check_pods::run(
-            path,
-            falcon::preflight::OutputFormat::Text,
-            config,
-            false,
-        )?);
-    }
-    if !skip.iter().any(|s| s == "check-platform-deps") {
-        println!("\n── pre-flight: check-platform-deps ──");
-        exit_code = exit_code.max(falcon::check_platform_deps::run(
-            path,
-            falcon::preflight::OutputFormat::Text,
-            config,
-            false,
-            None,
-        )?);
-    }
-
-    Ok(exit_code)
+    let exit = falcon::preflight::exit_code_for_issues(&issues);
+    Ok((issues, exit))
 }
 
 fn handle_smells(
@@ -755,8 +763,7 @@ fn handle_smells(
     config: Option<PathBuf>,
     limit: usize,
 ) -> Result<()> {
-    let config_path = config.as_deref().unwrap_or(&path);
-    let falcon_config = FalconConfig::load(config_path)?;
+    let falcon_config = load_command_config(&path, config.as_deref())?;
     let falcon = Falcon::new(falcon_config.clone())?;
 
     // 1. Full analysis (rules + metrics)
@@ -799,12 +806,11 @@ fn handle_metrics(
     output: PathBuf,
     config: Option<PathBuf>,
 ) -> Result<()> {
-    let config_path = config.as_deref().unwrap_or(&path);
-    let falcon_config = FalconConfig::load(config_path)?;
+    let falcon_config = load_command_config(&path, config.as_deref())?;
     let falcon = Falcon::new(falcon_config)?;
     let metrics = falcon.calculate_metrics(&path)?;
 
-    get_reporter(&format, &output).report_metrics(&metrics);
+    get_reporter(&format, &output).try_report_metrics(&metrics)?;
     Ok(())
 }
 
@@ -813,7 +819,7 @@ fn handle_check_unused_code(path: PathBuf, format: OutputFormat, output: PathBuf
     let falcon = Falcon::new(config)?;
     let issues = falcon.check_unused_code(&path)?;
 
-    get_reporter(&format, &output).report_issues(&issues);
+    get_reporter(&format, &output).try_report_issues(&issues)?;
 
     if !issues.is_empty() {
         process::exit(1);
@@ -826,7 +832,7 @@ fn handle_check_unused_files(path: PathBuf, format: OutputFormat, output: PathBu
     let falcon = Falcon::new(config)?;
     let issues = falcon.check_unused_files(&path)?;
 
-    get_reporter(&format, &output).report_issues(&issues);
+    get_reporter(&format, &output).try_report_issues(&issues)?;
 
     if !issues.is_empty() {
         process::exit(1);
@@ -839,7 +845,7 @@ fn handle_check_dependencies(path: PathBuf, format: OutputFormat, output: PathBu
     let falcon = Falcon::new(config)?;
     let issues = falcon.check_dependencies(&path)?;
 
-    get_reporter(&format, &output).report_issues(&issues);
+    get_reporter(&format, &output).try_report_issues(&issues)?;
 
     if !issues.is_empty() {
         process::exit(1);
@@ -902,8 +908,7 @@ fn handle_init(path: PathBuf) -> Result<()> {
 }
 
 fn handle_watch(path: PathBuf, config: Option<PathBuf>) -> Result<()> {
-    let config_path = config.as_deref().unwrap_or(&path);
-    let falcon_config = FalconConfig::load(config_path)?;
+    let falcon_config = load_command_config(&path, config.as_deref())?;
     falcon::incremental::watcher::watch(&path, falcon_config)?;
     Ok(())
 }
@@ -1341,7 +1346,7 @@ fn handle_check_unused_params(path: PathBuf, format: OutputFormat, output: PathB
         .collect();
 
     let issues = falcon::resolver::unused_params::detect_unused_params(&path, &exclude);
-    get_reporter(&format, &output).report_issues(&issues);
+    get_reporter(&format, &output).try_report_issues(&issues)?;
 
     if !issues.is_empty() {
         process::exit(1);
@@ -1358,7 +1363,7 @@ fn handle_check_dead_code(path: PathBuf, format: OutputFormat, output: PathBuf) 
         .collect();
 
     let issues = falcon::resolver::dead_code::detect_dead_code(&path, &exclude);
-    get_reporter(&format, &output).report_issues(&issues);
+    get_reporter(&format, &output).try_report_issues(&issues)?;
 
     if !issues.is_empty() {
         process::exit(1);
@@ -1375,7 +1380,7 @@ fn handle_check_unused_l10n(path: PathBuf, format: OutputFormat, output: PathBuf
         .collect();
 
     let issues = falcon::resolver::unused_l10n::detect_unused_l10n(&path, &exclude);
-    get_reporter(&format, &output).report_issues(&issues);
+    get_reporter(&format, &output).try_report_issues(&issues)?;
 
     if !issues.is_empty() {
         process::exit(1);
@@ -1385,7 +1390,7 @@ fn handle_check_unused_l10n(path: PathBuf, format: OutputFormat, output: PathBuf
 
 fn handle_check_promoted_deps(path: PathBuf, format: OutputFormat, output: PathBuf) -> Result<()> {
     let issues = falcon::resolver::cyclic::detect_promoted_deps(&path);
-    get_reporter(&format, &output).report_issues(&issues);
+    get_reporter(&format, &output).try_report_issues(&issues)?;
 
     if !issues.is_empty() {
         process::exit(1);
@@ -1410,8 +1415,7 @@ fn handle_explain(rule: String) -> Result<()> {
 }
 
 fn handle_fix(path: PathBuf, preview: bool, config: Option<PathBuf>) -> Result<()> {
-    let config_path = config.as_deref().unwrap_or(&path);
-    let falcon_config = FalconConfig::load(config_path)?;
+    let falcon_config = load_command_config(&path, config.as_deref())?;
     let falcon = Falcon::new(falcon_config)?;
     let report = falcon.analyze(&path)?;
 
@@ -1432,8 +1436,7 @@ fn handle_check_unused_confidence(
     min_confidence: u8,
     config: Option<PathBuf>,
 ) -> Result<()> {
-    let config_path = config.as_deref().unwrap_or(&path);
-    let falcon_config = FalconConfig::load(config_path)?;
+    let falcon_config = load_command_config(&path, config.as_deref())?;
     let falcon = Falcon::new(falcon_config)?;
     let report = falcon.analyze(&path)?;
 
@@ -1473,7 +1476,7 @@ fn handle_check_layers(path: PathBuf) -> Result<()> {
 
             let issues =
                 falcon::analysis::layer_enforcement::enforce_layers(&path, &layers, &exclude);
-            get_reporter(&OutputFormat::Console, &PathBuf::from("")).report_issues(&issues);
+            get_reporter(&OutputFormat::Console, &PathBuf::from("")).try_report_issues(&issues)?;
 
             if !issues.is_empty() {
                 process::exit(1);
@@ -1498,7 +1501,7 @@ fn handle_check_imports(path: PathBuf) -> Result<()> {
         .collect();
 
     let boundary_issues = falcon::analysis::import_rules::check_package_boundaries(&path, &exclude);
-    get_reporter(&OutputFormat::Console, &PathBuf::from("")).report_issues(&boundary_issues);
+    get_reporter(&OutputFormat::Console, &PathBuf::from("")).try_report_issues(&boundary_issues)?;
 
     if !boundary_issues.is_empty() {
         process::exit(1);
@@ -1615,7 +1618,7 @@ fn handle_check_widgets(path: PathBuf) -> Result<()> {
         all_issues.extend(issues);
     }
 
-    get_reporter(&OutputFormat::Console, &PathBuf::from("")).report_issues(&all_issues);
+    get_reporter(&OutputFormat::Console, &PathBuf::from("")).try_report_issues(&all_issues)?;
     if !all_issues.is_empty() {
         process::exit(1);
     }
@@ -1661,7 +1664,7 @@ fn handle_check_async(path: PathBuf) -> Result<()> {
         all_issues.extend(issues);
     }
 
-    get_reporter(&OutputFormat::Console, &PathBuf::from("")).report_issues(&all_issues);
+    get_reporter(&OutputFormat::Console, &PathBuf::from("")).try_report_issues(&all_issues)?;
     if !all_issues.is_empty() {
         process::exit(1);
     }
@@ -1952,8 +1955,7 @@ fn handle_compare_branches(
     output: Option<PathBuf>,
     config: Option<PathBuf>,
 ) -> Result<()> {
-    let config_path = config.as_deref().unwrap_or(&path);
-    let falcon_config = FalconConfig::load(config_path)?;
+    let falcon_config = load_command_config(&path, config.as_deref())?;
 
     let html_out = output.unwrap_or_else(|| path.join("falcon-branch-comparison.html"));
 
@@ -2105,8 +2107,7 @@ fn handle_pr_comment(
     dry_run: bool,
     config: Option<PathBuf>,
 ) -> Result<()> {
-    let config_path = config.as_deref().unwrap_or(&path);
-    let falcon_config = FalconConfig::load(config_path)?;
+    let falcon_config = load_command_config(&path, config.as_deref())?;
     let falcon = Falcon::new(falcon_config)?;
     let report = falcon.analyze(&path)?;
 
@@ -2371,7 +2372,7 @@ fn handle_check_platform(path: PathBuf) -> Result<()> {
     let issues = falcon::analysis::platform_channels::analyze_platform_channels(&path);
     falcon::analysis::platform_channels::print_platform_summary(&issues);
     if !issues.is_empty() {
-        get_reporter(&OutputFormat::Console, &PathBuf::from("")).report_issues(&issues);
+        get_reporter(&OutputFormat::Console, &PathBuf::from("")).try_report_issues(&issues)?;
     }
     Ok(())
 }
@@ -2563,8 +2564,7 @@ fn handle_agents(action: AgentsAction) -> Result<()> {
 fn handle_baseline(action: BaselineAction) -> Result<()> {
     match action {
         BaselineAction::Create { path, config } => {
-            let config_path = config.as_deref().unwrap_or(&path);
-            let falcon_config = FalconConfig::load(config_path)?;
+            let falcon_config = load_command_config(&path, config.as_deref())?;
             let falcon = Falcon::new(falcon_config)?;
             let report = falcon.analyze(&path)?;
 
@@ -3132,7 +3132,7 @@ fn run_incremental(
         .lines()
         .filter(|line| line.ends_with(".dart"))
         .map(|line| path.join(line))
-        .filter(|p| p.exists())
+        .filter_map(|p| p.canonicalize().ok())
         .collect();
 
     if changed_files.is_empty() {
@@ -3331,6 +3331,17 @@ fn get_reporter(format: &OutputFormat, output: &Path) -> Box<dyn Reporter> {
         }),
         OutputFormat::Sonar => Box::new(SonarReporter {
             output_path: Some(output.to_path_buf()),
+        }),
+    }
+}
+
+fn load_command_config(project: &Path, explicit: Option<&Path>) -> Result<FalconConfig> {
+    match explicit {
+        Some(path) => FalconConfig::load_explicit(path),
+        None => FalconConfig::load(if project.is_file() {
+            project.parent().unwrap_or(project)
+        } else {
+            project
         }),
     }
 }

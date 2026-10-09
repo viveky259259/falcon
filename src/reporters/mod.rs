@@ -56,7 +56,35 @@ impl AnalysisReport {
 }
 
 pub trait Reporter {
+    /// Fallible output for automation; existing display methods remain available.
+    fn try_report_analysis(&self, report: &AnalysisReport) -> anyhow::Result<()> {
+        self.report_analysis(report);
+        Ok(())
+    }
+    fn try_report_metrics(&self, metrics: &[(PathBuf, MetricsResults)]) -> anyhow::Result<()> {
+        self.report_metrics(metrics);
+        Ok(())
+    }
+    fn try_report_issues(&self, issues: &[Issue]) -> anyhow::Result<()> {
+        self.report_issues(issues);
+        Ok(())
+    }
+
     fn report_analysis(&self, report: &AnalysisReport);
     fn report_metrics(&self, metrics: &[(PathBuf, MetricsResults)]);
     fn report_issues(&self, issues: &[Issue]);
+}
+
+pub(super) fn write_report(content: &str, path: Option<&std::path::Path>) -> anyhow::Result<()> {
+    use anyhow::Context;
+    use std::io::Write;
+    if let Some(path) = path {
+        std::fs::write(path, content)
+            .with_context(|| format!("Writing report {}", path.display()))?;
+    } else {
+        let mut stdout = std::io::stdout().lock();
+        writeln!(stdout, "{}", content)?;
+        stdout.flush()?;
+    }
+    Ok(())
 }

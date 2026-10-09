@@ -24,9 +24,9 @@ inputs:
     required: false
     default: ''
   baseline:
-    description: 'Use baseline to only report new violations'
+    description: 'Path to baseline JSON file; only report new violations'
     required: false
-    default: 'false'
+    default: ''
   config:
     description: 'Path to falcon.yaml config file'
     required: false
@@ -65,24 +65,14 @@ runs:
 
     - name: Run Falcon Analysis
       shell: bash
-      run: |
-        ARGS="analyze ${{ inputs.path }}"
-        ARGS="$ARGS --format ${{ inputs.format }}"
-        ARGS="$ARGS --fail-on ${{ inputs.fail-on }}"
-
-        if [ -n "${{ inputs.since }}" ]; then
-          ARGS="$ARGS --since ${{ inputs.since }}"
-        fi
-
-        if [ "${{ inputs.baseline }}" = "true" ]; then
-          ARGS="$ARGS --baseline"
-        fi
-
-        if [ -n "${{ inputs.config }}" ]; then
-          ARGS="$ARGS --config ${{ inputs.config }}"
-        fi
-
-        falcon $ARGS
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_SINCE: ${{ inputs.since }}
+        INPUT_BASELINE: ${{ inputs.baseline }}
+        INPUT_CONFIG: ${{ inputs.config }}
+      run: bash "${GITHUB_ACTION_PATH}/run.sh"
 
     - name: Generate SARIF (if requested)
       if: inputs.sarif-upload == 'true'

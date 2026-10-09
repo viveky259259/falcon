@@ -34,9 +34,8 @@ fn test_analyze_files_nonexistent_files() {
         std::path::PathBuf::from("/nonexistent/path/to/file.dart"),
         std::path::PathBuf::from("/another/fake/file.dart"),
     ];
-    let report = falcon_inst.analyze_files(&fake_files).unwrap();
-    assert_eq!(report.file_count, 2);
-    assert!(report.issues.is_empty());
+    let error = falcon_inst.analyze_files(&fake_files).unwrap_err();
+    assert!(error.to_string().contains("Reading"));
 }
 
 // ─── lib.rs: Falcon::analyze ────────────────────────────────────────────────

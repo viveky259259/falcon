@@ -72,3 +72,40 @@ fn severity_to_lsp(severity: &Severity) -> DiagnosticSeverity {
         Severity::Info => DiagnosticSeverity::INFORMATION,
     }
 }
+
+/// Convert parser byte columns using the actual document's UTF-16 text.
+pub fn issues_to_diagnostics_with_source(issues: &[Issue], source: &str) -> Vec<Diagnostic> {
+    let mut diagnostics = issues_to_diagnostics(issues);
+    for (issue, diagnostic) in issues.iter().zip(&mut diagnostics) {
+        let line = issue.line.saturating_sub(1);
+        let content = source.lines().nth(line).unwrap_or("");
+        let requested = issue.column.saturating_sub(1).min(content.len());
+        let byte = if content.is_char_boundary(requested) {
+            requested
+        } else {
+            content
+                .char_indices()
+                .map(|(offset, _)| offset)
+                .take_while(|offset| *offset <= requested)
+                .last()
+                .unwrap_or(0)
+        };
+        let character = content[..byte].encode_utf16().count() as u32;
+        let width = content[byte..]
+            .chars()
+            .next()
+            .map_or(0, |character| character.len_utf16() as u32);
+        diagnostic.range = Range::new(
+            Position::new(line as u32, character),
+            Position::new(line as u32, character + width),
+        );
+    }
+    diagnostics
+}
+
+pub fn position_at_byte(source: &str, offset: usize) -> Position {
+    let prefix = &source[..offset];
+    let line = prefix.bytes().filter(|byte| *byte == b'\n').count() as u32;
+    let last = prefix.rsplit('\n').next().unwrap_or("");
+    Position::new(line, last.encode_utf16().count() as u32)
+}

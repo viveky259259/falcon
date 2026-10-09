@@ -33,61 +33,13 @@ fn create_fix_for_rule(
     diag: &Diagnostic,
     source: &str,
 ) -> Option<CodeAction> {
-    let line = diag.range.start.line as usize;
-    let lines: Vec<&str> = source.lines().collect();
-    let line_content = lines.get(line)?;
-
-    let (title, replacement) = match rule {
-        "prefer-trailing-comma" => {
-            let mut fixed = line_content.trim_end().to_string();
-            if fixed.ends_with(')') || fixed.ends_with(']') || fixed.ends_with('}') {
-                let last = fixed.pop()?;
-                fixed.push(',');
-                fixed.push(last);
-            }
-            ("Add trailing comma".to_string(), fixed)
-        }
-        "avoid-double-negation" => {
-            let fixed = line_content.replace("!!", "");
-            ("Remove double negation".to_string(), fixed)
-        }
-        "avoid-expanded-as-spacer" => {
-            let fixed = line_content
-                .replace("Expanded(child: SizedBox())", "const Spacer()")
-                .replace("Expanded(child: SizedBox.shrink())", "const Spacer()")
-                .replace("Expanded(child: Container())", "const Spacer()");
-            ("Replace with Spacer()".to_string(), fixed)
-        }
-        "prefer-first-last" => {
-            let fixed = line_content
-                .replace(".elementAt(0)", ".first")
-                .replace("[0]", ".first");
-            if fixed == *line_content {
-                return None;
-            }
-            ("Use .first instead of index access".to_string(), fixed)
-        }
-        "double-literal-format" => {
-            let fixed = line_content.replace(".0)", "0.0)").replace(".0;", "0.0;");
-            if fixed == *line_content {
-                return None;
-            }
-            ("Fix double literal format".to_string(), fixed)
-        }
-        _ => return None,
-    };
-
-    let line_end = line_content.len() as u32;
-    let edit = TextEdit {
-        range: Range {
-            start: Position::new(diag.range.start.line, 0),
-            end: Position::new(diag.range.start.line, line_end),
-        },
-        new_text: replacement,
-    };
-
+    let edits = syntax_edits_for_diagnostic(source, rule, diag);
+    if edits.is_empty() {
+        return None;
+    }
+    let title = format!("Fix {}", rule);
     let mut changes = std::collections::HashMap::new();
-    changes.insert(uri.clone(), vec![edit]);
+    changes.insert(uri.clone(), edits);
 
     Some(CodeAction {
         title,
@@ -167,4 +119,63 @@ fn create_suppress_file_action(uri: &Url, diag: &Diagnostic) -> CodeAction {
         is_preferred: Some(false),
         ..Default::default()
     }
+}
+
+fn syntax_edits_for_diagnostic(source: &str, rule: &str, diagnostic: &Diagnostic) -> Vec<TextEdit> {
+    use crate::ai::syntax_fixes::fixes_for_issue;
+    let line = diagnostic.range.start.line as usize + 1;
+    let column = diagnostic
+        .data
+        .as_ref()
+        .and_then(|data| data.get("column"))
+        .and_then(|value| value.as_u64())
+        .unwrap_or(1) as usize;
+    fixes_for_issue(source, rule, line, column)
+        .into_iter()
+        .map(|fix| TextEdit {
+            range: Range::new(
+                crate::lsp::diagnostics::position_at_byte(source, fix.range.start),
+                crate::lsp::diagnostics::position_at_byte(source, fix.range.end),
+            ),
+            new_text: fix.replacement,
+        })
+        .collect()
+}
+
+/// Combine only non-overlapping syntax edits; suppression actions are excluded.
+pub fn fix_all_edits(source: &str, diagnostics: &[Diagnostic]) -> Vec<TextEdit> {
+    use crate::ai::syntax_fixes::{fixes_for_issue, non_overlapping};
+    let edits = diagnostics
+        .iter()
+        .flat_map(|diagnostic| {
+            let rule = diagnostic
+                .data
+                .as_ref()
+                .and_then(|data| data.get("rule"))
+                .and_then(|rule| rule.as_str())
+                .unwrap_or("");
+            let column = diagnostic
+                .data
+                .as_ref()
+                .and_then(|data| data.get("column"))
+                .and_then(|value| value.as_u64())
+                .unwrap_or(1) as usize;
+            fixes_for_issue(
+                source,
+                rule,
+                diagnostic.range.start.line as usize + 1,
+                column,
+            )
+        })
+        .collect();
+    non_overlapping(edits)
+        .into_iter()
+        .map(|fix| TextEdit {
+            range: Range::new(
+                crate::lsp::diagnostics::position_at_byte(source, fix.range.start),
+                crate::lsp::diagnostics::position_at_byte(source, fix.range.end),
+            ),
+            new_text: fix.replacement,
+        })
+        .collect()
 }

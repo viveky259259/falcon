@@ -47,8 +47,24 @@ impl Default for FalconConfig {
 }
 
 impl FalconConfig {
+    /// Load an explicitly requested configuration, rejecting missing paths.
+    pub fn load_explicit(path: &Path) -> Result<Self> {
+        let file = if path.is_dir() {
+            path.join("falcon.yaml")
+        } else {
+            path.to_path_buf()
+        };
+        let contents = std::fs::read_to_string(&file)
+            .map_err(|e| anyhow::anyhow!("Cannot read config {}: {}", file.display(), e))?;
+        Ok(serde_yaml::from_str(&contents)?)
+    }
+
     pub fn load(path: &Path) -> Result<Self> {
-        let config_path = path.join("falcon.yaml");
+        let config_path = if path.is_file() {
+            path.to_path_buf()
+        } else {
+            path.join("falcon.yaml")
+        };
         if config_path.exists() {
             let contents = std::fs::read_to_string(&config_path)?;
             let config: FalconConfig = serde_yaml::from_str(&contents)?;

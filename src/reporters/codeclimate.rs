@@ -10,6 +10,27 @@ pub struct CodeClimateReporter {
 }
 
 impl Reporter for CodeClimateReporter {
+    fn try_report_analysis(&self, report: &AnalysisReport) -> anyhow::Result<()> {
+        super::write_report(
+            &(serde_json::to_string_pretty(&build_cc(&report.issues))?),
+            self.output_path.as_deref(),
+        )
+    }
+
+    fn try_report_metrics(&self, _metrics: &[(PathBuf, MetricsResults)]) -> anyhow::Result<()> {
+        super::write_report(
+            &(serde_json::to_string_pretty(&build_cc(&[]))?),
+            self.output_path.as_deref(),
+        )
+    }
+
+    fn try_report_issues(&self, issues: &[Issue]) -> anyhow::Result<()> {
+        super::write_report(
+            &(serde_json::to_string_pretty(&build_cc(issues))?),
+            self.output_path.as_deref(),
+        )
+    }
+
     fn report_analysis(&self, report: &AnalysisReport) {
         output_cc(&build_cc(&report.issues), &self.output_path);
     }

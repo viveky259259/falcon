@@ -16,12 +16,13 @@ const RULE_ID_PLATFORM_NOT_SET: &str = "pods/platform-not-set";
 const DEFAULT_IOS_PODFILE_TARGET: &str = "9.0"; // CocoaPods default when no `platform :ios` is set.
 const DEFAULT_IOS_PODSPEC_TARGET: &str = "9.0";
 
-pub fn run(
-    root: &Path,
-    format: OutputFormat,
-    config: &FalconConfig,
-    _refresh: bool,
-) -> Result<i32> {
+pub fn run(root: &Path, format: OutputFormat, config: &FalconConfig, refresh: bool) -> Result<i32> {
+    let issues = inspect(root, config, refresh)?;
+    print!("{}", reporter::render(&issues, format));
+    Ok(exit_code_for_issues(&issues))
+}
+
+pub fn inspect(root: &Path, config: &FalconConfig, _refresh: bool) -> Result<Vec<PreflightIssue>> {
     let mut issues: Vec<PreflightIssue> = Vec::new();
 
     let podfile_path = root.join("ios").join("Podfile");
@@ -37,9 +38,7 @@ pub fn run(
             suggestion: None,
         });
         issues.retain(|issue| !is_suppressed(issue, config));
-        let exit = exit_code_for_issues(&issues);
-        print!("{}", reporter::render(&issues, format));
-        return Ok(exit);
+        return Ok(issues);
     };
 
     let podfile_platform = podfile::parse_ios_platform(&podfile_text);
@@ -127,9 +126,7 @@ CocoaPods will default to {DEFAULT_IOS_PODFILE_TARGET}, which may be lower than 
     }
 
     issues.retain(|issue| !is_suppressed(issue, config));
-    let exit = exit_code_for_issues(&issues);
-    print!("{}", reporter::render(&issues, format));
-    Ok(exit)
+    Ok(issues)
 }
 
 fn is_suppressed(issue: &PreflightIssue, config: &FalconConfig) -> bool {

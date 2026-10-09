@@ -14,132 +14,64 @@ pub struct FixSuggestion {
     pub auto_fixable: bool,
 }
 
-pub fn generate_fixes(issues: &[Issue], project_root: &Path) -> Vec<FixSuggestion> {
-    let mut fixes = Vec::new();
-
+pub fn generate_fixes(issues: &[Issue], _project_root: &Path) -> Vec<FixSuggestion> {
+    use super::syntax_fixes::{fixes_for_issue, non_overlapping};
+    let mut by_file: HashMap<&PathBuf, Vec<&Issue>> = HashMap::new();
     for issue in issues {
-        if let Some(fix) = suggest_fix(issue, project_root) {
-            fixes.push(fix);
-        }
+        by_file.entry(&issue.file).or_default().push(issue);
     }
-
-    fixes
-}
-
-fn suggest_fix(issue: &Issue, _project_root: &Path) -> Option<FixSuggestion> {
-    let source = std::fs::read_to_string(&issue.file).ok()?;
-    let lines: Vec<&str> = source.lines().collect();
-    let line_idx = issue.line.checked_sub(1)?;
-    let line_content = lines.get(line_idx)?;
-
-    match issue.rule.as_str() {
-        "prefer-trailing-comma" => {
-            let mut fixed = line_content.trim_end().to_string();
-            if !fixed.ends_with(',')
-                && (fixed.ends_with(')') || fixed.ends_with(']') || fixed.ends_with('}'))
-            {
-                let last = fixed.pop()?;
-                fixed.push(',');
-                fixed.push(last);
+    let mut suggestions = Vec::new();
+    for (file, issues) in by_file {
+        let Ok(source) = std::fs::read_to_string(file) else {
+            continue;
+        };
+        let edits = non_overlapping(
+            issues
+                .iter()
+                .flat_map(|issue| fixes_for_issue(&source, &issue.rule, issue.line, issue.column))
+                .collect(),
+        );
+        // Group edits that touch the same source lines so every edit survives.
+        let mut groups: Vec<(usize, usize, Vec<super::syntax_fixes::SyntaxFix>)> = Vec::new();
+        for edit in edits {
+            let start = source[..edit.range.start]
+                .rfind('\n')
+                .map_or(0, |offset| offset + 1);
+            let end = source[edit.range.end..]
+                .find('\n')
+                .map_or(source.len(), |offset| edit.range.end + offset);
+            if let Some(group) = groups.last_mut().filter(|group| group.1 >= start) {
+                group.1 = group.1.max(end);
+                group.2.push(edit);
+            } else {
+                groups.push((start, end, vec![edit]));
             }
-            Some(FixSuggestion {
-                rule: issue.rule.clone(),
-                file: issue.file.clone(),
-                line: issue.line,
-                original: line_content.to_string(),
-                replacement: fixed,
-                description: "Add trailing comma.".to_string(),
+        }
+        for (start, end, edits) in groups {
+            let original = source[start..end].to_string();
+            let mut replacement = original.clone();
+            for edit in edits.iter().rev() {
+                replacement.replace_range(
+                    edit.range.start - start..edit.range.end - start,
+                    &edit.replacement,
+                );
+            }
+            suggestions.push(FixSuggestion {
+                rule: edits[0].rule.clone(),
+                file: file.clone(),
+                line: source[..start]
+                    .bytes()
+                    .filter(|byte| *byte == b'\n')
+                    .count()
+                    + 1,
+                original,
+                replacement,
+                description: "Apply syntax-bounded fixes.".into(),
                 auto_fixable: true,
-            })
+            });
         }
-        "double-literal-format" => {
-            let text = line_content.to_string();
-            let fixed = fix_double_literal(&text);
-            if fixed != text {
-                Some(FixSuggestion {
-                    rule: issue.rule.clone(),
-                    file: issue.file.clone(),
-                    line: issue.line,
-                    original: text,
-                    replacement: fixed,
-                    description: "Fix double literal format.".to_string(),
-                    auto_fixable: true,
-                })
-            } else {
-                None
-            }
-        }
-        "avoid-double-negation" => {
-            let text = line_content.to_string();
-            let fixed = text.replace("!!", "");
-            if fixed != text {
-                Some(FixSuggestion {
-                    rule: issue.rule.clone(),
-                    file: issue.file.clone(),
-                    line: issue.line,
-                    original: text,
-                    replacement: fixed,
-                    description: "Remove double negation.".to_string(),
-                    auto_fixable: true,
-                })
-            } else {
-                None
-            }
-        }
-        "avoid-expanded-as-spacer" => Some(FixSuggestion {
-            rule: issue.rule.clone(),
-            file: issue.file.clone(),
-            line: issue.line,
-            original: line_content.to_string(),
-            replacement: line_content
-                .replace("Expanded(child: SizedBox())", "const Spacer()")
-                .replace("Expanded(child: SizedBox.shrink())", "const Spacer()")
-                .replace("Expanded(child: Container())", "const Spacer()"),
-            description: "Replace Expanded(child: SizedBox()) with Spacer().".to_string(),
-            auto_fixable: true,
-        }),
-        "prefer-first-last" => {
-            let text = line_content.to_string();
-            let fixed = text
-                .replace(".elementAt(0)", ".first")
-                .replace("[0]", ".first");
-            if fixed != text {
-                Some(FixSuggestion {
-                    rule: issue.rule.clone(),
-                    file: issue.file.clone(),
-                    line: issue.line,
-                    original: text,
-                    replacement: fixed,
-                    description: "Use .first/.last instead of index access.".to_string(),
-                    auto_fixable: true,
-                })
-            } else {
-                None
-            }
-        }
-        "newline-before-return" => Some(FixSuggestion {
-            rule: issue.rule.clone(),
-            file: issue.file.clone(),
-            line: issue.line,
-            original: line_content.to_string(),
-            replacement: format!("\n{}", line_content),
-            description: "Add blank line before return statement.".to_string(),
-            auto_fixable: true,
-        }),
-        _ => None,
     }
-}
-
-/// Fix double literal format issues (e.g. `0.0` → `.0`, remove trailing zeros).
-fn fix_double_literal(text: &str) -> String {
-    let mut result = text.to_string();
-    result = result.replace(" 0.", " .");
-    result = result.replace("(0.", "(.");
-    result = result.replace("=0.", "=.");
-    if result.contains('.') && result.ends_with('0') && !result.ends_with(".0") {
-        result = result.trim_end_matches('0').to_string();
-    }
-    result
+    suggestions
 }
 
 pub fn preview_fixes(fixes: &[FixSuggestion]) {
@@ -192,35 +124,43 @@ pub fn preview_fixes(fixes: &[FixSuggestion]) {
 }
 
 pub fn apply_fixes(fixes: &[FixSuggestion]) -> usize {
-    let fixable: Vec<_> = fixes.iter().filter(|f| f.auto_fixable).collect();
-    let mut applied = 0;
-
-    let mut by_file: HashMap<&PathBuf, Vec<&&FixSuggestion>> = HashMap::new();
-    for fix in &fixable {
+    let mut by_file: HashMap<&PathBuf, Vec<&FixSuggestion>> = HashMap::new();
+    for fix in fixes.iter().filter(|fix| fix.auto_fixable) {
         by_file.entry(&fix.file).or_default().push(fix);
     }
-
-    for (file, mut file_fixes) in by_file {
-        file_fixes.sort_by_key(|e| std::cmp::Reverse(e.line));
-
-        let source = match std::fs::read_to_string(file) {
-            Ok(s) => s,
-            Err(_) => continue,
+    let mut applied = 0;
+    for (file, mut fixes) in by_file {
+        fixes.sort_by_key(|fix| std::cmp::Reverse(fix.line));
+        let Ok(mut source) = std::fs::read_to_string(file) else {
+            continue;
         };
-
-        let mut lines: Vec<String> = source.lines().map(|l| l.to_string()).collect();
-
-        for fix in &file_fixes {
-            let idx = fix.line.saturating_sub(1);
-            if idx < lines.len() && lines[idx] == fix.original {
-                lines[idx] = fix.replacement.clone();
-                applied += 1;
+        let mut changed = 0;
+        for fix in fixes {
+            let offset = if fix.line == 1 {
+                Some(0)
+            } else {
+                source
+                    .match_indices('\n')
+                    .nth(fix.line.saturating_sub(2))
+                    .map(|(offset, _)| offset + 1)
+            };
+            let Some(offset) = offset else {
+                continue;
+            };
+            if !source[offset..].starts_with(&fix.original) {
+                continue;
             }
+            source.replace_range(offset..offset + fix.original.len(), &fix.replacement);
+            changed += 1;
         }
-
-        let _ = std::fs::write(file, lines.join("\n") + "\n");
+        if changed == 0 {
+            continue;
+        }
+        match std::fs::write(file, source) {
+            Ok(()) => applied += changed,
+            Err(error) => log::error!("Could not apply fixes to {}: {}", file.display(), error),
+        }
     }
-
     applied
 }
 
@@ -249,27 +189,40 @@ mod tests {
         path
     }
 
+    // Exercise the shared syntax implementation rather than the removed text rewriter.
+    fn fix_double_literal(source: &str) -> String {
+        let mut result = source.to_string();
+        let fixes = crate::ai::syntax_fixes::fixes_for_issue(source, "double-literal-format", 1, 1);
+        for fix in fixes.iter().rev() {
+            result.replace_range(fix.range.clone(), &fix.replacement);
+        }
+        result
+    }
+
     // ── fix_double_literal (pure) ──────────────────────────────────────────
 
     #[test]
     fn fix_double_literal_space_zero_dot() {
-        assert_eq!(fix_double_literal("double x = 0.5;"), "double x = .5;");
+        assert_eq!(fix_double_literal("double x = .5;"), "double x = 0.5;");
     }
 
     #[test]
     fn fix_double_literal_paren_zero_dot() {
-        assert_eq!(fix_double_literal("foo(0.5)"), "foo(.5)");
+        assert_eq!(
+            fix_double_literal("void main() { foo(.5); }"),
+            "void main() { foo(0.5); }"
+        );
     }
 
     #[test]
     fn fix_double_literal_equals_zero_dot() {
-        assert_eq!(fix_double_literal("x=0.5"), "x=.5");
+        assert_eq!(fix_double_literal("x=.5"), "x=0.5");
     }
 
     #[test]
-    fn fix_double_literal_trailing_zeros_trimmed() {
-        // ends with '0' but NOT ".0" → strip trailing zeros
-        assert_eq!(fix_double_literal("1.500"), "1.5");
+    fn fix_double_literal_preserves_valid_precision() {
+        // Valid decimal precision is not a violation of the configured rule.
+        assert_eq!(fix_double_literal("1.500"), "1.500");
     }
 
     #[test]
@@ -312,12 +265,12 @@ mod tests {
     #[test]
     fn suggest_fix_trailing_comma_bracket() {
         let tmp = TempDir::new().unwrap();
-        let path = write_dart(&tmp, "a.dart", "  [1, 2]\n");
+        let path = write_dart(&tmp, "a.dart", "void main() { final x = [1, 2]; }\n");
         let issue = make_issue("prefer-trailing-comma", path, 1);
         let fix = generate_fixes(&[issue], tmp.path());
         assert_eq!(fix.len(), 1);
         assert!(
-            fix[0].replacement.ends_with(",]"),
+            fix[0].replacement.contains("[1, 2,]"),
             "got: {}",
             fix[0].replacement
         );
@@ -326,12 +279,12 @@ mod tests {
     #[test]
     fn suggest_fix_trailing_comma_brace() {
         let tmp = TempDir::new().unwrap();
-        let path = write_dart(&tmp, "a.dart", "  {a: 1}\n");
+        let path = write_dart(&tmp, "a.dart", "void main() { final x = {a: 1}; }\n");
         let issue = make_issue("prefer-trailing-comma", path, 1);
         let fix = generate_fixes(&[issue], tmp.path());
         assert_eq!(fix.len(), 1);
         assert!(
-            fix[0].replacement.ends_with(",}"),
+            fix[0].replacement.contains("{a: 1,}"),
             "got: {}",
             fix[0].replacement
         );
@@ -339,14 +292,12 @@ mod tests {
 
     #[test]
     fn suggest_fix_trailing_comma_already_has_comma() {
-        // line already ends with `,)` – no change needed but a fix is still produced
+        // Already-correct syntax must not produce an edit.
         let tmp = TempDir::new().unwrap();
         let path = write_dart(&tmp, "a.dart", "  foo(bar,)\n");
         let issue = make_issue("prefer-trailing-comma", path, 1);
         let fix = generate_fixes(&[issue], tmp.path());
-        // replacement equals original (comma already there)
-        assert_eq!(fix.len(), 1);
-        assert!(fix[0].replacement.contains(','));
+        assert!(fix.is_empty());
     }
 
     // ── suggest_fix – double-literal-format ───────────────────────────────
@@ -354,21 +305,20 @@ mod tests {
     #[test]
     fn suggest_fix_double_literal_changes_line() {
         let tmp = TempDir::new().unwrap();
-        let path = write_dart(&tmp, "b.dart", "double x = 0.5;\n");
+        let path = write_dart(&tmp, "b.dart", "double x = .5;\n");
         let issue = make_issue("double-literal-format", path, 1);
         let fix = generate_fixes(&[issue], tmp.path());
         assert_eq!(fix.len(), 1);
-        assert_eq!(fix[0].replacement, "double x = .5;");
+        assert_eq!(fix[0].replacement, "double x = 0.5;");
     }
 
     #[test]
     fn suggest_fix_double_literal_no_change_returns_none() {
         let tmp = TempDir::new().unwrap();
-        // no 0. prefix variants – fix_double_literal returns same string
+        // A correctly formatted literal requires no fix.
         let path = write_dart(&tmp, "b.dart", "double x = 1.5;\n");
         let issue = make_issue("double-literal-format", path, 1);
         let fix = generate_fixes(&[issue], tmp.path());
-        // fix_double_literal("double x = 1.5;") == "double x = 1.5;" → no fix
         assert_eq!(fix.len(), 0);
     }
 
@@ -377,11 +327,11 @@ mod tests {
     #[test]
     fn suggest_fix_double_negation_removed() {
         let tmp = TempDir::new().unwrap();
-        let path = write_dart(&tmp, "c.dart", "if (!!flag) {}\n");
+        let path = write_dart(&tmp, "c.dart", "void main() { if (!!flag) {} }\n");
         let issue = make_issue("avoid-double-negation", path, 1);
         let fix = generate_fixes(&[issue], tmp.path());
         assert_eq!(fix.len(), 1);
-        assert_eq!(fix[0].replacement, "if (flag) {}");
+        assert_eq!(fix[0].replacement, "void main() { if (flag) {} }");
     }
 
     #[test]
@@ -398,7 +348,11 @@ mod tests {
     #[test]
     fn suggest_fix_expanded_sizebox() {
         let tmp = TempDir::new().unwrap();
-        let path = write_dart(&tmp, "d.dart", "  Expanded(child: SizedBox())\n");
+        let path = write_dart(
+            &tmp,
+            "d.dart",
+            "void main() { Expanded(child: SizedBox()); }\n",
+        );
         let issue = make_issue("avoid-expanded-as-spacer", path, 1);
         let fix = generate_fixes(&[issue], tmp.path());
         assert_eq!(fix.len(), 1);
@@ -408,7 +362,11 @@ mod tests {
     #[test]
     fn suggest_fix_expanded_sizebox_shrink() {
         let tmp = TempDir::new().unwrap();
-        let path = write_dart(&tmp, "d.dart", "  Expanded(child: SizedBox.shrink())\n");
+        let path = write_dart(
+            &tmp,
+            "d.dart",
+            "void main() { Expanded(child: SizedBox.shrink()); }\n",
+        );
         let issue = make_issue("avoid-expanded-as-spacer", path, 1);
         let fix = generate_fixes(&[issue], tmp.path());
         assert_eq!(fix.len(), 1);
@@ -418,7 +376,11 @@ mod tests {
     #[test]
     fn suggest_fix_expanded_container() {
         let tmp = TempDir::new().unwrap();
-        let path = write_dart(&tmp, "d.dart", "  Expanded(child: Container())\n");
+        let path = write_dart(
+            &tmp,
+            "d.dart",
+            "void main() { Expanded(child: Container()); }\n",
+        );
         let issue = make_issue("avoid-expanded-as-spacer", path, 1);
         let fix = generate_fixes(&[issue], tmp.path());
         assert_eq!(fix.len(), 1);
@@ -461,8 +423,8 @@ mod tests {
     #[test]
     fn suggest_fix_newline_before_return() {
         let tmp = TempDir::new().unwrap();
-        let path = write_dart(&tmp, "f.dart", "  return value;\n");
-        let issue = make_issue("newline-before-return", path, 1);
+        let path = write_dart(&tmp, "f.dart", "void main() {\n  return value;\n}\n");
+        let issue = make_issue("newline-before-return", path, 2);
         let fix = generate_fixes(&[issue], tmp.path());
         assert_eq!(fix.len(), 1);
         assert!(fix[0].replacement.starts_with('\n'));
@@ -517,7 +479,7 @@ mod tests {
     fn generate_fixes_multiple_issues() {
         let tmp = TempDir::new().unwrap();
         let path1 = write_dart(&tmp, "i1.dart", "  foo(bar)\n");
-        let path2 = write_dart(&tmp, "i2.dart", "if (!!flag) {}\n");
+        let path2 = write_dart(&tmp, "i2.dart", "void main() { if (!!flag) {} }\n");
         let issues = vec![
             make_issue("prefer-trailing-comma", path1, 1),
             make_issue("avoid-double-negation", path2, 1),

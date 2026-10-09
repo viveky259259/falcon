@@ -34,6 +34,12 @@ fn ensure_semantics_severity(config: &FalconConfig) -> Option<Severity> {
 
 /// Run the check. Returns exit code: 0 clean, 1 warnings only, 2 errors.
 pub fn run(root: &Path, format: OutputFormat, config: &FalconConfig) -> Result<i32> {
+    let issues = inspect(root, config)?;
+    print!("{}", reporter::render(&issues, format));
+    Ok(exit_code_for_issues(&issues))
+}
+
+pub fn inspect(root: &Path, config: &FalconConfig) -> Result<Vec<PreflightIssue>> {
     let mut issues: Vec<PreflightIssue> = Vec::new();
 
     let threshold = config
@@ -187,10 +193,7 @@ reach at least {:.0}% coverage.",
 
     issues.retain(|issue| !is_suppressed(issue, config));
 
-    let exit = exit_code_for_issues(&issues);
-    let rendered = reporter::render(&issues, format);
-    print!("{rendered}");
-    Ok(exit)
+    Ok(issues)
 }
 
 fn is_suppressed(issue: &PreflightIssue, config: &FalconConfig) -> bool {
