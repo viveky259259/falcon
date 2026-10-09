@@ -8,13 +8,13 @@
 - History begins: 2026-10-09 22:39:30 Asia/Kolkata, after initial repository discovery. Earlier elapsed time unmeasured.
 
 ## Current state
-- As of: 2026-10-10 02:45:21 Asia/Kolkata.
+- As of: 2026-10-10 02:46:28 Asia/Kolkata.
 - Status: All twelve review findings and the observed Clippy blocker are fixed; final verification passed. User's later remediation instruction supersedes the original read-only scope.
 - Verified progress: Full default-feature tests: 2,657 passed, 0 failed, 3 ignored. Formatting, Clippy with denied warnings, default all-targets build and optional ai-local build pass. Mocked webhook and Action regressions, npm installer fixtures and extension TypeScript checks pass. HTTP and LSP regression tests exercise live child processes.
 - Limits: Local verification uses Rust 1.101 nightly on macOS; remote stable/Linux CI, release downloads and marketplace installation were not run. Webhook external calls are mocked.
 - Additional assessment: Compared the user's linked loops/graphs post with the completed development workflow and Falcon's implementation. Verified loops and durable regression constraints are present; a persistent task scheduler and feedback into task planning are absent from inspected paths.
 - Graph status: Authorized project graph generation implemented. Directory checks persist the full graph; explicit graph export and library/SDK methods are available. Final tests: 2,676 passed, 3 ignored; format, Clippy and default/ai-local builds pass. Source graph inference limits are documented.
-- Next milestone: Local atomic commit of graph generation and delivery. Unrelated in-progress site files are excluded from staging; no push authorized.
+- Next milestone: Graph implementation and local Conventional Commit complete; deliver usage and verification. Unrelated in-progress site files are excluded from the commit; no push authorized.
 - Reproduction scripts and logs remain under ignored `target/`; task scratch was excluded from staging and removed after completion.
 
 ## Chronological history
@@ -106,3 +106,5 @@ User requested automatic graph generation when Falcon is used on a project. Work
 Implemented `src/project_graph/{types,extract,resolve,mod}.rs`, public `Falcon::generate_project_graph` and SDK method; `falcon graph` exports JSON and directory `check` persists `.falcon-data/project-graph.json` atomically. Full graph generation also occurs for incremental checks; single-file checks preserve the existing artifact. `--graph-output` selects an output path; `--no-graph` opts out. Existing source edits and report stdout are unchanged. Types, source/identity contracts, coverage and performance limits are documented in `docs/project-graph.md`; no external dependency added.
 
 Verification: final `cargo test --locked` exits 0 (2,676 passed, 3 ignored); `cargo fmt --all -- --check`, `cargo clippy --locked --all-targets -- -D warnings`, `cargo build --locked --all-targets`, `cargo build --locked --features ai-local` exit 0. Final suite log is ignored `target/graph-final-tests.log`. Red evidence is `target/graph-red.log`, `target/graph-scope-red.log`, `target/graph-visibility-red.log`, `target/graph-library-red.log`, `target/graph-write-red.log`. Actual CLI export of falcon_dart to ignored `target/falcon-dart-project-graph.json` passes ID uniqueness and edge endpoint checks (23 nodes/25 edges). Remote CI was not run. Other work produced untracked site files during verification; those are not graph task files and remain untouched.
+
+| G2 | 2026-10-10 02:46:28 | Not measured | Commit graph generation locally | Conventional Commit `feat: generate provenance-aware project source graphs` succeeded with 15 task files; final checks recorded above; site work excluded | Remote stable/Linux CI remains unverified | Mark authorized implementation complete; keep inference and snapshot limits explicit | Deliver usage and commit reference |
