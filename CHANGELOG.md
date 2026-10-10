@@ -2,10 +2,23 @@
 
 ## Unreleased
 
+## 0.6.0 (2026-10-10)
+
 ### Added
 
+- Project source graphs with stable identities, source hashes, spans and observed/inferred relationship provenance. Directory `falcon check` writes `.falcon-data/project-graph.json`; `falcon graph` exports JSON. Use `--no-graph` to skip generation or `--graph-output` to select a path.
+- Additive graph generation APIs for Falcon and the SDK, with explicit unresolved relationships and coverage limits.
 - `falcon doctor` — diagnoses Flutter, Dart, CocoaPods, Android SDK and Xcode for the current project, and installs or repairs what it can. Reads the Flutter release manifest to offer the version your project pins alongside the latest on your channel; verifies checksums; prints (never edits) the PATH line.
 - `doctor` MCP tool — two-phase: call it with a path to get every check's status and the questions each fix needs, then again with `execute: true` and `decisions` to perform the install. Execution is refused over the HTTP bridge.
+
+### Fixed
+
+- Automatic fixes preserve unrelated strings and comments; editor Fix All applies syntax edits and uses UTF-16 positions.
+- Incremental checks include dependent files for relative roots, and source overlays replace disk declarations.
+- Explicit configuration paths, missing analysis roots, incomplete source reads and report write failures now produce correct results or errors.
+- Preflight findings stay within one structured JSON report.
+- HTTP requests use bounded framing, connections and total read deadlines.
+- GitHub webhook commands avoid shell interpolation, and the Action accepts an explicit baseline filename.
 
 ## 0.5.3 (2026-09-12)
 

@@ -14,7 +14,7 @@
 - Limits: Local verification uses Rust 1.101 nightly on macOS; remote stable/Linux CI, release downloads and marketplace installation were not run. Webhook external calls are mocked.
 - Additional assessment: Compared the user's linked loops/graphs post with the completed development workflow and Falcon's implementation. Verified loops and durable regression constraints are present; a persistent task scheduler and feedback into task planning are absent from inspected paths.
 - Graph status: Authorized project graph generation implemented. Directory checks persist the full graph; explicit graph export and library/SDK methods are available. Final tests: 2,676 passed, 3 ignored; format, Clippy and default/ai-local builds pass. Source graph inference limits are documented.
-- Next milestone: Graph implementation and local Conventional Commit complete; deliver usage and verification. Unrelated in-progress site files are excluded from the commit; no push authorized.
+- Next milestone: User authorized a new release. Prepare v0.6.0, verify packages and binaries, push the release commit/tag and inspect publication results.
 - Reproduction scripts and logs remain under ignored `target/`; task scratch was excluded from staging and removed after completion.
 
 ## Chronological history
@@ -108,3 +108,13 @@ Implemented `src/project_graph/{types,extract,resolve,mod}.rs`, public `Falcon::
 Verification: final `cargo test --locked` exits 0 (2,676 passed, 3 ignored); `cargo fmt --all -- --check`, `cargo clippy --locked --all-targets -- -D warnings`, `cargo build --locked --all-targets`, `cargo build --locked --features ai-local` exit 0. Final suite log is ignored `target/graph-final-tests.log`. Red evidence is `target/graph-red.log`, `target/graph-scope-red.log`, `target/graph-visibility-red.log`, `target/graph-library-red.log`, `target/graph-write-red.log`. Actual CLI export of falcon_dart to ignored `target/falcon-dart-project-graph.json` passes ID uniqueness and edge endpoint checks (23 nodes/25 edges). Remote CI was not run. Other work produced untracked site files during verification; those are not graph task files and remain untouched.
 
 | G2 | 2026-10-10 02:46:28 | Not measured | Commit graph generation locally | Conventional Commit `feat: generate provenance-aware project source graphs` succeeded with 15 task files; final checks recorded above; site work excluded | Remote stable/Linux CI remains unverified | Mark authorized implementation complete; keep inference and snapshot limits explicit | Deliver usage and commit reference |
+
+## Release authorization and preparation
+
+User requested "Make a new release". Current package manifests are 0.5.3, the latest remote tag/release is v0.5.2, and the working tree was clean. The graph feature warrants v0.6.0. Success means matching release/package/binary versions, verified tests, published GitHub archives and checksums, and explicit registry/CI outcomes. Logging resumes from the observed 2026-10-10 08:34:27 Asia/Kolkata clock, after release inspection had begun; earlier elapsed time is unmeasured.
+
+| # | Time (start → end) | Duration | Action / investigation | Evidence / result | Gaps | Decision and reason | Next step |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| R1 | 2026-10-10 08:34:27 → 2026-10-10 08:36:09 | 1m 42s | Inspect release script, workflow, remote tags and registry | Latest release v0.5.2; npm falcon-flutter returns 404; previous release job annotation reports failed account payments/spending limit | Current hosted-runner availability and registry credentials unknown | Use existing tag workflow; retain local packaging fallback because prior hosted builds never started | Verify v0.6.0 and publish |
+
+| R2 | 2026-10-10 08:36:09 → 2026-10-10 08:38:20 | 2m 11s | Align Cargo/lock/npm/Dart CLI wrapper versions, write notes and verify release | Full tests 2,676 passed, 3 ignored; fmt/Clippy/release and ai-local builds pass; all three binaries report 0.6.0; npm test/pack and Action/webhook regressions pass | Remote publication pending; two initial adapter invocations used nonexistent test paths, corrected to actual harnesses and passed | Release via existing workflow because recent hosted CI succeeded; preserve independent editor/SDK package versions | Commit, tag and push v0.6.0 |

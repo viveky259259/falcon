@@ -1,3 +1,9 @@
+## 0.6.0
+
+- Updated the CLI wrapper to Falcon 0.6.0.
+- Added project source graphs and Flutter environment diagnostics.
+- Fixed analysis, HTTP, editor and CI integration contracts.
+
 ## 0.5.1
 
 - Fresh release after the v0.5.0 tag was created before master finished syncing

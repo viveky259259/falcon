@@ -1,6 +1,6 @@
 [package]
 name = "falcon-flutter"
-version = "0.5.3"
+version = "0.6.0"
 edition = "2021"
 description = "Rust-powered static analysis CLI for Flutter/Dart"
 license = "MIT"
