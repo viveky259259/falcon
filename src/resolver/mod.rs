@@ -178,7 +178,8 @@ impl ProjectResolver {
         }
 
         let pubspec_content = std::fs::read_to_string(&pubspec_path)?;
-        let dependencies = parse_pubspec_dependencies(&pubspec_content);
+        let dependencies = parse_pubspec_dependencies(&pubspec_content)
+            .map_err(|error| anyhow::anyhow!("Parsing {}: {error}", pubspec_path.display()))?;
 
         let mut used_packages: HashSet<String> = HashSet::new();
         for file in &self.dart_files {
@@ -253,38 +254,21 @@ fn extract_package_name(import_line: &str) -> Option<String> {
     Some(rest[..end].to_string())
 }
 
-fn parse_pubspec_dependencies(content: &str) -> Vec<String> {
-    let mut deps = Vec::new();
-    let mut in_dependencies = false;
-
-    for line in content.lines() {
-        let trimmed = line.trim();
-
-        if trimmed == "dependencies:" {
-            in_dependencies = true;
-            continue;
-        }
-
-        if in_dependencies {
-            if !line.starts_with(' ') && !line.starts_with('\t') && !trimmed.is_empty() {
-                break;
-            }
-
-            if let Some(name) = trimmed.strip_suffix(':') {
-                if !name.contains(' ') {
-                    deps.push(name.to_string());
-                }
-            } else if trimmed.contains(':') {
-                let parts: Vec<&str> = trimmed.splitn(2, ':').collect();
-                if !parts[0].contains(' ') {
-                    deps.push(parts[0].to_string());
-                }
-            }
-        }
-    }
-
+fn parse_pubspec_dependencies(content: &str) -> Result<Vec<String>> {
+    let yaml: serde_yaml::Value = serde_yaml::from_str(content)?;
+    let Some(dependencies) = yaml
+        .get("dependencies")
+        .and_then(serde_yaml::Value::as_mapping)
+    else {
+        return Ok(Vec::new());
+    };
+    let mut deps: Vec<String> = dependencies
+        .keys()
+        .filter_map(serde_yaml::Value::as_str)
+        .map(str::to_owned)
+        .collect();
     deps.retain(|d| d != "flutter" && d != "flutter_test" && d != "flutter_localizations");
-    deps
+    Ok(deps)
 }
 
 #[cfg(test)]
@@ -326,6 +310,14 @@ mod tests {
     }
 
     #[test]
+    fn pubspec_dependency_metadata_is_not_a_package() {
+        let dependencies = parse_pubspec_dependencies(
+            "name: demo\ndependencies:\n  flutter:\n    sdk: flutter\n  local_plugin:\n    path: ../plugin\n  remote_plugin:\n    git:\n      url: https://example.com/plugin.git\n      ref: main\n  http: ^1.0.0\n",
+        ).unwrap();
+        assert_eq!(dependencies, vec!["local_plugin", "remote_plugin", "http"]);
+    }
+
+    #[test]
     fn parse_pubspec_dependencies_lists_top_level_deps_only() {
         let pubspec = r#"
 name: demo
@@ -341,7 +333,7 @@ dev_dependencies:
     sdk: flutter
   beta: ^2.0.0
 "#;
-        let deps = parse_pubspec_dependencies(pubspec);
+        let deps = parse_pubspec_dependencies(pubspec).unwrap();
         // Top-level deps included; flutter/flutter_test filtered; dev_deps NOT
         // parsed (we stop at the next section).
         assert!(deps.contains(&"http".to_string()), "got: {:?}", deps);
