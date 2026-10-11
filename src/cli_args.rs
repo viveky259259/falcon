@@ -46,8 +46,26 @@ Use 'falcon <command> --help' for details on any command.
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Decode expected QR samples from a video on macOS; fixture evidence only
+    QrCheck {
+        #[arg(long)]
+        video: PathBuf,
+        #[arg(long)]
+        manifest: PathBuf,
+        #[arg(long, default_value = "falcon-qr-proof")]
+        output_dir: PathBuf,
+        #[arg(long, default_value = "120")]
+        timeout: u64,
+        #[arg(long, default_value = "ffmpeg")]
+        ffmpeg: PathBuf,
+        #[arg(long, default_value = "swiftc")]
+        swiftc: PathBuf,
+    },
     /// Run app-owned native integration tests; assertions determine evidence scope
     Verify {
+        /// Require a physical iOS/Android target; optical assertions still need review
+        #[arg(long)]
+        physical_camera: bool,
         #[arg(default_value = ".")]
         path: PathBuf,
         /// Integration test file inside integration_test/

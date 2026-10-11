@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::{io, path::Path, process::Stdio, time::Duration};
 use tokio::{io::AsyncReadExt, process::Command};
 
-pub(super) struct Capture {
+pub(crate) struct Capture {
     pub stdout: Vec<u8>,
     pub stderr: Vec<u8>,
     pub exit_code: Option<i32>,
@@ -30,7 +30,7 @@ async fn read_bounded(
 }
 
 /// Each subprocess gets its own group so timeout cleanup includes its children.
-pub(super) async fn capture(
+pub(crate) async fn capture(
     program: &Path,
     args: &[String],
     directory: &Path,

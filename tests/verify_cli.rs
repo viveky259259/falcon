@@ -293,3 +293,39 @@ fn symlink_targets_cannot_escape_integration_test_directory() {
     assert!(!fixture.command().output().unwrap().status.success());
     assert!(!fixture.root.path().join("args").exists());
 }
+
+#[test]
+fn physical_camera_requires_a_real_mobile_device() {
+    let fixture = Fixture::new(&passing_events());
+    fixture.normal_script();
+    fs::write(
+        fixture.root.path().join("devices"),
+        json!([{
+            "id":"phone with space", "name":"simulator", "isSupported":true,
+            "targetPlatform":"ios", "emulator":true
+        }])
+        .to_string(),
+    )
+    .unwrap();
+    let output = fixture.command().arg("--physical-camera").output().unwrap();
+    assert!(!output.status.success());
+    assert!(!fixture.root.path().join("args").exists());
+    assert_eq!(fixture.report()["status"], "blocked");
+}
+
+#[test]
+fn physical_camera_remains_subject_to_assertion_review() {
+    let fixture = Fixture::new(&passing_events());
+    fixture.normal_script();
+    assert!(fixture
+        .command()
+        .arg("--physical-camera")
+        .output()
+        .unwrap()
+        .status
+        .success());
+    assert_eq!(
+        fixture.report()["native_claim"],
+        "physical_camera_requires_review_of_optical_assertions"
+    );
+}

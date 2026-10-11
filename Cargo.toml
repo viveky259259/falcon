@@ -13,6 +13,7 @@ include = [
     "/README.md",
     "/CHANGELOG.md",
     "/src/**/*.rs",
+    "/src/**/*.swift",
     "/tests/**",
     "/benches/**/*.rs",
     "/docs/**",

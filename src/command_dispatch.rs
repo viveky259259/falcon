@@ -86,6 +86,7 @@ fn command_group(command: &Commands) -> CommandGroup {
 
         Commands::Watch { .. }
         | Commands::Verify { .. }
+        | Commands::QrCheck { .. }
         | Commands::Run { .. }
         | Commands::Flutter { .. }
         | Commands::Fvm { .. }

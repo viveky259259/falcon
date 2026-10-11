@@ -2,7 +2,31 @@ use super::*;
 
 pub(super) fn handle_command(command: Commands) -> Result<()> {
     match command {
+        Commands::QrCheck {
+            video,
+            manifest,
+            output_dir,
+            timeout,
+            ffmpeg,
+            swiftc,
+        } => {
+            let config = falcon::runtime::qr_check::QrCheckConfig {
+                video,
+                manifest,
+                output_dir,
+                timeout: std::time::Duration::from_secs(timeout),
+                ffmpeg,
+                swiftc,
+            };
+            let report = tokio::runtime::Runtime::new()?
+                .block_on(falcon::runtime::qr_check::check(config))?;
+            println!("{}", serde_json::to_string_pretty(&report)?);
+            if report.status != "passed" {
+                anyhow::bail!("QR fixture verification {}", report.status);
+            }
+        }
         Commands::Verify {
+            physical_camera,
             path,
             target,
             device,
@@ -12,6 +36,7 @@ pub(super) fn handle_command(command: Commands) -> Result<()> {
         } => {
             let config = falcon::runtime::verify::VerifyConfig {
                 project: path,
+                physical_camera,
                 target,
                 device,
                 timeout: std::time::Duration::from_secs(timeout),

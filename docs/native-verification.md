@@ -36,3 +36,22 @@ Camera optics and backend integration can also be tested separately, but label e
 ## Other integrations
 
 Use the same runner with app-owned contracts. Location needs permission and valid/denied/unavailable outcomes. BLE needs a known peripheral and verified communication. Notifications need configured platform delivery and tap-navigation assertions. Sharing needs a receiving destination that independently confirms the file. Authentication needs native sign-in plus backend session evidence. Hardware fixtures and external services remain prerequisites; absent prerequisites are blocked acceptance.
+
+## QR video fixture check
+
+On macOS with ffmpeg and Xcode command-line tools, Falcon can decode expected QR samples directly from an MP4. This command tests the supplied stimulus, independently of app or phone behavior:
+
+```sh
+./target/debug/falcon x qr-check \
+  --video /path/to/camera-scan-test.mp4 \
+  --manifest /path/to/scene-map.json \
+  --output-dir .tmp/qr-proof --timeout 120
+```
+
+The manifest is a JSON array of scenes with `start_seconds`, positive `duration_seconds`, and `payload`. A null or omitted payload marks a scene without a QR. Each QR scene is sampled three seconds after its start, or at its midpoint for holds shorter than six seconds. The decoder must find exactly the expected payload and no extra codes. It intentionally accepts malformed application payloads as optical test stimuli. It does not validate EventPulse handshake semantics.
+
+The new evidence directory retains extracted PNGs, decoder source, compilation/extraction/decoder logs, manifest, input hashes, exact expected/decoded payloads and elapsed time. A mismatch, absent code, tool failure, timeout or evidence-write failure exits nonzero. `scope` is always `encoded_qr_fixture_only`. This checks samples rather than every video frame. `--ffmpeg` and `--swiftc` select tool executables when needed. On a Mac with multiple Xcode installations, set DEVELOPER_DIR for the command without changing system settings.
+
+For actual phone tests, use `falcon x verify ... --physical-camera`. Falcon blocks desktop, browser and emulator targets before launching the test. The resulting native claim still requires review of optical assertions; this flag does not detect mocks or certify camera behavior by itself. Never use **Try a demo scan** as optical evidence.
+
+The EventPulse checkout includes `integration_test/camera_handshake_test.dart`. It mounts the production app and scanner with a fresh in-memory demo repository, grants no synthetic scan callbacks, waits for the native camera to start, saves notes, checks duplicate graph entries, and expects self/event/format rejection messages. Grant camera permission and present the video on a second screen after entering Scan. Pause/replay badges if needed. This target checks optics plus demo behavior and does not prove Firebase or disk persistence. Its device execution has not yet been observed.

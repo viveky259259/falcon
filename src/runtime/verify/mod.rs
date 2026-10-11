@@ -1,6 +1,6 @@
 //! Execute app-owned Flutter integration tests and preserve their evidence.
 mod events;
-mod process;
+pub(crate) mod process;
 
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -12,6 +12,7 @@ use std::{
 };
 
 pub struct VerifyConfig {
+    pub physical_camera: bool,
     pub project: PathBuf,
     pub target: PathBuf,
     pub device: String,
@@ -155,6 +156,15 @@ async fn execute(
     }
     .into();
     report.device = Some(device);
+    if config.physical_camera {
+        report.native_claim = "physical_camera_requires_review_of_optical_assertions";
+        if report.environment != "physical_mobile" {
+            bail!(
+                "Physical camera verification requires a real iOS/Android device; found {}",
+                report.environment
+            );
+        }
+    }
     report.status = "failed".into();
     let remaining = config
         .timeout

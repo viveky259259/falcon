@@ -1,5 +1,6 @@
 # Falcon verification feature map
 
+- [QR video fixture](qr-fixture.md): encoded payload decoding and separate physical-camera acceptance.
 - [Native flow execution](native-flow.md): selected-device integration tests and retained evidence.
 - [Static checks](static-checks.md): machine-readable diagnostics and severity gates.
 - [Automatic repair](automatic-repair.md): preview, source mutation, and independent Dart validation.

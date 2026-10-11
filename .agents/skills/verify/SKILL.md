@@ -42,3 +42,9 @@ For hardware claims, require a physical stimulus through the real integration, t
 ## Cleanup
 
 The reference helper traps exit and removes only its own disposable Flutter host. Proof artifacts survive cleanup. The runner terminates its owned subprocess tree on timeout/output overflow and reaps the direct child. Never kill by process name or delete evidence to retry. For application-owned fixtures, use that application's teardown to remove only test accounts/data it created.
+
+## QR fixture and physical camera checks
+
+Run `falcon x qr-check --video VIDEO --manifest MANIFEST --output-dir NEW_DIRECTORY` on macOS before presenting a video fixture to the phone. Inspect summary.json and sample PNGs. This command owns frame extraction, Vision decoding, exact payload comparison and retained evidence. It proves only the encoded stimulus; the manifest contract and dependencies are documented in [native verification](../../../docs/native-verification.md).
+
+Run app-owned optical assertions with `x verify --physical-camera` and an exact physical iOS/Android device. This guard rejects desktop/emulator targets. Retain fixture proof and device proof separately. Do not infer the second from a passing first, and do not replace the real scanner with a synthetic scan callback.

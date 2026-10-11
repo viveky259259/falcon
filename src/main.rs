@@ -217,6 +217,7 @@ fn print_x_help() {
         "fvm",
         "runtime-check",
         "verify",
+        "qr-check",
         "live",
         "devtools",
         "manage",
