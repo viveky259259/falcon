@@ -46,6 +46,26 @@ Use 'falcon <command> --help' for details on any command.
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Run app-owned native integration tests; assertions determine evidence scope
+    Verify {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        /// Integration test file inside integration_test/
+        #[arg(long)]
+        target: PathBuf,
+        /// Exact Flutter device ID; never falls back to another device
+        #[arg(long)]
+        device: String,
+        /// Total deadline in seconds, including device discovery
+        #[arg(long, default_value = "180")]
+        timeout: u64,
+        /// New directory for retained evidence; existing paths are rejected
+        #[arg(long, default_value = "falcon-verification")]
+        output_dir: PathBuf,
+        /// Flutter executable or project toolchain wrapper
+        #[arg(long, default_value = "flutter")]
+        flutter: PathBuf,
+    },
     /// Run project checks and static analysis
     #[command(name = "check", alias = "analyze", display_order = 1)]
     Analyze {

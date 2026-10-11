@@ -216,6 +216,7 @@ fn print_x_help() {
         "flutter",
         "fvm",
         "runtime-check",
+        "verify",
         "live",
         "devtools",
         "manage",

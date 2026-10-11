@@ -2,6 +2,29 @@ use super::*;
 
 pub(super) fn handle_command(command: Commands) -> Result<()> {
     match command {
+        Commands::Verify {
+            path,
+            target,
+            device,
+            timeout,
+            output_dir,
+            flutter,
+        } => {
+            let config = falcon::runtime::verify::VerifyConfig {
+                project: path,
+                target,
+                device,
+                timeout: std::time::Duration::from_secs(timeout),
+                output_dir,
+                flutter,
+            };
+            let report = tokio::runtime::Runtime::new()?
+                .block_on(falcon::runtime::verify::verify(config))?;
+            println!("{}", serde_json::to_string_pretty(&report)?);
+            if report.status != "passed" {
+                anyhow::bail!("Native verification {}", report.status);
+            }
+        }
         Commands::Watch { path, config } => handle_watch(path, config)?,
         Commands::Run {
             path,

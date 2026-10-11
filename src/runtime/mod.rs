@@ -11,6 +11,7 @@ pub mod live;
 pub mod report;
 pub mod screenshot;
 pub mod tools;
+pub mod verify;
 
 use anyhow::Result;
 use connection::VmServiceClient;

@@ -85,6 +85,7 @@ fn command_group(command: &Commands) -> CommandGroup {
         | Commands::SelfTune { .. } => CommandGroup::Config,
 
         Commands::Watch { .. }
+        | Commands::Verify { .. }
         | Commands::Run { .. }
         | Commands::Flutter { .. }
         | Commands::Fvm { .. }
