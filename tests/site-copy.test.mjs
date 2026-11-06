@@ -5,7 +5,7 @@ import { copyReviewCommand } from '../site/copy.mjs';
 test('copy reports success only after the clipboard accepts the complete command', async () => {
   const button = { textContent: 'Copy', disabled: false };
   const status = { textContent: '' };
-  const command = { textContent: 'npx falcon-flutter@latest review' };
+  const command = { textContent: 'falcon review' };
   let release;
   let copied;
   const clipboard = { writeText: value => {
@@ -27,7 +27,7 @@ test('copy reports success only after the clipboard accepts the complete command
 
 test('a denied clipboard selects the command and gives an honest manual-copy instruction', async () => {
   const button = { textContent: 'Copied', disabled: false };
-  const command = { textContent: 'npx falcon-flutter@latest review' };
+  const command = { textContent: 'falcon review' };
   const status = { textContent: '' };
   let selected;
   await copyReviewCommand(button, command, status, {

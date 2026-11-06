@@ -79,6 +79,8 @@ pre { margin: 0; font: 15px/26px var(--mono); white-space: pre-wrap; overflow-wr
 .quickstart .command code { font-size: 16px; }
 .quickstart p { color: var(--muted); }
 .quickstart .copy-status { color: var(--muted); }
+.quickstart .step { margin: 0 0 -12px; color: var(--ink); font-weight: 600; }
+.quickstart p code { font: 14px/1.5 var(--mono); }
 .footer { border-top: 1px solid var(--line); }
 .footer .wrap { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding-block: 32px; }
 .footer .brand { font-size: 24px; }
