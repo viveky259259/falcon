@@ -24,15 +24,6 @@ cargo binstall falcon-flutter   # fetches the prebuilt binary — seconds
 cargo install falcon-flutter    # builds from source — a few minutes
 ```
 
-### Without a global install
-
-```bash
-npx falcon-flutter@latest review
-```
-
-The npm package downloads the native binary from GitHub Releases once, verifies
-it with `SHA256SUMS`, and reuses it on later runs.
-
 Each of these installs three binaries:
 - `falcon` — the main CLI
 - `falcon-lsp` — Language Server Protocol for VS Code

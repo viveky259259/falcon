@@ -226,7 +226,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: cargo install --git https://github.com/viveky259259/falcon
+      - name: Install Falcon
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/viveky259259/falcon/master/scripts/install.sh | sh -s -- --yes --no-shortcut
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: falcon x manage health . --json > health.json
       - run: falcon review . --format gh</code></pre>
 

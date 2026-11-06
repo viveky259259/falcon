@@ -60,18 +60,20 @@
             <h2>Installation</h2>
             <p>Install Falcon using one of these methods:</p>
 
-            <h3>From source (Cargo)</h3>
-            <pre><code>cargo install --git https://github.com/viveky259259/falcon</code></pre>
+            <h3>Install script on macOS or Linux (recommended)</h3>
+            <pre><code>curl -fsSL https://raw.githubusercontent.com/viveky259259/falcon/master/scripts/install.sh | sh</code></pre>
+            <p>Downloads the release for your platform from GitHub Releases, verifies it against <code>SHA256SUMS</code>, and installs <code>falcon</code>, <code>falcon-lsp</code> and <code>falcon-mcp</code> to <code>~/.local/bin</code>. No Rust toolchain needed. Supports macOS (Apple Silicon and Intel) and Linux x64. Pass <code>--version vX.Y.Z</code> or <code>--install-dir DIR</code> after <code>sh -s --</code> to change the defaults.</p>
 
-            <h3>From pub.dev</h3>
-            <pre><code>dart pub global activate falcon_cli</code></pre>
+            <h3>With Rust installed</h3>
+            <pre><code>cargo binstall falcon-flutter   # prebuilt binary, seconds
+cargo install falcon-flutter    # builds from source, a few minutes</code></pre>
 
             <h3>Verify installation</h3>
             <pre><code>falcon --version</code></pre>
 
             <div class="callout">
                 <div class="callout-title">Tip</div>
-                <p>Ensure your <code>PATH</code> includes the Cargo or Dart pub global bin directory so the <code>falcon</code> command is available.</p>
+                <p>Make sure your <code>PATH</code> includes <code>~/.local/bin</code> (install script) or <code>~/.cargo/bin</code> (Cargo) so the <code>falcon</code> command is available. The install script prints the exact line to add if it is missing.</p>
             </div>
 
             <h2>Your First Analysis</h2>

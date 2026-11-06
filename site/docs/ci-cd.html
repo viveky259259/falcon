@@ -73,11 +73,10 @@
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-action@stable
-
       - name: Install Falcon
-        run: cargo install --git https://github.com/viveky259259/falcon
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/viveky259259/falcon/master/scripts/install.sh | sh -s -- --yes --no-shortcut
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Run Falcon analysis
         run: falcon check . --fail-on error
@@ -117,7 +116,7 @@ falcon:
   stage: analyze
   image: rust:latest
   before_script:
-    - cargo install --git https://github.com/viveky259259/falcon
+    - cargo install falcon-flutter --locked
   script:
     - falcon check . --format codeclimate --output gl-codeclimate-report.json
   artifacts:
