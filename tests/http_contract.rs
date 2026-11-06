@@ -6,6 +6,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+const TOKEN: &str = "contract-test-token-0123456789abcdef";
+
 struct Server(Child, u16);
 impl Drop for Server {
     fn drop(&mut self) {
@@ -19,6 +21,7 @@ fn server() -> Server {
     drop(listener);
     let child = Command::new(env!("CARGO_BIN_EXE_falcon"))
         .args(["x", "api", "--port", &port.to_string()])
+        .env("FALCON_API_TOKEN", TOKEN)
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
@@ -38,6 +41,19 @@ fn connect(server: &Server) -> TcpStream {
         .unwrap();
     stream
 }
+fn send(server: &Server, request: &str) -> String {
+    let mut stream = connect(server);
+    stream.write_all(request.as_bytes()).unwrap();
+    let mut response = String::new();
+    stream.read_to_string(&mut response).unwrap();
+    response
+}
+fn post(path: &str, headers: &str, body: &str) -> String {
+    format!(
+        "POST {path} HTTP/1.1\r\nHost: localhost\r\n{headers}Content-Length: {}\r\n\r\n{body}",
+        body.len()
+    )
+}
 #[test]
 fn split_post_body_is_read_using_content_length() {
     let server = server();
@@ -45,7 +61,7 @@ fn split_post_body_is_read_using_content_length() {
     let body = r#"{"source":"void main() {}"}"#;
     write!(
         stream,
-        "POST /check-file HTTP/1.1\r\nHost: localhost\r\nContent-Length: {}\r\n\r\n",
+        "POST /check-file HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer {TOKEN}\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n",
         body.len()
     )
     .unwrap();
@@ -106,4 +122,93 @@ fn trickled_headers_have_a_total_request_deadline() {
         elapsed < Duration::from_secs(3),
         "deadline was reset on each read: {elapsed:?}"
     );
+}
+
+#[test]
+fn requests_without_a_token_are_unauthorized() {
+    let server = server();
+    let body = r#"{"source":"void main() {}"}"#;
+    let response = send(
+        &server,
+        &post("/check-file", "Content-Type: application/json\r\n", body),
+    );
+    assert!(response.starts_with("HTTP/1.1 401"), "{response}");
+
+    let response = send(&server, "GET /tools HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    assert!(response.starts_with("HTTP/1.1 401"), "{response}");
+}
+
+#[test]
+fn requests_with_the_wrong_token_are_unauthorized() {
+    let server = server();
+    let response = send(
+        &server,
+        &post(
+            "/analyze",
+            "Authorization: Bearer not-the-right-token-at-all\r\nContent-Type: application/json\r\n",
+            r#"{"path":"/"}"#,
+        ),
+    );
+    assert!(response.starts_with("HTTP/1.1 401"), "{response}");
+}
+
+#[test]
+fn simple_cross_origin_bodies_are_rejected() {
+    // A browser can send text/plain cross-origin without a preflight; the API
+    // must refuse it even when a valid token is present.
+    let server = server();
+    let headers = format!("Authorization: Bearer {TOKEN}\r\nContent-Type: text/plain\r\n");
+    let response = send(
+        &server,
+        &post("/check-file", &headers, r#"{"source":"void main() {}"}"#),
+    );
+    assert!(response.starts_with("HTTP/1.1 415"), "{response}");
+}
+
+#[test]
+fn responses_never_allow_cross_origin_reads() {
+    let server = server();
+    let health = send(&server, "GET /health HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    let unauthorized = send(&server, "GET /tools HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    for response in [health, unauthorized] {
+        assert!(
+            !response
+                .to_ascii_lowercase()
+                .contains("access-control-allow-origin"),
+            "{response}"
+        );
+    }
+}
+
+#[test]
+fn authorized_tools_listing_succeeds() {
+    let server = server();
+    let request =
+        format!("GET /tools HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer {TOKEN}\r\n\r\n");
+    let response = send(&server, &request);
+    assert!(response.starts_with("HTTP/1.1 200"), "{response}");
+}
+
+#[test]
+fn non_loopback_bind_requires_allow_remote() {
+    let output = Command::new(env!("CARGO_BIN_EXE_falcon"))
+        .args(["x", "api", "--host", "0.0.0.0", "--port", "0"])
+        .env("FALCON_API_TOKEN", TOKEN)
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--allow-remote"), "{stderr}");
+}
+
+#[test]
+fn short_pinned_tokens_are_refused_at_startup() {
+    let output = Command::new(env!("CARGO_BIN_EXE_falcon"))
+        .args(["x", "api", "--port", "0"])
+        .env("FALCON_API_TOKEN", "short")
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("FALCON_API_TOKEN"), "{stderr}");
 }

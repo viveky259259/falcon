@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Security
+
+- `falcon x api` now requires `Authorization: Bearer <token>` on every endpoint except `GET /health`. A random token is generated and printed at startup; set `FALCON_API_TOKEN` (at least 16 characters) to pin one. POST bodies must be `Content-Type: application/json`, and responses no longer send `Access-Control-Allow-Origin: *`, so web pages can no longer drive or read the API from a browser.
+- `falcon x api` refuses to bind a non-loopback host unless `--allow-remote` is passed.
+- `falcon x update` verifies the downloaded archive against the release's `SHA256SUMS` before installing and refuses releases that publish none. Downloads are HTTPS-only, fail on HTTP errors, and no longer send a GitHub token on the curl command line.
+
 ## 0.6.0 (2026-10-10)
 
 ### Added

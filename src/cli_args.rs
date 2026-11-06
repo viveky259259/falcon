@@ -1436,6 +1436,11 @@ pub enum Commands {
         /// Port to listen on
         #[arg(long, default_value = "8090")]
         port: u16,
+
+        /// Allow binding to a non-loopback host (e.g. 0.0.0.0). Traffic is
+        /// plain HTTP, so put a TLS proxy in front of it.
+        #[arg(long)]
+        allow_remote: bool,
     },
 
     /// Detect convention drift in new or changed code

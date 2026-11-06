@@ -117,7 +117,11 @@ pub(super) fn handle_command(command: Commands) -> Result<()> {
         Commands::Workspace { path } => handle_workspace(path)?,
         Commands::Manage { action } => handle_manage(action)?,
         Commands::Mcp => handle_mcp()?,
-        Commands::Api { host, port } => handle_api(host, port)?,
+        Commands::Api {
+            host,
+            port,
+            allow_remote,
+        } => handle_api(host, port, allow_remote)?,
         _ => unreachable!("runtime command routed to the wrong handler"),
     }
 

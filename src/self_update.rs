@@ -8,6 +8,10 @@ use crate::version_util::version_cmp;
 
 const GITHUB_REPO: &str = "viveky259259/falcon";
 const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
+/// Release asset listing `sha256  filename` for every archive in the release.
+const CHECKSUMS_ASSET: &str = "SHA256SUMS";
+/// Refuse plain-HTTP URLs and redirects, and anything older than TLS 1.2.
+const CURL_HTTPS_ONLY: [&str; 5] = ["--proto", "=https", "--proto-redir", "=https", "--tlsv1.2"];
 
 #[derive(Debug)]
 pub struct ReleaseInfo {
@@ -49,7 +53,9 @@ fn fetch_json(url: &str) -> Result<String> {
     }
 
     let output = std::process::Command::new("curl")
-        .args(["-sL", "-H", "Accept: application/vnd.github+json", url])
+        .args(["-sSL"])
+        .args(CURL_HTTPS_ONLY)
+        .args(["-H", "Accept: application/vnd.github+json", url])
         .output()
         .context("Failed to run curl")?;
 
@@ -188,11 +194,12 @@ fn current_exe_path() -> Result<PathBuf> {
     env::current_exe().context("Cannot determine current executable path")
 }
 
+/// Download `url` to `dest`. Release assets are public, so no credentials are
+/// sent; curl is restricted to HTTPS and fails on HTTP error statuses so an
+/// error page is never saved as an archive.
 fn download_file(url: &str, dest: &Path) -> Result<()> {
-    let dest_str = dest.display().to_string();
-
-    let gh_success = if let Some(api_path) = url.strip_prefix("https://api.github.com/") {
-        std::process::Command::new("gh")
+    if let Some(api_path) = url.strip_prefix("https://api.github.com/") {
+        let via_gh = std::process::Command::new("gh")
             .args([
                 "api",
                 api_path,
@@ -204,34 +211,59 @@ fn download_file(url: &str, dest: &Path) -> Result<()> {
             .stdout(std::fs::File::create(dest).context("Cannot create temp file")?)
             .status()
             .map(|s| s.success())
-            .unwrap_or(false)
-    } else {
-        let token = std::process::Command::new("gh")
-            .args(["auth", "token"])
-            .output()
-            .ok()
-            .filter(|o| o.status.success())
-            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
-
-        let mut cmd = std::process::Command::new("curl");
-        cmd.args(["-sL", "-o", &dest_str]);
-        if let Some(t) = &token {
-            cmd.args(["-H", &format!("Authorization: token {}", t)]);
-        }
-        cmd.arg(url);
-        cmd.status().map(|s| s.success()).unwrap_or(false)
-    };
-
-    if !gh_success {
-        let status = std::process::Command::new("curl")
-            .args(["-sL", "-o", &dest_str, url])
-            .status()
-            .context("Failed to download binary")?;
-        if !status.success() {
-            bail!("Download failed from {}", url);
+            .unwrap_or(false);
+        if via_gh {
+            return Ok(());
         }
     }
 
+    let status = std::process::Command::new("curl")
+        .args(["-fsSL"])
+        .args(CURL_HTTPS_ONLY)
+        .arg("-o")
+        .arg(dest)
+        .arg(url)
+        .status()
+        .context("Failed to run curl")?;
+    if !status.success() {
+        bail!("Download failed from {}", url);
+    }
+    Ok(())
+}
+
+/// The lowercase SHA-256 that `sums` (sha256sum/shasum output) lists for
+/// `asset_name`, if any.
+fn expected_checksum(sums: &str, asset_name: &str) -> Option<String> {
+    sums.lines().find_map(|line| {
+        let mut parts = line.split_whitespace();
+        let hash = parts.next()?;
+        let name = parts.next()?.trim_start_matches('*');
+        let well_formed = hash.len() == 64 && hash.chars().all(|c| c.is_ascii_hexdigit());
+        (well_formed && name == asset_name).then(|| hash.to_ascii_lowercase())
+    })
+}
+
+fn sha256_file(path: &Path) -> Result<String> {
+    use sha2::{Digest, Sha256};
+    let mut file = fs::File::open(path).context("Cannot open downloaded archive")?;
+    let mut hasher = Sha256::new();
+    std::io::copy(&mut file, &mut hasher).context("Cannot hash downloaded archive")?;
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+/// Fail unless `archive` hashes to the value `sums` lists for `asset_name`.
+fn verify_archive(archive: &Path, sums: &str, asset_name: &str) -> Result<()> {
+    let expected = expected_checksum(sums, asset_name)
+        .with_context(|| format!("{} has no entry for {}", CHECKSUMS_ASSET, asset_name))?;
+    let actual = sha256_file(archive)?;
+    if actual != expected {
+        bail!(
+            "Checksum mismatch for {}: expected {}, got {}. The download was discarded.",
+            asset_name,
+            expected,
+            actual
+        );
+    }
     Ok(())
 }
 
@@ -289,6 +321,86 @@ fn extract_binary_from_archive(archive: &Path, binary_name: &str, dest: &Path) -
     }
 
     Ok(())
+}
+
+/// Download `asset` and the release's SHA256SUMS, verify, then swap the
+/// running binary. Refuses releases that publish no checksums.
+fn install_verified(release: &ReleaseInfo, asset: &AssetInfo) -> Result<()> {
+    let sums_asset = release
+        .assets
+        .iter()
+        .find(|a| a.name == CHECKSUMS_ASSET)
+        .with_context(|| {
+            format!(
+                "Release v{} publishes no {}; refusing to install an unverified binary. \
+                 Install from source instead: cargo install falcon-flutter --version {}",
+                release.version, CHECKSUMS_ASSET, release.version
+            )
+        })?;
+
+    let exe_path = current_exe_path()?;
+    let binary_name = current_binary_name(&exe_path)?;
+    let tmp_path = exe_path.with_extension("update-tmp");
+    let archive_path = exe_path.with_extension("update.tar.gz");
+    let sums_path = exe_path.with_extension("update.sha256sums");
+
+    println!(
+        "  ⬇️  Downloading {} ({})...",
+        asset.name.bright_cyan(),
+        format_bytes(asset.size).dimmed()
+    );
+    let staged = stage_verified_binary(
+        asset,
+        sums_asset,
+        &archive_path,
+        &sums_path,
+        &binary_name,
+        &tmp_path,
+    );
+    let _ = fs::remove_file(&archive_path);
+    let _ = fs::remove_file(&sums_path);
+    if let Err(error) = staged {
+        let _ = fs::remove_file(&tmp_path);
+        return Err(error);
+    }
+    swap_binary(&exe_path, &tmp_path, &release.version)
+}
+
+fn stage_verified_binary(
+    asset: &AssetInfo,
+    sums_asset: &AssetInfo,
+    archive: &Path,
+    sums_path: &Path,
+    binary_name: &str,
+    dest: &Path,
+) -> Result<()> {
+    download_file(&asset.download_url, archive)?;
+    download_file(&sums_asset.download_url, sums_path)?;
+    let sums = fs::read_to_string(sums_path).context("Cannot read downloaded SHA256SUMS")?;
+    verify_archive(archive, &sums, &asset.name)?;
+    println!("  🔒 Checksum verified against {}", CHECKSUMS_ASSET);
+    extract_binary_from_archive(archive, binary_name, dest)
+}
+
+fn swap_binary(exe_path: &Path, new_binary: &Path, version: &str) -> Result<()> {
+    let backup_path = exe_path.with_extension("backup");
+    if exe_path.exists() {
+        fs::rename(exe_path, &backup_path).context("Failed to backup current binary")?;
+    }
+    match fs::rename(new_binary, exe_path) {
+        Ok(_) => {
+            let _ = fs::remove_file(&backup_path);
+            println!("  ✅ Updated to {}", format!("v{}", version).green().bold());
+            Ok(())
+        }
+        Err(e) => {
+            if backup_path.exists() {
+                let _ = fs::rename(&backup_path, exe_path);
+            }
+            let _ = fs::remove_file(new_binary);
+            bail!("Failed to replace binary: {}. Restored backup.", e);
+        }
+    }
 }
 
 pub fn check_for_update() -> Result<Option<ReleaseInfo>> {
@@ -381,44 +493,7 @@ pub fn run_update(target_version: Option<&str>) -> Result<()> {
     let matching_asset = release.assets.iter().find(|a| a.name == asset_name);
 
     match matching_asset {
-        Some(asset) => {
-            let exe_path = current_exe_path()?;
-            let binary_name = current_binary_name(&exe_path)?;
-            let tmp_path = exe_path.with_extension("update-tmp");
-            let backup_path = exe_path.with_extension("backup");
-            let archive_path = exe_path.with_extension("update.tar.gz");
-
-            println!(
-                "  ⬇️  Downloading {} ({})...",
-                asset.name.bright_cyan(),
-                format_bytes(asset.size).dimmed()
-            );
-
-            download_file(&asset.download_url, &archive_path)?;
-            extract_binary_from_archive(&archive_path, &binary_name, &tmp_path)?;
-            let _ = fs::remove_file(&archive_path);
-
-            if exe_path.exists() {
-                fs::rename(&exe_path, &backup_path).context("Failed to backup current binary")?;
-            }
-
-            match fs::rename(&tmp_path, &exe_path) {
-                Ok(_) => {
-                    let _ = fs::remove_file(&backup_path);
-                    println!(
-                        "  ✅ Updated to {}",
-                        format!("v{}", target_ver).green().bold()
-                    );
-                }
-                Err(e) => {
-                    if backup_path.exists() {
-                        let _ = fs::rename(&backup_path, &exe_path);
-                    }
-                    let _ = fs::remove_file(&archive_path);
-                    bail!("Failed to replace binary: {}. Restored backup.", e);
-                }
-            }
-        }
+        Some(asset) => install_verified(&release, asset)?,
         None => {
             println!(
                 "  📭 No pre-built binary for {} in release v{}",
@@ -547,7 +622,8 @@ fn format_bytes(bytes: u64) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        extract_binary_from_archive, platform_archive_label, platform_asset_name, version_cmp,
+        expected_checksum, extract_binary_from_archive, install_verified, platform_archive_label,
+        platform_asset_name, verify_archive, version_cmp, AssetInfo, ReleaseInfo,
     };
     use std::fs;
     use std::process::Command;
@@ -607,5 +683,110 @@ mod tests {
         assert_eq!(version_cmp("v1.2.3", "1.2.2"), std::cmp::Ordering::Greater);
         assert_eq!(version_cmp("1.2.3", "v1.2.3"), std::cmp::Ordering::Equal);
         assert_eq!(version_cmp("1.2.3", "1.3.0"), std::cmp::Ordering::Less);
+    }
+
+    const ARCHIVE: &str = "falcon-1.2.3-linux-x64.tar.gz";
+    // An arbitrary well-formed digest for parser tests; not the hash of anything.
+    const ARCHIVE_SHA: &str = "6d4c4e3a1bd06e6d1d1b4bbc57d3a2eb7d1d7c2cfa0b5b4a1b8e1b0f6c5d3e2a";
+
+    fn sha256_hex(bytes: &[u8]) -> String {
+        use sha2::{Digest, Sha256};
+        format!("{:x}", Sha256::digest(bytes))
+    }
+
+    #[test]
+    fn expected_checksum_finds_the_named_archive() {
+        let sums = format!(
+            "{}  falcon-1.2.3-macos-arm64.tar.gz\n{}  {}\n",
+            "a".repeat(64),
+            ARCHIVE_SHA,
+            ARCHIVE
+        );
+        assert_eq!(
+            expected_checksum(&sums, ARCHIVE).as_deref(),
+            Some(ARCHIVE_SHA)
+        );
+    }
+
+    #[test]
+    fn expected_checksum_accepts_binary_mode_marker_and_uppercase() {
+        let sums = format!("{} *{}\n", ARCHIVE_SHA.to_uppercase(), ARCHIVE);
+        assert_eq!(
+            expected_checksum(&sums, ARCHIVE).as_deref(),
+            Some(ARCHIVE_SHA)
+        );
+    }
+
+    #[test]
+    fn expected_checksum_rejects_missing_or_malformed_entries() {
+        assert_eq!(expected_checksum("", ARCHIVE), None);
+        let other = format!("{}  falcon-other.tar.gz\n", ARCHIVE_SHA);
+        assert_eq!(expected_checksum(&other, ARCHIVE), None);
+        let short = format!("abc123  {}\n", ARCHIVE);
+        assert_eq!(expected_checksum(&short, ARCHIVE), None);
+        let not_hex = format!("{}  {}\n", "z".repeat(64), ARCHIVE);
+        assert_eq!(expected_checksum(&not_hex, ARCHIVE), None);
+    }
+
+    #[test]
+    fn verify_archive_accepts_a_matching_download() {
+        let temp = tempfile::tempdir().unwrap();
+        let archive = temp.path().join(ARCHIVE);
+        fs::write(&archive, b"archive-bytes").unwrap();
+        let sums = format!("{}  {}\n", sha256_hex(b"archive-bytes"), ARCHIVE);
+        verify_archive(&archive, &sums, ARCHIVE).unwrap();
+    }
+
+    #[test]
+    fn verify_archive_rejects_a_tampered_download() {
+        let temp = tempfile::tempdir().unwrap();
+        let archive = temp.path().join(ARCHIVE);
+        fs::write(&archive, b"tampered").unwrap();
+        let sums = format!("{}  {}\n", sha256_hex(b"archive-bytes"), ARCHIVE);
+        let error = verify_archive(&archive, &sums, ARCHIVE).unwrap_err();
+        assert!(error.to_string().contains("Checksum mismatch"), "{error}");
+    }
+
+    #[test]
+    fn verify_archive_rejects_an_unlisted_archive() {
+        let temp = tempfile::tempdir().unwrap();
+        let archive = temp.path().join(ARCHIVE);
+        fs::write(&archive, b"archive-bytes").unwrap();
+        let sums = format!("{}  falcon-other.tar.gz\n", sha256_hex(b"archive-bytes"));
+        let error = verify_archive(&archive, &sums, ARCHIVE).unwrap_err();
+        assert!(error.to_string().contains("no entry"), "{error}");
+    }
+
+    #[test]
+    fn install_refuses_a_release_without_checksums() {
+        let release = ReleaseInfo {
+            tag: "v1.2.3".into(),
+            version: "1.2.3".into(),
+            assets: vec![AssetInfo {
+                name: ARCHIVE.into(),
+                download_url: "https://example.invalid/archive".into(),
+                size: 1,
+            }],
+            body: String::new(),
+        };
+        let error = install_verified(&release, &release.assets[0]).unwrap_err();
+        assert!(
+            error.to_string().contains("publishes no SHA256SUMS"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn download_path_never_sends_credentials_or_plain_http() {
+        let source = include_str!("self_update.rs");
+        let download = &source[source.find("fn download_file").unwrap()..];
+        let download = &download[..download.find("\n}\n").unwrap()];
+        assert!(
+            !download.contains("auth"),
+            "download_file must not read tokens"
+        );
+        assert!(!download.contains("Authorization"));
+        assert!(download.contains("CURL_HTTPS_ONLY"));
+        assert!(download.contains("-fsSL"));
     }
 }
