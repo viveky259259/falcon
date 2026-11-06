@@ -6,6 +6,9 @@
 //! - `POST /check-file` — analyze a single file's source
 //! - `GET /health` — health check
 //! - `GET /tools` — list available analysis capabilities
+//!
+//! Every endpoint except `/health` requires a bearer token (see `auth`). The
+//! server binds loopback only unless the caller passes `allow_remote`.
 
 use serde::{Deserialize, Serialize};
 use std::net::TcpListener;
@@ -29,22 +32,33 @@ struct ApiResponse {
 }
 
 /// Start the Falcon HTTP API server.
-pub fn start_api_server(host: &str, port: u16) -> anyhow::Result<()> {
+///
+/// Refuses a non-loopback `host` unless `allow_remote` is set, and requires a
+/// bearer token on every endpoint except `GET /health`.
+pub fn start_api_server(host: &str, port: u16, allow_remote: bool) -> anyhow::Result<()> {
+    if !super::auth::is_loopback_host(host) && !allow_remote {
+        anyhow::bail!(
+            "refusing to bind the API to non-loopback host `{host}`; \
+             pass --allow-remote if other machines must reach it"
+        );
+    }
+    let (token, source) = super::auth::resolve_token()?;
     let addr = format!("{}:{}", host, port);
     let listener = TcpListener::bind(&addr)?;
 
-    eprintln!("  Falcon API server listening on http://{}", addr);
-    eprintln!("  Endpoints:");
-    eprintln!("    POST /analyze      — analyze a project or source");
-    eprintln!("    POST /score        — AI Code Quality Score");
-    eprintln!("    POST /check-file   — analyze single file source");
-    eprintln!("    GET  /health       — health check");
-    eprintln!("    GET  /tools        — list capabilities");
+    print_banner(
+        &addr,
+        &token,
+        &source,
+        allow_remote && !super::auth::is_loopback_host(host),
+    );
 
+    let token = std::sync::Arc::new(token);
     let (sender, receiver) = std::sync::mpsc::sync_channel::<std::net::TcpStream>(32);
     let receiver = std::sync::Arc::new(std::sync::Mutex::new(receiver));
     for _ in 0..8 {
         let receiver = receiver.clone();
+        let token = token.clone();
         std::thread::spawn(move || loop {
             let stream = match receiver.lock() {
                 Ok(queue) => queue.recv(),
@@ -60,7 +74,7 @@ pub fn start_api_server(host: &str, port: u16) -> anyhow::Result<()> {
                 log::warn!("Could not set client timeout: {}", error);
                 continue;
             }
-            if let Err(error) = handle_connection(&mut stream) {
+            if let Err(error) = handle_connection(&mut stream, &token) {
                 log::warn!("Request handling error: {}", error);
             }
         });
@@ -79,7 +93,35 @@ pub fn start_api_server(host: &str, port: u16) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn handle_connection(stream: &mut std::net::TcpStream) -> anyhow::Result<()> {
+fn print_banner(addr: &str, token: &str, source: &super::auth::TokenSource, remote: bool) {
+    eprintln!("  Falcon API server listening on http://{}", addr);
+    eprintln!("  Endpoints:");
+    eprintln!("    POST /analyze      — analyze a project or source");
+    eprintln!("    POST /score        — AI Code Quality Score");
+    eprintln!("    POST /check-file   — analyze single file source");
+    eprintln!("    GET  /health       — health check (no token needed)");
+    eprintln!("    GET  /tools        — list capabilities");
+    eprintln!("  Auth: send `Authorization: Bearer <token>` and, on POST,");
+    eprintln!("        `Content-Type: application/json`.");
+    match source {
+        super::auth::TokenSource::Environment => {
+            eprintln!("  Token: from {}", super::auth::TOKEN_ENV)
+        }
+        super::auth::TokenSource::Generated => {
+            eprintln!("  Token: {token}");
+            eprintln!(
+                "         (generated for this run; set {} to pin one)",
+                super::auth::TOKEN_ENV
+            );
+        }
+    }
+    if remote {
+        eprintln!("  Warning: listening beyond loopback over plain HTTP; the token");
+        eprintln!("           travels unencrypted. Put a TLS proxy in front of it.");
+    }
+}
+
+fn handle_connection(stream: &mut std::net::TcpStream, token: &str) -> anyhow::Result<()> {
     let request = match super::http::read_request(stream) {
         Ok(request) => request,
         Err((status, error)) => {
@@ -94,6 +136,16 @@ fn handle_connection(stream: &mut std::net::TcpStream) -> anyhow::Result<()> {
     };
 
     let (method, path, body) = parse_http_request(&request);
+
+    if let Err((status, error)) = super::auth::check_request(&request, &method, &path, token) {
+        let body = serde_json::to_string(&ApiResponse {
+            success: false,
+            data: None,
+            error: Some(error.to_string()),
+        })?;
+        super::http::write_response(stream, status, &body)?;
+        return Ok(());
+    }
 
     let (status, response_body) = match (method.as_str(), path.as_str()) {
         ("GET", "/health") => {
@@ -110,9 +162,10 @@ fn handle_connection(stream: &mut std::net::TcpStream) -> anyhow::Result<()> {
         }
 
         ("GET", "/tools") => {
-            // This HTTP bridge binds a configurable host with no authentication
-            // (see module docs), so it must never advertise `doctor` as capable
-            // of installing anything — `Trust::Remote` relabels it diagnosis-only.
+            // This HTTP bridge can be exposed beyond loopback (`--allow-remote`)
+            // and never dispatches tool calls, so it must never advertise
+            // `doctor` as capable of installing anything — `Trust::Remote`
+            // relabels it diagnosis-only.
             let tools = crate::mcp::tools::list_tools_for(crate::doctor::Trust::Remote);
             let resp = ApiResponse {
                 success: true,

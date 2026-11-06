@@ -309,7 +309,7 @@ fn test_api_health_endpoint() {
 
     let port = 18091u16;
     let handle = thread::spawn(move || {
-        let _ = falcon::api::server::start_api_server("127.0.0.1", port);
+        let _ = falcon::api::server::start_api_server("127.0.0.1", port, false);
     });
 
     thread::sleep(std::time::Duration::from_millis(200));

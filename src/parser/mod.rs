@@ -35,6 +35,32 @@ pub fn node_end_line(node: Node) -> usize {
     node.end_position().row + 1
 }
 
+/// Locate the comma after the final item, inside optional parameter delimiters.
+pub(crate) fn missing_trailing_comma_offset(mut list: Node) -> Option<usize> {
+    loop {
+        let mut cursor = list.walk();
+        let last = list
+            .named_children(&mut cursor)
+            .filter(|child| !child.is_extra())
+            .last()?;
+        if matches!(
+            last.kind(),
+            "optional_formal_parameters" | "named_formal_parameters"
+        ) {
+            list = last;
+            continue;
+        }
+        let mut following = last.next_sibling();
+        while let Some(node) = following {
+            if !node.is_extra() {
+                return (node.kind() != ",").then_some(last.end_byte());
+            }
+            following = node.next_sibling();
+        }
+        return Some(last.end_byte());
+    }
+}
+
 pub fn find_children_by_kind<'a>(node: Node<'a>, kind: &str) -> Vec<Node<'a>> {
     let mut results = Vec::new();
     let mut cursor = node.walk();

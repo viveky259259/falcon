@@ -210,6 +210,74 @@ fn multiline_trailing_comma_fix_edits_the_final_argument() {
 }
 
 #[test]
+fn trailing_comma_fix_keeps_named_and_optional_parameter_delimiters_valid() {
+    for (source, expected) in [
+        (
+            "void connect({\n  required String attendee\n}) {}\n",
+            "void connect({\n  required String attendee,\n}) {}\n",
+        ),
+        (
+            "void connect([\n  String attendee = 'guest'\n]) {}\n",
+            "void connect([\n  String attendee = 'guest',\n]) {}\n",
+        ),
+        (
+            "void connect({\n  required String attendee,\n}) {}\n",
+            "void connect({\n  required String attendee,\n}) {}\n",
+        ),
+        (
+            "void connect(String event, {\n  String attendee = 'guest' // context\n}) {}\n",
+            "void connect(String event, {\n  String attendee = 'guest', // context\n}) {}\n",
+        ),
+        (
+            "void connect({\n  required String attendee, // context\n}) {}\n",
+            "void connect({\n  required String attendee, // context\n}) {}\n",
+        ),
+    ] {
+        let root = project(
+            "rules:\n  - prefer-trailing-comma\nunused:\n  enabled: false\n",
+            source,
+        );
+        let output = cli().arg("fix").arg(root.path()).output().unwrap();
+        assert!(output.status.success());
+        let fixed = fs::read_to_string(root.path().join("lib/main.dart")).unwrap();
+        assert_eq!(fixed, expected);
+        let mut parser = falcon::parser::DartParser::new().unwrap();
+        assert!(!parser.parse(&fixed).unwrap().root_node().has_error());
+        assert!(cli()
+            .arg("fix")
+            .arg(root.path())
+            .output()
+            .unwrap()
+            .status
+            .success());
+        assert_eq!(
+            fs::read_to_string(root.path().join("lib/main.dart")).unwrap(),
+            expected
+        );
+    }
+}
+
+#[test]
+fn unused_dependencies_reports_packages_without_pubspec_metadata() {
+    let root = project("rules: []\n", "void main() {}\n");
+    fs::write(
+        root.path().join("pubspec.yaml"),
+        "name: demo\ndependencies:\n  flutter:\n    sdk: flutter\n  plugin:\n    path: ../plugin\n",
+    )
+    .unwrap();
+    let output = cli()
+        .arg("check")
+        .arg(root.path())
+        .args(["--format", "json"])
+        .output()
+        .unwrap();
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let issues = report["issues"].as_array().unwrap();
+    assert_eq!(issues.len(), 1, "{report}");
+    assert!(issues[0]["message"].as_str().unwrap().contains("'plugin'"));
+}
+
+#[test]
 fn double_literal_fix_follows_rule_and_preserves_other_literals() {
     let source = "void main() { final value = .5; final label = '0.5'; }\n";
     let root = project(
