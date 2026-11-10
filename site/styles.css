@@ -21,7 +21,7 @@ a:hover { color: var(--accent); }
 .site-header { border-bottom: 1px solid var(--line); }
 .navigation { display: flex; align-items: center; justify-content: space-between; min-height: 103px; gap: 24px; }
 .brand { display: inline-flex; align-items: center; gap: 12px; font-size: 28px; font-weight: 700; letter-spacing: -.04em; }
-.brand svg { fill: var(--accent); flex-shrink: 0; }
+.brand svg { flex-shrink: 0; }
 .nav-links { display: flex; align-items: center; gap: 36px; }
 .nav-links a { display: inline-flex; align-items: center; min-height: 44px; }
 .outline-link, .button { border: 1px solid var(--line); border-radius: 6px; padding: 12px 20px; }

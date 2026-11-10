@@ -129,3 +129,11 @@ User requested "Make a new release". Current package manifests are 0.5.3, the la
 [Falcon v0.6.0](https://github.com/viveky259259/falcon/releases/tag/v0.6.0) is public, stable and not a draft. Tag points to d62c61f, which incorporates the release commit 7115b6b and concurrent site history. Assets: three native archives, SHA256SUMS and falcon-flutter-0.6.0.tgz. Release notes describe source graphs, doctor, fixes, graph limits and direct npm installation.
 
 [Source CI](https://github.com/viveky259259/falcon/actions/runs/38019539261) passes all jobs. [Release workflow](https://github.com/viveky259259/falcon/actions/runs/38019539191) builds every target and publishes GitHub successfully, but its overall result is failure solely because npm authentication is absent. Homebrew's job reports success with its update explicitly skipped. pub.dev validation reports zero warnings, but publication requires authentication and was stopped while waiting for login. No registry publication is claimed. Outcome logging remains in a local documentation commit after the published tag, so it does not alter released sources.
+
+## Maestro explanation follow-up
+
+User asked how Falcon uses Maestro. Read-only source investigation, command help and an independent how-skill explainer confirm a static accessibility preflight, with no tracked Maestro runner or flow generator.
+
+| # | Time (start → end) | Duration | Action / investigation | Evidence / result | Gaps | Decision and reason | Next step |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| M1 | 2026-10-10 09:46:06 → 2026-10-10 09:46:46 | 40s | Trace Maestro references, accessibility scanner and CLI/config | check-a11y checks ensureSemantics text and nearby Semantics identifiers; default coverage threshold 60%; analyze.preflight.enabled remains false by default; actual release command help confirms syntax | No live Maestro/app execution tested; heuristics do not prove runtime readiness | Explain static checks and separate Maestro execution, avoiding a runner claim | Deliver explanation; no code change requested |
