@@ -321,6 +321,14 @@ jobs:
             dist/falcon-*.tar.gz
             dist/SHA256SUMS
 
+  # Publishes via npm trusted publishing (OIDC) — no NPM_TOKEN secret. The
+  # falcon-flutter package on npmjs.com must list viveky259259/falcon with
+  # workflow "release.yml" as its trusted publisher. Provenance is automatic.
+  #
+  # One-time setup: OIDC cannot create a package, so the first version must be
+  # published by hand (`npm publish --access public` from npm/falcon, logged in
+  # with 2FA). Then add the trusted publisher on npmjs.com, with "npm publish"
+  # allowed, and let this job handle later releases.
   npm:
     name: Publish npm Package
     needs: release
@@ -338,8 +346,32 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
+
+      - name: Verify npm supports trusted publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(npm --version)"
+          if ! node -e '
+            const [major, minor, patch] = process.argv[1].split(".").map(Number);
+            const ok = major > 11 || (major === 11 && (minor > 5 || (minor === 5 && patch >= 1)));
+            process.exit(ok ? 0 : 1);
+          ' "${version}"; then
+            echo "::error::npm ${version} is too old for trusted publishing (needs 11.5.1 or later)"
+            exit 1
+          fi
+
+      - name: Verify the package already exists on npm
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="$(node -p "require('./package.json').name")"
+          if ! npm view "${name}" name >/dev/null 2>&1; then
+            echo "::error::${name} is not on npm yet. Trusted publishing cannot create a package: publish the first version by hand, then add this workflow as its trusted publisher (see the comment above this job)."
+            exit 1
+          fi
 
       - name: Verify npm package version matches tag
         shell: bash
@@ -360,9 +392,7 @@ jobs:
         run: npm pack --dry-run
 
       - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --provenance --access public
+        run: npm publish --access public
 
   homebrew:
     name: Update Homebrew Tap

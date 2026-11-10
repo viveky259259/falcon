@@ -123,8 +123,9 @@ fi
 # ─── Collect Release Info ────────────────────────────────────────────────────
 COMMIT_COUNT=$(git rev-list "v${CURRENT_VERSION}..HEAD" --count 2>/dev/null || git rev-list HEAD --count)
 RULE_COUNT=$(grep -r "impl Rule for" src/rules/ | wc -l | tr -d ' ')
-TEST_COUNT=$(grep -r "#\[test\]" tests/ | wc -l | tr -d ' ')
-COMMAND_COUNT=$(grep -c "Commands::" src/main.rs || echo "0")
+TEST_COUNT=$(grep -r "#\[test\]" src/ tests/ | wc -l | tr -d ' ')
+# Top-level subcommands are the variants of `enum Commands` in src/cli_args.rs.
+COMMAND_COUNT=$(awk '/^pub enum Commands \{/{inside=1; next} inside && /^\}/{exit} inside && /^    [A-Z][A-Za-z0-9]*( \{|,|\()/{n++} END{print n+0}' src/cli_args.rs)
 FILE_COUNT=$(find src -name "*.rs" | wc -l | tr -d ' ')
 LINE_COUNT=$(find src -name "*.rs" -exec cat {} + | wc -l | tr -d ' ')
 
@@ -353,6 +354,6 @@ echo -e "
   Links:
     GitHub:   https://github.com/viveky259259/falcon/releases/tag/v${NEW_VERSION}
     pub.dev:  https://pub.dev/packages/falcon_cli
-    Website:  https://viveky259259.github.io/falcon/
-    Docs:     https://viveky259259.github.io/falcon/docs/
+    Website:  https://falcon.vivekyadav.online/
+    Docs:     https://falcon.vivekyadav.online/docs/
 "
