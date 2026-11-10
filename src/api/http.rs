@@ -100,11 +100,13 @@ fn read_more(
     Ok(())
 }
 
+/// Write a JSON response. Deliberately sends no `Access-Control-Allow-Origin`
+/// header: browsers must not be able to read API results cross-origin.
 pub(super) fn write_response(
     stream: &mut TcpStream,
     status: &str,
     body: &str,
 ) -> std::io::Result<()> {
-    write!(stream, "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len())?;
+    write!(stream, "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nX-Content-Type-Options: nosniff\r\nCache-Control: no-store\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len())?;
     stream.flush()
 }

@@ -190,6 +190,7 @@ Compare: `dart analyze` takes 30-70 seconds on the same projects.
 
 - [Getting Started](docs/getting-started.md)
 - [CLI Reference](docs/cli-reference.md) (all 90+ commands)
+- [Native integration verification](docs/native-verification.md) and [project verification skill](.agents/skills/verify/SKILL.md)
 - [Rule Catalog](docs/rule-catalog.md) (61+ rules)
 - [State of AI-Generated Flutter Code 2026](content/state-of-ai-flutter-code-2026.md)
 

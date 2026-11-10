@@ -1,5 +1,5 @@
 //! Syntax-bounded edits shared by disk fixes and editor quick fixes.
-use crate::parser::{walk_tree, DartParser};
+use crate::parser::{missing_trailing_comma_offset, walk_tree, DartParser};
 use std::ops::Range;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -67,17 +67,7 @@ pub fn fixes_for_issue(source: &str, rule: &str, line: usize, column: usize) -> 
                     "arguments" | "formal_parameter_list" | "list_literal" | "set_or_map_literal"
                 ) =>
             {
-                let mut cursor = node.walk();
-                let last = node
-                    .named_children(&mut cursor)
-                    .filter(|child| !child.is_extra())
-                    .last();
-                last.filter(|child| {
-                    !source[child.end_byte()..node.end_byte()]
-                        .trim_start()
-                        .starts_with(',')
-                })
-                .map(|child| (child.end_byte()..child.end_byte(), ",".into()))
+                missing_trailing_comma_offset(node).map(|offset| (offset..offset, ",".into()))
             }
             "avoid-expanded-as-spacer"
                 if matches!(node.kind(), "identifier" | "type_identifier")

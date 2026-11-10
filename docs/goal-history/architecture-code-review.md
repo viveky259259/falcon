@@ -8,13 +8,14 @@
 - History begins: 2026-10-09 22:39:30 Asia/Kolkata, after initial repository discovery. Earlier elapsed time unmeasured.
 
 ## Current state
-- As of: 2026-10-10 02:46:28 Asia/Kolkata.
+- As of: 2026-10-10 08:51:47 Asia/Kolkata.
 - Status: All twelve review findings and the observed Clippy blocker are fixed; final verification passed. User's later remediation instruction supersedes the original read-only scope.
 - Verified progress: Full default-feature tests: 2,657 passed, 0 failed, 3 ignored. Formatting, Clippy with denied warnings, default all-targets build and optional ai-local build pass. Mocked webhook and Action regressions, npm installer fixtures and extension TypeScript checks pass. HTTP and LSP regression tests exercise live child processes.
-- Limits: Local verification uses Rust 1.101 nightly on macOS; remote stable/Linux CI, release downloads and marketplace installation were not run. Webhook external calls are mocked.
+- Limits: Initial local verification used Rust nightly on macOS. Release source CI now passes on stable Linux, and all three platform builds pass. Webhook external calls remain mocked; marketplace installation was not tested.
 - Additional assessment: Compared the user's linked loops/graphs post with the completed development workflow and Falcon's implementation. Verified loops and durable regression constraints are present; a persistent task scheduler and feedback into task planning are absent from inspected paths.
 - Graph status: Authorized project graph generation implemented. Directory checks persist the full graph; explicit graph export and library/SDK methods are available. Final tests: 2,676 passed, 3 ignored; format, Clippy and default/ai-local builds pass. Source graph inference limits are documented.
-- Next milestone: User authorized a new release. Prepare v0.6.0, verify packages and binaries, push the release commit/tag and inspect publication results.
+- Release status: v0.6.0 published with macOS ARM64/x64 and Linux x64 archives, SHA256SUMS and a tested npm wrapper attachment. Source CI passes. npm registry publication fails with ENEEDAUTH; pub.dev needs login; Homebrew tap update was skipped without its token.
+- Next milestone: Configure registry authentication and the optional Homebrew tap token to enable those distribution channels. The downloadable release is complete.
 - Reproduction scripts and logs remain under ignored `target/`; task scratch was excluded from staging and removed after completion.
 
 ## Chronological history
@@ -118,3 +119,13 @@ User requested "Make a new release". Current package manifests are 0.5.3, the la
 | R1 | 2026-10-10 08:34:27 → 2026-10-10 08:36:09 | 1m 42s | Inspect release script, workflow, remote tags and registry | Latest release v0.5.2; npm falcon-flutter returns 404; previous release job annotation reports failed account payments/spending limit | Current hosted-runner availability and registry credentials unknown | Use existing tag workflow; retain local packaging fallback because prior hosted builds never started | Verify v0.6.0 and publish |
 
 | R2 | 2026-10-10 08:36:09 → 2026-10-10 08:38:20 | 2m 11s | Align Cargo/lock/npm/Dart CLI wrapper versions, write notes and verify release | Full tests 2,676 passed, 3 ignored; fmt/Clippy/release and ai-local builds pass; all three binaries report 0.6.0; npm test/pack and Action/webhook regressions pass | Remote publication pending; two initial adapter invocations used nonexistent test paths, corrected to actual harnesses and passed | Release via existing workflow because recent hosted CI succeeded; preserve independent editor/SDK package versions | Commit, tag and push v0.6.0 |
+
+| R3 | 2026-10-10 08:38:20 → 2026-10-10 08:39:12 | 52s | Publish release commit and tag | Initial atomic push rejected because concurrent site commit advanced origin; fetched and merged without file changes, passed site copy tests, retargeted unpublished local tag, then atomic push succeeded at d62c61f | Release and source CI running | Preserve concurrent work and avoid remote tag rewriting | Verify CI, assets and registries |
+
+| R4 | 2026-10-10 08:39:12 → 2026-10-10 08:51:47 | 12m 35s | Monitor source CI and release workflow; verify downloaded artifacts and npm installation | Stable Linux source CI 38019539261 succeeds; all three release builds and GitHub publish job succeed in run 38019539191. Public archives pass SHA256SUMS and binary-content checks. ARM64 binaries run locally; Linux binaries run in Ubuntu 22.04; both produce identical companion-project graph JSON. Direct npm attachment installation downloads verified binaries and reports 0.6.0 | npm publish ENEEDAUTH without token; pub.dev publish waits for login and was interrupted; tap and Apple notarization skipped without credentials | Keep published GitHub release and provide direct npm installation instead of implying registries updated. Source/tag unchanged after release | Deliver release URL and registry limits |
+
+## Release outcome
+
+[Falcon v0.6.0](https://github.com/viveky259259/falcon/releases/tag/v0.6.0) is public, stable and not a draft. Tag points to d62c61f, which incorporates the release commit 7115b6b and concurrent site history. Assets: three native archives, SHA256SUMS and falcon-flutter-0.6.0.tgz. Release notes describe source graphs, doctor, fixes, graph limits and direct npm installation.
+
+[Source CI](https://github.com/viveky259259/falcon/actions/runs/38019539261) passes all jobs. [Release workflow](https://github.com/viveky259259/falcon/actions/runs/38019539191) builds every target and publishes GitHub successfully, but its overall result is failure solely because npm authentication is absent. Homebrew's job reports success with its update explicitly skipped. pub.dev validation reports zero warnings, but publication requires authentication and was stopped while waiting for login. No registry publication is claimed. Outcome logging remains in a local documentation commit after the published tag, so it does not alter released sources.

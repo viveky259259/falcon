@@ -161,7 +161,7 @@ falcon x update --list             # Show version info and available releases
 | `--version` | Target version (e.g. 0.2.0). Omit for latest. |
 | `--list` | List current version info, platform, and available releases |
 
-The update mechanism downloads pre-built binaries from GitHub releases. If no binary is available for your platform, it provides `cargo install` fallback instructions.
+The update mechanism downloads pre-built binaries from GitHub releases over HTTPS and verifies each archive against the release's `SHA256SUMS` before replacing the running binary. A release without `SHA256SUMS` is refused. The checksum file comes from the same release, so this guards against corrupted or swapped downloads, not a compromised release. If no binary is available for your platform, it provides `cargo install` fallback instructions.
 
 ## AI Features
 
@@ -368,6 +368,22 @@ for the full behavior.
 | `falcon x workspace` | Analyze all packages in a monorepo |
 
 ## HTTP bridge limits
+
+`falcon x api` requires `Authorization: Bearer <token>` on every endpoint
+except `GET /health`. It prints a random token at startup; set
+`FALCON_API_TOKEN` (16 or more characters) to pin one for automation. POST
+bodies must carry `Content-Type: application/json`, and responses send no CORS
+headers, so browsers cannot call the API cross-origin. The server binds
+`127.0.0.1` by default and refuses any non-loopback `--host` unless you also
+pass `--allow-remote`. Traffic is plain HTTP, so put a TLS proxy in front of a
+remote bind.
+
+```bash
+FALCON_API_TOKEN=$(openssl rand -hex 32) falcon x api --port 8090
+curl -H "Authorization: Bearer $FALCON_API_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"source":"void main() {}"}' http://127.0.0.1:8090/check-file
+```
 
 `falcon x api` reads complete `Content-Length` bodies, with a 1 MiB body limit,
 16 KiB header limit and two-second request deadline. It uses eight workers and

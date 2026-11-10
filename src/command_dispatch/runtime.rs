@@ -2,6 +2,54 @@ use super::*;
 
 pub(super) fn handle_command(command: Commands) -> Result<()> {
     match command {
+        Commands::QrCheck {
+            video,
+            manifest,
+            output_dir,
+            timeout,
+            ffmpeg,
+            swiftc,
+        } => {
+            let config = falcon::runtime::qr_check::QrCheckConfig {
+                video,
+                manifest,
+                output_dir,
+                timeout: std::time::Duration::from_secs(timeout),
+                ffmpeg,
+                swiftc,
+            };
+            let report = tokio::runtime::Runtime::new()?
+                .block_on(falcon::runtime::qr_check::check(config))?;
+            println!("{}", serde_json::to_string_pretty(&report)?);
+            if report.status != "passed" {
+                anyhow::bail!("QR fixture verification {}", report.status);
+            }
+        }
+        Commands::Verify {
+            physical_camera,
+            path,
+            target,
+            device,
+            timeout,
+            output_dir,
+            flutter,
+        } => {
+            let config = falcon::runtime::verify::VerifyConfig {
+                project: path,
+                physical_camera,
+                target,
+                device,
+                timeout: std::time::Duration::from_secs(timeout),
+                output_dir,
+                flutter,
+            };
+            let report = tokio::runtime::Runtime::new()?
+                .block_on(falcon::runtime::verify::verify(config))?;
+            println!("{}", serde_json::to_string_pretty(&report)?);
+            if report.status != "passed" {
+                anyhow::bail!("Native verification {}", report.status);
+            }
+        }
         Commands::Watch { path, config } => handle_watch(path, config)?,
         Commands::Run {
             path,
@@ -69,7 +117,11 @@ pub(super) fn handle_command(command: Commands) -> Result<()> {
         Commands::Workspace { path } => handle_workspace(path)?,
         Commands::Manage { action } => handle_manage(action)?,
         Commands::Mcp => handle_mcp()?,
-        Commands::Api { host, port } => handle_api(host, port)?,
+        Commands::Api {
+            host,
+            port,
+            allow_remote,
+        } => handle_api(host, port, allow_remote)?,
         _ => unreachable!("runtime command routed to the wrong handler"),
     }
 

@@ -216,6 +216,8 @@ fn print_x_help() {
         "flutter",
         "fvm",
         "runtime-check",
+        "verify",
+        "qr-check",
         "live",
         "devtools",
         "manage",
@@ -2401,8 +2403,8 @@ fn handle_check_perf(path: PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn handle_api(host: String, port: u16) -> Result<()> {
-    falcon::api::server::start_api_server(&host, port)?;
+fn handle_api(host: String, port: u16, allow_remote: bool) -> Result<()> {
+    falcon::api::server::start_api_server(&host, port, allow_remote)?;
     Ok(())
 }
 
