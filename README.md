@@ -20,9 +20,6 @@ curl -fsSL https://raw.githubusercontent.com/viveky259259/falcon/master/scripts/
 cargo binstall falcon-flutter
 cargo install falcon-flutter
 
-# Or run without installing anything
-npx falcon-flutter@latest review
-
 # Score your project (2 seconds)
 falcon score .
 
@@ -159,7 +156,7 @@ Falcon analyzes Flutter code in real-time during generation — the AI self-corr
 ### Presets
 
 ```bash
-falcon check --preset ai-generated    # 20 rules for AI code
+falcon check --preset ai-generated    # 26 rules for AI code
 falcon check --preset strict          # All rules, max severity
 falcon check --preset flutter         # Flutter best practices
 ```
@@ -196,7 +193,8 @@ Compare: `dart analyze` takes 30-70 seconds on the same projects.
 
 ## Contributing
 
-Contributions welcome! Falcon is MIT-licensed.
+Contributions welcome! Falcon is MIT-licensed; see [LICENSE](LICENSE).
+To report a security issue, follow [SECURITY.md](SECURITY.md) rather than opening a public issue.
 
 ```bash
 git clone https://github.com/viveky259259/falcon

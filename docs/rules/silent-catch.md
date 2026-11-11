@@ -1,7 +1,7 @@
 # silent-catch
 
 **Category:** Behavioral
-**Default severity:** error
+**Default severity:** warning (enabled by default; `error` in the `ai-generated` and `strict` presets)
 **Status:** active
 
 Flags empty or comment-only catch blocks. Silent catches hide runtime failures

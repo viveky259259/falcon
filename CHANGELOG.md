@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Changed
+
+- The six behavioral rules (`dispose-not-called`, `set-state-after-dispose`, `unawaited-future-in-build`, `fake-mounted-check`, `silent-catch`, `riverpod-scope-leak`) are now enabled by default at warning severity, and at error in the `ai-generated` and `strict` presets. Projects without their own `rules:` list may see new warnings; `--fail-on error` pipelines are unaffected.
+
+### Fixed
+
+- Four preset entries named rules that do not exist (`avoid-unnecessary-set-state`, `avoid-throw-in-catch`, `always-override-equals-hashcode`, `avoid-collection-methods-unrelated-types`), so those rules were silently skipped. They now use the real names, and a test checks every preset and default entry against the rule registry.
+- A `falcon.yaml` without a `rules:` key (for example, one that only tunes `metrics:`) ran no lint rules at all. A missing key now means the default rule set; an explicit `rules: []` still disables rules. Projects with such a config will start seeing findings.
+- The AI Code Quality Score looked up `avoid-throw-in-catch` instead of `avoid-throw-in-catch-block`, so throw-in-catch findings never lowered the Error Handling dimension. Scores for projects with those findings may drop slightly.
+- The README no longer suggests `npx falcon-flutter`, which is not published on npm.
+
+### Added
+
+- `LICENSE` (MIT) at the repository root and in the published crate, and a `SECURITY.md` describing how to report vulnerabilities privately.
+
 ### Security
 
 - `falcon x api` now requires `Authorization: Bearer <token>` on every endpoint except `GET /health`. A random token is generated and printed at startup; set `FALCON_API_TOKEN` (at least 16 characters) to pin one. POST bodies must be `Content-Type: application/json`, and responses no longer send `Access-Control-Allow-Origin: *`, so web pages can no longer drive or read the API from a browser.
