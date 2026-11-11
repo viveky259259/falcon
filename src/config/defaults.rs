@@ -90,5 +90,48 @@ pub fn default_rules() -> Vec<RuleConfig> {
         RuleConfig::Simple("prefer-specific-catch-type".to_string()),
         RuleConfig::Simple("ensure-stream-subscription-cancel".to_string()),
         RuleConfig::Simple("avoid-excessive-widget-nesting".to_string()),
+        // Behavioral rules: lifecycle and async mistakes AI tools commonly make.
+        // Warning by default so existing `--fail-on error` pipelines keep passing;
+        // raise them to error in falcon.yaml or use the ai-generated preset.
+        RuleConfig::Simple("dispose-not-called".to_string()),
+        RuleConfig::Simple("set-state-after-dispose".to_string()),
+        RuleConfig::Simple("unawaited-future-in-build".to_string()),
+        RuleConfig::Simple("fake-mounted-check".to_string()),
+        RuleConfig::Simple("silent-catch".to_string()),
+        RuleConfig::Simple("riverpod-scope-leak".to_string()),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_default_rule_names_a_real_rule() {
+        let known = crate::rules::all_rule_names();
+        for rule in default_rules() {
+            assert!(
+                known.iter().any(|k| k == rule.name()),
+                "default rule `{}` is not registered",
+                rule.name()
+            );
+        }
+    }
+
+    #[test]
+    fn behavioral_rules_are_on_by_default_at_warning() {
+        let defaults = default_rules();
+        for name in [
+            "dispose-not-called",
+            "set-state-after-dispose",
+            "unawaited-future-in-build",
+            "fake-mounted-check",
+            "silent-catch",
+            "riverpod-scope-leak",
+        ] {
+            let rule = defaults.iter().find(|r| r.name() == name);
+            let rule = rule.unwrap_or_else(|| panic!("{name} is not enabled by default"));
+            assert_eq!(rule.severity(), crate::config::Severity::Warning, "{name}");
+        }
+    }
 }

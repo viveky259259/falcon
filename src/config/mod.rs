@@ -13,7 +13,9 @@ pub struct FalconConfig {
     #[serde(default = "MetricsConfig::default")]
     pub metrics: MetricsConfig,
 
-    #[serde(default)]
+    /// A missing `rules:` key means the default rule set; an explicit
+    /// `rules: []` still disables every rule.
+    #[serde(default = "default_rules")]
     pub rules: Vec<RuleConfig>,
 
     #[serde(default = "UnusedConfig::default")]
@@ -287,6 +289,20 @@ pub fn default_excludes() -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn missing_rules_key_uses_the_default_rules() {
+        let config: FalconConfig =
+            serde_yaml::from_str("metrics:\n  cyclomatic_complexity: 20\n").unwrap();
+        assert_eq!(config.rules.len(), default_rules().len());
+    }
+
+    #[test]
+    fn explicit_empty_rules_list_disables_rules() {
+        let config: FalconConfig = serde_yaml::from_str("rules: []\n").unwrap();
+        assert!(config.rules.is_empty());
+    }
+
     use super::*;
 
     #[test]

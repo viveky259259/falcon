@@ -59,80 +59,7 @@ impl RuleRegistry {
                 .map(|r| (r.name().to_string(), (r.severity(), r.options())))
                 .collect();
 
-        let all_rules: Vec<Box<dyn Rule>> = vec![
-            // v0.1 Dart rules
-            Box::new(common::AvoidLongFunctions::default()),
-            Box::new(common::AvoidLongParameterList::default()),
-            Box::new(common::AvoidNestedConditionals::default()),
-            Box::new(common::AvoidDynamic),
-            Box::new(common::PreferTrailingComma),
-            Box::new(common::AvoidGlobalState),
-            Box::new(common::AvoidLateKeyword::default()),
-            Box::new(common::NoMagicNumbers::default()),
-            Box::new(common::PreferMatchFileName),
-            Box::new(common::AvoidDoubleNegation),
-            // v0.1 Flutter rules
-            Box::new(flutter::AvoidReturningWidgets),
-            Box::new(flutter::PreferExtractingCallbacks),
-            Box::new(flutter::AvoidUnnecessarySetState),
-            Box::new(flutter::AvoidExpandedAsSpacer),
-            Box::new(flutter::PreferConstConstructors),
-            // v0.3 Dart rules
-            Box::new(common::AvoidUnusedParameters),
-            Box::new(common::PreferCorrectIdentifierLength::default()),
-            Box::new(common::AvoidCascadeAfterIfNull),
-            Box::new(common::AvoidCollectionMethodsUnrelatedTypes),
-            Box::new(common::AvoidDuplicateExports),
-            Box::new(common::AvoidMissingEnumConstantInMap),
-            Box::new(common::AvoidNonAsciiSymbols),
-            Box::new(common::AvoidThrowInCatch),
-            Box::new(common::AvoidTopLevelMembersInTests),
-            Box::new(common::AvoidUnnecessaryTypeAssertions),
-            Box::new(common::AvoidUnnecessaryTypeCasts),
-            Box::new(common::BinaryExpressionOperandOrder),
-            Box::new(common::DoubleLiteralFormat),
-            Box::new(common::NewlineBeforeReturn),
-            Box::new(common::PreferFirstLast),
-            // v0.3 Provider/Riverpod rules
-            Box::new(provider::AvoidRefReadInsideBuild),
-            Box::new(provider::AvoidWatchOutsideBuild),
-            Box::new(provider::PreferAsyncValueWhen),
-            Box::new(provider::AvoidPublicNotifierProperties),
-            Box::new(provider::PreferRefReadForMethods),
-            // v0.3 BLoC rules
-            Box::new(bloc::AvoidBlocPublicMethods),
-            Box::new(bloc::AvoidEmitOutsideBloc),
-            Box::new(bloc::PreferMultiBlocProvider),
-            Box::new(bloc::AvoidPassingBlocToWidget),
-            Box::new(bloc::PreferBlocExtensions),
-            // v0.3 Equatable rules
-            Box::new(equatable::AlwaysOverrideEqualsHashCode),
-            Box::new(equatable::AvoidMutableEquatable),
-            Box::new(equatable::PreferEquatable),
-            // v1.0 AI-critical rules
-            Box::new(common::AvoidEmptyCatch),
-            Box::new(common::AvoidPrintInProduction),
-            Box::new(common::AvoidHardcodedCredentials),
-            Box::new(common::PreferNamedBoolParams),
-            Box::new(flutter::EnsureDisposeLifecycle),
-            // v1.1 AI-critical rules
-            Box::new(common::AvoidUnawaitedFutures),
-            Box::new(common::PreferSpecificCatchType),
-            Box::new(flutter::EnsureStreamSubscriptionCancel),
-            Box::new(flutter::AvoidExcessiveWidgetNesting),
-            Box::new(flutter::EnsureSemanticsLabel),
-            Box::new(flutter::EnsureImageSemantics),
-            Box::new(flutter::EnsureTouchTargetSize),
-            // Behavioral rule pack (PR-F) — 2 implemented, 4 resolver-pending (EPIC 3.1).
-            Box::new(behavioral::SetStateAfterDispose),
-            Box::new(behavioral::UnawaitedFutureInBuild),
-            Box::new(behavioral::FakeMountedCheck),
-            Box::new(behavioral::SilentCatch),
-            Box::new(behavioral::RiverpodScopeLeak),
-            Box::new(behavioral::DisposeNotCalled),
-        ];
-
-        for mut rule in all_rules {
+        for mut rule in all_rules() {
             if let Some((severity, options)) = configured_rules.get(rule.name()) {
                 rule.configure(options);
                 self.rules.push((rule, *severity));
@@ -220,4 +147,87 @@ fn is_line_suppressed(source: &str, line: usize, rule_name: &str) -> bool {
         }
     }
     false
+}
+
+/// Every rule Falcon ships, in registration order, with default options.
+fn all_rules() -> Vec<Box<dyn Rule>> {
+    vec![
+        // v0.1 Dart rules
+        Box::new(common::AvoidLongFunctions::default()),
+        Box::new(common::AvoidLongParameterList::default()),
+        Box::new(common::AvoidNestedConditionals::default()),
+        Box::new(common::AvoidDynamic),
+        Box::new(common::PreferTrailingComma),
+        Box::new(common::AvoidGlobalState),
+        Box::new(common::AvoidLateKeyword::default()),
+        Box::new(common::NoMagicNumbers::default()),
+        Box::new(common::PreferMatchFileName),
+        Box::new(common::AvoidDoubleNegation),
+        // v0.1 Flutter rules
+        Box::new(flutter::AvoidReturningWidgets),
+        Box::new(flutter::PreferExtractingCallbacks),
+        Box::new(flutter::AvoidUnnecessarySetState),
+        Box::new(flutter::AvoidExpandedAsSpacer),
+        Box::new(flutter::PreferConstConstructors),
+        // v0.3 Dart rules
+        Box::new(common::AvoidUnusedParameters),
+        Box::new(common::PreferCorrectIdentifierLength::default()),
+        Box::new(common::AvoidCascadeAfterIfNull),
+        Box::new(common::AvoidCollectionMethodsUnrelatedTypes),
+        Box::new(common::AvoidDuplicateExports),
+        Box::new(common::AvoidMissingEnumConstantInMap),
+        Box::new(common::AvoidNonAsciiSymbols),
+        Box::new(common::AvoidThrowInCatch),
+        Box::new(common::AvoidTopLevelMembersInTests),
+        Box::new(common::AvoidUnnecessaryTypeAssertions),
+        Box::new(common::AvoidUnnecessaryTypeCasts),
+        Box::new(common::BinaryExpressionOperandOrder),
+        Box::new(common::DoubleLiteralFormat),
+        Box::new(common::NewlineBeforeReturn),
+        Box::new(common::PreferFirstLast),
+        // v0.3 Provider/Riverpod rules
+        Box::new(provider::AvoidRefReadInsideBuild),
+        Box::new(provider::AvoidWatchOutsideBuild),
+        Box::new(provider::PreferAsyncValueWhen),
+        Box::new(provider::AvoidPublicNotifierProperties),
+        Box::new(provider::PreferRefReadForMethods),
+        // v0.3 BLoC rules
+        Box::new(bloc::AvoidBlocPublicMethods),
+        Box::new(bloc::AvoidEmitOutsideBloc),
+        Box::new(bloc::PreferMultiBlocProvider),
+        Box::new(bloc::AvoidPassingBlocToWidget),
+        Box::new(bloc::PreferBlocExtensions),
+        // v0.3 Equatable rules
+        Box::new(equatable::AlwaysOverrideEqualsHashCode),
+        Box::new(equatable::AvoidMutableEquatable),
+        Box::new(equatable::PreferEquatable),
+        // v1.0 AI-critical rules
+        Box::new(common::AvoidEmptyCatch),
+        Box::new(common::AvoidPrintInProduction),
+        Box::new(common::AvoidHardcodedCredentials),
+        Box::new(common::PreferNamedBoolParams),
+        Box::new(flutter::EnsureDisposeLifecycle),
+        // v1.1 AI-critical rules
+        Box::new(common::AvoidUnawaitedFutures),
+        Box::new(common::PreferSpecificCatchType),
+        Box::new(flutter::EnsureStreamSubscriptionCancel),
+        Box::new(flutter::AvoidExcessiveWidgetNesting),
+        Box::new(flutter::EnsureSemanticsLabel),
+        Box::new(flutter::EnsureImageSemantics),
+        Box::new(flutter::EnsureTouchTargetSize),
+        // Behavioral rule pack. dispose-not-called and set-state-after-dispose use
+        // the cross-file resolver, which project analysis supplies.
+        Box::new(behavioral::SetStateAfterDispose),
+        Box::new(behavioral::UnawaitedFutureInBuild),
+        Box::new(behavioral::FakeMountedCheck),
+        Box::new(behavioral::SilentCatch),
+        Box::new(behavioral::RiverpodScopeLeak),
+        Box::new(behavioral::DisposeNotCalled),
+    ]
+}
+
+/// Names of every rule Falcon ships. Config and preset entries that name
+/// anything else are silently ignored, so tests check them against this list.
+pub fn all_rule_names() -> Vec<String> {
+    all_rules().iter().map(|r| r.name().to_string()).collect()
 }

@@ -1,7 +1,7 @@
 # dispose-not-called
 
 **Category:** Behavioral
-**Default severity:** error
+**Default severity:** warning (enabled by default; `error` in the `ai-generated` and `strict` presets)
 **Status:** resolver-backed
 
 This rule targets State classes and other disposable owners that create

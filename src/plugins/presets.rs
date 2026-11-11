@@ -51,11 +51,11 @@ fn preset_recommended() -> RulePreset {
             rule("avoid-double-negation", Severity::Warning),
             rule("prefer-match-file-name", Severity::Info),
             rule("avoid-returning-widgets", Severity::Warning),
-            rule("avoid-unnecessary-set-state", Severity::Error),
+            rule("avoid-unnecessary-setstate", Severity::Error),
             rule("prefer-const-constructors", Severity::Info),
             rule("avoid-unused-parameters", Severity::Warning),
-            rule("avoid-throw-in-catch", Severity::Error),
-            rule("always-override-equals-hashcode", Severity::Warning),
+            rule("avoid-throw-in-catch-block", Severity::Error),
+            rule("always-override-equals-and-hashcode", Severity::Warning),
         ],
     }
 }
@@ -77,17 +77,17 @@ fn preset_strict() -> RulePreset {
             rule("avoid-global-state", Severity::Error),
             rule("avoid-returning-widgets", Severity::Error),
             rule("prefer-extracting-callbacks", Severity::Warning),
-            rule("avoid-unnecessary-set-state", Severity::Error),
+            rule("avoid-unnecessary-setstate", Severity::Error),
             rule("avoid-expanded-as-spacer", Severity::Error),
             rule("prefer-const-constructors", Severity::Warning),
             rule("avoid-unused-parameters", Severity::Error),
             rule("prefer-correct-identifier-length", Severity::Warning),
             rule("avoid-cascade-after-if-null", Severity::Error),
-            rule("avoid-collection-methods-unrelated-types", Severity::Error),
+            rule("avoid-collection-methods-with-unrelated-types", Severity::Error),
             rule("avoid-duplicate-exports", Severity::Error),
             rule("avoid-missing-enum-constant-in-map", Severity::Error),
             rule("avoid-non-ascii-symbols", Severity::Warning),
-            rule("avoid-throw-in-catch", Severity::Error),
+            rule("avoid-throw-in-catch-block", Severity::Error),
             rule("avoid-top-level-members-in-tests", Severity::Error),
             rule("avoid-unnecessary-type-assertions", Severity::Warning),
             rule("avoid-unnecessary-type-casts", Severity::Warning),
@@ -95,9 +95,16 @@ fn preset_strict() -> RulePreset {
             rule("double-literal-format", Severity::Info),
             rule("newline-before-return", Severity::Info),
             rule("prefer-first-last", Severity::Info),
-            rule("always-override-equals-hashcode", Severity::Error),
+            rule("always-override-equals-and-hashcode", Severity::Error),
             rule("avoid-mutable-equatable", Severity::Error),
             rule("prefer-equatable", Severity::Warning),
+            // Behavioral rules (resolver-backed where noted in docs/rules).
+            rule("dispose-not-called", Severity::Error),
+            rule("set-state-after-dispose", Severity::Error),
+            rule("unawaited-future-in-build", Severity::Error),
+            rule("fake-mounted-check", Severity::Error),
+            rule("silent-catch", Severity::Error),
+            rule("riverpod-scope-leak", Severity::Error),
         ],
     }
 }
@@ -111,7 +118,7 @@ fn preset_flutter() -> RulePreset {
         rules: vec![
             rule("avoid-returning-widgets", Severity::Warning),
             rule("prefer-extracting-callbacks", Severity::Info),
-            rule("avoid-unnecessary-set-state", Severity::Error),
+            rule("avoid-unnecessary-setstate", Severity::Error),
             rule("avoid-expanded-as-spacer", Severity::Warning),
             rule("prefer-const-constructors", Severity::Warning),
             rule("avoid-long-functions", Severity::Warning),
@@ -134,7 +141,7 @@ fn preset_riverpod() -> RulePreset {
             rule("avoid-public-notifier-properties", Severity::Warning),
             rule("prefer-ref-read-for-methods", Severity::Info),
             rule("avoid-returning-widgets", Severity::Warning),
-            rule("avoid-unnecessary-set-state", Severity::Error),
+            rule("avoid-unnecessary-setstate", Severity::Error),
             rule("prefer-const-constructors", Severity::Info),
         ],
     }
@@ -152,7 +159,7 @@ fn preset_bloc() -> RulePreset {
             rule("avoid-passing-bloc-to-widget", Severity::Warning),
             rule("prefer-bloc-extensions", Severity::Info),
             rule("avoid-returning-widgets", Severity::Warning),
-            rule("avoid-unnecessary-set-state", Severity::Error),
+            rule("avoid-unnecessary-setstate", Severity::Error),
             rule("prefer-const-constructors", Severity::Info),
         ],
     }
@@ -166,7 +173,7 @@ fn preset_performance() -> RulePreset {
                 .to_string(),
         rules: vec![
             rule("prefer-const-constructors", Severity::Error),
-            rule("avoid-unnecessary-set-state", Severity::Error),
+            rule("avoid-unnecessary-setstate", Severity::Error),
             rule("avoid-returning-widgets", Severity::Error),
             rule("avoid-expanded-as-spacer", Severity::Warning),
             rule("avoid-long-functions", Severity::Warning),
@@ -194,12 +201,19 @@ fn preset_ai_generated() -> RulePreset {
             rule("avoid-returning-widgets", Severity::Warning),
             rule("avoid-long-functions", Severity::Warning),
             rule("avoid-nested-conditionals", Severity::Warning),
-            rule("avoid-unnecessary-set-state", Severity::Error),
+            rule("avoid-unnecessary-setstate", Severity::Error),
             rule("avoid-unused-parameters", Severity::Warning),
-            rule("avoid-throw-in-catch", Severity::Error),
+            rule("avoid-throw-in-catch-block", Severity::Error),
             rule("prefer-const-constructors", Severity::Warning),
             rule("prefer-trailing-comma", Severity::Info),
             rule("no-magic-numbers", Severity::Warning),
+            // Behavioral rules (resolver-backed where noted in docs/rules).
+            rule("dispose-not-called", Severity::Error),
+            rule("set-state-after-dispose", Severity::Error),
+            rule("unawaited-future-in-build", Severity::Error),
+            rule("fake-mounted-check", Severity::Error),
+            rule("silent-catch", Severity::Error),
+            rule("riverpod-scope-leak", Severity::Error),
         ],
     }
 }
@@ -272,4 +286,41 @@ pub fn apply_preset(preset: &RulePreset, config_path: &std::path::Path) -> anyho
     );
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_preset_rule_names_a_real_rule() {
+        let known = crate::rules::all_rule_names();
+        for preset in list_presets() {
+            for rule in &preset.rules {
+                assert!(
+                    known.iter().any(|k| k == rule.name()),
+                    "preset `{}` names unknown rule `{}`, which would be silently ignored",
+                    preset.name,
+                    rule.name()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn ai_and_strict_presets_include_behavioral_rules() {
+        for name in ["ai-generated", "strict"] {
+            let preset = get_preset(name).unwrap();
+            for rule in [
+                "dispose-not-called",
+                "set-state-after-dispose",
+                "silent-catch",
+            ] {
+                assert!(
+                    preset.rules.iter().any(|r| r.name() == rule),
+                    "{name} preset is missing {rule}"
+                );
+            }
+        }
+    }
 }

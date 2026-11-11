@@ -1,7 +1,7 @@
 # unawaited-future-in-build
 
 **Category:** Behavioral
-**Default severity:** error
+**Default severity:** warning (enabled by default; `error` in the `ai-generated` and `strict` presets)
 **Status:** active
 
 Flags fire-and-forget Future work started inside a Flutter `build()` method.

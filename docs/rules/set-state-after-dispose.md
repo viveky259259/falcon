@@ -1,7 +1,7 @@
 # set-state-after-dispose
 
 **Category:** Behavioral
-**Default severity:** error
+**Default severity:** warning (enabled by default; `error` in the `ai-generated` and `strict` presets)
 **Status:** resolver-backed
 
 This rule documents the contract that `setState` must not be reachable after a

@@ -1,7 +1,7 @@
 # fake-mounted-check
 
 **Category:** Behavioral
-**Default severity:** error
+**Default severity:** warning (enabled by default; `error` in the `ai-generated` and `strict` presets)
 **Status:** active
 
 Flags `if (mounted)` blocks that contain an `await` without checking `mounted`

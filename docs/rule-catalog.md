@@ -93,6 +93,23 @@ Falcon includes 61+ lint rules across 7 categories.
 | `avoid-mutable-equatable` | Warning | Equatable props should be final |
 | `prefer-equatable` | Info | Use Equatable for value objects |
 
+## Behavioral Rules
+
+Lifecycle and async mistakes that AI tools commonly make. All six are on by
+default at Warning, and at Error in the `ai-generated` and `strict` presets.
+`dispose-not-called` and `set-state-after-dispose` resolve class hierarchies
+across files, so their findings are most complete when Falcon analyzes the
+whole project.
+
+| Rule | Severity | Description |
+|---|---|---|
+| `dispose-not-called` | Warning | A State or other owner creates a controller, subscription, or focus node and never disposes it. See [docs](rules/dispose-not-called.md) |
+| `set-state-after-dispose` | Warning | `setState` is reachable after the State may have been disposed, for example after an `await`. See [docs](rules/set-state-after-dispose.md) |
+| `unawaited-future-in-build` | Warning | Fire-and-forget Future work started inside `build()`. See [docs](rules/unawaited-future-in-build.md) |
+| `fake-mounted-check` | Warning | An `if (mounted)` block awaits and then uses context without re-checking `mounted`. See [docs](rules/fake-mounted-check.md) |
+| `silent-catch` | Warning | Empty or comment-only catch blocks. See [docs](rules/silent-catch.md) |
+| `riverpod-scope-leak` | Warning | Providers, subscriptions, or containers escape their `ProviderScope` or lifecycle. See [docs](rules/riverpod-scope-leak.md) |
+
 ## Unused Code Detection
 
 | Check | Description |
@@ -109,8 +126,8 @@ Falcon includes 61+ lint rules across 7 categories.
 Use `--preset` to apply a curated rule set:
 
 ```bash
-falcon check --preset ai-generated    # 20 rules for AI-generated code
-falcon check --preset strict          # 33 rules at max severity
+falcon check --preset ai-generated    # 26 rules for AI-generated code
+falcon check --preset strict          # 39 rules at max severity
 falcon check --preset recommended     # 14 balanced rules
 falcon check --preset flutter         # 9 Flutter-specific rules
 falcon check --preset riverpod        # 8 Riverpod rules

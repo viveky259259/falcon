@@ -159,7 +159,7 @@ fn score_error_handling(ic: &IssueCounts) -> DimensionScore {
     let empty_catch = ic.get("avoid-empty-catch");
     let unawaited = ic.get("avoid-unawaited-futures");
     let generic_catch = ic.get("prefer-specific-catch-type");
-    let throw_in_catch = ic.get("avoid-throw-in-catch");
+    let throw_in_catch = ic.get("avoid-throw-in-catch-block");
 
     if empty_catch > 0 {
         findings.push(format!("{} empty catch blocks", empty_catch));
@@ -393,4 +393,43 @@ pub fn generate_badge(score: &AiCodeScore) -> String {
         "![Falcon AI Score](https://img.shields.io/badge/Falcon_AI_Score-{}/100-{})",
         score.overall, color
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn counts(pairs: &[(&str, usize)]) -> IssueCounts {
+        IssueCounts {
+            counts: pairs.iter().map(|(k, v)| (k.to_string(), *v)).collect(),
+        }
+    }
+
+    #[test]
+    fn throw_in_catch_findings_lower_error_handling() {
+        let clean = score_error_handling(&counts(&[]));
+        let dirty = score_error_handling(&counts(&[("avoid-throw-in-catch-block", 2)]));
+        assert!(
+            dirty.score < clean.score,
+            "{} vs {}",
+            dirty.score,
+            clean.score
+        );
+    }
+
+    #[test]
+    fn every_rule_the_score_reads_is_registered() {
+        let known = crate::rules::all_rule_names();
+        let source = include_str!("score.rs");
+        let mut checked = 0;
+        for chunk in source.split("ic.get(\"").skip(1) {
+            let name = chunk.split('"').next().unwrap();
+            assert!(
+                known.iter().any(|k| k == name),
+                "score reads unknown rule `{name}`, so it can never count findings"
+            );
+            checked += 1;
+        }
+        assert!(checked >= 10, "expected to find the score's rule lookups");
+    }
 }

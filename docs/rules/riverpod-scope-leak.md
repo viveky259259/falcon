@@ -1,7 +1,7 @@
 # riverpod-scope-leak
 
 **Category:** Behavioral
-**Default severity:** error
+**Default severity:** warning (enabled by default; `error` in the `ai-generated` and `strict` presets)
 **Status:** conservative lifecycle check
 
 This rule targets Riverpod providers, subscriptions, or containers that escape
