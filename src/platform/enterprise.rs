@@ -55,7 +55,7 @@ impl std::fmt::Display for PolicyCondition {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PolicyAction {
     Warn,
     Block,
@@ -73,6 +73,21 @@ pub struct PolicyCheckResult {
     pub policy: String,
     pub passed: bool,
     pub message: String,
+    /// What the policy asks for when it fails. Only `Block` fails the run.
+    pub action: PolicyAction,
+}
+
+impl PolicyCheckResult {
+    /// True when this result failed a policy whose action is `Block`.
+    pub fn blocks(&self) -> bool {
+        !self.passed && self.action == PolicyAction::Block
+    }
+}
+
+/// True when any result failed a blocking policy. `Warn` and `Audit` failures
+/// are reported but never fail the run.
+pub fn has_blocking_failure(results: &[PolicyCheckResult]) -> bool {
+    results.iter().any(PolicyCheckResult::blocks)
 }
 
 /// Load audit log.
@@ -282,6 +297,7 @@ pub fn check_policies(root: &Path) -> anyhow::Result<Vec<PolicyCheckResult>> {
                 policy: policy.name.clone(),
                 passed,
                 message: msg,
+                action: policy.action,
             });
         }
     }
@@ -344,26 +360,30 @@ pub fn print_policy_results(results: &[PolicyCheckResult]) {
 
     let passed = results.iter().filter(|r| r.passed).count();
     let failed = results.iter().filter(|r| !r.passed).count();
+    let blocking = results.iter().filter(|r| r.blocks()).count();
 
     for r in results {
-        let icon = if r.passed {
-            "✓".green().bold()
-        } else {
-            "✗".red().bold()
+        let (icon, label) = match (r.passed, r.action) {
+            (true, _) => ("✓".green().bold(), ""),
+            (false, PolicyAction::Block) => ("✗".red().bold(), ""),
+            (false, PolicyAction::Warn) => ("!".yellow().bold(), " (warn)"),
+            (false, PolicyAction::Audit) => ("!".yellow().bold(), " (audit)"),
         };
         println!(
-            "  {} {:<25} {}",
+            "  {} {:<25} {}{}",
             icon,
             r.policy.bright_white(),
-            r.message.dimmed()
+            r.message.dimmed(),
+            label.yellow()
         );
     }
 
     println!();
     println!(
-        "  {} passed, {} failed",
+        "  {} passed, {} failed ({} blocking)",
         passed.to_string().green(),
-        failed.to_string().red()
+        failed.to_string().red(),
+        blocking.to_string().red()
     );
     println!();
 }
@@ -1155,6 +1175,7 @@ mod tests {
             policy: "my-policy".to_string(),
             passed: true,
             message: "all good".to_string(),
+            action: PolicyAction::Block,
         };
         assert_eq!(r.policy, "my-policy");
         assert!(r.passed);
@@ -1182,5 +1203,39 @@ mod tests {
         let back: AuditEntry = serde_json::from_str(&json).unwrap();
         assert_eq!(back.user, "eve");
         assert_eq!(back.action, "merge");
+    }
+
+    // ── Blocking semantics ────────────────────────────────────────────────────
+
+    fn result(passed: bool, action: PolicyAction) -> PolicyCheckResult {
+        PolicyCheckResult {
+            policy: "p".to_string(),
+            passed,
+            message: String::new(),
+            action,
+        }
+    }
+
+    #[test]
+    fn only_failed_block_policies_block() {
+        assert!(result(false, PolicyAction::Block).blocks());
+        assert!(!result(true, PolicyAction::Block).blocks());
+        assert!(!result(false, PolicyAction::Warn).blocks());
+        assert!(!result(false, PolicyAction::Audit).blocks());
+    }
+
+    #[test]
+    fn warn_and_audit_failures_do_not_fail_the_run() {
+        let soft = vec![
+            result(false, PolicyAction::Warn),
+            result(false, PolicyAction::Audit),
+            result(true, PolicyAction::Block),
+        ];
+        assert!(!has_blocking_failure(&soft));
+        let hard = vec![
+            result(false, PolicyAction::Warn),
+            result(false, PolicyAction::Block),
+        ];
+        assert!(has_blocking_failure(&hard));
     }
 }

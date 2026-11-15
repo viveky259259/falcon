@@ -52,35 +52,43 @@ pub fn run_mcp_server() -> anyhow::Result<()> {
             }
         };
 
-        let line = line.trim().to_string();
-        if line.is_empty() {
-            continue;
+        if let Some(response) = process_line(&line) {
+            write_response(&mut stdout, &response)?;
         }
-
-        let request: JsonRpcRequest = match serde_json::from_str(&line) {
-            Ok(r) => r,
-            Err(e) => {
-                log::warn!("Invalid JSON-RPC request: {}", e);
-                let resp = JsonRpcResponse {
-                    jsonrpc: "2.0".to_string(),
-                    id: Value::Null,
-                    result: None,
-                    error: Some(JsonRpcError {
-                        code: -32700,
-                        message: format!("Parse error: {}", e),
-                        data: None,
-                    }),
-                };
-                write_response(&mut stdout, &resp)?;
-                continue;
-            }
-        };
-
-        let response = handle_request(&request);
-        write_response(&mut stdout, &response)?;
     }
 
     Ok(())
+}
+
+/// Handle one line of input. Returns the response to send, or `None` when the
+/// line is blank or a JSON-RPC notification (a message without an `id`), which
+/// must never be answered (JSON-RPC 2.0 section 4.1).
+fn process_line(line: &str) -> Option<JsonRpcResponse> {
+    let line = line.trim();
+    if line.is_empty() {
+        return None;
+    }
+    let request: JsonRpcRequest = match serde_json::from_str(line) {
+        Ok(r) => r,
+        Err(e) => {
+            log::warn!("Invalid JSON-RPC request: {}", e);
+            return Some(JsonRpcResponse {
+                jsonrpc: "2.0".to_string(),
+                id: Value::Null,
+                result: None,
+                error: Some(JsonRpcError {
+                    code: -32700,
+                    message: format!("Parse error: {}", e),
+                    data: None,
+                }),
+            });
+        }
+    };
+    if request.id.is_none() {
+        log::debug!("Notification received: {}", request.method);
+        return None;
+    }
+    Some(handle_request(&request))
 }
 
 fn write_response(stdout: &mut io::Stdout, response: &JsonRpcResponse) -> io::Result<()> {
@@ -182,5 +190,38 @@ fn handle_request(request: &JsonRpcRequest) -> JsonRpcResponse {
                 data: None,
             }),
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn notifications_get_no_response() {
+        let line = r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#;
+        assert!(process_line(line).is_none());
+        let other = r#"{"jsonrpc":"2.0","method":"notifications/cancelled","params":{}}"#;
+        assert!(process_line(other).is_none());
+    }
+
+    #[test]
+    fn requests_with_an_id_are_answered_with_that_id() {
+        let line = r#"{"jsonrpc":"2.0","id":7,"method":"initialize","params":{}}"#;
+        let response = process_line(line).expect("initialize must be answered");
+        assert_eq!(response.id, serde_json::json!(7));
+        assert!(response.result.is_some());
+    }
+
+    #[test]
+    fn parse_errors_are_answered_with_a_null_id() {
+        let response = process_line("{not json").expect("parse errors are answered");
+        assert_eq!(response.id, Value::Null);
+        assert_eq!(response.error.unwrap().code, -32700);
+    }
+
+    #[test]
+    fn blank_lines_are_ignored() {
+        assert!(process_line("   ").is_none());
     }
 }

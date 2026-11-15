@@ -4,13 +4,12 @@
   "description": "Falcon GitHub App \u2014 auto-analyze Flutter PRs",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
+    "start": "probot run ./index.js",
+    "dev": "nodemon --exec \"probot run ./index.js\"",
     "test": "node test/execution.test.js"
   },
   "dependencies": {
-    "probot": "^13.0.0",
-    "stripe": "^14.0.0"
+    "probot": "^13.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.0"

@@ -3033,7 +3033,7 @@ fn handle_enterprise(action: EnterpriseAction) -> Result<()> {
                     results.iter().filter(|r| !r.passed).count()
                 ),
             )?;
-            if results.iter().any(|r| !r.passed) {
+            if falcon::platform::enterprise::has_blocking_failure(&results) {
                 process::exit(1);
             }
         }

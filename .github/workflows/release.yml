@@ -16,8 +16,36 @@ env:
   CARGO_INCREMENTAL: "0"
 
 jobs:
+  # Gate every release on the test suite against the committed lockfile, so a
+  # tag can never ship binaries from a tree that fails tests.
+  test:
+    name: Test before release
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-release-test-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-release-test-
+
+      - name: Run tests
+        run: cargo test --locked
+
   build:
     name: Build ${{ matrix.target }}
+    needs: test
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -69,7 +97,7 @@ jobs:
 
       - name: Build release binaries
         shell: bash
-        run: cargo build --release --target ${{ matrix.target }} --bins
+        run: cargo build --release --locked --target ${{ matrix.target }} --bins
 
       - name: Verify binary versions match tag
         shell: bash
