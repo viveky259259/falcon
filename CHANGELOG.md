@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Fixed (release blockers)
+
+- `falcon-mcp` no longer answers JSON-RPC notifications such as `notifications/initialized`. JSON-RPC 2.0 forbids replies to messages without an `id`, and strict MCP clients reject them.
+- `falcon x enterprise check` exits 1 only when a `Block` policy fails. `Warn` and `Audit` failures are still reported, marked `(warn)` or `(audit)`, but no longer fail CI.
+- Tag releases now run `cargo test --locked` before building, and build release binaries with `--locked`.
+- GitHub Pages: the weekly leaderboard job no longer deletes the committed HTML docs, push deploys no longer nest Markdown docs under `docs/docs/`, and push deploys restore the latest leaderboard instead of dropping it. Both workflows share `scripts/build_site.sh`.
+- GitHub App: `npm start` now runs `probot run ./index.js` (it previously exited without starting a server). PRs are fetched from the base repository with the installation token, so private repositories and PRs from deleted forks work, and `falcon review` diffs the whole PR against its base branch instead of failing on a one-commit clone. Commands run asynchronously, `.dart_tool/` is stripped from untrusted checkouts so a PR cannot enable `dart analyze`, and the unused `stripe` dependency is removed.
+
 ### Changed
 
 - The six behavioral rules (`dispose-not-called`, `set-state-after-dispose`, `unawaited-future-in-build`, `fake-mounted-check`, `silent-catch`, `riverpod-scope-leak`) are now enabled by default at warning severity, and at error in the `ai-generated` and `strict` presets. Projects without their own `rules:` list may see new warnings; `--fail-on error` pipelines are unaffected.

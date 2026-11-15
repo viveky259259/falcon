@@ -82,9 +82,16 @@ jobs:
             --site-output site/leaderboard
 
       - name: Copy docs into site
-        run: |
-          rm -rf site/docs
-          cp -r docs site/docs
+        run: bash scripts/build_site.sh
+
+      # pages.yml restores this artifact on every push so the leaderboard
+      # survives deploys between weekly runs.
+      - name: Save leaderboard for push deploys
+        uses: actions/upload-artifact@v4
+        with:
+          name: leaderboard-site
+          path: site/leaderboard
+          retention-days: 90
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
