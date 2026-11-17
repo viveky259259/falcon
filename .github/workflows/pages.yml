@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  actions: read
   pages: write
   id-token: write
 
@@ -29,23 +28,6 @@ jobs:
 
       - name: Copy docs into site
         run: bash scripts/build_site.sh
-
-      # The leaderboard is generated only by the weekly leaderboard.yml run and
-      # is not committed, so restore its last published copy instead of
-      # deploying the site without it.
-      - name: Restore the latest leaderboard
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          run_id="$(gh run list --repo "${GITHUB_REPOSITORY}" --workflow leaderboard.yml \
-            --status success --limit 1 --json databaseId -q '.[0].databaseId // empty')"
-          if [ -z "${run_id}" ]; then
-            echo "::notice::No successful leaderboard run yet; deploying without site/leaderboard."
-          elif ! gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" \
-              --name leaderboard-site --dir site/leaderboard; then
-            echo "::warning::Could not restore the leaderboard from run ${run_id}; deploying without it."
-          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
