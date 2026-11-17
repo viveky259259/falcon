@@ -2,12 +2,16 @@
 
 ## Unreleased
 
+### Removed
+
+- The pub.dev leaderboard: the static generator (`src/leaderboard.rs`), the weekly `leaderboard.yml` workflow, its scraping script, and its docs and opt-out list. Its `falcon x leaderboard` command had already been lost in a merge before v0.5.0, and the weekly job never completed a run.
+
 ### Fixed (release blockers)
 
 - `falcon-mcp` no longer answers JSON-RPC notifications such as `notifications/initialized`. JSON-RPC 2.0 forbids replies to messages without an `id`, and strict MCP clients reject them.
 - `falcon x enterprise check` exits 1 only when a `Block` policy fails. `Warn` and `Audit` failures are still reported, marked `(warn)` or `(audit)`, but no longer fail CI.
 - Tag releases now run `cargo test --locked` before building, and build release binaries with `--locked`.
-- GitHub Pages: the weekly leaderboard job no longer deletes the committed HTML docs, push deploys no longer nest Markdown docs under `docs/docs/`, and push deploys restore the latest leaderboard instead of dropping it. Both workflows share `scripts/build_site.sh`.
+- GitHub Pages: deploys no longer nest Markdown docs under `docs/docs/`. `scripts/build_site.sh` copies them next to the committed HTML docs and fails if those go missing.
 - GitHub App: `npm start` now runs `probot run ./index.js` (it previously exited without starting a server). PRs are fetched from the base repository with the installation token, so private repositories and PRs from deleted forks work, and `falcon review` diffs the whole PR against its base branch instead of failing on a one-commit clone. Commands run asynchronously, `.dart_tool/` is stripped from untrusted checkouts so a PR cannot enable `dart analyze`, and the unused `stripe` dependency is removed.
 
 ### Changed

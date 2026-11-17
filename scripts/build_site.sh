@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # Assemble the GitHub Pages site in site/ before upload.
 #
-# Both Pages workflows (pages.yml on push, leaderboard.yml weekly) call this so
-# they deploy the same site. It copies the Markdown docs next to the committed
-# HTML docs in site/docs/ without deleting them, and never nests docs/ inside
-# site/docs/. site/leaderboard/ is left untouched.
+# pages.yml calls this before upload. It copies the Markdown docs next to the
+# committed HTML docs in site/docs/ without deleting them, and never nests
+# docs/ inside site/docs/.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
