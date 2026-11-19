@@ -1,10 +1,12 @@
 use std::io::{Read, Write};
-use std::net::TcpStream;
+use std::net::{Shutdown, TcpStream};
 use std::time::{Duration, Instant};
 
 const MAX_HEADER_BYTES: usize = 16 * 1024;
 const MAX_BODY_BYTES: usize = 1024 * 1024;
 pub(super) const CLIENT_TIMEOUT: Duration = Duration::from_secs(2);
+/// How long a rejected connection keeps discarding input before it closes.
+const LINGER_TIMEOUT: Duration = Duration::from_millis(250);
 type RequestResult = Result<String, (&'static str, String)>;
 
 /// Read one bounded HTTP request; TCP read boundaries are not message boundaries.
@@ -109,4 +111,28 @@ pub(super) fn write_response(
 ) -> std::io::Result<()> {
     write!(stream, "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nX-Content-Type-Options: nosniff\r\nCache-Control: no-store\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len())?;
     stream.flush()
+}
+
+/// Close a connection whose request was rejected before it was fully read.
+///
+/// Closing a socket that still has unread input makes the kernel send a reset
+/// instead of a normal close, and a reset can destroy the response before the
+/// client reads it. So finish our side first, then discard whatever the client
+/// is still sending for a short, bounded time.
+pub(super) fn close_after_rejection(stream: &mut TcpStream) {
+    if stream.shutdown(Shutdown::Write).is_err() {
+        return;
+    }
+    let deadline = Instant::now() + LINGER_TIMEOUT;
+    let mut buffer = [0; 4096];
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() || stream.set_read_timeout(Some(remaining)).is_err() {
+            return;
+        }
+        match stream.read(&mut buffer) {
+            Ok(0) | Err(_) => return,
+            Ok(_) => {}
+        }
+    }
 }
