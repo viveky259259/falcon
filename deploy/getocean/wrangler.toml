@@ -5,8 +5,12 @@ main = "src/index.js"
 compatibility_date = "2025-06-01"
 workers_dev = false
 
+# Faiz@getocean.dev's Account, which owns the getocean.dev zone. Pinned so
+# `wrangler deploy` does not stop when a login can reach several accounts.
+account_id = "ddbda73063c2c1e161c17964f8a6be27"
+
 # Attaches the Worker to the hostname and creates its DNS record and
 # certificate. Requires the getocean.dev zone in the same Cloudflare account.
 routes = [
-  { pattern = "falcon.getocean.dev", custom_domain = true },
+  { pattern = "falcon.getocean.dev", zone_name = "getocean.dev", custom_domain = true },
 ]

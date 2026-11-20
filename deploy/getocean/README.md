@@ -8,8 +8,9 @@ two domains always show the same build.
 
 ## Deploy
 
-Run this once from this folder, logged in to the Cloudflare account that owns
-the `getocean.dev` zone:
+The zone lives in **Faiz@getocean.dev's Account**, which `wrangler.toml` pins
+by `account_id`. Run this from this folder with a Cloudflare login that can
+manage Workers in that account:
 
 ```bash
 npx wrangler@4 deploy
