@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>Falcon mark</title>
+  <defs>
+    <clipPath id="lens"><circle cx="116" cy="116" r="80"/></clipPath>
+  </defs>
+  <!-- lens glass -->
+  <circle cx="116" cy="116" r="80" fill="#eaf0ff"/>
+  <!-- falcon head, clipped to the lens -->
+  <g clip-path="url(#lens)">
+    <path fill="#16267a" d="M54 150 C52 100 82 70 120 70 C144 70 160 84 164 100 C178 104 184 118 174 132 L168 126 C164 132 156 138 148 140 C142 160 138 180 138 215 L54 215 Z"/>
+    <!-- cheek -->
+    <path fill="#eaf0ff" d="M110 117 C120 112 138 112 150 117 C147 134 139 148 128 155 C119 146 113 132 110 117 Z"/>
+    <!-- eye -->
+    <circle cx="132" cy="100" r="8" fill="#eaf0ff"/>
+    <circle cx="134" cy="100" r="4" fill="#16267a"/>
+  </g>
+  <!-- lens ring + handle -->
+  <circle cx="116" cy="116" r="80" fill="none" stroke="#2455f5" stroke-width="16"/>
+  <line x1="176" y1="176" x2="234" y2="234" stroke="#2455f5" stroke-width="30" stroke-linecap="round"/>
+  <!-- the finding: sparks along the falcon's line of sight -->
+  <g stroke="#f26b2e" stroke-width="7" stroke-linecap="round">
+    <line x1="208" y1="67" x2="220" y2="61"/>
+    <line x1="219" y1="101" x2="233" y2="100"/>
+    <line x1="218" y1="138" x2="231" y2="141"/>
+  </g>
+</svg>

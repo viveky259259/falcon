@@ -1,0 +1,12 @@
+# Cloudflare Worker that serves falcon.getocean.dev from the GitHub Pages site.
+# Deploy with `npx wrangler@4 deploy` from this folder; see README.md.
+name = "falcon-getocean"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+workers_dev = false
+
+# Attaches the Worker to the hostname and creates its DNS record and
+# certificate. Requires the getocean.dev zone in the same Cloudflare account.
+routes = [
+  { pattern = "falcon.getocean.dev", custom_domain = true },
+]
