@@ -1,7 +1,8 @@
 use std::{
-    io::{Read, Write},
-    net::{TcpListener, TcpStream},
+    io::{BufRead, BufReader, Read, Write},
+    net::TcpStream,
     process::{Child, Command, Stdio},
+    sync::mpsc,
     thread,
     time::{Duration, Instant},
 };
@@ -15,23 +16,35 @@ impl Drop for Server {
         let _ = self.0.wait();
     }
 }
+/// Start a server on a port it picks itself, and wait for it to announce it.
+///
+/// Reserving a port here and releasing it for the child is racy: tests run in
+/// parallel, so a server spawned by another test can inherit the reservation
+/// listener. The port then accepts connections nobody serves, and the real
+/// server cannot bind it.
 fn server() -> Server {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = listener.local_addr().unwrap().port();
-    drop(listener);
-    let child = Command::new(env!("CARGO_BIN_EXE_falcon"))
-        .args(["x", "api", "--port", &port.to_string()])
+    let mut child = Command::new(env!("CARGO_BIN_EXE_falcon"))
+        .args(["x", "api", "--port", "0"])
         .env("FALCON_API_TOKEN", TOKEN)
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    let server = Server(child, port);
-    let deadline = Instant::now() + Duration::from_secs(5);
-    while TcpStream::connect(("127.0.0.1", port)).is_err() {
-        assert!(Instant::now() < deadline, "server startup timeout");
-        thread::sleep(Duration::from_millis(10));
-    }
+    let stderr = BufReader::new(child.stderr.take().unwrap());
+    let mut server = Server(child, 0);
+    let (announce, announced) = mpsc::channel();
+    // Keeps reading after the banner so the server never blocks on a full pipe.
+    thread::spawn(move || {
+        for line in stderr.lines().map_while(Result::ok) {
+            if let Some((_, port)) = line.rsplit_once("listening on http://127.0.0.1:") {
+                let _ = announce.send(port.trim().parse::<u16>());
+            }
+        }
+    });
+    server.1 = announced
+        .recv_timeout(Duration::from_secs(5))
+        .expect("server did not announce its port")
+        .expect("server announced an unparseable port");
     server
 }
 fn connect(server: &Server) -> TcpStream {
@@ -96,6 +109,20 @@ fn oversized_content_length_is_rejected_before_reading_body() {
     assert!(response.starts_with("HTTP/1.1 413"), "{response}");
 }
 
+#[test]
+fn rejected_request_with_unread_body_still_delivers_the_response() {
+    let server = server();
+    let mut stream = connect(&server);
+    // The server rejects on the headers alone, so most of this body is never
+    // read. Closing with unread input must not reset the connection before the
+    // client has the response.
+    let mut request = b"POST /check-file HTTP/1.1\r\nContent-Length: 999999999\r\n\r\n".to_vec();
+    request.resize(request.len() + 64 * 1024, b'x');
+    stream.write_all(&request).unwrap();
+    let mut response = String::new();
+    stream.read_to_string(&mut response).unwrap();
+    assert!(response.starts_with("HTTP/1.1 413"), "{response}");
+}
 #[test]
 fn trickled_headers_have_a_total_request_deadline() {
     let server = server();

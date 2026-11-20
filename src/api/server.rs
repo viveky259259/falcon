@@ -43,8 +43,9 @@ pub fn start_api_server(host: &str, port: u16, allow_remote: bool) -> anyhow::Re
         );
     }
     let (token, source) = super::auth::resolve_token()?;
-    let addr = format!("{}:{}", host, port);
-    let listener = TcpListener::bind(&addr)?;
+    let listener = TcpListener::bind(format!("{}:{}", host, port))?;
+    // Report the port actually bound, so `--port 0` announces the one the OS chose.
+    let addr = format!("{}:{}", host, listener.local_addr()?.port());
 
     print_banner(
         &addr,
@@ -131,6 +132,7 @@ fn handle_connection(stream: &mut std::net::TcpStream, token: &str) -> anyhow::R
                 error: Some(error),
             })?;
             super::http::write_response(stream, status, &body)?;
+            super::http::close_after_rejection(stream);
             return Ok(());
         }
     };
