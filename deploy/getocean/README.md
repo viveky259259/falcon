@@ -8,8 +8,14 @@ two domains always show the same build.
 
 ## Deploy
 
-Run this once from this folder, logged in to the Cloudflare account that owns
-the `getocean.dev` zone:
+The zone lives in **Faiz@getocean.dev's Account**, which `wrangler.toml` pins
+by `account_id`. Run this from this folder with a Cloudflare login that has
+both of these in that account:
+
+- **Workers Scripts: Edit** on the account, to upload the Worker.
+- **Workers Routes: Edit** on the `getocean.dev` zone, to attach or change the
+  `falcon.getocean.dev` custom domain. Without it the upload succeeds but the
+  domain step fails.
 
 ```bash
 npx wrangler@4 deploy
