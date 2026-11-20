@@ -30,5 +30,6 @@ Worker does not need redeploying when the site changes; redeploy only when
 - Only `GET` and `HEAD` are served; other methods get `405`.
 - Redirects from Pages that point at its own host are rewritten to
   `falcon.getocean.dev`, so visitors stay on this domain.
-- Absolute URLs inside pages, such as the link-preview image, still point at
-  `falcon.vivekyadav.online`.
+- Absolute URLs inside pages still point at `falcon.vivekyadav.online`. That
+  includes the link-preview image and each page's `rel="canonical"` link, so
+  search engines treat `falcon.vivekyadav.online` as the primary address.
