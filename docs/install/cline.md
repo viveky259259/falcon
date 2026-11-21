@@ -27,5 +27,20 @@ Restart Cline, open the repo, and confirm Falcon exposes exactly these tools:
 - `review`
 - `explain`
 - `fix_safe`
+- `doctor`
+- `score`
+- `conventions`
+- `generate_tests`
+- `run_app`
+- `stop_app`
+- `reload`
+- `screenshot`
+- `widget_tree`
+- `interact`
+- `logs`
+- `tree_diff`
+- `app_metrics`
+- `journey`
+- `verify`
 
 Falcon uses stdio transport only. It does not open a local port or require auth.

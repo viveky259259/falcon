@@ -1,5 +1,14 @@
+pub mod app_session;
 pub mod cache;
+pub mod catalog;
+pub mod interact_tool;
+pub mod progress;
+pub mod runtime_defs;
+pub mod runtime_inspect;
+pub mod runtime_tools;
 pub mod schema;
 pub mod server;
+pub mod session_state;
 pub mod telemetry;
+pub mod test_gen_tool;
 pub mod tools;

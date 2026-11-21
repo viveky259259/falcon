@@ -223,6 +223,9 @@ pub struct ReloadToolReport {
     pub reloaded_libraries: Option<u64>,
     pub elapsed_ms: u128,
     pub reassembled: bool,
+    /// `flutter run` when the attached app's `flutter run` session handled it
+    /// (recompiles edited sources), `vm service` for the bare VM fallback.
+    pub via: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -232,8 +235,9 @@ pub struct ScreenshotToolReport {
     pub output_path: String,
     pub byte_count: usize,
     /// Which capture path produced the image: `rasterizer` (VM Service
-    /// `_flutter.screenshot`, works on mobile + desktop) or `device`
-    /// (the `flutter screenshot` CLI capturing the OS framebuffer).
+    /// `_flutter.screenshot`), `inspector` (`ext.flutter.inspector.screenshot`,
+    /// used when the engine refuses, e.g. under Impeller) or `device` (the
+    /// `flutter screenshot` CLI capturing the OS framebuffer).
     pub method: String,
 }
 
@@ -289,7 +293,7 @@ pub async fn collect_screenshot(
 }
 
 /// Capture a single PNG to `output_path` using the cross-platform strategy and
-/// return which method succeeded (`"rasterizer"` or `"device"`). Shared by the
+/// return which method succeeded (`"rasterizer"`, `"inspector"` or `"device"`). Shared by the
 /// one-shot `screenshot` command and the `journey` recorder.
 pub async fn capture_screenshot_file(
     client: &VmServiceClient,
@@ -312,10 +316,26 @@ pub async fn capture_screenshot_file(
             Ok("rasterizer".to_string())
         }
         Err(rpc_err) => {
-            // 2. Device-native capture via the Flutter CLI.
+            // 2. Framework capture: `ext.flutter.inspector.screenshot` renders
+            //    the root widget and, unlike `_flutter.screenshot`, works under
+            //    Impeller (where the engine refuses compressed screenshots).
+            let inspector_err = match client.capture_inspector_screenshot().await {
+                Ok(base64_png) => {
+                    let bytes = decode_screenshot(&base64_png)?;
+                    std::fs::write(output_path, &bytes).map_err(|e| {
+                        anyhow::anyhow!(
+                            "Failed to write screenshot to {}: {e}",
+                            output_path.display()
+                        )
+                    })?;
+                    return Ok("inspector".to_string());
+                }
+                Err(e) => e,
+            };
+            // 3. Device-native capture via the Flutter CLI.
             capture_via_flutter_cli(output_path, project_path, device).map_err(|cli_err| {
                 anyhow::anyhow!(
-                    "Screenshot capture failed on all paths.\n  - rasterizer (VM Service): {rpc_err}\n  - device (flutter screenshot): {cli_err}\n\
+                    "Screenshot capture failed on all paths.\n  - rasterizer (VM Service): {rpc_err}\n  - inspector (ext.flutter.inspector.screenshot): {inspector_err:#}\n  - device (flutter screenshot): {cli_err}\n\
                      Note: Flutter web targets cannot be captured this way — run on a mobile or desktop device."
                 )
             })?;
@@ -522,13 +542,15 @@ pub async fn collect_debugger_report(
     })
 }
 
+/// Rebuild counts over `window`. Tracking starts on the first request, so the
+/// window is what gets measured; an idle app rebuilds nothing.
 pub async fn collect_rebuilds_report(
     client: &VmServiceClient,
     vm_service_uri: &str,
+    window: Duration,
 ) -> Result<RebuildsToolReport> {
-    let _ = client
-        .set_flag("ext.flutter.profileWidgetBuilds", "true")
-        .await;
+    let _ = client.get_rebuild_counts().await;
+    tokio::time::sleep(window).await;
     let raw = client.get_rebuild_counts().await.unwrap_or(Value::Null);
     let summary = summarize_rebuilds(&raw);
     Ok(RebuildsToolReport {
@@ -547,6 +569,7 @@ pub async fn collect_inspector_report(
 ) -> Result<InspectorToolReport> {
     let tree = client.get_root_widget_tree().await.unwrap_or(Value::Null);
     let selected = client.get_selected_widget().await.unwrap_or(Value::Null);
+    client.dispose_inspector_group().await;
     let rebuilds = client.get_rebuild_counts().await.unwrap_or(Value::Null);
 
     let tree_summary = summarize_inspector_tree(&tree);
@@ -570,40 +593,81 @@ pub async fn collect_reload_report(
     mode: ReloadMode,
 ) -> Result<ReloadToolReport> {
     let start = std::time::Instant::now();
-    let (force, pause) = match mode {
-        ReloadMode::HotReload => (false, false),
-        ReloadMode::HotRestart => (true, false),
+    let service = match mode {
+        ReloadMode::HotReload => "reloadSources",
+        ReloadMode::HotRestart => "hotRestart",
     };
-    let resp = client.reload_sources(force, pause).await?;
-    let success = resp["success"].as_bool().unwrap_or(false);
-    let reason = resp["notices"]
-        .as_array()
-        .and_then(|n| n.first())
-        .and_then(|n| n["message"].as_str())
-        .map(|s| s.to_string())
-        .or_else(|| resp["reason"].as_str().map(|s| s.to_string()));
-    let reloaded_libraries = resp["details"]["loadedLibraryCount"]
-        .as_u64()
-        .or_else(|| resp["loadedLibraryCount"].as_u64());
-
-    let mut reassembled = false;
-    if success && client.flutter_reassemble().await.is_ok() {
-        reassembled = true;
-    }
-
-    Ok(ReloadToolReport {
+    let mut report = ReloadToolReport {
         vm_service_uri: vm_service_uri.to_string(),
         isolate_id: client.isolate_id.clone(),
         mode: match mode {
             ReloadMode::HotReload => "reload".into(),
             ReloadMode::HotRestart => "restart".into(),
         },
-        success,
-        reason,
-        reloaded_libraries,
-        elapsed_ms: start.elapsed().as_millis(),
-        reassembled,
-    })
+        success: false,
+        reason: None,
+        reloaded_libraries: None,
+        elapsed_ms: 0,
+        reassembled: false,
+        via: "flutter run".into(),
+    };
+
+    // `flutter run` registers `sN.reloadSources` / `sN.hotRestart`, which
+    // recompile edited sources before reloading. Prefer them when present.
+    if let Some(method) = client.registered_service(service).await {
+        let params = serde_json::json!({ "isolateId": client.isolate_id, "pause": false });
+        match client
+            .call_service(&method, params, Duration::from_secs(120))
+            .await
+        {
+            Ok(resp) => {
+                report.success = resp["type"].as_str() == Some("Success")
+                    || resp["success"].as_bool().unwrap_or(false);
+                report.reassembled = report.success;
+                if !report.success {
+                    report.reason = Some(resp.to_string());
+                }
+            }
+            Err(e) => report.reason = Some(format!("{e:#}")),
+        }
+        report.elapsed_ms = start.elapsed().as_millis();
+        return Ok(report);
+    }
+
+    report.via = "vm service".into();
+    if let ReloadMode::HotRestart = mode {
+        report.reason = Some(
+            "Hot restart needs the `flutter run` session that launched the app; \
+             none is attached to this VM Service."
+                .into(),
+        );
+        report.elapsed_ms = start.elapsed().as_millis();
+        return Ok(report);
+    }
+    let resp = client.reload_sources(false, false).await?;
+    report.success = resp["success"].as_bool().unwrap_or(false);
+    report.reason = resp["notices"]
+        .as_array()
+        .and_then(|n| n.first())
+        .and_then(|n| n["message"].as_str())
+        .map(|s| s.to_string())
+        .or_else(|| resp["reason"].as_str().map(|s| s.to_string()));
+    if !report.success {
+        if let Some(reason) = report.reason.as_mut() {
+            reason.push_str(
+                " (the VM can't recompile sources itself; start the app with `flutter run` \
+                 and attach to that session for hot reload)",
+            );
+        }
+    }
+    report.reloaded_libraries = resp["details"]["loadedLibraryCount"]
+        .as_u64()
+        .or_else(|| resp["loadedLibraryCount"].as_u64());
+    if report.success && client.flutter_reassemble().await.is_ok() {
+        report.reassembled = true;
+    }
+    report.elapsed_ms = start.elapsed().as_millis();
+    Ok(report)
 }
 
 pub async fn collect_logging_report(
@@ -1100,6 +1164,19 @@ pub struct TraceToolReport {
 /// Summarize frame timing from a VM timeline. A frame is a `traceEvent` named
 /// `Frame` carrying a `dur` (microseconds); it is "jank" when its build time
 /// exceeds `jank_threshold_ms`.
+/// A request failed when it got a 4xx/5xx status, or finished without a
+/// response (connection refused, DNS failure, TLS error, ...).
+fn request_failed(request: &Value) -> bool {
+    if let Some(status) = request["response"]["statusCode"].as_i64() {
+        return status >= 400;
+    }
+    let has_error = !request["error"].is_null()
+        || !request["response"]["error"].is_null()
+        || !request["request"]["error"].is_null();
+    let finished = !request["endTime"].is_null();
+    has_error || finished
+}
+
 pub fn summarize_frame_timeline(timeline: &Value, jank_threshold_ms: f64) -> FrameTraceSummary {
     let trace_events = timeline["traceEvents"]
         .as_array()
@@ -1138,28 +1215,49 @@ pub fn summarize_frame_timeline(timeline: &Value, jank_threshold_ms: f64) -> Fra
     }
 }
 
+/// Summarize `Flutter.Frame` timings. A frame is janky when its build or
+/// raster phase exceeds the threshold; its duration is the frame's total span.
+pub fn summarize_flutter_frames(
+    frames: &[crate::runtime::vm_events::FrameTiming],
+    jank_threshold_ms: f64,
+) -> FrameTraceSummary {
+    let threshold_us = jank_threshold_ms * 1000.0;
+    let durations_ms: Vec<f64> = frames
+        .iter()
+        .map(|f| f.elapsed_us as f64 / 1000.0)
+        .collect();
+    let total_frames = frames.len();
+    let jank_frames = frames
+        .iter()
+        .filter(|f| f.build_us as f64 > threshold_us || f.raster_us as f64 > threshold_us)
+        .count();
+    let worst_frame_ms = durations_ms.iter().cloned().fold(0.0f64, f64::max);
+    let avg_frame_ms = if total_frames == 0 {
+        0.0
+    } else {
+        durations_ms.iter().sum::<f64>() / total_frames as f64
+    };
+    FrameTraceSummary {
+        total_frames,
+        jank_frames,
+        worst_frame_ms,
+        avg_frame_ms,
+    }
+}
+
 pub async fn collect_trace_report(
     client: &VmServiceClient,
     vm_service_uri: &str,
     duration: Duration,
     jank_threshold_ms: f64,
 ) -> Result<TraceToolReport> {
-    let _ = client
-        .set_vm_timeline_flags(&["Dart", "Embedder", "GC"])
-        .await;
-    let _ = client.clear_vm_timeline().await;
-    let _ = client
-        .set_flag("ext.flutter.profileWidgetBuilds", "true")
-        .await;
-    let start = client.get_vm_timeline_micros().await?;
+    // Start listening for `Flutter.Frame` / rebuild events, drop anything
+    // from before the window, then measure the window itself.
+    client.take_frame_timings().await?;
+    let _ = client.get_rebuild_counts().await;
     tokio::time::sleep(duration).await;
-    let end = client.get_vm_timeline_micros().await?;
-
-    let timeline = client
-        .get_vm_timeline_range(start, end.saturating_sub(start))
-        .await
-        .unwrap_or(Value::Null);
-    let frames = summarize_frame_timeline(&timeline, jank_threshold_ms);
+    let timings = client.take_frame_timings().await?;
+    let frames = summarize_flutter_frames(&timings, jank_threshold_ms);
 
     let rebuilds = client.get_rebuild_counts().await.unwrap_or(Value::Null);
     let rebuild_summary = summarize_rebuilds(&rebuilds);
@@ -1231,11 +1329,7 @@ pub struct TreeDiffToolReport {
 /// available (so identical widget types at different call sites diff
 /// independently).
 fn tree_node_signature(node: &Value) -> String {
-    let ty = node["type"]
-        .as_str()
-        .or_else(|| node["widgetRuntimeType"].as_str())
-        .or_else(|| node["description"].as_str())
-        .unwrap_or("<unknown>");
+    let ty = inspector_widget_name(node).unwrap_or("<unknown>");
     let loc = node["creationLocation"]["file"].as_str().map(|file| {
         let line = node["creationLocation"]["line"].as_i64().unwrap_or(0);
         format!("{file}:{line}")
@@ -1246,15 +1340,33 @@ fn tree_node_signature(node: &Value) -> String {
     }
 }
 
+/// The widget name of an inspector node. Real inspector nodes carry the
+/// widget in `widgetRuntimeType` and the diagnostics class (for example
+/// `_ElementDiagnosticableTreeNode`) in `type`, so a private `type` is skipped.
+pub fn inspector_widget_name(node: &Value) -> Option<&str> {
+    let ty = node["type"].as_str().filter(|t| !t.starts_with('_'));
+    node["widgetRuntimeType"]
+        .as_str()
+        .or(ty)
+        .or_else(|| node["description"].as_str())
+        .or_else(|| node["type"].as_str())
+}
+
+/// The root node of an inspector reply. The VM Service wraps extension
+/// results as `{"type": "_extensionType", "method": ..., "result": {...}}`,
+/// so a top-level `type` is not proof that `tree` is itself a node.
+pub fn inspector_root(tree: &Value) -> &Value {
+    let wrapped = tree.get("type").and_then(Value::as_str) == Some("_extensionType");
+    let is_node = !wrapped && (tree.get("type").is_some() || tree.get("children").is_some());
+    match tree.get("result") {
+        Some(result) if !is_node => result,
+        _ => tree,
+    }
+}
+
 /// Walk a widget-tree summary and count each node signature.
 pub fn collect_tree_signatures(tree: &Value) -> std::collections::BTreeMap<String, i64> {
-    let root = if tree.get("type").is_some() || tree.get("children").is_some() {
-        tree
-    } else if let Some(result) = tree.get("result") {
-        result
-    } else {
-        tree
-    };
+    let root = inspector_root(tree);
     let mut counts = std::collections::BTreeMap::new();
     walk_signatures(root, &mut counts);
     counts
@@ -1475,10 +1587,7 @@ fn summarize_network(http_profile: &Value, socket_profile: &Value) -> NetworkSum
     });
     request_summaries.truncate(DEFAULT_TOP_REQUESTS_LIMIT);
 
-    let failed_requests = requests
-        .iter()
-        .filter(|request| request["response"]["statusCode"].as_i64().unwrap_or(200) >= 400)
-        .count();
+    let failed_requests = requests.iter().filter(|r| request_failed(r)).count();
     let total_bytes_received = requests
         .iter()
         .filter_map(|request| request["response"]["contentLength"].as_u64())
@@ -1839,7 +1948,7 @@ fn summarize_rebuilds(raw: &Value) -> RebuildSummary {
                 location,
             });
         }
-    } else if raw.is_object() {
+    } else if raw.is_object() && raw.get("enabled").is_none() {
         // Fallback: object keyed by widget name → count
         if let Some(obj) = raw.as_object() {
             stats_enabled = !obj.is_empty();
@@ -1855,6 +1964,10 @@ fn summarize_rebuilds(raw: &Value) -> RebuildSummary {
         }
     }
 
+    // Live tracking reports `enabled` explicitly: no rebuilds is not "disabled".
+    if let Some(enabled) = raw["enabled"].as_bool() {
+        stats_enabled = enabled;
+    }
     entries.sort_by_key(|e| std::cmp::Reverse(e.count));
     let total_widgets = entries.len();
     entries.truncate(DEFAULT_TOP_HOT_FUNCTIONS_LIMIT);
@@ -1875,13 +1988,7 @@ struct InspectorTreeSummary {
 }
 
 fn summarize_inspector_tree(tree: &Value) -> InspectorTreeSummary {
-    let root_value = if tree.get("type").is_some() || tree.get("children").is_some() {
-        tree
-    } else if let Some(result) = tree.get("result") {
-        result
-    } else {
-        tree
-    };
+    let root_value = inspector_root(tree);
 
     if root_value.is_null() || !root_value.is_object() {
         return InspectorTreeSummary {
@@ -1918,13 +2025,14 @@ fn walk_inspector(node: &Value, depth: usize, total: &mut usize, max_depth: &mut
 }
 
 fn summarize_inspector_node(node: &Value) -> Option<InspectorNode> {
+    // Unwrap `{"type": "_extensionType", "result": ...}`; with nothing selected
+    // the inner result is null.
+    let wrapped = node.get("type").and_then(Value::as_str) == Some("_extensionType");
+    let node = if wrapped { &node["result"] } else { node };
     if node.is_null() || !node.is_object() {
         return None;
     }
-    let widget = node["type"]
-        .as_str()
-        .or_else(|| node["widgetRuntimeType"].as_str())
-        .or_else(|| node["description"].as_str())
+    let widget = inspector_widget_name(node)
         .unwrap_or("<unknown>")
         .to_string();
     let description = node["description"].as_str().map(String::from);
@@ -1952,6 +2060,32 @@ fn summarize_inspector_node(node: &Value) -> Option<InspectorNode> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn inspector_widget_name_prefers_the_widget_over_the_node_class() {
+        let real = json!({"type": "_ElementDiagnosticableTreeNode", "widgetRuntimeType": "MyHomePage", "description": "MyHomePage"});
+        assert_eq!(inspector_widget_name(&real), Some("MyHomePage"));
+        let private_only = json!({"type": "_Node", "description": "Scaffold"});
+        assert_eq!(inspector_widget_name(&private_only), Some("Scaffold"));
+        assert_eq!(
+            inspector_widget_name(&json!({"type": "Column"})),
+            Some("Column")
+        );
+    }
+
+    #[test]
+    fn inspector_root_unwraps_the_vm_extension_wrapper() {
+        let node = json!({"type": "_ElementDiagnosticableTreeNode", "children": []});
+        let wrapped = json!({"type": "_extensionType", "method": "x", "result": node.clone()});
+        assert_eq!(inspector_root(&wrapped), &node);
+        assert_eq!(inspector_root(&node), &node);
+        assert_eq!(inspector_root(&json!({"result": node.clone()})), &node);
+        let summary = collect_tree_signatures(&json!({
+            "type": "_extensionType",
+            "result": {"type": "Node", "description": "MyApp", "children": [{"description": "Text"}]}
+        }));
+        assert_eq!(summary.values().sum::<i64>(), 2);
+    }
     use serde_json::json;
 
     #[test]
@@ -2087,6 +2221,19 @@ mod tests {
         assert_eq!(buckets.len(), 2);
         assert_eq!(buckets[0].name, "B");
         assert_eq!(buckets[1].name, "C");
+    }
+
+    #[test]
+    fn request_failed_counts_errors_without_a_status() {
+        assert!(request_failed(&json!({"response": {"statusCode": 404}})));
+        assert!(!request_failed(
+            &json!({"response": {"statusCode": 200}, "endTime": 1})
+        ));
+        assert!(request_failed(
+            &json!({"request": {"error": "SocketException"}, "endTime": 1})
+        ));
+        assert!(request_failed(&json!({"endTime": 1})));
+        assert!(!request_failed(&json!({"startTime": 1})), "still in flight");
     }
 
     #[test]

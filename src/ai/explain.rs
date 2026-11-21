@@ -14,9 +14,30 @@ pub struct RuleExplanation {
     pub references: Vec<String>,
 }
 
+/// The hand-written explanation for `rule_name`, or, for registered rules
+/// without one, a short explanation built from the rule registry.
 pub fn explain_rule(rule_name: &str) -> Option<RuleExplanation> {
-    let db = build_explanation_db();
-    db.get(rule_name).cloned()
+    explanations().remove(rule_name)
+}
+
+/// Hand-written explanations plus a registry entry for every other rule.
+fn explanations() -> HashMap<String, RuleExplanation> {
+    let mut db = build_explanation_db();
+    for doc in crate::docs::rule_docs::generate_rule_docs() {
+        db.entry(doc.name.clone())
+            .or_insert_with(|| RuleExplanation {
+                name: doc.name,
+                category: doc.category,
+                severity: doc.severity.to_lowercase(),
+                summary: doc.description,
+                why: String::new(),
+                bad_example: String::new(),
+                good_example: String::new(),
+                exceptions: Vec::new(),
+                references: Vec::new(),
+            });
+    }
+    db
 }
 
 pub fn print_explanation(explanation: &RuleExplanation) {
@@ -31,26 +52,32 @@ pub fn print_explanation(explanation: &RuleExplanation) {
     println!();
     println!("  {}", "Summary".bright_green().bold());
     println!("  {}", explanation.summary);
-    println!();
-    println!("  {}", "Why this matters".bright_yellow().bold());
-    println!("  {}", explanation.why);
-    println!();
-    println!(
-        "  {} {}",
-        "Bad".bright_red().bold(),
-        "(avoid this)".dimmed()
-    );
-    for line in explanation.bad_example.lines() {
-        println!("    {}", line);
+    if !explanation.why.is_empty() {
+        println!();
+        println!("  {}", "Why this matters".bright_yellow().bold());
+        println!("  {}", explanation.why);
     }
-    println!();
-    println!(
-        "  {} {}",
-        "Good".bright_green().bold(),
-        "(prefer this)".dimmed()
-    );
-    for line in explanation.good_example.lines() {
-        println!("    {}", line);
+    if !explanation.bad_example.is_empty() {
+        println!();
+        println!(
+            "  {} {}",
+            "Bad".bright_red().bold(),
+            "(avoid this)".dimmed()
+        );
+        for line in explanation.bad_example.lines() {
+            println!("    {}", line);
+        }
+    }
+    if !explanation.good_example.is_empty() {
+        println!();
+        println!(
+            "  {} {}",
+            "Good".bright_green().bold(),
+            "(prefer this)".dimmed()
+        );
+        for line in explanation.good_example.lines() {
+            println!("    {}", line);
+        }
     }
 
     if !explanation.exceptions.is_empty() {
@@ -72,7 +99,7 @@ pub fn print_explanation(explanation: &RuleExplanation) {
 }
 
 pub fn list_all_rules() {
-    let db = build_explanation_db();
+    let db = explanations();
     let mut rules: Vec<_> = db.values().collect();
     rules.sort_by_key(|r| &r.name);
 
@@ -83,7 +110,7 @@ pub fn list_all_rules() {
 
     println!();
     println!(
-        "  {} {} rules with explanations",
+        "  {} {} rules",
         "falcon x explain".bright_cyan().bold(),
         rules.len()
     );
@@ -378,6 +405,18 @@ mod tests {
     }
 
     // ── explain_rule ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn every_registered_rule_can_be_explained() {
+        for doc in crate::docs::rule_docs::generate_rule_docs() {
+            let e = explain_rule(&doc.name)
+                .unwrap_or_else(|| panic!("no explanation for {}", doc.name));
+            assert!(!e.summary.is_empty(), "{}", doc.name);
+        }
+        let creds = explain_rule("avoid-hardcoded-credentials").expect("registered rule");
+        assert_eq!(creds.name, "avoid-hardcoded-credentials");
+        assert!(explain_rule("prefer-trailing-comma").is_some());
+    }
 
     #[test]
     fn explain_rule_unknown_returns_none() {

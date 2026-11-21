@@ -450,13 +450,20 @@ fn handle_devtools(action: DevtoolsAction) -> Result<()> {
                 falcon::runtime::tools::print_logging_report(&report);
             }
         }
-        DevtoolsAction::Rebuilds { path, attach, json } => {
+        DevtoolsAction::Rebuilds {
+            path,
+            attach,
+            duration,
+            json,
+        } => {
             let (vm_uri, client) = rt.block_on(falcon::runtime::tools::connect_client(
                 &path,
                 attach.as_deref(),
             ))?;
             let report = rt.block_on(falcon::runtime::tools::collect_rebuilds_report(
-                &client, &vm_uri,
+                &client,
+                &vm_uri,
+                std::time::Duration::from_secs(duration),
             ))?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&report)?);

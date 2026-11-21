@@ -2101,6 +2101,9 @@ pub enum DevtoolsAction {
         path: PathBuf,
         #[arg(long)]
         attach: Option<String>,
+        /// Seconds to count rebuilds for (interact with the app meanwhile)
+        #[arg(short, long, default_value_t = 3)]
+        duration: u64,
         #[arg(long)]
         json: bool,
     },

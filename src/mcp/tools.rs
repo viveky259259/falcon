@@ -30,13 +30,67 @@ pub const DEPRECATED_TOOLS: &[(&str, Option<&str>)] = &[
     ("falcon_analyze", Some("review")),
     ("falcon_explain_rule", Some("explain")),
     ("falcon_fix", Some("fix_safe")),
-    ("falcon_ai_score", None),
-    ("falcon_conventions", None),
+    ("falcon_ai_score", Some("score")),
+    ("falcon_conventions", Some("conventions")),
     ("falcon_provenance", None),
 ];
 
-/// The locked surface — exactly 6 tools advertised to clients.
+/// Every canonical tool name, in the order `tools/list` advertises them.
+pub const CANONICAL_TOOLS: &[&str] = &[
+    "lint_file",
+    "lint_diff",
+    "review",
+    "explain",
+    "fix_safe",
+    "doctor",
+    "score",
+    "conventions",
+    "generate_tests",
+    "run_app",
+    "stop_app",
+    "reload",
+    "screenshot",
+    "widget_tree",
+    "interact",
+    "logs",
+    "tree_diff",
+    "app_metrics",
+    "journey",
+    "verify",
+];
+
+/// The advertised surface: static analysis tools, then tools that run and
+/// drive the app. `CANONICAL_TOOLS` pins the names and their order.
 pub fn list_tools() -> Vec<ToolDefinition> {
+    let mut tools = static_tools();
+    tools.push(super::test_gen_tool::definition());
+    let runtime = super::runtime_inspect::definitions();
+    let (start, observe): (Vec<_>, Vec<_>) = runtime
+        .into_iter()
+        .partition(|t| matches!(t.name.as_str(), "run_app" | "stop_app" | "reload"));
+    tools.extend(start);
+    tools.push(ToolDefinition {
+        name: "screenshot".to_string(),
+        description: super::runtime_tools::SCREENSHOT_DESCRIPTION.to_string(),
+        input_schema: super::runtime_tools::screenshot_input_schema(),
+    });
+    let (tree, rest): (Vec<_>, Vec<_>) = observe.into_iter().partition(|t| t.name == "widget_tree");
+    tools.extend(tree);
+    tools.push(super::interact_tool::definition());
+    tools.extend(rest);
+    tools
+}
+
+fn path_only_schema(description: &str) -> Value {
+    serde_json::json!({
+        "$schema": super::schema::JSON_SCHEMA_DRAFT_07,
+        "type": "object",
+        "properties": { "path": { "type": "string", "description": description } },
+        "required": ["path"]
+    })
+}
+
+fn static_tools() -> Vec<ToolDefinition> {
     vec![
         ToolDefinition {
             name: "lint_file".to_string(),
@@ -68,15 +122,27 @@ pub fn list_tools() -> Vec<ToolDefinition> {
             description: "Diagnose the project's Flutter toolchain and install what is missing. Call with just `path` to get every check's status plus the questions each fix needs (channel, version, install directory), each option carrying the reason it is suggested. Call again with `execute: true` and `decisions` filled in to perform the install.".to_string(),
             input_schema: doctor_input_schema(),
         },
+        ToolDefinition {
+            name: "score".to_string(),
+            description: "Score the project 0-100 for AI code quality across six dimensions (resource safety, error handling, type safety, security, convention match, complexity), with findings per dimension.".to_string(),
+            input_schema: path_only_schema("Path to the Flutter/Dart project directory"),
+        },
+        ToolDefinition {
+            name: "conventions".to_string(),
+            description: "Detect the project's own conventions (state management, naming, structure, imports) so generated code can match them.".to_string(),
+            input_schema: path_only_schema("Path to the Flutter/Dart project directory"),
+        },
     ]
 }
 
 /// The surface as seen from a given transport. Remote callers (the HTTP
 /// bridge) see `doctor` described as diagnosis-only, because remote
-/// execution is refused by the `Trust` gate in `execute_doctor`.
+/// execution is refused by the `Trust` gate in `execute_doctor`, and never
+/// see the runtime tools, which are refused outright over that transport.
 pub fn list_tools_for(trust: Trust) -> Vec<ToolDefinition> {
     let mut tools = list_tools();
     if trust == Trust::Remote {
+        tools.retain(|tool| !is_runtime_tool(&tool.name));
         for tool in tools.iter_mut() {
             if tool.name == "doctor" {
                 tool.description =
@@ -110,24 +176,35 @@ pub fn execute_tool(name: &str, args: &Value, trust: Trust) -> Result<Value, Str
     result
 }
 
+/// Tools that act on a running app; refused and hidden over `Trust::Remote`.
+pub fn is_runtime_tool(name: &str) -> bool {
+    matches!(
+        name,
+        "run_app"
+            | "stop_app"
+            | "reload"
+            | "screenshot"
+            | "widget_tree"
+            | "interact"
+            | "logs"
+            | "tree_diff"
+            | "app_metrics"
+            | "journey"
+            | "verify"
+    )
+}
+
 fn canonical_tool_name(name: &str) -> Option<&'static str> {
-    match name {
-        "lint_file" | "lint_diff" | "review" | "explain" | "fix_safe" | "doctor" => {
-            Some(match name {
-                "lint_file" => "lint_file",
-                "lint_diff" => "lint_diff",
-                "review" => "review",
-                "explain" => "explain",
-                "fix_safe" => "fix_safe",
-                "doctor" => "doctor",
-                _ => unreachable!(),
-            })
-        }
-        old => DEPRECATED_TOOLS
-            .iter()
-            .find_map(|(deprecated, canonical)| (*deprecated == old).then_some(*canonical))
-            .flatten(),
-    }
+    CANONICAL_TOOLS
+        .iter()
+        .copied()
+        .find(|canonical| *canonical == name)
+        .or_else(|| {
+            DEPRECATED_TOOLS
+                .iter()
+                .find_map(|(deprecated, canonical)| (*deprecated == name).then_some(*canonical))
+                .flatten()
+        })
 }
 
 fn execute_tool_inner(name: &str, args: &Value, trust: Trust) -> Result<Value, String> {
@@ -154,6 +231,11 @@ fn execute_tool_inner(name: &str, args: &Value, trust: Trust) -> Result<Value, S
         "explain" => execute_explain_rule(args),
         "fix_safe" => execute_fix(args),
         "doctor" => execute_doctor(args, trust),
+        "score" => execute_ai_score(args),
+        "conventions" => execute_conventions(args),
+        "generate_tests" => super::test_gen_tool::execute(args, trust),
+        "screenshot" => super::runtime_tools::execute_screenshot(args, trust),
+        "interact" => super::interact_tool::execute(args, trust),
 
         // Backward-compat aliases (still dispatchable, not in list_tools()).
         "falcon_check_file" => execute_check_file(args),
@@ -164,7 +246,8 @@ fn execute_tool_inner(name: &str, args: &Value, trust: Trust) -> Result<Value, S
         "falcon_conventions" => execute_conventions(args),
         "falcon_provenance" => execute_provenance(args),
 
-        _ => Err(format!("Unknown tool: {}", name)),
+        _ => super::runtime_inspect::dispatch(name, args, trust)
+            .unwrap_or_else(|| Err(format!("Unknown tool: {}", name))),
     }
 }
 
@@ -565,19 +648,27 @@ mod tests {
     use std::path::Path;
     use std::process::Command;
 
-    /// The 5 canonical tool names — locked surface.
-    const CANONICAL_TOOLS: &[&str] = &["lint_file", "lint_diff", "review", "explain", "fix_safe"];
+    /// Tools safe to dispatch with empty args in a test: each fails fast on
+    /// a missing argument. `doctor` and `stop_app` would do real work.
+    const DISPATCH_PROBES: &[&str] = &[
+        "lint_file",
+        "lint_diff",
+        "review",
+        "explain",
+        "fix_safe",
+        "score",
+        "generate_tests",
+        "screenshot",
+        "interact",
+        "app_metrics",
+        "verify",
+    ];
 
     #[test]
-    fn list_tools_returns_exactly_five() {
+    fn list_tools_matches_the_canonical_surface() {
         let tools = list_tools();
-        assert_eq!(
-            tools.len(),
-            6,
-            "MCP surface must be exactly 6 tools, got {}",
-            tools.len()
-        );
         let names: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(names, CANONICAL_TOOLS, "advertised tools and their order");
         for canon in CANONICAL_TOOLS {
             assert!(
                 names.contains(canon),
@@ -617,7 +708,7 @@ mod tests {
     fn canonical_names_are_dispatchable() {
         // Use intentionally-bad args so handlers exit early without doing work.
         // We only assert that we DO NOT get the "Unknown tool" error path.
-        for name in CANONICAL_TOOLS {
+        for name in DISPATCH_PROBES {
             let result = execute_tool(name, &json!({}), Trust::Local);
             if let Err(e) = &result {
                 assert!(
@@ -628,6 +719,35 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn remote_listing_hides_runtime_tools_and_dispatch_refuses_them() {
+        let remote: Vec<String> = list_tools_for(Trust::Remote)
+            .into_iter()
+            .map(|t| t.name)
+            .collect();
+        for name in CANONICAL_TOOLS.iter().filter(|n| is_runtime_tool(n)) {
+            assert!(
+                !remote.contains(&name.to_string()),
+                "{name} listed remotely"
+            );
+            let err = execute_tool(name, &json!({}), Trust::Remote).unwrap_err();
+            assert!(err.contains("not permitted"), "{name}: {err}");
+        }
+        assert!(remote.contains(&"lint_file".to_string()));
+        assert_eq!(list_tools_for(Trust::Local).len(), CANONICAL_TOOLS.len());
+    }
+
+    #[test]
+    fn deprecated_score_and_conventions_point_at_new_names() {
+        assert_eq!(canonical_tool_name("falcon_ai_score"), Some("score"));
+        assert_eq!(
+            canonical_tool_name("falcon_conventions"),
+            Some("conventions")
+        );
+        assert_eq!(canonical_tool_name("interact"), Some("interact"));
+        assert_eq!(canonical_tool_name("nope"), None);
     }
 
     #[test]

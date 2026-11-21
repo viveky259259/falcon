@@ -222,11 +222,8 @@ pub fn analyze_rendering(snapshots: &[RuntimeSnapshot]) -> RenderingSummary {
         .map(|s| s.rendering.max_frame_raster_time_ms)
         .fold(0.0f64, f64::max);
 
-    // Count jank events (frames > 16ms budget).
-    let jank = snapshots
-        .iter()
-        .filter(|s| s.rendering.max_frame_build_time_ms > 16.0)
-        .count() as u64;
+    // Jank events are frames over the 16ms budget (build or raster).
+    let jank = dropped;
 
     let frame_times = snapshots
         .iter()

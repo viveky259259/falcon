@@ -187,8 +187,8 @@ pub fn check_upgrade_compatibility(root: &Path) -> Vec<CompatFinding> {
 
 fn check_file_compat(file: &Path, source: &str, findings: &mut Vec<CompatFinding>) {
     for (i, line) in source.lines().enumerate() {
-        let trimmed = line.trim();
-        if trimmed.starts_with("//") || trimmed.starts_with("///") {
+        let code = code_only(line);
+        if code.trim().is_empty() {
             continue;
         }
 
@@ -196,7 +196,7 @@ fn check_file_compat(file: &Path, source: &str, findings: &mut Vec<CompatFinding
             if message.is_empty() {
                 continue;
             }
-            if trimmed.contains(pattern) {
+            if uses_api(&code, pattern, message.starts_with("TextTheme.")) {
                 let severity = if removed_in.is_some() {
                     Severity::Error
                 } else {
@@ -219,6 +219,57 @@ fn check_file_compat(file: &Path, source: &str, findings: &mut Vec<CompatFinding
             }
         }
     }
+}
+
+/// `line` with string-literal contents blanked out and any trailing `//`
+/// comment removed, so text like `'pushed the button'` can't match an API.
+fn code_only(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut quote: Option<char> = None;
+    let mut chars = line.chars().peekable();
+    while let Some(c) = chars.next() {
+        match quote {
+            Some(q) => {
+                if c == '\\' {
+                    chars.next();
+                    out.push_str("  ");
+                    continue;
+                }
+                if c == q {
+                    quote = None;
+                    out.push(c);
+                } else {
+                    out.push(' ');
+                }
+            }
+            None => {
+                if c == '/' && chars.peek() == Some(&'/') {
+                    break;
+                }
+                if c == '\'' || c == '"' {
+                    quote = Some(c);
+                }
+                out.push(c);
+            }
+        }
+    }
+    out
+}
+
+/// Whether `code` uses `pattern`. Patterns with punctuation (`FlatButton(`)
+/// match as written; bare names match whole identifiers only, and TextTheme
+/// style names (`button`, `caption`, ...) only as a member access (`.button`).
+fn uses_api(code: &str, pattern: &str, member_only: bool) -> bool {
+    let is_ident = |c: char| c.is_ascii_alphanumeric() || c == '_' || c == '$';
+    if !pattern.chars().all(is_ident) {
+        return code.contains(pattern);
+    }
+    code.match_indices(pattern).any(|(at, _)| {
+        let before = code[..at].chars().next_back();
+        let after = code[at + pattern.len()..].chars().next();
+        let whole = !before.is_some_and(is_ident) && !after.is_some_and(is_ident);
+        whole && (!member_only || before == Some('.'))
+    })
 }
 
 /// Print upgrade compatibility report.
@@ -311,4 +362,35 @@ pub fn print_compat_report(findings: &[CompatFinding]) {
         deprecated.len()
     );
     println!();
+}
+
+#[cfg(test)]
+mod code_match_tests {
+    use super::*;
+    use std::path::Path;
+
+    fn findings(src: &str) -> Vec<String> {
+        let mut out = Vec::new();
+        check_file_compat(Path::new("lib/a.dart"), src, &mut out);
+        out.into_iter().map(|f| f.issue.message).collect()
+    }
+
+    #[test]
+    fn words_inside_strings_and_comments_are_ignored() {
+        let src = "Text('You have pushed the button this many times:'), // caption here\n";
+        assert!(findings(src).is_empty(), "{:?}", findings(src));
+    }
+
+    #[test]
+    fn deprecated_text_theme_members_are_found() {
+        let found = findings("final s = Theme.of(context).textTheme.button;\n");
+        assert_eq!(found, vec!["TextTheme.button → labelLarge".to_string()]);
+    }
+
+    #[test]
+    fn identifiers_that_only_contain_a_name_are_ignored() {
+        assert!(findings("final submitButton = button2; myButton(caption: x);\n").is_empty());
+        assert_eq!(findings("ThemeData(accentColor: c)\n").len(), 1);
+        assert_eq!(findings("child: FlatButton(onPressed: f)\n").len(), 1);
+    }
 }

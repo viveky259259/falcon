@@ -20,6 +20,7 @@
 
 ### Fixed
 
+- `falcon devtools inspector`, `falcon devtools tree-diff` and `falcon journey` read the widget tree again. The VM Service wraps extension replies in a `{"type": "_extensionType", "result": …}` envelope, which was taken for the root node, so the tree came back as one node and journeys labelled every screen `_extensionType`.
 - Four preset entries named rules that do not exist (`avoid-unnecessary-set-state`, `avoid-throw-in-catch`, `always-override-equals-hashcode`, `avoid-collection-methods-unrelated-types`), so those rules were silently skipped. They now use the real names, and a test checks every preset and default entry against the rule registry.
 - A `falcon.yaml` without a `rules:` key (for example, one that only tunes `metrics:`) ran no lint rules at all. A missing key now means the default rule set; an explicit `rules: []` still disables rules. Projects with such a config will start seeing findings.
 - The AI Code Quality Score looked up `avoid-throw-in-catch` instead of `avoid-throw-in-catch-block`, so throw-in-catch findings never lowered the Error Handling dimension. Scores for projects with those findings may drop slightly.
@@ -27,6 +28,9 @@
 
 ### Added
 
+- `falcon-mcp` can run and drive the app, so an agent can check its own change. New tools: `run_app` and `stop_app` keep one `flutter run` alive across calls; `reload` hot reloads through it and reports compile errors; `screenshot` returns the screen as an image; `widget_tree` lists on-screen text, buttons and fields with positions; `interact` taps, long presses, types, scrolls (paging through lazy lists), goes back and waits, refusing ambiguous matches and covered widgets; `logs` returns app output with whole Flutter error blocks; `tree_diff`, `app_metrics` (memory, network, performance, profiler, rebuilds, trace, routes), `journey` and `verify` expose the existing runtime commands. All of them are refused over the HTTP bridge.
+- `falcon-mcp` also advertises `score`, `conventions` and `generate_tests` (golden or unit, preview by default); `falcon_ai_score` and `falcon_conventions` are now aliases of the first two. The surface is 20 tools.
+- `falcon-mcp` negotiates the MCP protocol version (2025-06-18, 2025-03-26, 2024-11-05), sends progress notifications for long calls, and serves prompts (`dev_loop`, `review_ai_code`) and resources (`falcon://rules`, `falcon://rules/{name}`, `falcon://session`).
 - `LICENSE` (MIT) at the repository root and in the published crate, and a `SECURITY.md` describing how to report vulnerabilities privately.
 
 ### Security

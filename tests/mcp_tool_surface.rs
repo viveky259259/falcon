@@ -1,6 +1,6 @@
 //! Integration test: PR-E MCP tool surface lockdown.
 //!
-//! Pins the contract: exactly 6 advertised tools, with old names accepted
+//! Pins the contract: exactly 20 advertised tools, with old names accepted
 //! as aliases. Council mapping: EPIC 2.1.
 
 use falcon::doctor::Trust;
@@ -8,7 +8,29 @@ use serde_json::json;
 use std::path::Path;
 use std::process::Command;
 
-const CANONICAL: &[&str] = &["lint_file", "lint_diff", "review", "explain", "fix_safe"];
+/// Every advertised tool except `doctor`, whose empty-args call runs a real
+/// diagnosis (see the `doctor` section below).
+const CANONICAL: &[&str] = &[
+    "lint_file",
+    "lint_diff",
+    "review",
+    "explain",
+    "fix_safe",
+    "score",
+    "conventions",
+    "generate_tests",
+    "run_app",
+    "stop_app",
+    "reload",
+    "screenshot",
+    "widget_tree",
+    "interact",
+    "logs",
+    "tree_diff",
+    "app_metrics",
+    "journey",
+    "verify",
+];
 
 const DEPRECATED: &[&str] = &[
     "falcon_analyze",
@@ -21,9 +43,9 @@ const DEPRECATED: &[&str] = &[
 ];
 
 #[test]
-fn list_tools_returns_exactly_five_canonical_entries() {
+fn list_tools_returns_exactly_twenty_canonical_entries() {
     let tools = falcon::mcp::tools::list_tools();
-    assert_eq!(tools.len(), 6, "locked surface size is 6");
+    assert_eq!(tools.len(), 20, "locked surface size is 20");
     let names: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
     for canon in CANONICAL {
         assert!(names.contains(canon), "missing canonical '{}'", canon);
