@@ -8,6 +8,21 @@ use crate::doctor::Trust;
 const SERVER_NAME: &str = "falcon";
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// MCP protocol versions this server speaks, newest first.
+pub const SUPPORTED_PROTOCOL_VERSIONS: &[&str] = &["2025-06-18", "2025-03-26", "2024-11-05"];
+
+/// Answer with the client's version when we support it, else our newest.
+pub fn negotiate_protocol_version(requested: Option<&str>) -> &'static str {
+    requested
+        .and_then(|r| {
+            SUPPORTED_PROTOCOL_VERSIONS
+                .iter()
+                .copied()
+                .find(|v| *v == r)
+        })
+        .unwrap_or(SUPPORTED_PROTOCOL_VERSIONS[0])
+}
+
 #[derive(Debug, Deserialize)]
 struct JsonRpcRequest {
     #[allow(dead_code)]
@@ -57,6 +72,8 @@ pub fn run_mcp_server() -> anyhow::Result<()> {
         }
     }
 
+    // Don't leave a `flutter run` from run_app behind.
+    super::app_session::shutdown();
     Ok(())
 }
 
@@ -105,9 +122,13 @@ fn handle_request(request: &JsonRpcRequest) -> JsonRpcResponse {
             jsonrpc: "2.0".to_string(),
             id,
             result: Some(serde_json::json!({
-                "protocolVersion": "2024-11-05",
+                "protocolVersion": negotiate_protocol_version(
+                    request.params.get("protocolVersion").and_then(|v| v.as_str())
+                ),
                 "capabilities": {
-                    "tools": {}
+                    "tools": { "listChanged": false },
+                    "prompts": { "listChanged": false },
+                    "resources": { "listChanged": false, "subscribe": false }
                 },
                 "serverInfo": {
                     "name": SERVER_NAME,
@@ -146,15 +167,21 @@ fn handle_request(request: &JsonRpcRequest) -> JsonRpcResponse {
                 .cloned()
                 .unwrap_or(Value::Object(serde_json::Map::new()));
 
-            match tools::execute_tool(tool_name, &arguments, Trust::Local) {
+            let progress_token = request
+                .params
+                .get("_meta")
+                .and_then(|m| m.get("progressToken"))
+                .cloned();
+            super::progress::set_token(progress_token);
+            let outcome = tools::execute_tool(tool_name, &arguments, Trust::Local);
+            super::progress::set_token(None);
+
+            match outcome {
                 Ok(result) => JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
                     id,
                     result: Some(serde_json::json!({
-                        "content": [{
-                            "type": "text",
-                            "text": serde_json::to_string_pretty(&result).unwrap_or_default()
-                        }]
+                        "content": super::runtime_tools::into_content_blocks(result)
                     })),
                     error: None,
                 },
@@ -169,6 +196,31 @@ fn handle_request(request: &JsonRpcRequest) -> JsonRpcResponse {
                         "isError": true
                     })),
                     error: None,
+                },
+            }
+        }
+
+        "prompts/list"
+        | "prompts/get"
+        | "resources/list"
+        | "resources/read"
+        | "resources/templates/list" => {
+            match super::catalog::handle(&request.method, &request.params) {
+                Ok(result) => JsonRpcResponse {
+                    jsonrpc: "2.0".to_string(),
+                    id,
+                    result: Some(result),
+                    error: None,
+                },
+                Err(message) => JsonRpcResponse {
+                    jsonrpc: "2.0".to_string(),
+                    id,
+                    result: None,
+                    error: Some(JsonRpcError {
+                        code: -32602,
+                        message,
+                        data: None,
+                    }),
                 },
             }
         }
@@ -218,6 +270,29 @@ mod tests {
         let response = process_line("{not json").expect("parse errors are answered");
         assert_eq!(response.id, Value::Null);
         assert_eq!(response.error.unwrap().code, -32700);
+    }
+
+    #[test]
+    fn protocol_version_is_negotiated() {
+        assert_eq!(negotiate_protocol_version(Some("2024-11-05")), "2024-11-05");
+        assert_eq!(negotiate_protocol_version(Some("1999-01-01")), "2025-06-18");
+        assert_eq!(negotiate_protocol_version(None), "2025-06-18");
+        let line = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26"}}"#;
+        let result = process_line(line).unwrap().result.unwrap();
+        assert_eq!(result["protocolVersion"], "2025-03-26");
+        assert!(result["capabilities"]["prompts"].is_object());
+        assert!(result["capabilities"]["resources"].is_object());
+    }
+
+    #[test]
+    fn prompts_and_resources_are_served() {
+        let list = process_line(r#"{"jsonrpc":"2.0","id":1,"method":"prompts/list"}"#).unwrap();
+        assert!(!list.result.unwrap()["prompts"]
+            .as_array()
+            .unwrap()
+            .is_empty());
+        let bad = process_line(r#"{"jsonrpc":"2.0","id":2,"method":"resources/read","params":{"uri":"falcon://nope"}}"#).unwrap();
+        assert_eq!(bad.error.unwrap().code, -32602);
     }
 
     #[test]

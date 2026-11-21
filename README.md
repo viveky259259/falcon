@@ -71,7 +71,7 @@ $ falcon score .
 | **Maintenance** | `falcon x manage maint` | Tech debt score, cleanup tasks, auto-fix pipeline |
 | **AI Score** | `falcon score` | 0-100 AI Code Quality Score with 6-dimension breakdown |
 | **61+ Rules** | `falcon check` | Flutter, BLoC, Riverpod, accessibility rules |
-| **MCP Server** | `falcon-mcp` | AI tools call Falcon during code generation |
+| **MCP Server** | `falcon-mcp` | AI tools lint their code, then run, hot reload, see and drive the app |
 | **PR Comments** | `falcon review --format gh` | Generate GitHub-ready PR review markdown |
 | **Vulnerability** | `falcon x vuln-scan` | Security radar with CWE classification |
 | **Risk Prediction** | `falcon x predict` | Predict production issues from patterns |
@@ -139,6 +139,8 @@ Add Falcon to Cursor, Windsurf, or any MCP-compatible AI tool:
 ```
 
 Falcon analyzes Flutter code in real-time during generation — the AI self-corrects before showing you buggy code.
+
+The agent can also run the app and check its own work: `run_app`, edit, `reload`, read `logs` for exceptions, look at the screen with `widget_tree` and `screenshot`, and use it with `interact` (tap, type, scroll, back). See [docs/mcp.md](docs/mcp.md).
 
 ## CI/CD Integration
 

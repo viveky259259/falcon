@@ -88,7 +88,7 @@ on run argv
     tell front window of targetProcess
     set {x, y} to position
     set {w, h} to size
-    return (x as integer) & "," & (y as integer) & "," & (w as integer) & "," & (h as integer)
+    return ((x as integer) as text) & "," & ((y as integer) as text) & "," & ((w as integer) as text) & "," & ((h as integer) as text)
     end tell
   end tell
 end run
@@ -137,7 +137,11 @@ fn parse_window_bounds(value: &str) -> Result<WindowBounds> {
     let values = value
         .trim()
         .split(',')
-        .map(|part| part.trim().parse::<i32>())
+        .map(str::trim)
+        // `integer & ","` in AppleScript builds a list, which prints as
+        // "1, ,, 2, ,, 3, ,, 4"; drop the empty items it leaves behind.
+        .filter(|part| !part.is_empty())
+        .map(|part| part.parse::<i32>())
         .collect::<std::result::Result<Vec<_>, _>>()
         .context("macOS returned invalid frontmost-window bounds")?;
     let [x, y, width, height]: [i32; 4] = values
@@ -180,6 +184,15 @@ mod tests {
             }
         );
         assert_eq!(bounds.screencapture_region(), "-R12,-34,1280,720");
+    }
+
+    #[test]
+    fn parses_applescript_list_output() {
+        let bounds = parse_window_bounds("293, ,, 212, ,, 800, ,, 632\n").unwrap();
+        assert_eq!(
+            (bounds.x, bounds.y, bounds.width, bounds.height),
+            (293, 212, 800, 632)
+        );
     }
 
     #[test]

@@ -8,6 +8,7 @@ use anyhow::{bail, Context, Result};
 use futures_util::{SinkExt, StreamExt};
 use percent_encoding::percent_decode_str;
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
@@ -18,9 +19,15 @@ use tokio_tungstenite::tungstenite::{protocol::WebSocketConfig, Message};
 use tokio_tungstenite::{connect_async_with_config, MaybeTlsStream, WebSocketStream};
 use url::Url;
 
+use super::vm_events::{
+    self, FrameAccumulator, FrameTiming, RebuildTracker, MAX_BUFFERED_NOTIFICATIONS,
+};
+
 type WsStream = WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>;
 const VM_SERVICE_MAX_MESSAGE_SIZE: usize = 256 << 20;
 const VM_SERVICE_MAX_FRAME_SIZE: usize = 64 << 20;
+/// Inspector object group for the references Falcon asks the app to hold.
+const INSPECTOR_GROUP: &str = "falcon";
 
 // ──────────────────────────────────────────────────────────────────────
 // Launch helpers
@@ -140,8 +147,21 @@ pub struct VmServiceClient {
     socket: Mutex<WsStream>,
     notification_buffer: Mutex<Vec<Value>>,
     next_id: AtomicU64,
+    /// Stream subscriptions and the frame/rebuild/service state built from them.
+    events: Mutex<EventState>,
     /// The main isolate ID discovered at connect time.
     pub isolate_id: String,
+}
+
+/// State derived from VM Service stream notifications.
+#[derive(Default)]
+struct EventState {
+    extension_listening: bool,
+    service_listening: bool,
+    frames: FrameAccumulator,
+    rebuilds: RebuildTracker,
+    /// Service name → registered method (e.g. `reloadSources` → `s1.reloadSources`).
+    services: HashMap<String, String>,
 }
 
 impl VmServiceClient {
@@ -165,6 +185,7 @@ impl VmServiceClient {
             socket: Mutex::new(socket),
             notification_buffer: Mutex::new(Vec::new()),
             next_id: AtomicU64::new(1),
+            events: Mutex::new(EventState::default()),
             isolate_id: String::new(),
         };
 
@@ -180,6 +201,7 @@ impl VmServiceClient {
             socket: client.socket,
             notification_buffer: client.notification_buffer,
             next_id: client.next_id,
+            events: client.events,
             isolate_id,
         })
     }
@@ -282,32 +304,123 @@ impl VmServiceClient {
 
     // ── Rendering diagnostics ───────────────────────────────────────
 
-    pub async fn get_rendering_stats(&self) -> Result<RenderingStats> {
-        let resp = self
-            .call(
-                "ext.flutter.inspector.getRenderStats",
-                json!({"isolateId": self.isolate_id}),
-            )
-            .await
-            .unwrap_or_else(|_| json!({}));
+    /// Subscribe to the Extension stream once, so `Flutter.Frame` and
+    /// `Flutter.RebuiltWidgets` events start arriving.
+    async fn ensure_extension_stream(&self) -> Result<()> {
+        if self.events.lock().await.extension_listening {
+            return Ok(());
+        }
+        // "Stream already subscribed" is fine: another tool may have listened.
+        let _ = self.stream_listen("Extension").await;
+        self.events.lock().await.extension_listening = true;
+        // DDS replays its recent Extension history (thousands of old frames)
+        // to a new subscriber. Those arrive with the reply; drop them so the
+        // counts start now.
+        self.pump_notifications().await;
+        self.take_buffered(|e| e["streamId"].as_str() == Some("Extension"))
+            .await;
+        Ok(())
+    }
 
+    /// Read any notifications already sent by the VM. Notifications are only
+    /// read from the socket while waiting for an RPC reply, so a cheap call
+    /// moves them into the buffer.
+    async fn pump_notifications(&self) {
+        let _ = self.call("getVersion", json!({})).await;
+    }
+
+    /// Remove and return buffered notifications that match `keep`.
+    async fn take_buffered(&self, keep: impl Fn(&Value) -> bool) -> Vec<Value> {
+        let mut buffered = self.notification_buffer.lock().await;
+        let mut taken = Vec::new();
+        buffered.retain(|event| {
+            if keep(event) {
+                taken.push(event.clone());
+                false
+            } else {
+                true
+            }
+        });
+        taken
+    }
+
+    /// Frames rendered since the previous call (the first call starts tracking
+    /// and returns what has arrived so far, usually nothing). Also folds them
+    /// into the running totals reported by `get_rendering_stats`.
+    pub async fn take_frame_timings(&self) -> Result<Vec<FrameTiming>> {
+        self.ensure_extension_stream().await?;
+        self.pump_notifications().await;
+        let frames: Vec<FrameTiming> = self
+            .take_buffered(|e| vm_events::extension_kind(e) == Some("Flutter.Frame"))
+            .await
+            .iter()
+            .filter_map(vm_events::parse_frame_event)
+            .collect();
+        let mut state = self.events.lock().await;
+        for frame in &frames {
+            state.frames.add(frame);
+        }
+        Ok(frames)
+    }
+
+    /// Cumulative frame statistics from `Flutter.Frame` events since this
+    /// client first asked. An idle app renders no frames, so zero is real.
+    pub async fn get_rendering_stats(&self) -> Result<RenderingStats> {
+        self.take_frame_timings().await?;
+        let state = self.events.lock().await;
+        let acc = &state.frames;
         Ok(RenderingStats {
-            total_frames: resp["totalFrames"].as_u64().unwrap_or(0),
-            dropped_frames: resp["droppedFrames"].as_u64().unwrap_or(0),
-            avg_frame_build_time_ms: resp["avgFrameBuildTimeMs"].as_f64().unwrap_or(0.0),
-            max_frame_build_time_ms: resp["maxFrameBuildTimeMs"].as_f64().unwrap_or(0.0),
-            avg_frame_raster_time_ms: resp["avgFrameRasterTimeMs"].as_f64().unwrap_or(0.0),
-            max_frame_raster_time_ms: resp["maxFrameRasterTimeMs"].as_f64().unwrap_or(0.0),
+            total_frames: acc.total,
+            dropped_frames: acc.dropped,
+            avg_frame_build_time_ms: acc.avg_build_ms(),
+            max_frame_build_time_ms: acc.build_max_us as f64 / 1000.0,
+            avg_frame_raster_time_ms: acc.avg_raster_ms(),
+            max_frame_raster_time_ms: acc.raster_max_us as f64 / 1000.0,
         })
     }
 
+    /// Widget rebuild counts since this client first asked, from
+    /// `Flutter.RebuiltWidgets` events. The first call turns on
+    /// `trackRebuildDirtyWidgets`; returns `{}` when the app can't track them
+    /// (release builds, or widget-creation tracking disabled).
     pub async fn get_rebuild_counts(&self) -> Result<Value> {
-        self.call(
-            "ext.flutter.inspector.getWidgetRebuildCounts",
-            json!({"isolateId": self.isolate_id}),
-        )
-        .await
-        .or_else(|_| Ok(json!({})))
+        if !self.events.lock().await.rebuilds.enabled {
+            let enabled = self
+                .call(
+                    "ext.flutter.inspector.trackRebuildDirtyWidgets",
+                    json!({"isolateId": self.isolate_id, "enabled": "true"}),
+                )
+                .await;
+            if enabled.is_err() {
+                return Ok(json!({}));
+            }
+            self.events.lock().await.rebuilds.enabled = true;
+        }
+        self.ensure_extension_stream().await?;
+        self.pump_notifications().await;
+        let events = self
+            .take_buffered(|e| vm_events::extension_kind(e) == Some("Flutter.RebuiltWidgets"))
+            .await;
+        let need_names = {
+            let mut state = self.events.lock().await;
+            for event in &events {
+                state.rebuilds.add_event(event);
+            }
+            state.rebuilds.unknown_ids()
+        };
+        if need_names {
+            if let Ok(map) = self
+                .call(
+                    "ext.flutter.inspector.widgetLocationIdMap",
+                    json!({"isolateId": self.isolate_id}),
+                )
+                .await
+            {
+                let locations = vm_events::parse_location_map(&map);
+                self.events.lock().await.rebuilds.add_locations(locations);
+            }
+        }
+        Ok(self.events.lock().await.rebuilds.to_json())
     }
 
     /// Fetch the root widget tree from the Flutter inspector.
@@ -319,7 +432,7 @@ impl VmServiceClient {
                 "ext.flutter.inspector.getRootWidgetTree",
                 json!({
                     "isolateId": self.isolate_id,
-                    "groupName": "falcon",
+                    "groupName": INSPECTOR_GROUP,
                     "isSummaryTree": true,
                     "withPreviews": false,
                 }),
@@ -330,17 +443,57 @@ impl VmServiceClient {
         }
         self.call(
             "ext.flutter.inspector.getRootWidgetSummaryTree",
-            json!({"isolateId": self.isolate_id, "groupName": "falcon"}),
+            json!({"isolateId": self.isolate_id, "groupName": INSPECTOR_GROUP}),
         )
         .await
         .or_else(|_| Ok(json!({})))
+    }
+
+    /// Release the inspector references Falcon holds in the app.
+    pub async fn dispose_inspector_group(&self) {
+        let _ = self
+            .call(
+                "ext.flutter.inspector.disposeGroup",
+                json!({"isolateId": self.isolate_id, "objectGroup": INSPECTOR_GROUP}),
+            )
+            .await;
+    }
+
+    /// The method `flutter run` registered for `service` (e.g. `reloadSources`
+    /// → `s1.reloadSources`), if the app was started by a `flutter run`
+    /// session that is still attached. The VM replays existing registrations
+    /// when a client subscribes to the Service stream.
+    pub async fn registered_service(&self, service: &str) -> Option<String> {
+        if !self.events.lock().await.service_listening {
+            let _ = self.stream_listen("Service").await;
+            self.events.lock().await.service_listening = true;
+            self.pump_notifications().await;
+        }
+        self.events.lock().await.services.get(service).cloned()
+    }
+
+    /// Call a registered service method with a deadline: a service whose owner
+    /// has gone away never answers.
+    pub async fn call_service(
+        &self,
+        method: &str,
+        params: Value,
+        timeout: Duration,
+    ) -> Result<Value> {
+        tokio::time::timeout(timeout, self.call(method, params))
+            .await
+            .with_context(|| format!("`{method}` did not answer within {}s", timeout.as_secs()))?
     }
 
     /// Fetch the currently-selected widget node from the inspector, if any.
     pub async fn get_selected_widget(&self) -> Result<Value> {
         self.call(
             "ext.flutter.inspector.getSelectedWidget",
-            json!({"isolateId": self.isolate_id, "groupName": "falcon"}),
+            json!({
+                "isolateId": self.isolate_id,
+                "objectGroup": INSPECTOR_GROUP,
+                "groupName": INSPECTOR_GROUP,
+            }),
         )
         .await
         .or_else(|_| Ok(json!({})))
@@ -388,6 +541,52 @@ impl VmServiceClient {
             .as_str()
             .map(ToString::to_string)
             .context("`_flutter.screenshot` response did not contain a `screenshot` field")
+    }
+
+    /// Render the root widget to a PNG with the framework's
+    /// `ext.flutter.inspector.screenshot`. Unlike `_flutter.screenshot`, this
+    /// works under Impeller, but it only shows Flutter content (no OS chrome).
+    /// Returns base64-encoded PNG data.
+    pub async fn capture_inspector_screenshot(&self) -> Result<String> {
+        let tree = self
+            .call(
+                "ext.flutter.inspector.getRootWidgetTree",
+                json!({
+                    "isolateId": self.isolate_id,
+                    "groupName": INSPECTOR_GROUP,
+                    "isSummaryTree": true,
+                    "withPreviews": false,
+                }),
+            )
+            .await
+            .context("`ext.flutter.inspector.getRootWidgetTree` failed")?;
+        let root = tree
+            .get("result")
+            .filter(|r| r.is_object())
+            .unwrap_or(&tree);
+        let id = root["valueId"]
+            .as_str()
+            .context("The inspector did not return a root widget id")?;
+        let resp = self
+            .call(
+                "ext.flutter.inspector.screenshot",
+                json!({
+                    "isolateId": self.isolate_id,
+                    "id": id,
+                    "width": "4096",
+                    "height": "4096",
+                    "margin": "0",
+                    "maxPixelRatio": "3",
+                    "debugPaint": "false",
+                }),
+            )
+            .await
+            .context("`ext.flutter.inspector.screenshot` failed")?;
+        self.dispose_inspector_group().await;
+        resp.get("result")
+            .and_then(Value::as_str)
+            .map(ToString::to_string)
+            .context("`ext.flutter.inspector.screenshot` returned no image")
     }
 
     // ── CPU / timeline diagnostics ──────────────────────────────────
@@ -609,7 +808,21 @@ impl VmServiceClient {
 
     // ── Low-level RPC ───────────────────────────────────────────────
 
-    async fn call(&self, method: &str, params: Value) -> Result<Value> {
+    /// Keep a notification for later readers. Service registrations update the
+    /// service registry instead; the buffer is capped so a long session with
+    /// the Extension stream on doesn't grow without bound.
+    async fn buffer_notification(&self, event: Value) {
+        if vm_events::apply_service_event(&mut self.events.lock().await.services, &event) {
+            return;
+        }
+        let mut buffered = self.notification_buffer.lock().await;
+        if buffered.len() >= MAX_BUFFERED_NOTIFICATIONS {
+            buffered.remove(0);
+        }
+        buffered.push(event);
+    }
+
+    pub(crate) async fn call(&self, method: &str, params: Value) -> Result<Value> {
         let mut socket = self.socket.lock().await;
         self.call_with_socket(&mut socket, method, params).await
     }
@@ -641,7 +854,7 @@ impl VmServiceClient {
                         return Ok(result);
                     }
                     if let Some(event) = parse_stream_notification(&text)? {
-                        self.notification_buffer.lock().await.push(event);
+                        self.buffer_notification(event).await;
                     }
                 }
                 Message::Binary(bytes) => {
@@ -650,7 +863,7 @@ impl VmServiceClient {
                             return Ok(result);
                         }
                         if let Some(event) = parse_stream_notification(&text)? {
-                            self.notification_buffer.lock().await.push(event);
+                            self.buffer_notification(event).await;
                         }
                     }
                 }

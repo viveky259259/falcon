@@ -2,12 +2,12 @@
 
 #[test]
 fn test_mcp_tool_list() {
-    // Locked surface: exactly 6 canonical tools (PR-E / EPIC 2.1, plus `doctor`).
+    // Locked surface: exactly 20 canonical tools (see docs/mcp.md).
     let tools = falcon::mcp::tools::list_tools();
     assert_eq!(
         tools.len(),
-        6,
-        "MCP surface must be exactly 6 tools, got {}",
+        20,
+        "MCP surface must be exactly 20 tools, got {}",
         tools.len()
     );
 

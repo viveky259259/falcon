@@ -264,6 +264,14 @@ fn is_error_start(line: &str) -> bool {
     ERROR_TRIGGERS.iter().any(|t| trimmed.contains(t))
 }
 
+fn is_short_exception(line: &str) -> bool {
+    line.contains("Another exception was thrown:")
+}
+
+fn is_block_header(line: &str) -> bool {
+    line.contains("══╡ EXCEPTION CAUGHT")
+}
+
 fn is_error_end(line: &str) -> bool {
     let trimmed = line.trim();
     ERROR_END_MARKERS.iter().any(|m| trimmed.contains(m)) || trimmed.starts_with("════")
@@ -298,6 +306,25 @@ fn stream_lines<R: BufRead>(
             if let Some(uri) = monitor::parse_vm_service_uri(&line) {
                 m.notify_vm_uri(uri);
             }
+        }
+
+        // After the first error, Flutter reports repeats as a single line:
+        // "Another exception was thrown: …". It has no closing bar, so write
+        // it out on its own instead of waiting for one.
+        if is_short_exception(&line) {
+            if in_error && !current_block.is_empty() {
+                flush_error_block(&current_block, errors, output_dir);
+            }
+            flush_error_block(std::slice::from_ref(&line), errors, output_dir);
+            current_block.clear();
+            in_error = false;
+            continue;
+        }
+        // A new exception header closes whatever block is still open.
+        if in_error && is_block_header(&line) && !current_block.is_empty() {
+            flush_error_block(&current_block, errors, output_dir);
+            current_block.clear();
+            in_error = false;
         }
 
         if !in_error && is_error_start(&line) {
@@ -945,6 +972,55 @@ mod tests {
             dir.path().join("error_2.md").exists(),
             "error_2.md should be written"
         );
+    }
+
+    #[test]
+    fn stream_lines_writes_short_form_exceptions_immediately() {
+        let dir = TempDir::new().unwrap();
+        let input = concat!(
+            "══╡ EXCEPTION CAUGHT BY RENDERING LIBRARY ╞══\n",
+            "A RenderFlex overflowed by 3332 pixels on the bottom.\n",
+            "═══════════════════════════════════\n",
+            "Another exception was thrown: HTTP request failed, statusCode: 404\n",
+            "flutter: profile loaded\n",
+            "Another exception was thrown: SocketException: Connection refused\n",
+            "flutter: still running\n",
+        );
+        let errors: Arc<Mutex<Vec<FlutterError>>> = Arc::new(Mutex::new(Vec::new()));
+        stream_lines(
+            Cursor::new(input.as_bytes()),
+            &errors,
+            dir.path(),
+            "test",
+            None,
+        );
+
+        let collected = errors.lock().unwrap();
+        assert_eq!(collected.len(), 3, "block + two short-form exceptions");
+        let third = std::fs::read_to_string(dir.path().join("error_3.md")).unwrap();
+        assert!(third.contains("SocketException"));
+        assert!(!third.contains("still running"));
+    }
+
+    #[test]
+    fn stream_lines_new_header_closes_an_open_block() {
+        let dir = TempDir::new().unwrap();
+        let input = concat!(
+            "Error: first problem\n",
+            "detail line\n",
+            "══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞══\n",
+            "second problem\n",
+            "═══════════════════════════════════\n",
+        );
+        let errors: Arc<Mutex<Vec<FlutterError>>> = Arc::new(Mutex::new(Vec::new()));
+        stream_lines(
+            Cursor::new(input.as_bytes()),
+            &errors,
+            dir.path(),
+            "test",
+            None,
+        );
+        assert_eq!(errors.lock().unwrap().len(), 2);
     }
 
     #[test]

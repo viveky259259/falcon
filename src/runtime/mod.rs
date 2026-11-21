@@ -6,6 +6,7 @@
 
 pub mod connection;
 pub mod diagnostics;
+pub mod interact;
 pub mod journey;
 pub mod live;
 pub mod qr_check;
@@ -13,6 +14,7 @@ pub mod report;
 pub mod screenshot;
 pub mod tools;
 pub mod verify;
+pub mod vm_events;
 
 use anyhow::Result;
 use connection::VmServiceClient;

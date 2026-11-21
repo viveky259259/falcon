@@ -55,8 +55,12 @@ pub async fn verify(config: VerifyConfig) -> Result<VerifyReport> {
     if !project.join("pubspec.yaml").is_file() {
         bail!("Missing pubspec.yaml in {}", project.display());
     }
-    let target = project
-        .join(&config.target)
+    // Accept `app_test.dart` as well as `integration_test/app_test.dart`.
+    let mut target_path = project.join(&config.target);
+    if !target_path.exists() && config.target.components().count() == 1 {
+        target_path = project.join("integration_test").join(&config.target);
+    }
+    let target = target_path
         .canonicalize()
         .context("Integration test target does not exist")?;
     let relative = target

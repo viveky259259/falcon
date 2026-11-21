@@ -12,7 +12,7 @@
 //! recorder records a step without a thumbnail rather than aborting.
 
 use super::connection::VmServiceClient;
-use super::tools::capture_screenshot_file;
+use super::tools::{capture_screenshot_file, inspector_root};
 use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use colored::Colorize;
@@ -55,13 +55,7 @@ pub struct JourneyReport {
 /// (ends with `Page`, `Screen`, `View`, or `Route`) wins; otherwise the root
 /// description.
 pub fn extract_screen_label(tree: &Value) -> String {
-    let root = if tree.get("type").is_some() || tree.get("children").is_some() {
-        tree
-    } else if let Some(result) = tree.get("result") {
-        result
-    } else {
-        tree
-    };
+    let root = inspector_root(tree);
 
     if let Some(label) = find_page_like(root) {
         return label;
@@ -89,11 +83,7 @@ fn find_page_like(node: &Value) -> Option<String> {
 }
 
 fn node_type(node: &Value) -> Option<String> {
-    node["type"]
-        .as_str()
-        .or_else(|| node["widgetRuntimeType"].as_str())
-        .or_else(|| node["description"].as_str())
-        .map(ToString::to_string)
+    super::tools::inspector_widget_name(node).map(ToString::to_string)
 }
 
 fn is_page_like(ty: &str) -> bool {
