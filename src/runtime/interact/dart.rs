@@ -201,24 +201,33 @@ pub fn find_expression(
 
 /// Pointer down and/or up at `c`, using pointer id `pid`.
 ///
-/// The events are dispatched from a timer, outside the evaluation, so
-/// handlers never run with evaluator frames on the stack (Flutter's error
-/// reporting can't parse those) or in the middle of a frame.
+/// The events are delivered after the evaluation returns, by a stream that
+/// calls `handlePointerEvent` itself. No closure written here is on the stack
+/// while the app's handlers run: Flutter's error reporting can't parse an
+/// evaluator frame, so an exception thrown by a handler (an `onPressed` that
+/// throws, say) would be replaced in the log by a `stack_frame.dart`
+/// assertion.
 pub fn pointer_action(pid: u32, down: bool, up: bool) -> String {
-    let mut s = String::from("Timer.run(() {\n");
+    format!(
+        "{};\nreturn 'DONE${{sep}}${{c.dx.toStringAsFixed(1)}}${{sep}}${{c.dy.toStringAsFixed(1)}}';",
+        pointer_events(pid, "c", down, up, "")
+    )
+}
+
+/// A statement that sends pointer down and/or up at the Dart offset `at`,
+/// then runs `then` (a Dart `onDone:` argument, or nothing).
+fn pointer_events(pid: u32, at: &str, down: bool, up: bool, then: &str) -> String {
+    let mut events = Vec::new();
     if down {
-        s.push_str(&format!(
-            "GestureBinding.instance.handlePointerEvent(PointerDownEvent(pointer: {pid}, position: c));\n"
-        ));
+        events.push(format!("PointerDownEvent(pointer: {pid}, position: {at})"));
     }
     if up {
-        s.push_str(&format!(
-            "GestureBinding.instance.handlePointerEvent(PointerUpEvent(pointer: {pid}, position: c));\n"
-        ));
+        events.push(format!("PointerUpEvent(pointer: {pid}, position: {at})"));
     }
-    s.push_str("});\n");
-    s.push_str("return 'DONE${sep}${c.dx.toStringAsFixed(1)}${sep}${c.dy.toStringAsFixed(1)}';");
-    s
+    format!(
+        "Stream<PointerEvent>.fromIterable(<PointerEvent>[{}]).listen(GestureBinding.instance.handlePointerEvent{then})",
+        events.join(", ")
+    )
 }
 
 /// Pointer down and/or up at a raw logical-pixel position.
@@ -259,20 +268,18 @@ pub fn type_action(pid: u32, text: &str, submit: bool) -> String {
   final fc = fr is RenderBox && fr.hasSize ? fr.localToGlobal(fr.size.center(Offset.zero)) : c;
   final st = (ed! as StatefulElement).state as dynamic;
   final t = {text};
-  Timer.run(() {{
-    GestureBinding.instance.handlePointerEvent(PointerDownEvent(pointer: {pid}, position: fc));
-    GestureBinding.instance.handlePointerEvent(PointerUpEvent(pointer: {pid}, position: fc));
-    st.updateEditingValue(TextEditingValue(text: t, selection: TextSelection.collapsed(offset: t.length)));
-    if ({submit}) st.performAction(TextInputAction.done);
-  }});
+  void done() {{ if ({submit}) Stream<TextInputAction>.fromIterable(<TextInputAction>[TextInputAction.done]).listen(st.performAction); }}
+  void enter() {{ Stream<TextEditingValue>.fromIterable(<TextEditingValue>[TextEditingValue(text: t, selection: TextSelection.collapsed(offset: t.length))]).listen(st.updateEditingValue, onDone: done); }}
+  {taps};
   return 'DONE${{sep}}${{fc.dx.toStringAsFixed(1)}}${{sep}}${{fc.dy.toStringAsFixed(1)}}';"#,
         text = dart_str(text),
+        taps = pointer_events(pid, "fc", true, true, ", onDone: enter"),
     )
 }
 
 /// Scroll the match into view.
 pub const SHOW_ACTION: &str =
-    "Timer.run(() => ro.showOnScreen());\n  return 'DONE${sep}${c.dx.toStringAsFixed(1)}${sep}${c.dy.toStringAsFixed(1)}';";
+    "Timer.run(ro.showOnScreen);\n  return 'DONE${sep}${c.dx.toStringAsFixed(1)}${sep}${c.dy.toStringAsFixed(1)}';";
 
 /// Scroll the first on-screen `Scrollable` that can scroll (inside `start`,
 /// or anywhere) along its axis by `dx`/`dy` logical pixels, or by that many
@@ -312,7 +319,7 @@ pub fn scroll_by_expression(start: Option<&Finder>, dx: f64, dy: f64, pages: boo
   final double d = {pages} ? step * pos.viewportDimension : step;
   final double before = pos.pixels;
   final double to = (before + d).clamp(pos.minScrollExtent, pos.maxScrollExtent).toDouble();
-  Timer.run(() => pos.jumpTo(to));
+  Stream<double>.fromIterable(<double>[to]).listen(pos.jumpTo);
   return 'DONE${{sep}}${{before.toStringAsFixed(1)}}${{sep}}${{to.toStringAsFixed(1)}}';
 }})()"#
     )
@@ -320,9 +327,7 @@ pub fn scroll_by_expression(start: Option<&Finder>, dx: f64, dy: f64, pages: boo
 
 /// Pop the current route, like the system back button.
 pub fn back_expression() -> String {
-    format!(
-        "(() {{\n{PRELUDE}\n  Timer.run(() => binding.handlePopRoute());\n  return 'DONE';\n}})()"
-    )
+    format!("(() {{\n{PRELUDE}\n  Timer.run(binding.handlePopRoute);\n  return 'DONE';\n}})()")
 }
 
 /// Describe what is on screen: text, buttons, fields and controls, outermost
@@ -386,6 +391,51 @@ mod tests {
         assert!(p.contains("txt(w) == 'Save'"));
         assert!(p.contains(" && tn(w) == 'ElevatedButton'"));
         assert_eq!(Finder::default().dart_predicate(), "false");
+    }
+
+    /// A closure written in an expression shows up in stack traces as
+    /// `Eval.<anonymous closure> ()`, which Flutter's error reporting can't
+    /// parse; a handler that throws under one loses its real exception.
+    #[test]
+    fn app_handlers_never_run_under_an_evaluator_closure() {
+        let finder = Finder {
+            key: Some("save".into()),
+            ..Finder::default()
+        };
+        let actions = [
+            pointer_action(7, true, true),
+            pointer_action(7, true, false),
+            pointer_at_expression(7, 1.0, 2.0, false, true),
+            type_action(7, "hello", true),
+            SHOW_ACTION.to_string(),
+            scroll_by_expression(Some(&finder), 0.0, 300.0, false),
+            back_expression(),
+        ];
+        for action in actions {
+            assert!(!action.contains("Timer.run(()"), "{action}");
+            for call in [
+                "handlePointerEvent(",
+                "updateEditingValue(",
+                "performAction(",
+                "jumpTo(",
+                "handlePopRoute(",
+                "showOnScreen(",
+            ] {
+                assert!(
+                    !action.contains(call),
+                    "`{call}` is called from a closure in: {action}"
+                );
+            }
+        }
+        let tap = pointer_action(7, true, true);
+        assert!(tap.contains(
+            "<PointerEvent>[PointerDownEvent(pointer: 7, position: c), PointerUpEvent(pointer: 7, position: c)]).listen(GestureBinding.instance.handlePointerEvent)"
+        ));
+        let typing = type_action(7, "hello", false);
+        assert!(
+            typing.contains(".listen(GestureBinding.instance.handlePointerEvent, onDone: enter)")
+        );
+        assert!(typing.contains(".listen(st.updateEditingValue, onDone: done)"));
     }
 
     #[test]

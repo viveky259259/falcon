@@ -114,11 +114,12 @@ pub(super) fn logs_since(
     let mut in_block = false;
     let mut out: Vec<LogLine> = Vec::new();
     for l in shared.logs.iter().filter(|l| l.seq >= since) {
-        let starts = l.text.starts_with("══╡");
-        let keep = !errors_only || in_block || starts || l.error || looks_like_error(&l.text);
+        let text = app_text(&l.text);
+        let starts = text.starts_with("══╡");
+        let keep = !errors_only || in_block || starts || l.error || looks_like_error(text);
         if starts {
             in_block = true;
-        } else if in_block && l.text.starts_with("════") {
+        } else if in_block && text.starts_with("════") {
             in_block = false;
         }
         if keep {
@@ -130,13 +131,19 @@ pub(super) fn logs_since(
     out
 }
 
+/// A log line without the `flutter: ` prefix that macOS and iOS put on
+/// everything the app prints.
+fn app_text(line: &str) -> &str {
+    line.strip_prefix("flutter: ").unwrap_or(line)
+}
+
 /// Flutter prints framework errors to stdout, not as `error: true` logs.
 pub fn looks_like_error(text: &str) -> bool {
     text.contains("EXCEPTION CAUGHT")
         || text.contains("Exception:")
         || text.contains("Error:")
         || text.contains("RenderFlex overflowed")
-        || text.starts_with("══╡")
+        || app_text(text).starts_with("══╡")
 }
 
 #[cfg(test)]
@@ -196,5 +203,30 @@ mod tests {
         assert!(texts.contains(&"Bad state: boom".to_string()));
         assert!(!texts.contains(&"after".to_string()));
         assert_eq!(logs_since(&shared, 2, false, 10).len(), 4);
+    }
+
+    /// macOS and iOS prefix app output with `flutter: `; the block must
+    /// still be kept whole and must still end at its closing rule.
+    #[test]
+    fn errors_only_keeps_whole_blocks_on_apple_platforms() {
+        let shared = Mutex::new(Shared::default());
+        for line in [
+            "flutter: before",
+            "flutter: ══╡ EXCEPTION CAUGHT BY GESTURE ╞══════",
+            "flutter: The following RangeError was thrown while handling a gesture:",
+            "flutter: #2      _ListState._removeLast (package:app/main.dart:29:27)",
+            "flutter: ════════════════════════════",
+            "flutter: after",
+        ] {
+            lock(&shared).push("flutter", false, line.into());
+        }
+        let texts: Vec<String> = logs_since(&shared, 0, true, 10)
+            .into_iter()
+            .map(|l| l.text)
+            .collect();
+        assert_eq!(texts.len(), 4, "{texts:?}");
+        assert!(texts[1].contains("RangeError"));
+        assert!(texts[2].contains("main.dart:29:27"));
+        assert!(texts[3].ends_with("════"));
     }
 }
