@@ -27,6 +27,9 @@ type WsStream = WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>;
 const VM_SERVICE_MAX_MESSAGE_SIZE: usize = 256 << 20;
 const VM_SERVICE_MAX_FRAME_SIZE: usize = 64 << 20;
 /// Inspector object group for the references Falcon asks the app to hold.
+/// Largest inspector screenshot, in pixels per side. The inspector scales the
+/// image down to fit, so one this large no longer maps 1:1 to the screen.
+pub const INSPECTOR_CAPTURE_LIMIT: u32 = 16_384;
 const INSPECTOR_GROUP: &str = "falcon";
 
 // ──────────────────────────────────────────────────────────────────────
@@ -546,7 +549,9 @@ impl VmServiceClient {
     /// Render the root widget to a PNG with the framework's
     /// `ext.flutter.inspector.screenshot`. Unlike `_flutter.screenshot`, this
     /// works under Impeller, but it only shows Flutter content (no OS chrome).
-    /// Returns base64-encoded PNG data.
+    /// The image covers everything the widgets paint, at one image pixel per
+    /// physical pixel, so content that overflows the screen makes it larger
+    /// than the screen; see `png_crop`. Returns base64-encoded PNG data.
     pub async fn capture_inspector_screenshot(&self) -> Result<String> {
         let tree = self
             .call(
@@ -573,10 +578,10 @@ impl VmServiceClient {
                 json!({
                     "isolateId": self.isolate_id,
                     "id": id,
-                    "width": "4096",
-                    "height": "4096",
+                    "width": INSPECTOR_CAPTURE_LIMIT.to_string(),
+                    "height": INSPECTOR_CAPTURE_LIMIT.to_string(),
                     "margin": "0",
-                    "maxPixelRatio": "3",
+                    "maxPixelRatio": "1",
                     "debugPaint": "false",
                 }),
             )

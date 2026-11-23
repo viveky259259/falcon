@@ -243,7 +243,7 @@ fn execute_reload(args: &Value) -> Result<Value, String> {
 fn execute_widget_tree(args: &Value) -> Result<Value, String> {
     let a: WidgetTreeArgs = parse("widget_tree", args)?;
     let (uri, _) = resolve_target(a.attach.as_deref(), a.path.as_deref())?;
-    let limit = a.limit.clamp(1, 1000);
+    let limit = a.limit.clamp(1, crate::runtime::interact::ELEMENT_LIMIT);
     match a.mode.as_str() {
         "visible" => run_async("Reading the screen", 30, async {
             let client = connect(&uri).await?;

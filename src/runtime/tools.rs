@@ -322,6 +322,7 @@ pub async fn capture_screenshot_file(
             let inspector_err = match client.capture_inspector_screenshot().await {
                 Ok(base64_png) => {
                     let bytes = decode_screenshot(&base64_png)?;
+                    let bytes = crop_to_screen(client, bytes).await;
                     std::fs::write(output_path, &bytes).map_err(|e| {
                         anyhow::anyhow!(
                             "Failed to write screenshot to {}: {e}",
@@ -341,6 +342,34 @@ pub async fn capture_screenshot_file(
             })?;
             Ok("device".to_string())
         }
+    }
+}
+
+/// Cut an inspector screenshot down to the screen. The inspector paints
+/// everything the widgets draw, so a widget that overflows makes the image
+/// taller or wider than the screen. The image is returned unchanged when the
+/// screen size can't be read or the image already fits.
+async fn crop_to_screen(client: &VmServiceClient, png: Vec<u8>) -> Vec<u8> {
+    let Some(image) = super::png_crop::dimensions(&png) else {
+        return png;
+    };
+    let Ok(screen) = super::interact::describe(client, 1).await else {
+        return png;
+    };
+    let size = &screen["screen"];
+    let number = |key: &str| size[key].as_f64().unwrap_or(0.0);
+    let target = super::png_crop::screen_crop(
+        (
+            number("width"),
+            number("height"),
+            number("device_pixel_ratio"),
+        ),
+        image,
+        super::connection::INSPECTOR_CAPTURE_LIMIT,
+    );
+    match target.map(|(w, h)| super::png_crop::crop_top_left(&png, w, h)) {
+        Some(Ok(Some(cropped))) => cropped,
+        _ => png,
     }
 }
 

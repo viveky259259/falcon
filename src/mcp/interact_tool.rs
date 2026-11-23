@@ -67,12 +67,12 @@ fn finder_schema(description: &str) -> Value {
 pub fn definition() -> ToolDefinition {
     ToolDefinition {
         name: "interact".to_string(),
-        description: "Use the running app like a person: tap, long_press, type into a field, scroll, go back, or wait for a widget. Find the widget with `find` (text, key, type, tooltip or label; all given fields must match). A find that matches several widgets is refused and lists them, so pick one with `index`; nothing is tapped on a guess. Returns what it acted on, what appeared and disappeared, and the screen afterwards. Needs a debug build.".to_string(),
+        description: "Use the running app like a person: tap, long_press, type into a field, scroll, go back, or wait for a widget. Find the widget with `find` (text, key, type, tooltip or label; all given fields must match). A find that matches several widgets is refused and lists them, so pick one with `index`; nothing is tapped on a guess. `tap` and `long_press` also take `index` alone, meaning that element of `widget_tree`. Returns what it acted on, what appeared and disappeared, and the screen afterwards. Needs a debug build.".to_string(),
         input_schema: runtime_schema(
             json!({
                 "action": { "type": "string", "enum": ACTIONS, "description": "What to do" },
                 "find": finder_schema("Which widget to act on (tap, long_press, type, scroll into view, wait)"),
-                "index": { "type": "integer", "description": "Which match to use when `find` matches several" },
+                "index": { "type": "integer", "description": "With `find`: which match to use when it matches several. Without `find` (tap, long_press): the element `widget_tree` lists at this index" },
                 "text": { "type": "string", "description": "Text to enter (type). Replaces the field's text." },
                 "submit": { "type": "boolean", "default": false, "description": "Press done after typing" },
                 "x": { "type": "number", "description": "Tap at this logical-pixel x instead of using find" },
@@ -96,6 +96,15 @@ fn to_action(a: &InteractArgs) -> Result<Action, String> {
             .filter(|f| !f.is_empty())
             .ok_or_else(|| format!("`{}` needs `find` with at least one field", a.action))
     };
+    // `index` without `find` is a number from `widget_tree`.
+    let no_find = a.find.as_ref().is_none_or(Finder::is_empty);
+    if let (Some(index), true, None, None) = (a.index, no_find, a.x, a.y) {
+        match a.action.as_str() {
+            "tap" => return Ok(Action::TapElement { index, long: false }),
+            "long_press" => return Ok(Action::TapElement { index, long: true }),
+            _ => {}
+        }
+    }
     Ok(match a.action.as_str() {
         "tap" => match (a.x, a.y) {
             (Some(x), Some(y)) => Action::TapAt { x, y },
@@ -182,6 +191,40 @@ mod tests {
             Action::ScrollTo { .. }
         ));
         assert_eq!(action(json!({"action": "back"})).unwrap(), Action::Back);
+    }
+
+    #[test]
+    fn index_alone_means_a_widget_tree_element() {
+        assert_eq!(
+            action(json!({"action": "tap", "index": 3})).unwrap(),
+            Action::TapElement {
+                index: 3,
+                long: false
+            }
+        );
+        assert_eq!(
+            action(json!({"action": "tap", "index": 0, "find": {}})).unwrap(),
+            Action::TapElement {
+                index: 0,
+                long: false
+            }
+        );
+        assert_eq!(
+            action(json!({"action": "long_press", "index": 2})).unwrap(),
+            Action::TapElement {
+                index: 2,
+                long: true
+            }
+        );
+        // With `find`, `index` still picks among the matches.
+        assert!(matches!(
+            action(json!({"action": "tap", "index": 1, "find": {"type": "IconButton"}})).unwrap(),
+            Action::Tap { index: Some(1), .. }
+        ));
+        // `type` needs a text field, so it still asks for `find`.
+        assert!(action(json!({"action": "type", "index": 1, "text": "a"}))
+            .unwrap_err()
+            .contains("find"));
     }
 
     #[test]

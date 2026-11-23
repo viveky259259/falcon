@@ -9,6 +9,7 @@ pub mod diagnostics;
 pub mod interact;
 pub mod journey;
 pub mod live;
+pub mod png_crop;
 pub mod qr_check;
 pub mod report;
 pub mod screenshot;
