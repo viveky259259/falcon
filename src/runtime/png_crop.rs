@@ -47,19 +47,14 @@ pub fn crop_top_left(png_bytes: &[u8], max_width: u32, max_height: u32) -> Resul
     Ok(Some(out))
 }
 
-/// The size in physical pixels to crop an inspector screenshot to, or `None`
-/// to leave it alone. `screen` is the logical size and device pixel ratio;
-/// `image` is the PNG's size. An image as large as `capture_limit` was scaled
-/// down by the inspector by an unknown factor, so it can't be cropped.
-pub fn screen_crop(
-    screen: (f64, f64, f64),
-    image: (u32, u32),
-    capture_limit: u32,
-) -> Option<(u32, u32)> {
+/// The size to crop an inspector screenshot to, or `None` when it already
+/// fits. `screen` is the logical size and device pixel ratio, `image` is the
+/// PNG's size and `scale` is how many image pixels one physical pixel takes.
+pub fn screen_crop(screen: (f64, f64, f64), image: (u32, u32), scale: f64) -> Option<(u32, u32)> {
     let (logical_width, logical_height, ratio) = screen;
-    let width = (logical_width * ratio).round();
-    let height = (logical_height * ratio).round();
-    if !(width >= 1.0 && height >= 1.0) || image.0 >= capture_limit || image.1 >= capture_limit {
+    let width = (logical_width * ratio * scale).round();
+    let height = (logical_height * ratio * scale).round();
+    if !(width >= 1.0 && height >= 1.0) {
         return None;
     }
     let (width, height) = (width as u32, height as u32);
@@ -140,13 +135,16 @@ mod tests {
     fn screen_crop_uses_physical_pixels() {
         // 400x300 logical at 2x is 800x600 physical; the image is taller.
         assert_eq!(
-            screen_crop((400.0, 300.0, 2.0), (800, 1400), 16384),
+            screen_crop((400.0, 300.0, 2.0), (800, 1400), 1.0),
             Some((800, 600))
         );
-        assert_eq!(screen_crop((400.0, 300.0, 2.0), (800, 600), 16384), None);
-        // Scaled down by the inspector: the scale is unknown, so no crop.
-        assert_eq!(screen_crop((400.0, 300.0, 2.0), (800, 16384), 16384), None);
-        assert_eq!(screen_crop((0.0, 0.0, 0.0), (800, 1400), 16384), None);
+        assert_eq!(screen_crop((400.0, 300.0, 2.0), (800, 600), 1.0), None);
+        // An image taken at half scale shows the screen in half the pixels.
+        assert_eq!(
+            screen_crop((400.0, 300.0, 2.0), (400, 9000), 0.5),
+            Some((400, 300))
+        );
+        assert_eq!(screen_crop((0.0, 0.0, 0.0), (800, 1400), 1.0), None);
     }
 
     #[test]

@@ -320,9 +320,9 @@ pub async fn capture_screenshot_file(
             //    the root widget and, unlike `_flutter.screenshot`, works under
             //    Impeller (where the engine refuses compressed screenshots).
             let inspector_err = match client.capture_inspector_screenshot().await {
-                Ok(base64_png) => {
+                Ok((base64_png, scale)) => {
                     let bytes = decode_screenshot(&base64_png)?;
-                    let bytes = crop_to_screen(client, bytes).await;
+                    let bytes = crop_to_screen(client, bytes, scale).await;
                     std::fs::write(output_path, &bytes).map_err(|e| {
                         anyhow::anyhow!(
                             "Failed to write screenshot to {}: {e}",
@@ -347,9 +347,10 @@ pub async fn capture_screenshot_file(
 
 /// Cut an inspector screenshot down to the screen. The inspector paints
 /// everything the widgets draw, so a widget that overflows makes the image
-/// taller or wider than the screen. The image is returned unchanged when the
-/// screen size can't be read or the image already fits.
-async fn crop_to_screen(client: &VmServiceClient, png: Vec<u8>) -> Vec<u8> {
+/// taller or wider than the screen. `scale` is the image's pixels per
+/// physical pixel. The image is returned unchanged when the screen size
+/// can't be read or the image already fits.
+async fn crop_to_screen(client: &VmServiceClient, png: Vec<u8>, scale: f64) -> Vec<u8> {
     let Some(image) = super::png_crop::dimensions(&png) else {
         return png;
     };
@@ -365,7 +366,7 @@ async fn crop_to_screen(client: &VmServiceClient, png: Vec<u8>) -> Vec<u8> {
             number("device_pixel_ratio"),
         ),
         image,
-        super::connection::INSPECTOR_CAPTURE_LIMIT,
+        scale,
     );
     match target.map(|(w, h)| super::png_crop::crop_top_left(&png, w, h)) {
         Some(Ok(Some(cropped))) => cropped,
