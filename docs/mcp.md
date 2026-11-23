@@ -216,8 +216,36 @@ Response:
 
 ## Running-app tools
 
-These tools let an agent prove a change works: start the app, edit, hot reload,
-read the screen, use the app and catch runtime errors without anyone helping.
+These tools let an agent check a change in the running app: start the app,
+edit, hot reload, read the screen, use the app and read runtime errors.
+
+They are in Falcon 0.7.0 and later. Falcon 0.6.0 has none of them; run
+`falcon --version` to see what is installed.
+
+### Where they have been run
+
+| Target | Status |
+|---|---|
+| macOS desktop, debug build | Run end to end, see [loop-evidence](loop-evidence/README.md) |
+| iOS simulator, debug build | Run end to end, see [loop-evidence](loop-evidence/README.md) |
+| Android emulator or device | Not tested |
+| Physical iPhone or iPad | Not tested |
+| Windows and Linux desktop | Not tested |
+| Flutter web | `screenshot` is not supported; the other tools are not tested |
+| Profile and release builds | `widget_tree` and `interact` do not work |
+
+Known limits:
+
+- Falcon does not edit your code to fix a runtime error. The agent reads
+  `logs` and makes the edit itself.
+- `verify` reports `status: failed` without the reason; the test's own error
+  text is "See exception logs above". Read the files in `output_dir`.
+- A failed `verify` is not an MCP error (`isError` stays false). Check
+  `status`.
+- On a screen whose content overflows by more than about 4096 physical
+  pixels, the `inspector` screenshot has fewer pixels than the screen.
+- `interact` with `type` needs `find`; only `tap` and `long_press` take a
+  `widget_tree` index alone.
 
 ### Which app they target
 
@@ -268,7 +296,8 @@ another route or a dialog are left out and counted in `covered_count`.
 | `wait`       | `find` (optional `gone`, `timeout_ms`)   | Waits for the widget to appear, or disappear.                |
 
 A `find` that matches more than one widget is refused with the candidates
-listed; pass `index` to pick one. Nothing is tapped on a guess, and widgets
+listed; pass `index` to pick one. `tap` and `long_press` also take `index`
+without `find`: that is the element `widget_tree` lists at that index. Nothing is tapped on a guess, and widgets
 covered by another screen are never tapped. After each action the result says
 what it hit, which labels `appeared` and `disappeared` once the screen settled,
 and what is on screen now:
@@ -288,8 +317,10 @@ the app.
 
 ### `screenshot`, `journey`, metrics and tests
 
-`screenshot` tries the Flutter rasterizer first and falls back to
-`flutter screenshot`; Flutter web isn't supported. The PNG comes back as an
+`screenshot` tries the Flutter rasterizer first, then the Flutter inspector
+(the path used under Impeller), then `flutter screenshot`; Flutter web isn't
+supported. The inspector image is cut to the screen, so content that overflows
+is not drawn below it. The PNG comes back as an
 `image` content block (unless `include_image:false`) and is written to `out` or
 a new temp file. `journey` returns up to `max_images` screenshots of new
 screens the same way.
@@ -356,9 +387,13 @@ Drop this at the root of your repo (or merge into an existing `.mcp.json`):
 }
 ```
 
-Then in Claude Code, `falcon` will appear as an MCP server and the 5 tools
-above will be available as `mcp__falcon__lint_file`, `mcp__falcon__review`,
-etc.
+Then in Claude Code, `falcon` will appear as an MCP server and the tools
+above will be available as `mcp__falcon__lint_file`, `mcp__falcon__run_app`,
+etc. Or add it from a terminal:
+
+```bash
+claude mcp add falcon -- falcon-mcp
+```
 
 ### Cursor (`.mcp.json`)
 
