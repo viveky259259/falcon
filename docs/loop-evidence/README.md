@@ -13,7 +13,7 @@ not show.
 
 | | |
 |---|---|
-| Falcon | built from this branch at commit `a5ec0c7` (`cargo build`, debug profile) |
+| Falcon | built from this branch at commit `e97370d` (`cargo build`, debug profile) |
 | Flutter | 3.47.6 stable, debug mode |
 | macOS run | device `macos`, macOS 27.0.1, arm64, 800x600 window |
 | iOS run | iPhone 17 simulator, iOS 27.2, 402x874 at 3x |
