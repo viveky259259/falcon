@@ -424,7 +424,9 @@ mod tests {
         match &plan.steps[5] {
             Step::Run { program, .. } => {
                 assert!(
-                    program.contains("cmdline-tools/latest/bin"),
+                    program
+                        .replace('\\', "/")
+                        .contains("cmdline-tools/latest/bin"),
                     "sdkmanager must be invoked from the `latest` layout: {}",
                     program
                 );
@@ -452,7 +454,9 @@ mod tests {
             Step::Run { program, args, .. } => {
                 assert_eq!(program, "mv");
                 assert!(
-                    args.last().map(|a| a.ends_with("cmdline-tools/latest")) == Some(true),
+                    args.last()
+                        .map(|a| a.replace('\\', "/").ends_with("cmdline-tools/latest"))
+                        == Some(true),
                     "must move the extracted tools into cmdline-tools/latest: {:?}",
                     args
                 );

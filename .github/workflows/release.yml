@@ -55,14 +55,23 @@ jobs:
             os: macos-14
             package_os: macos
             package_arch: arm64
+            archive_ext: tar.gz
           - target: x86_64-apple-darwin
             os: macos-15-intel
             package_os: macos
             package_arch: x64
+            archive_ext: tar.gz
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-22.04
             package_os: linux
             package_arch: x64
+            archive_ext: tar.gz
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            package_os: windows
+            package_arch: x64
+            archive_ext: zip
+            exe: .exe
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -76,7 +85,7 @@ jobs:
           echo "tag=${ref}" >> "$GITHUB_OUTPUT"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "package=falcon-${version}-${{ matrix.package_os }}-${{ matrix.package_arch }}" >> "$GITHUB_OUTPUT"
-          echo "archive=falcon-${version}-${{ matrix.package_os }}-${{ matrix.package_arch }}.tar.gz" >> "$GITHUB_OUTPUT"
+          echo "archive=falcon-${version}-${{ matrix.package_os }}-${{ matrix.package_arch }}.${{ matrix.archive_ext }}" >> "$GITHUB_OUTPUT"
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -106,7 +115,7 @@ jobs:
           expected="${{ steps.version.outputs.version }}"
           bin_dir="target/${{ matrix.target }}/release"
           for bin in falcon falcon-lsp falcon-mcp; do
-            actual="$("${bin_dir}/${bin}" --version | awk '{print $NF}')"
+            actual="$("${bin_dir}/${bin}${{ matrix.exe }}" --version | awk '{print $NF}' | tr -d '\r')"
             if [ "${actual}" != "${expected}" ]; then
               echo "::error::${bin} reports version ${actual}, expected ${expected}"
               exit 1
@@ -238,16 +247,23 @@ jobs:
           mkdir -p "${staging}"
 
           bin_dir="target/${target}/release"
-          cp "${bin_dir}/falcon"     "${staging}/"
-          cp "${bin_dir}/falcon-lsp" "${staging}/"
-          cp "${bin_dir}/falcon-mcp" "${staging}/"
+          exe="${{ matrix.exe }}"
+          for bin in falcon falcon-lsp falcon-mcp; do
+            cp "${bin_dir}/${bin}${exe}" "${staging}/"
+          done
 
           # Include README and LICENSE-style files if present (best effort).
           [ -f README.md ]   && cp README.md   "${staging}/" || true
           [ -f CHANGELOG.md ] && cp CHANGELOG.md "${staging}/" || true
           [ -f LICENSE ]     && cp LICENSE     "${staging}/" || true
 
-          tar -czf "${archive}" "${staging}"
+          # Windows gets a zip, which Explorer, PowerShell and cargo-binstall
+          # open natively; 7-Zip is preinstalled on GitHub's Windows runners.
+          if [ "${{ matrix.archive_ext }}" = "zip" ]; then
+            7z a -tzip "${archive}" "${staging}" >/dev/null
+          else
+            tar -czf "${archive}" "${staging}"
+          fi
           ls -la "${archive}"
 
           # Compute SHA256 for the archive.
@@ -301,13 +317,14 @@ jobs:
           # Flatten artifact directories — each artifact dir contains the archive
           # plus its per-file .sha256 sidecar; we only ship the archives + a
           # single combined SHA256SUMS.
-          find artifacts -type f -name 'falcon-*.tar.gz' -exec cp {} dist/ \;
+          find artifacts -type f \( -name 'falcon-*.tar.gz' -o -name 'falcon-*.zip' \) -exec cp {} dist/ \;
           ls -la dist
 
           expected=(
             "falcon-${{ steps.version.outputs.version }}-macos-arm64.tar.gz"
             "falcon-${{ steps.version.outputs.version }}-macos-x64.tar.gz"
             "falcon-${{ steps.version.outputs.version }}-linux-x64.tar.gz"
+            "falcon-${{ steps.version.outputs.version }}-windows-x64.zip"
           )
           for archive in "${expected[@]}"; do
             if [ ! -f "dist/${archive}" ]; then
@@ -316,22 +333,22 @@ jobs:
             fi
           done
 
-          archive_count="$(find dist -maxdepth 1 -type f -name 'falcon-*.tar.gz' | wc -l | tr -d ' ')"
-          if [ "${archive_count}" != "3" ]; then
-            echo "::error::Expected exactly 3 release archives, found ${archive_count}"
-            find dist -maxdepth 1 -type f -name 'falcon-*.tar.gz' -print
+          archive_count="$(find dist -maxdepth 1 -type f -name 'falcon-*' | wc -l | tr -d ' ')"
+          if [ "${archive_count}" != "${#expected[@]}" ]; then
+            echo "::error::Expected exactly ${#expected[@]} release archives, found ${archive_count}"
+            find dist -maxdepth 1 -type f -name 'falcon-*' -print
             exit 1
           fi
 
           cd dist
           if command -v sha256sum >/dev/null 2>&1; then
-            sha256sum falcon-*.tar.gz > SHA256SUMS
+            sha256sum falcon-* > SHA256SUMS
           else
-            shasum -a 256 falcon-*.tar.gz > SHA256SUMS
+            shasum -a 256 falcon-* > SHA256SUMS
           fi
           checksum_count="$(wc -l < SHA256SUMS | tr -d ' ')"
-          if [ "${checksum_count}" != "3" ]; then
-            echo "::error::Expected exactly 3 SHA256SUMS entries, found ${checksum_count}"
+          if [ "${checksum_count}" != "${#expected[@]}" ]; then
+            echo "::error::Expected exactly ${#expected[@]} SHA256SUMS entries, found ${checksum_count}"
             exit 1
           fi
           cat SHA256SUMS
@@ -347,6 +364,7 @@ jobs:
           generate_release_notes: true
           files: |
             dist/falcon-*.tar.gz
+            dist/falcon-*.zip
             dist/SHA256SUMS
 
   # Publishes via npm trusted publishing (OIDC) — no NPM_TOKEN secret. The

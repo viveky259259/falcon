@@ -63,8 +63,13 @@ jobs:
         # since this job triggers automatically on every pull_request and a
         # self-hosted leg in that path would let an untrusted PR run code on
         # the local machine just by being opened.
-        os: [ubuntu-22.04]
+        os: [ubuntu-22.04, windows-latest]
     steps:
+      # Keep LF endings so Dart fixtures read the same on Windows: tests
+      # compare lines and columns.
+      - name: Disable CRLF conversion
+        run: git config --global core.autocrlf false
+
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
@@ -85,8 +90,57 @@ jobs:
       - name: Build (default features)
         run: cargo build --locked --all-targets
 
+      # --no-fail-fast: run every test binary so one failure doesn't hide others.
       - name: Test (default features)
-        run: cargo test --locked
+        run: cargo test --locked --no-fail-fast
+
+      # The lint job runs on Linux only, so lint the Windows-only code here.
+      - name: Clippy (Windows-only code)
+        if: runner.os == 'Windows'
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      # Install this build the way a Windows user would: a release-shaped zip
+      # and SHA256SUMS, installed by scripts/install.ps1 under Windows
+      # PowerShell 5.1 (what Windows ships) and PowerShell 7 via `iex`.
+      - name: Package debug build like a release (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)"
+          pkg="falcon-${version}-windows-x64"
+          out="$(cygpath -u "${RUNNER_TEMP}")/pkg"
+          mkdir -p "${out}/${pkg}"
+          for bin in falcon falcon-lsp falcon-mcp; do
+            cp "target/debug/${bin}.exe" "${out}/${pkg}/"
+          done
+          (cd "${out}" && 7z a -tzip -mx1 "${pkg}.zip" "${pkg}" >/dev/null && sha256sum "${pkg}.zip" > SHA256SUMS)
+          echo "FALCON_VERSION=${version}" >> "$GITHUB_ENV"
+          echo "FALCON_LOCAL_ARCHIVE=$(cygpath -w "${out}/${pkg}.zip")" >> "$GITHUB_ENV"
+          echo "FALCON_LOCAL_SHA256SUMS=$(cygpath -w "${out}/SHA256SUMS")" >> "$GITHUB_ENV"
+
+      - name: install.ps1 (Windows PowerShell 5.1)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP 'falcon-ps5'
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts\install.ps1 -InstallDir $dir -NoModifyPath
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $out = & (Join-Path $dir 'falcon.exe') --version
+          if ($out -notmatch [regex]::Escape($env:FALCON_VERSION)) { throw "unexpected version: $out" }
+          foreach ($bin in 'falcon-lsp', 'falcon-mcp') {
+            if (-not (Test-Path (Join-Path $dir "$bin.exe"))) { throw "$bin.exe was not installed" }
+          }
+
+      - name: install.ps1 (PowerShell 7, irm | iex style)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:FALCON_INSTALL_DIR = Join-Path $env:RUNNER_TEMP 'falcon-ps7'
+          Get-Content -Raw scripts/install.ps1 | Invoke-Expression
+          # The script adds the folder to PATH for this session too.
+          $out = falcon --version
+          if ($out -notmatch [regex]::Escape($env:FALCON_VERSION)) { throw "unexpected version: $out" }
 
   feature-build:
     name: Build with ai-local feature

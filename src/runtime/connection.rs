@@ -63,7 +63,7 @@ const INSPECTOR_GROUP: &str = "falcon";
 /// Launch `flutter run` in the given project directory and return the
 /// Observatory / VM Service URI once it becomes available.
 pub async fn launch_flutter_run(project_path: &Path) -> Result<String> {
-    let mut child = Command::new("flutter")
+    let mut child = Command::new(crate::program::flutter())
         .arg("run")
         .arg("--observatory-port=0")
         .current_dir(project_path)

@@ -37,7 +37,7 @@ pub(crate) async fn capture(
     duration: Duration,
     stdout_limit: usize,
 ) -> Result<Capture> {
-    let mut command = Command::new(program);
+    let mut command = Command::new(crate::program::resolve(program));
     command
         .args(args)
         .current_dir(directory)

@@ -65,11 +65,7 @@ pub fn detect_drift(root: &Path, since: Option<&str>) -> anyhow::Result<DriftRep
             Err(_) => continue,
         };
 
-        let rel = file_path
-            .strip_prefix(root)
-            .unwrap_or(file_path)
-            .to_string_lossy()
-            .to_string();
+        let rel = crate::paths::slash(file_path.strip_prefix(root).unwrap_or(file_path));
 
         check_naming_drift(&conventions, &rel, &source, &mut findings);
         check_architecture_drift(&conventions, &rel, &mut findings);

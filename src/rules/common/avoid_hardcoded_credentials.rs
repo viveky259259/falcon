@@ -76,7 +76,7 @@ impl Rule for AvoidHardcodedCredentials {
     }
 
     fn check(&self, _root: Node, source: &str, file: &Path) -> Vec<Issue> {
-        let file_str = file.to_string_lossy();
+        let file_str = crate::paths::slash(file);
         if file_str.contains("_test.dart")
             || file_str.contains("/test/")
             || file_str.contains(".g.dart")

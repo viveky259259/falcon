@@ -91,7 +91,7 @@ fn project_resolver_builds_class_index() {
     let index = resolver.build_index().unwrap();
 
     let base = index.class("BaseState").expect("BaseState indexed");
-    assert!(base.file.to_string_lossy().ends_with("lib/base.dart"));
+    assert!(base.file.ends_with("lib/base.dart"));
     assert_eq!(base.line, 1);
     assert_eq!(base.superclass.as_deref(), Some("State"));
     assert!(base.has_method("dispose"));

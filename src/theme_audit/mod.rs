@@ -279,7 +279,7 @@ fn collect_dart_files(project_path: &Path) -> Result<Vec<PathBuf>> {
         let path = entry.path();
 
         // Skip exclusions
-        let path_str = path.to_string_lossy();
+        let path_str = crate::paths::slash(path);
         if path_str.contains("/.git/")
             || path_str.contains("/build/")
             || path_str.contains("/.dart_tool/")

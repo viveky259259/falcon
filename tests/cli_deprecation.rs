@@ -1,4 +1,9 @@
+// Tests that need a fake SDK shell script are `#[cfg(unix)]`; their helpers
+// are then unused on Windows.
+#![cfg_attr(not(unix), allow(dead_code, unused_imports))]
+
 use std::ffi::OsString;
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -313,6 +318,8 @@ fn legacy_app_runtime_commands_warn_and_show_help() {
     }
 }
 
+// The fake SDK is a shell script, which Windows cannot run.
+#[cfg(unix)]
 #[test]
 fn legacy_sdk_passthrough_commands_warn_and_forward() {
     let cases = [
@@ -885,6 +892,8 @@ fn x_app_runtime_commands_do_not_warn_on_help() {
     }
 }
 
+// The fake SDK is a shell script, which Windows cannot run.
+#[cfg(unix)]
 #[test]
 fn x_sdk_passthrough_commands_do_not_warn_and_forward() {
     let cases = [
@@ -965,6 +974,8 @@ fn x_setup_ai_commands_do_not_warn_on_help() {
     }
 }
 
+// The fake SDK is a shell script, which Windows cannot run.
+#[cfg(unix)]
 #[test]
 fn x_audit_commands_do_not_warn() {
     let temp = tempfile::tempdir().unwrap();
@@ -994,6 +1005,7 @@ fn falcon_cmd() -> Command {
     Command::new(env!("CARGO_BIN_EXE_falcon"))
 }
 
+#[cfg(unix)]
 fn make_fake_executable(bin_dir: &Path, name: &str) -> PathBuf {
     std::fs::create_dir_all(bin_dir).unwrap();
     let path = bin_dir.join(name);

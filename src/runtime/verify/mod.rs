@@ -73,8 +73,8 @@ pub async fn verify(config: VerifyConfig) -> Result<VerifyReport> {
         bail!("Timeout must be positive");
     }
     let flutter = if config.flutter.components().count() > 1 {
-        config
-            .flutter
+        // On Windows a path such as ...\bin\flutter names flutter.bat.
+        PathBuf::from(crate::program::resolve(&config.flutter))
             .canonicalize()
             .context("Flutter executable path does not exist")?
     } else {

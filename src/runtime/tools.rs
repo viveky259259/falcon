@@ -388,7 +388,7 @@ fn capture_via_flutter_cli(
     project_path: &Path,
     device: Option<&str>,
 ) -> Result<()> {
-    let mut command = std::process::Command::new("flutter");
+    let mut command = std::process::Command::new(crate::program::flutter());
     command.arg("screenshot").current_dir(project_path);
     command.arg(format!("--out={}", output_path.display()));
     if let Some(device) = device {

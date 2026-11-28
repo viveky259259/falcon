@@ -126,7 +126,7 @@ pub fn run_app(args: RunAppArgs) -> Result<Value, String> {
         let _ = old.child.wait();
     }
 
-    let mut cmd = Command::new("flutter");
+    let mut cmd = Command::new(crate::program::flutter());
     cmd.arg("run").arg("--machine").current_dir(&project);
     if let Some(device) = &args.device {
         cmd.arg("-d").arg(device);

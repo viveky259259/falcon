@@ -5,7 +5,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const { assetName, platformInfo, verifyChecksum } = require("../lib/install");
+const { assetName, binaryPath, platformInfo, verifyChecksum } = require("../lib/install");
 
 function sha256(file) {
   const hash = createHash("sha256");
@@ -28,7 +28,25 @@ assert.deepEqual(platformInfo("linux", "x64"), {
   arch: "x64",
   label: "linux-x64",
 });
-assert.throws(() => platformInfo("win32", "x64"), /unsupported platform win32-x64/);
+assert.deepEqual(platformInfo("win32", "x64"), {
+  os: "windows",
+  arch: "x64",
+  label: "windows-x64",
+});
+assert.equal(
+  assetName("1.2.3", platformInfo("win32", "x64")),
+  "falcon-1.2.3-windows-x64.zip",
+);
+assert.equal(
+  assetName("1.2.3", platformInfo("linux", "x64")),
+  "falcon-1.2.3-linux-x64.tar.gz",
+);
+assert.equal(
+  path.basename(binaryPath(platformInfo("win32", "x64"))),
+  "falcon.exe",
+);
+assert.throws(() => platformInfo("win32", "arm64"), /unsupported platform win32-arm64/);
+assert.throws(() => platformInfo("linux", "arm64"), /unsupported platform linux-arm64/);
 
 const info = platformInfo();
 const packageRoot = path.resolve(__dirname, "..");

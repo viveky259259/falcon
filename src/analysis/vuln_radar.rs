@@ -42,7 +42,7 @@ pub fn scan_vulnerabilities(root: &Path) -> Vec<VulnFinding> {
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
         .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
-        .filter(|e| !e.path().to_string_lossy().contains("/test/"))
+        .filter(|e| !crate::paths::slash(e.path()).contains("/test/"))
     {
         let source = match std::fs::read_to_string(entry.path()) {
             Ok(s) => s,

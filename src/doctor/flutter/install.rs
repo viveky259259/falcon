@@ -2,7 +2,7 @@
 //! running it is the executor's job, which is what makes `--dry-run` free.
 
 use super::releases::{channel_has_archives, ReleaseManifest};
-use crate::doctor::host::{Arch, HostInfo};
+use crate::doctor::host::{Arch, HostInfo, Os};
 use crate::doctor::types::{Plan, Probe, Step};
 use std::path::{Path, PathBuf};
 
@@ -38,8 +38,22 @@ pub fn dir_is_usable(dir: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// The line that puts the SDK's `bin` on PATH for this machine's OS.
 pub fn path_export_line(dir: &Path) -> String {
-    format!(r#"export PATH="$PATH:{}/bin""#, dir.display())
+    path_line_for(crate::doctor::host::current_os(), dir)
+}
+
+/// The PATH line for `os`. Windows gets a PowerShell command that appends to
+/// the user PATH only; `setx` would cut PATH at 1024 characters and copy the
+/// system PATH into the user's.
+pub fn path_line_for(os: Os, dir: &Path) -> String {
+    match os {
+        Os::Windows => format!(
+            r#"[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";{}\bin", "User")"#,
+            dir.display()
+        ),
+        _ => format!(r#"export PATH="$PATH:{}/bin""#, dir.display()),
+    }
 }
 
 /// Download + extract steps for a channel that publishes archives.
@@ -404,8 +418,17 @@ mod tests {
     }
 
     #[test]
+    fn windows_path_line_appends_to_the_user_path_only() {
+        let line = path_line_for(Os::Windows, Path::new(r"C:\Users\ada\flutter"));
+        assert_eq!(
+            line,
+            r#"[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";C:\Users\ada\flutter\bin", "User")"#
+        );
+    }
+
+    #[test]
     fn export_line_points_at_the_sdk_bin_directory() {
-        let line = path_export_line(Path::new("/Users/ada/development/flutter"));
+        let line = path_line_for(Os::MacOs, Path::new("/Users/ada/development/flutter"));
         assert_eq!(
             line,
             r#"export PATH="$PATH:/Users/ada/development/flutter/bin""#
