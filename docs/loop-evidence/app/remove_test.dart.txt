@@ -1,0 +1,21 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:loop_demo/main.dart';
+
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('remove last takes one item off the list', (tester) async {
+    await tester.pumpWidget(const LoopDemoApp());
+    await tester.tap(find.byKey(const ValueKey('add')));
+    await tester.tap(find.byKey(const ValueKey('add')));
+    await tester.pump();
+    expect(find.text('2 items'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('remove')));
+    await tester.pump();
+    expect(find.text('1 items'), findsOneWidget);
+    expect(find.text('Item 2'), findsNothing);
+  });
+}

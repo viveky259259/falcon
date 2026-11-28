@@ -1,7 +1,9 @@
 use crate::config::Severity;
 use crate::reporters::Issue;
 use crate::rules::Rule;
+use regex::Regex;
 use std::path::Path;
+use std::sync::LazyLock;
 use tree_sitter::Node;
 
 pub struct AvoidHardcodedCredentials;
@@ -29,6 +31,36 @@ const SUSPICIOUS_NAMES: &[&str] = &[
     "clientSecret",
     "client_secret",
 ];
+
+/// Key formats that are secrets whatever the variable is called. Each is a
+/// provider's fixed prefix plus its key body, inside a string literal.
+/// Google `AIza…` keys are left out: Firebase client keys are meant to ship.
+static KEY_FORMATS: LazyLock<Vec<(&'static str, Regex)>> = LazyLock::new(|| {
+    [
+        ("AWS access key", r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),
+        ("Stripe live key", r"\b[sr]k_live_[0-9A-Za-z]{16,}"),
+        (
+            "GitHub token",
+            r"\b(?:gh[pousr]_[0-9A-Za-z]{36,}|github_pat_[0-9A-Za-z_]{40,})",
+        ),
+        ("Slack token", r"\bxox[abprs]-[0-9A-Za-z-]{20,}"),
+        ("private key", r"-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----"),
+    ]
+    .into_iter()
+    .filter_map(|(kind, pattern)| Regex::new(pattern).ok().map(|re| (kind, re)))
+    .collect()
+});
+
+/// The kind of key a line holds in a string literal, if any.
+fn key_format(line: &str) -> Option<&'static str> {
+    if !line.contains('\'') && !line.contains('"') {
+        return None;
+    }
+    KEY_FORMATS
+        .iter()
+        .find(|(_, re)| re.is_match(line))
+        .map(|(kind, _)| *kind)
+}
 
 impl Rule for AvoidHardcodedCredentials {
     fn name(&self) -> &'static str {
@@ -61,6 +93,7 @@ impl Rule for AvoidHardcodedCredentials {
                 continue;
             }
 
+            let mut named = false;
             for name in SUSPICIOUS_NAMES {
                 if trimmed.contains(name) && (trimmed.contains("= '") || trimmed.contains("= \"")) {
                     let has_real_value = !trimmed.contains("''")
@@ -84,9 +117,21 @@ impl Rule for AvoidHardcodedCredentials {
                             line: line_num + 1,
                             column: 1,
                         });
+                        named = true;
                         break;
                     }
                 }
+            }
+
+            if let Some(kind) = key_format(trimmed).filter(|_| !named) {
+                issues.push(Issue {
+                    rule: "avoid-hardcoded-credentials".to_string(),
+                    message: format!("Hardcoded {kind} — move it out of the source and rotate it."),
+                    severity: Severity::Error,
+                    file: file.to_path_buf(),
+                    line: line_num + 1,
+                    column: 1,
+                });
             }
         }
 
@@ -119,6 +164,45 @@ const apiKey = 'sk_live_abcdef1234567890';
         assert_eq!(issues.len(), 1);
         assert_eq!(issues[0].rule, "avoid-hardcoded-credentials");
         assert!(issues[0].message.contains("apiKey"));
+    }
+
+    /// Made-up values in each provider's format. They are put together here
+    /// so the source holds nothing a secret scanner would stop.
+    fn fake_key(prefix: &str, body: &str) -> String {
+        format!("{prefix}{body}")
+    }
+
+    #[test]
+    fn known_key_formats_are_flagged_whatever_the_name() {
+        let source = format!(
+            "\nclass Config {{\n  static const String awsId = '{}';\n  static const stripe = \"{}\";\n  final gh = '{}';\n  final pem = '{}';\n}}\n",
+            fake_key("AKIA", "IOSFODNN7EXAMPLE"),
+            fake_key("sk_", "live_0000000000000000000000000000"),
+            fake_key("ghp_", "000000000000000000000000000000000000"),
+            fake_key("-----BEGIN RSA ", "PRIVATE KEY-----"),
+        );
+        let issues = run(&source);
+        let lines: Vec<usize> = issues.iter().map(|i| i.line).collect();
+        assert_eq!(lines, vec![3, 4, 5, 6], "{issues:?}");
+        assert!(issues[0].message.contains("AWS access key"));
+    }
+
+    #[test]
+    fn a_line_is_reported_once_and_lookalikes_are_not_flagged() {
+        // Name and value both match: one finding.
+        let both = format!(
+            "const apiKey = '{}';\n",
+            fake_key("AKIA", "IOSFODNN7EXAMPLE")
+        );
+        assert_eq!(run(&both).len(), 1);
+        // Too short, a test-mode key, or not in a string.
+        let source = format!(
+            "\nconst region = 'AKIA1234';\nconst mode = '{}';\nfinal {} = 1;\n",
+            fake_key("sk_", "test_0000000000000000000000000000"),
+            fake_key("AKIA", "IOSFODNN7EXAMPLE"),
+        );
+        let issues = run(&source);
+        assert!(issues.is_empty(), "{issues:?}");
     }
 
     #[test]

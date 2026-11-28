@@ -469,6 +469,7 @@ fn test_print_ai_score_no_panic() {
         file_count: 10,
         total_issues: 5,
         grade: falcon::ai_score::score::Grade::C,
+        hardcoded_credentials: 0,
     };
     falcon::ai_score::score::print_ai_score(&score);
 }

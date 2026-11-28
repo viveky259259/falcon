@@ -1,0 +1,10 @@
+@@ -26,7 +26,8 @@
+   }
+ 
+   void _removeLast() {
+-    setState(() => _items.removeAt(_items.length));
++    if (_items.isEmpty) return;
++    setState(() => _items.removeLast());
+   }
+ 
+   @override

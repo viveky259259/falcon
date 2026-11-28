@@ -1,0 +1,64 @@
+import 'package:flutter/material.dart';
+
+void main() => runApp(const LoopDemoApp());
+
+class LoopDemoApp extends StatelessWidget {
+  const LoopDemoApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(title: 'Loop demo', home: ShoppingList());
+  }
+}
+
+class ShoppingList extends StatefulWidget {
+  const ShoppingList({super.key});
+
+  @override
+  State<ShoppingList> createState() => _ShoppingListState();
+}
+
+class _ShoppingListState extends State<ShoppingList> {
+  final List<String> _items = <String>[];
+
+  void _add() {
+    setState(() => _items.add('Item ${_items.length + 1}'));
+  }
+
+  void _removeLast() {
+    setState(() => _items.removeAt(_items.length));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Shopping list')),
+      body: Column(
+        children: [
+          Text('${_items.length} items', key: const ValueKey('count')),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                key: const ValueKey('add'),
+                onPressed: _add,
+                child: const Text('Add item'),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                key: const ValueKey('remove'),
+                onPressed: _removeLast,
+                child: const Text('Remove last'),
+              ),
+            ],
+          ),
+          Expanded(
+            child: ListView(
+              children: [for (final item in _items) ListTile(title: Text(item))],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

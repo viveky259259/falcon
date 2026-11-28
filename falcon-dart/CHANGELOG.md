@@ -1,3 +1,9 @@
+## 0.7.0
+
+- Updated the CLI wrapper to Falcon 0.7.0.
+- `falcon-mcp` can run, reload and drive the app (macOS desktop and iOS simulator tested).
+- `falcon score` no longer calls a project with a hardcoded credential production ready.
+
 ## 0.6.0
 
 - Updated the CLI wrapper to Falcon 0.6.0.

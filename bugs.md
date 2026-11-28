@@ -29,8 +29,13 @@ Also fixed: requests that end without a status (connection refused) count as fai
 
 Correction: bug 10's example said "two `SocketException`s". That was the macOS run; on iOS the same lines were HTTP 404 errors for the avatar image.
 
+Fixed on 2026-11-24 (branch `fix/loop-readiness`):
+- The `inspector` screenshot is cut to the screen; overflowing content no longer appears below the visible area. Checked on the iOS simulator with a column overflowing by 2312 px.
+- MCP `interact` with `tap` (or `long_press`) and `index` alone acts on that `widget_tree` element. Checked on macOS and the iOS simulator.
+- Found while running the agent loop: an exception thrown by the app after an `interact` tap was logged as a `stack_frame.dart` assertion instead of the real exception (the tap ran from an evaluator closure). This is the cause of the `'match != null'` failures in bug 13.
+- Found in the same run: `logs` with `errors_only` returned only the header of an error block on macOS and iOS.
+
 Still open:
-- The `inspector` screenshot renders the whole widget subtree, so content that overflows the screen appears below the visible area.
 - `verify`'s `summary.json` still says "See exception logs above".
 - The smaller issues listed above (duplicate findings, `fix` only adding trailing commas, the vuln-scan false positive, placeholder marketplace data, `cupertino_icons`).
 
@@ -118,7 +123,7 @@ Still open:
 - `check` doesn't flag `http://` URLs; only `x vuln-scan` does (CWE-319).
 - `docs/mcp.md` said the tool list was "locked at 5 tools".
 - `verify --help` says `--target` is a file "inside integration_test/", but `--target app_test.dart` fails with "Integration test target does not exist"; only `integration_test/app_test.dart` works.
-- MCP `interact` with `tap` and `index` fails with "`tap` needs `find`", although `widget_tree` returns indexes.
+- MCP `interact` with `tap` and `index` fails with "`tap` needs `find`", although `widget_tree` returns indexes. (Fixed 2026-11-24.)
 
 ## Not tested
 

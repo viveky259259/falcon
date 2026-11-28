@@ -46,3 +46,5 @@ these tools:
 - `verify`
 
 Falcon uses stdio transport only. It does not open a local port or require auth.
+
+The tools from `run_app` to `verify` need Falcon 0.7.0 or later (`falcon --version`). They have been run on macOS desktop and the iOS simulator; see [the MCP reference](../mcp.md#where-they-have-been-run) for what is untested.

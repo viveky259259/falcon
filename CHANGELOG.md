@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 (prepared, not yet tagged or published)
+
+The running-app MCP tools are new in this version. Falcon 0.6.0 does not have them. They have been run end to end on macOS desktop and the iOS simulator only ([docs/loop-evidence](docs/loop-evidence/README.md)); Android, physical iOS devices, Windows, Linux and Flutter web are untested, and `screenshot` does not support Flutter web.
 
 ### Removed
 
@@ -20,6 +22,12 @@
 
 ### Fixed
 
+- `interact`: an exception thrown by the app after a tap, long press or typed text (an `onPressed` that throws, for example) is now in `logs` as Flutter reports it. The events were sent from a closure inside the evaluated expression, and Flutter cannot print an error whose stack has such a frame, so `logs` showed a `stack_frame.dart` assertion and the real exception was lost.
+- `logs` with `errors_only` returns the whole `══╡ EXCEPTION CAUGHT … ╞══` block on macOS and iOS. It returned only the header there, because every app line starts with `flutter: `.
+- `interact`: `tap` and `long_press` accept `index` without `find`, meaning the element `widget_tree` lists at that index. They failed with "needs `find`".
+- `screenshot`: the inspector capture (the path used under Impeller) is cut to the screen. A widget that overflowed made the image continue below the screen. The capture is taken at the screen's own resolution; when the painted area is larger than 4096 pixels it is taken smaller.
+- `falcon score` no longer prints "Production Ready — qualifies for Falcon Certified badge" for a project with a hardcoded credential. The label is capped at "Needs Improvement" and the score webhook's `production_ready` is false, whatever the number.
+- `avoid-hardcoded-credentials` flags AWS access keys (`AKIA…`, `ASIA…`), Stripe live keys, GitHub tokens, Slack tokens and private key blocks by their format. It only matched variable names such as `apiKey`, so `awsId = 'AKIA…'` passed. Projects with such keys in source will see new findings.
 - `falcon devtools inspector`, `falcon devtools tree-diff` and `falcon journey` read the widget tree again. The VM Service wraps extension replies in a `{"type": "_extensionType", "result": …}` envelope, which was taken for the root node, so the tree came back as one node and journeys labelled every screen `_extensionType`.
 - Four preset entries named rules that do not exist (`avoid-unnecessary-set-state`, `avoid-throw-in-catch`, `always-override-equals-hashcode`, `avoid-collection-methods-unrelated-types`), so those rules were silently skipped. They now use the real names, and a test checks every preset and default entry against the rule registry.
 - A `falcon.yaml` without a `rules:` key (for example, one that only tunes `metrics:`) ran no lint rules at all. A missing key now means the default rule set; an explicit `rules: []` still disables rules. Projects with such a config will start seeing findings.
@@ -31,6 +39,7 @@
 - `falcon-mcp` can run and drive the app, so an agent can check its own change. New tools: `run_app` and `stop_app` keep one `flutter run` alive across calls; `reload` hot reloads through it and reports compile errors; `screenshot` returns the screen as an image; `widget_tree` lists on-screen text, buttons and fields with positions; `interact` taps, long presses, types, scrolls (paging through lazy lists), goes back and waits, refusing ambiguous matches and covered widgets; `logs` returns app output with whole Flutter error blocks; `tree_diff`, `app_metrics` (memory, network, performance, profiler, rebuilds, trace, routes), `journey` and `verify` expose the existing runtime commands. All of them are refused over the HTTP bridge.
 - `falcon-mcp` also advertises `score`, `conventions` and `generate_tests` (golden or unit, preview by default); `falcon_ai_score` and `falcon_conventions` are now aliases of the first two. The surface is 20 tools.
 - `falcon-mcp` negotiates the MCP protocol version (2025-06-18, 2025-03-26, 2024-11-05), sends progress notifications for long calls, and serves prompts (`dev_loop`, `review_ai_code`) and resources (`falcon://rules`, `falcon://rules/{name}`, `falcon://session`).
+- `docs/loop-evidence`: the commands and output of one recorded agent run through `run_app`, `interact`, `logs`, `reload`, `screenshot` and `verify` on macOS desktop and the iOS simulator, with what the run does not show.
 - `LICENSE` (MIT) at the repository root and in the published crate, and a `SECURITY.md` describing how to report vulnerabilities privately.
 
 ### Security

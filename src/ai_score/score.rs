@@ -38,6 +38,34 @@ pub struct AiCodeScore {
     pub file_count: usize,
     pub total_issues: usize,
     pub grade: Grade,
+    /// `avoid-hardcoded-credentials` findings. Any one of them blocks "Production Ready".
+    #[serde(default)]
+    pub hardcoded_credentials: usize,
+}
+
+/// Release label printed with the score.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Readiness {
+    ProductionReady,
+    NearProductionReady,
+    NeedsImprovement,
+}
+
+impl AiCodeScore {
+    /// The release label. A hardcoded credential caps it at `NeedsImprovement` whatever
+    /// the number: it costs only about 4 overall points, so a project leaking a key could
+    /// otherwise score 85+ and be labelled production ready.
+    pub fn readiness(&self) -> Readiness {
+        if self.hardcoded_credentials > 0 {
+            Readiness::NeedsImprovement
+        } else if self.overall >= 85 {
+            Readiness::ProductionReady
+        } else if self.overall >= 70 {
+            Readiness::NearProductionReady
+        } else {
+            Readiness::NeedsImprovement
+        }
+    }
 }
 
 /// Score for a single dimension with detected findings.
@@ -129,6 +157,7 @@ pub fn score_from_report(report: &crate::reporters::AnalysisReport) -> anyhow::R
         file_count,
         total_issues: issues.len(),
         grade,
+        hardcoded_credentials: ic.get("avoid-hardcoded-credentials"),
     })
 }
 
@@ -330,21 +359,25 @@ pub fn print_ai_score(score: &AiCodeScore) {
     );
 
     println!();
-    if score.overall >= 85 {
-        println!(
+    match score.readiness() {
+        Readiness::ProductionReady => println!(
             "  {} Production Ready — qualifies for Falcon Certified badge",
             "✓".green().bold()
-        );
-    } else if score.overall >= 70 {
-        println!(
+        ),
+        Readiness::NeedsImprovement if score.hardcoded_credentials > 0 => println!(
+            "  {} Needs Improvement — remove {} hardcoded credential{} before release, whatever the score",
+            "⚠".red(),
+            score.hardcoded_credentials,
+            if score.hardcoded_credentials == 1 { "" } else { "s" }
+        ),
+        Readiness::NearProductionReady => println!(
             "  {} Near Production Ready — address findings above to reach 85+",
             "▸".yellow()
-        );
-    } else {
-        println!(
+        ),
+        Readiness::NeedsImprovement => println!(
             "  {} Needs Improvement — focus on error handling and resource safety first",
             "⚠".red()
-        );
+        ),
     }
     println!();
 }
@@ -431,5 +464,62 @@ mod tests {
             checked += 1;
         }
         assert!(checked >= 10, "expected to find the score's rule lookups");
+    }
+
+    fn report_with(rules: &[&str]) -> crate::reporters::AnalysisReport {
+        crate::reporters::AnalysisReport {
+            issues: rules
+                .iter()
+                .map(|rule| crate::reporters::Issue {
+                    rule: rule.to_string(),
+                    message: String::new(),
+                    severity: crate::config::Severity::Error,
+                    file: std::path::PathBuf::from("lib/a.dart"),
+                    line: 1,
+                    column: 1,
+                })
+                .collect(),
+            metrics: Vec::new(),
+            file_count: 1,
+            project_path: None,
+        }
+    }
+
+    #[test]
+    fn hardcoded_credential_caps_readiness() {
+        // The site's example: one leaked key, three undisposed controllers, an empty catch.
+        let mut rules = vec!["avoid-hardcoded-credentials", "avoid-empty-catch"];
+        rules.extend(["ensure-dispose-lifecycle"; 3]);
+        let mut report = report_with(&rules);
+        report.file_count = 5;
+        let score = score_from_report(&report).unwrap();
+        assert!(
+            score.overall >= 85,
+            "fixture should score 85+, got {}",
+            score.overall
+        );
+        assert_eq!(score.hardcoded_credentials, 1);
+        assert_eq!(score.readiness(), Readiness::NeedsImprovement);
+    }
+
+    #[test]
+    fn readiness_follows_score_without_credentials() {
+        let clean = score_from_report(&report_with(&[])).unwrap();
+        assert_eq!(clean.readiness(), Readiness::ProductionReady);
+        let mut middling = clean.clone();
+        middling.overall = 75;
+        assert_eq!(middling.readiness(), Readiness::NearProductionReady);
+        middling.overall = 60;
+        assert_eq!(middling.readiness(), Readiness::NeedsImprovement);
+    }
+
+    #[test]
+    fn stored_scores_without_credential_count_still_load() {
+        let mut json = serde_json::to_value(score_from_report(&report_with(&[])).unwrap()).unwrap();
+        json.as_object_mut()
+            .unwrap()
+            .remove("hardcoded_credentials");
+        let score: AiCodeScore = serde_json::from_value(json).unwrap();
+        assert_eq!(score.hardcoded_credentials, 0);
     }
 }

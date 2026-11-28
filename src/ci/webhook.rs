@@ -84,7 +84,7 @@ pub fn send_score_webhook(
             "grade": score.grade.to_string(),
             "previous_score": previous_score,
             "delta": delta,
-            "production_ready": score.overall >= 85
+            "production_ready": score.readiness() == crate::ai_score::score::Readiness::ProductionReady
         }),
     };
 
@@ -477,6 +477,7 @@ mod tests {
             file_count: 10,
             total_issues: 2,
             grade: Grade::A,
+            hardcoded_credentials: 0,
         };
 
         let result = send_score_webhook("http://127.0.0.1:1", "score_proj", &score, None);
@@ -516,6 +517,7 @@ mod tests {
             file_count: 5,
             total_issues: 1,
             grade: Grade::C,
+            hardcoded_credentials: 0,
         };
 
         let result = send_score_webhook("http://127.0.0.1:1", "proj_c", &score, Some(80));

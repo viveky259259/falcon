@@ -28,6 +28,9 @@ const SETTLE_POLL: Duration = Duration::from_millis(250);
 /// Pages to scroll in each direction while searching a lazy list.
 const MAX_SEARCH_PAGES: usize = 40;
 const LONG_PRESS: Duration = Duration::from_millis(700);
+/// The most elements `widget_tree` lists; a tap by index reads as many, so
+/// both number the screen the same way.
+pub const ELEMENT_LIMIT: usize = 1000;
 
 static NEXT_POINTER: AtomicU32 = AtomicU32::new(7_000);
 
@@ -72,6 +75,11 @@ pub enum Action {
     TapAt {
         x: f64,
         y: f64,
+    },
+    /// Tap or long press the element `widget_tree` lists at `index`.
+    TapElement {
+        index: usize,
+        long: bool,
     },
     LongPress {
         finder: Finder,
@@ -348,6 +356,18 @@ async fn run_step(client: &VmServiceClient, action: &Action) -> Result<Value> {
             )?;
             return Ok(json!({ "position": [x, y] }));
         }
+        Action::TapElement { index, long } => {
+            let screen = describe(client, ELEMENT_LIMIT).await?;
+            let (widget, [x, y]) = element_at(&screen, *index)?;
+            let press = dart::pointer_at_expression(pid, x, y, true, !*long);
+            records(&evaluate(client, &press).await?)?;
+            if *long {
+                tokio::time::sleep(LONG_PRESS).await;
+                let release = dart::pointer_at_expression(pid, x, y, false, true);
+                records(&evaluate(client, &release).await?)?;
+            }
+            return Ok(json!({ "widget": widget, "position": [x, y] }));
+        }
         Action::ScrollBy { within, dx, dy } => {
             let recs = records(
                 &evaluate(
@@ -368,6 +388,23 @@ async fn run_step(client: &VmServiceClient, action: &Action) -> Result<Value> {
         Action::Describe { .. } | Action::Wait { .. } => unreachable!("handled in perform"),
     };
     Ok(json!({ "widget": cand, "position": [num(&done, 1), num(&done, 2)] }))
+}
+
+/// The element `widget_tree` numbers `index`, and the centre of its rect.
+pub fn element_at(screen: &Value, index: usize) -> Result<(Value, [f64; 2])> {
+    let elements = screen["elements"]
+        .as_array()
+        .map(Vec::as_slice)
+        .unwrap_or(&[]);
+    let Some(element) = elements.get(index) else {
+        bail!(
+            "index {index} is out of range: `widget_tree` lists {} element(s) on screen",
+            elements.len()
+        );
+    };
+    let side = |i: usize| element["rect"][i].as_f64().unwrap_or(0.0);
+    let centre = [side(0) + side(2) / 2.0, side(1) + side(3) / 2.0];
+    Ok((element.clone(), centre))
 }
 
 /// Wait until two reads of the screen agree (animations and route
@@ -453,6 +490,22 @@ mod tests {
         assert_eq!(
             one_line("(() {\n  final a = 1;\n\n  return a;\n})()"),
             "(() { final a = 1; return a; })()"
+        );
+    }
+
+    #[test]
+    fn element_at_picks_the_numbered_element_and_its_centre() {
+        let screen = json!({"elements": [
+            {"index": 0, "type": "Text", "label": "Title", "rect": [0.0, 0.0, 100.0, 20.0]},
+            {"index": 1, "type": "ElevatedButton", "label": "Save", "rect": [10.0, 40.0, 80.0, 30.0]},
+        ]});
+        let (widget, centre) = element_at(&screen, 1).unwrap();
+        assert_eq!(widget["label"], "Save");
+        assert_eq!(centre, [50.0, 55.0]);
+        let err = element_at(&screen, 2).unwrap_err().to_string();
+        assert!(
+            err.contains("out of range") && err.contains("2 element(s)"),
+            "{err}"
         );
     }
 

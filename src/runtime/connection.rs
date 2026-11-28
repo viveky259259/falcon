@@ -27,6 +27,32 @@ type WsStream = WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>;
 const VM_SERVICE_MAX_MESSAGE_SIZE: usize = 256 << 20;
 const VM_SERVICE_MAX_FRAME_SIZE: usize = 64 << 20;
 /// Inspector object group for the references Falcon asks the app to hold.
+/// Largest inspector screenshot, in pixels per side. Kept at a texture size
+/// every GPU supports: asked for more, the iOS simulator returned an image
+/// cut off on the right. A larger painted area is captured scaled down.
+pub const INSPECTOR_CAPTURE_LIMIT: u32 = 4_096;
+/// A size limit no painted area reaches, so the scale asked for is the scale used.
+const UNLIMITED: f64 = 1e9;
+/// Scale of the small image used to measure the painted area.
+const PROBE_SCALE: f64 = 0.05;
+
+/// The scale that makes a painted area fit `limit` pixels per side, given the
+/// size of a probe image taken at `probe_scale`. A little under the exact
+/// figure, because the probe's size is rounded.
+pub fn scale_to_fit(probe: (u32, u32), probe_scale: f64, limit: u32) -> f64 {
+    let longest = f64::from(probe.0.max(probe.1).max(1)) / probe_scale;
+    (0.98 * f64::from(limit) / longest).clamp(0.01, 1.0)
+}
+
+/// Width and height of a base64-encoded PNG, read from its header.
+fn base64_png_dimensions(base64_png: &str) -> Option<(u32, u32)> {
+    use base64::Engine;
+    let header = base64_png.trim().get(..32)?;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(header)
+        .ok()?;
+    super::png_crop::dimensions(&bytes)
+}
 const INSPECTOR_GROUP: &str = "falcon";
 
 // ──────────────────────────────────────────────────────────────────────
@@ -546,8 +572,13 @@ impl VmServiceClient {
     /// Render the root widget to a PNG with the framework's
     /// `ext.flutter.inspector.screenshot`. Unlike `_flutter.screenshot`, this
     /// works under Impeller, but it only shows Flutter content (no OS chrome).
-    /// Returns base64-encoded PNG data.
-    pub async fn capture_inspector_screenshot(&self) -> Result<String> {
+    ///
+    /// The image covers everything the widgets paint, so content that
+    /// overflows the screen makes it larger than the screen; see `png_crop`.
+    /// Returns base64-encoded PNG data and its scale in image pixels per
+    /// physical pixel: 1 unless the painted area is larger than
+    /// [`INSPECTOR_CAPTURE_LIMIT`].
+    pub async fn capture_inspector_screenshot(&self) -> Result<(String, f64)> {
         let tree = self
             .call(
                 "ext.flutter.inspector.getRootWidgetTree",
@@ -567,22 +598,51 @@ impl VmServiceClient {
         let id = root["valueId"]
             .as_str()
             .context("The inspector did not return a root widget id")?;
+        let result = self.inspector_screenshot_at_known_scale(id).await;
+        self.dispose_inspector_group().await;
+        result
+    }
+
+    /// The inspector scales its image to fit the size asked for, by a factor
+    /// it doesn't report. Ask for full size first; if the painted area was too
+    /// large for that, measure it with a small probe and ask again at a scale
+    /// chosen here.
+    async fn inspector_screenshot_at_known_scale(&self, id: &str) -> Result<(String, f64)> {
+        let limit = f64::from(INSPECTOR_CAPTURE_LIMIT);
+        let full = self.inspector_screenshot(id, limit, 1.0).await?;
+        let fits = base64_png_dimensions(&full)
+            .is_some_and(|(w, h)| w.max(h) + 2 < INSPECTOR_CAPTURE_LIMIT);
+        if fits {
+            return Ok((full, 1.0));
+        }
+        let probe = self
+            .inspector_screenshot(id, UNLIMITED, PROBE_SCALE)
+            .await?;
+        let probe_size = base64_png_dimensions(&probe)
+            .context("`ext.flutter.inspector.screenshot` returned an unreadable image")?;
+        let scale = scale_to_fit(probe_size, PROBE_SCALE, INSPECTOR_CAPTURE_LIMIT);
+        let scaled = self.inspector_screenshot(id, UNLIMITED, scale).await?;
+        Ok((scaled, scale))
+    }
+
+    /// One `ext.flutter.inspector.screenshot` call. The image scale is the
+    /// smaller of `max_scale` and what fits `limit` pixels per side.
+    async fn inspector_screenshot(&self, id: &str, limit: f64, max_scale: f64) -> Result<String> {
         let resp = self
             .call(
                 "ext.flutter.inspector.screenshot",
                 json!({
                     "isolateId": self.isolate_id,
                     "id": id,
-                    "width": "4096",
-                    "height": "4096",
+                    "width": limit.to_string(),
+                    "height": limit.to_string(),
                     "margin": "0",
-                    "maxPixelRatio": "3",
+                    "maxPixelRatio": max_scale.to_string(),
                     "debugPaint": "false",
                 }),
             )
             .await
             .context("`ext.flutter.inspector.screenshot` failed")?;
-        self.dispose_inspector_group().await;
         resp.get("result")
             .and_then(Value::as_str)
             .map(ToString::to_string)
@@ -954,6 +1014,31 @@ impl RenderingStats {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    #[test]
+    fn scale_to_fit_keeps_a_tall_painted_area_under_the_limit() {
+        // A probe at 1/20 scale of an area 1206 x 9558 pixels.
+        let scale = scale_to_fit((61, 478), 0.05, 4_096);
+        assert!(scale < 1.0);
+        assert!(9_558.0 * scale <= 4_096.0, "{scale}");
+        assert!(9_558.0 * scale > 3_900.0, "{scale}");
+        // A small area is never scaled up.
+        assert_eq!(scale_to_fit((40, 30), 0.05, 4_096), 1.0);
+    }
+
+    #[test]
+    fn base64_png_dimensions_reads_the_header() {
+        use base64::Engine;
+        let mut png = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR".to_vec();
+        png.extend_from_slice(&1206u32.to_be_bytes());
+        png.extend_from_slice(&2622u32.to_be_bytes());
+        png.extend_from_slice(&[8, 6, 0, 0, 0]);
+        let encoded = base64::engine::general_purpose::STANDARD.encode(&png);
+        assert_eq!(base64_png_dimensions(&encoded), Some((1206, 2622)));
+        assert_eq!(base64_png_dimensions("AAAA"), None);
+    }
+
     use super::{
         convert_to_websocket_url, extract_vm_service_uri, normalize_vm_service_uri, parse_response,
         parse_stream_notification, sanitize_input, MemoryUsage, RenderingStats,
