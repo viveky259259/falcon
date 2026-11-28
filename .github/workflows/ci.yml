@@ -63,8 +63,13 @@ jobs:
         # since this job triggers automatically on every pull_request and a
         # self-hosted leg in that path would let an untrusted PR run code on
         # the local machine just by being opened.
-        os: [ubuntu-22.04]
+        os: [ubuntu-22.04, windows-latest]
     steps:
+      # Keep LF endings so Dart fixtures read the same on Windows: tests
+      # compare lines and columns.
+      - name: Disable CRLF conversion
+        run: git config --global core.autocrlf false
+
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
@@ -87,6 +92,11 @@ jobs:
 
       - name: Test (default features)
         run: cargo test --locked
+
+      # The lint job runs on Linux only, so lint the Windows-only code here.
+      - name: Clippy (Windows-only code)
+        if: runner.os == 'Windows'
+        run: cargo clippy --locked --all-targets -- -D warnings
 
   feature-build:
     name: Build with ai-local feature

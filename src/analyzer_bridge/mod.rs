@@ -398,7 +398,7 @@ pub fn run_dart_analyze(project_root: &Path) -> Result<Option<Vec<AnalyzerDiagno
     let timeout = configured_analyzer_timeout();
 
     // 1. Is dart on PATH?
-    let mut probe = Command::new("dart");
+    let mut probe = Command::new(crate::program::dart());
     probe.arg("--version");
     match command_output_with_timeout(&mut probe, timeout) {
         Ok(Some(out)) if out.status.success() => {}
@@ -429,7 +429,7 @@ pub fn run_dart_analyze(project_root: &Path) -> Result<Option<Vec<AnalyzerDiagno
 
     // 3. Run analyzer. `dart analyze` exits non-zero on findings; that's
     // fine — we care about stdout, not the exit code.
-    let mut analyze = Command::new("dart");
+    let mut analyze = Command::new(crate::program::dart());
     analyze
         .arg("analyze")
         .arg("--format=json")

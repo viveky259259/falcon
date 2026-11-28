@@ -43,7 +43,7 @@ impl CommandRunner for RealRunner {
         args: &[String],
         cwd: Option<&Path>,
     ) -> Result<CommandOutput, String> {
-        let mut cmd = std::process::Command::new(program);
+        let mut cmd = std::process::Command::new(crate::program::resolve(program));
         cmd.args(args);
         if let Some(dir) = cwd {
             cmd.current_dir(dir);

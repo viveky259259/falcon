@@ -564,10 +564,13 @@ fn path_hints(plan: &Plan) -> Vec<String> {
         .iter()
         .filter_map(|step| match step {
             Step::PathHint { dir, rc_file, .. } => {
-                let mut hint = format!(
-                    "\nAdd this to your shell, then restart it:\n  {}\n",
-                    flutter::install::path_export_line(dir)
-                );
+                let lead = if host::current_os() == host::Os::Windows {
+                    "Run this in PowerShell, then open a new terminal"
+                } else {
+                    "Add this to your shell, then restart it"
+                };
+                let mut hint =
+                    format!("\n{lead}:\n  {}\n", flutter::install::path_export_line(dir));
                 if let Some(rc) = rc_file {
                     hint.push_str(&format!("  (your shell reads {})\n", rc.display()));
                 }

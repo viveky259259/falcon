@@ -38,6 +38,7 @@ pub mod paths;
 pub mod platform;
 pub mod plugins;
 pub mod preflight;
+pub mod program;
 pub mod project_graph;
 pub mod reporters;
 pub mod resolver;

@@ -33,7 +33,7 @@ pub fn compare_with_dart_analyze(root: &Path) -> anyhow::Result<CompareResult> {
     }
 
     let dart_start = Instant::now();
-    let dart_output = Command::new("dart")
+    let dart_output = Command::new(crate::program::dart())
         .args(["analyze", "--format", "json"])
         .current_dir(root)
         .output();

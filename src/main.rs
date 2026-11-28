@@ -965,7 +965,7 @@ fn handle_run(
 }
 
 fn handle_flutter(args: Vec<String>) -> Result<()> {
-    let status = std::process::Command::new("flutter")
+    let status = std::process::Command::new(falcon::program::flutter())
         .args(&args)
         .status()
         .map_err(|e| {
@@ -975,7 +975,7 @@ fn handle_flutter(args: Vec<String>) -> Result<()> {
 }
 
 fn handle_fvm(args: Vec<String>) -> Result<()> {
-    let status = std::process::Command::new("fvm")
+    let status = std::process::Command::new(falcon::program::resolve("fvm"))
                 .args(&args)
                 .status()
                 .map_err(|e| anyhow::anyhow!("failed to invoke `fvm`: {e}. Install FVM (https://fvm.app) or ensure it is on your PATH."))?;

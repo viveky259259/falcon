@@ -108,7 +108,7 @@ pub fn run_flutter_app(config: &FlutterRunConfig) -> Result<FlutterRunReport> {
         .context("Failed to create output directory for error reports")?;
 
     // ── Build the command ────────────────────────────────────────────────────
-    let mut cmd = Command::new("flutter");
+    let mut cmd = Command::new(crate::program::flutter());
     cmd.arg("run");
     if let Some(device) = &config.device {
         cmd.args(["-d", device]);

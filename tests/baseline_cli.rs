@@ -1,3 +1,7 @@
+// Tests that need a fake SDK shell script are `#[cfg(unix)]`; their helpers
+// are then unused on Windows.
+#![cfg_attr(not(unix), allow(dead_code, unused_imports))]
+
 use serde_json::Value;
 use std::env;
 use std::fs;
@@ -50,6 +54,8 @@ fn check_baseline_filters_existing_findings_and_can_update_file() {
     assert_eq!(json["issues"].as_array().unwrap().len(), 0);
 }
 
+// The fake SDK is a shell script, which Windows cannot run.
+#[cfg(unix)]
 #[test]
 fn check_does_not_auto_run_semantic_for_dart_project() {
     let project = temp_dart_project();
@@ -72,6 +78,8 @@ fn check_does_not_auto_run_semantic_for_dart_project() {
     assert_has_rule(&json, "avoid-print-in-production");
 }
 
+// The fake SDK is a shell script, which Windows cannot run.
+#[cfg(unix)]
 #[test]
 fn check_semantic_suppresses_same_line_falcon_issue() {
     let project = temp_dart_project();
@@ -95,6 +103,8 @@ fn check_semantic_suppresses_same_line_falcon_issue() {
     assert_no_rule(&json, "avoid-print-in-production");
 }
 
+// The fake SDK is a shell script, which Windows cannot run.
+#[cfg(unix)]
 #[test]
 fn check_semantic_no_defer_keeps_same_line_falcon_issue() {
     let project = temp_dart_project();
@@ -154,6 +164,7 @@ fn write_package_config(root: &Path) {
     .unwrap();
 }
 
+#[cfg(unix)]
 fn fake_dart_on_path() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     let dart = dir.path().join("dart");
@@ -175,14 +186,12 @@ exit 1
     dir
 }
 
+#[cfg(unix)]
 fn make_executable(path: &Path) {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(path).unwrap().permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(path, perms).unwrap();
-    }
+    use std::os::unix::fs::PermissionsExt;
+    let mut perms = fs::metadata(path).unwrap().permissions();
+    perms.set_mode(0o755);
+    fs::set_permissions(path, perms).unwrap();
 }
 
 fn path_with(dir: &Path) -> String {
