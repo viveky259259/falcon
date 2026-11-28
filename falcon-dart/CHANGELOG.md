@@ -1,6 +1,7 @@
 ## 0.7.0
 
 - Updated the CLI wrapper to Falcon 0.7.0.
+- The wrapper no longer starts itself when its own `falcon` command comes first on `PATH`; it skips the pub cache, looks in `$FALCON_BIN`, `~/.local/bin` and `~/.cargo/bin` first, streams output as it is printed, and works on Windows (it used `which`).
 - `falcon-mcp` can run, reload and drive the app (macOS desktop and iOS simulator tested).
 - `falcon score` no longer calls a project with a hardcoded credential production ready.
 

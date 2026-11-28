@@ -48,6 +48,29 @@ falcon x update              # Update to latest release
 falcon x update --version X  # Install specific version
 ```
 
+### macOS: a downloaded archive is blocked
+
+The release binaries are not notarized yet. The install script and `cargo`
+are unaffected, but if you download a release archive in a browser, macOS
+quarantines it and refuses to run `falcon`. Clear the flag after extracting:
+
+```bash
+xattr -d com.apple.quarantine falcon falcon-lsp falcon-mcp
+```
+
+### Uninstalling
+
+```bash
+# Installed with the install script (default location; `ff` is the optional shortcut)
+rm -f ~/.local/bin/falcon ~/.local/bin/falcon-lsp ~/.local/bin/falcon-mcp ~/.local/bin/ff
+
+# Installed with cargo
+cargo uninstall falcon-flutter
+```
+
+Falcon also writes reports and caches to a `.falcon-data/` directory in each
+project it analyzes; delete it to remove them.
+
 ## Quick Start
 
 ### 1. Run full analysis

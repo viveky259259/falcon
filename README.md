@@ -5,7 +5,7 @@
 ![Falcon AI Score](https://img.shields.io/badge/Falcon_AI_Score-72/100-yellow)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Rules](https://img.shields.io/badge/rules-61%2B-brightgreen)
-![Tests](https://img.shields.io/badge/tests-2435-brightgreen)
+![Tests](https://img.shields.io/badge/tests-2827-brightgreen)
 
 Falcon is the only Flutter linter specifically designed to catch the bugs AI tools leave behind — missing dispose() calls, empty catch blocks, unawaited futures, hardcoded credentials, and 60 other rules. It's 10-100x faster than alternatives, scores your code 0-100, and integrates with AI tools via MCP for real-time self-correction.
 
