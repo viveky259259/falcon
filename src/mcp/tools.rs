@@ -319,7 +319,8 @@ fn execute_ai_score(args: &Value) -> Result<Value, String> {
         "complexity": { "score": score.complexity.score, "findings": score.complexity.findings },
         "file_count": score.file_count,
         "total_issues": score.total_issues,
-        "production_ready": score.overall >= 85
+        "hardcoded_credentials": score.hardcoded_credentials,
+        "production_ready": score.readiness() == crate::ai_score::score::Readiness::ProductionReady
     }))
 }
 
@@ -663,6 +664,23 @@ mod tests {
         "app_metrics",
         "verify",
     ];
+
+    /// The MCP score must agree with `falcon score`: a hardcoded credential
+    /// is never production ready, whatever the number.
+    #[test]
+    fn ai_score_is_not_production_ready_with_a_hardcoded_credential() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("pubspec.yaml"), "name: app\n").unwrap();
+        std::fs::create_dir(dir.path().join("lib")).unwrap();
+        std::fs::write(
+            dir.path().join("lib/config.dart"),
+            "class Config {\n  static const String password = 'hunter2-real-value';\n}\n",
+        )
+        .unwrap();
+        let out = execute_ai_score(&json!({"path": dir.path().to_string_lossy()})).unwrap();
+        assert!(out["hardcoded_credentials"].as_u64().unwrap() >= 1, "{out}");
+        assert_eq!(out["production_ready"], false, "{out}");
+    }
 
     #[test]
     fn list_tools_matches_the_canonical_surface() {

@@ -402,8 +402,14 @@ pub fn element_at(screen: &Value, index: usize) -> Result<(Value, [f64; 2])> {
             elements.len()
         );
     };
-    let side = |i: usize| element["rect"][i].as_f64().unwrap_or(0.0);
-    let centre = [side(0) + side(2) / 2.0, side(1) + side(3) / 2.0];
+    let rect: Vec<f64> = element["rect"]
+        .as_array()
+        .map(|r| r.iter().filter_map(Value::as_f64).collect())
+        .unwrap_or_default();
+    let [left, top, width, height] = rect[..] else {
+        bail!("element {index} has no position on screen, so it can't be tapped");
+    };
+    let centre = [left + width / 2.0, top + height / 2.0];
     Ok((element.clone(), centre))
 }
 
@@ -507,6 +513,13 @@ mod tests {
             err.contains("out of range") && err.contains("2 element(s)"),
             "{err}"
         );
+    }
+
+    #[test]
+    fn element_at_refuses_an_element_without_a_rect() {
+        let screen = json!({"elements": [{"index": 0, "type": "Text", "label": "Title"}]});
+        let err = element_at(&screen, 0).unwrap_err().to_string();
+        assert!(err.contains("no position"), "{err}");
     }
 
     #[test]
