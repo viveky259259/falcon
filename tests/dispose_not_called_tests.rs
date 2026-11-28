@@ -44,10 +44,7 @@ class _ScreenState extends BaseState {
         .collect();
 
     assert_eq!(dispose_issues.len(), 1, "{:#?}", report.issues);
-    assert!(dispose_issues[0]
-        .file
-        .to_string_lossy()
-        .ends_with("lib/screen.dart"));
+    assert!(dispose_issues[0].file.ends_with("lib/screen.dart"));
     assert!(dispose_issues[0]
         .message
         .contains("requires a dispose() override"));

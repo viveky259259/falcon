@@ -25,6 +25,11 @@ use cli_args::*;
 use command_dispatch::run;
 
 fn main() {
+    // Windows' 1 MB main-thread stack is too small for Falcon's CLI.
+    falcon::big_stack::run(cli_main);
+}
+
+fn cli_main() {
     env_logger::init();
     let mut args: Vec<String> = env::args().collect();
     if args.len() == 2 && matches!(args[1].as_str(), "--help" | "-h" | "help") {
