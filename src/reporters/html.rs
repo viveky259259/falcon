@@ -935,7 +935,7 @@ fn hotspots_section(metrics: &[(PathBuf, MetricsResults)]) -> String {
 
 fn detect_project_root(metrics: &[(PathBuf, MetricsResults)]) -> Option<PathBuf> {
     for (path, _) in metrics {
-        let path_str = path.display().to_string();
+        let path_str = crate::paths::slash(path);
         if let Some(idx) = path_str.find("/lib/") {
             return Some(PathBuf::from(&path_str[..idx]));
         }
@@ -968,7 +968,7 @@ fn scan_test_coverage(metrics: &[(PathBuf, MetricsResults)]) -> Vec<TestCoverage
     let mut results = Vec::new();
 
     for (path, result) in metrics {
-        let path_str = path.display().to_string();
+        let path_str = crate::paths::slash(path);
         let file_name = path
             .file_stem()
             .and_then(|f| f.to_str())

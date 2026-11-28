@@ -162,10 +162,7 @@ mod tests {
         .unwrap();
         let result = scan_plugin_podspecs("path_provider", plugin_root);
         assert_eq!(result.len(), 1);
-        assert!(result[0]
-            .podspec_path
-            .to_string_lossy()
-            .contains("/darwin/"));
+        assert!(crate::paths::slash(&result[0].podspec_path).contains("/darwin/"));
     }
 
     #[test]

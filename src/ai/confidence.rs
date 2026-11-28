@@ -58,7 +58,7 @@ fn score_single_issue(
     let mut confidence: i32 = 95;
     let mut reducers = Vec::new();
 
-    let file_str = issue.file.to_string_lossy().to_string();
+    let file_str = crate::paths::slash(&issue.file);
     let file_name = issue
         .file
         .file_name()

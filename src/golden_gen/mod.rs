@@ -64,7 +64,7 @@ pub fn discover_widgets(path: &Path) -> Result<Vec<DiscoveredWidget>> {
         .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
         .filter(|e| {
             let rel_path = e.path().strip_prefix(path).unwrap_or_else(|_| e.path());
-            let path_str = rel_path.to_string_lossy();
+            let path_str = crate::paths::slash(rel_path);
 
             // Skip excluded directories
             !path_str.contains("build/")

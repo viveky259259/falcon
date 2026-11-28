@@ -49,7 +49,7 @@ impl Rule for AvoidLateKeyword {
     fn check(&self, root: Node, source: &str, file: &Path) -> Vec<Issue> {
         let mut issues = Vec::new();
 
-        let file_str = file.to_string_lossy();
+        let file_str = crate::paths::slash(file);
         if self.skip_test_files && (file_str.ends_with("_test.dart") || file_str.contains("/test/"))
         {
             return issues;

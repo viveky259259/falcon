@@ -41,7 +41,7 @@ pub fn enforce_import_restrictions(
 
     for file in &dart_files {
         let rel = file.strip_prefix(base).unwrap_or(file);
-        let rel_str = rel.to_string_lossy();
+        let rel_str = crate::paths::slash(rel);
 
         let applicable: Vec<&ImportRestriction> = restrictions
             .iter()
@@ -123,7 +123,7 @@ pub fn check_package_boundaries(root: &Path, exclude: &[glob::Pattern]) -> Vec<I
         })
         .filter(|e| {
             let rel = e.path().strip_prefix(root).unwrap_or(e.path());
-            let rel_str = rel.to_string_lossy();
+            let rel_str = crate::paths::slash(rel);
             !rel_str.starts_with("lib/src/")
         })
         .map(|e| e.path().to_path_buf())
@@ -147,7 +147,7 @@ pub fn check_package_boundaries(root: &Path, exclude: &[glob::Pattern]) -> Vec<I
                 let src_import = format!("package:{}/src/", name);
                 if trimmed.contains(&src_import) {
                     let rel = file.strip_prefix(root).unwrap_or(file);
-                    let file_in_lib_src = rel.to_string_lossy().starts_with("lib/src/");
+                    let file_in_lib_src = crate::paths::slash(rel).starts_with("lib/src/");
                     if !file_in_lib_src {
                         issues.push(Issue {
                             rule: "package-boundary".to_string(),

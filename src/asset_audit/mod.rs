@@ -160,7 +160,7 @@ fn collect_assets(project_path: &Path, config: &AuditConfig) -> Result<Vec<(Path
         let path = entry.path();
 
         // Skip common exclusions
-        let path_str = path.to_string_lossy();
+        let path_str = crate::paths::slash(path);
         if ["/.git/", "/build/", "/.dart_tool/", "/packages/"]
             .iter()
             .any(|excl| path_str.contains(excl))

@@ -54,15 +54,10 @@ pub fn analyze_architecture(root: &Path) -> anyhow::Result<ArchReport> {
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
         .filter(|e| e.path().extension().is_some_and(|ext| ext == "dart"))
-        .filter(|e| !e.path().to_string_lossy().contains("/test/"))
+        .filter(|e| !crate::paths::slash(e.path()).contains("/test/"))
         .filter(|e| !e.path().to_string_lossy().contains(".g.dart"))
     {
-        let rel = entry
-            .path()
-            .strip_prefix(root)
-            .unwrap_or(entry.path())
-            .to_string_lossy()
-            .to_string();
+        let rel = crate::paths::slash(entry.path().strip_prefix(root).unwrap_or(entry.path()));
 
         let source = std::fs::read_to_string(entry.path()).unwrap_or_default();
         let lines = source.lines().count();

@@ -80,7 +80,7 @@ pub fn audit_animations(path: &Path) -> Result<AnimationAuditReport> {
         }
 
         // Skip generated and test files for some checks
-        let path_str = path.to_string_lossy();
+        let path_str = crate::paths::slash(path);
         if path_str.contains(".g.dart")
             || path_str.contains(".freezed.dart")
             || path_str.contains("/build/")
