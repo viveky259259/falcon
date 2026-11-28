@@ -23,10 +23,34 @@ function platformInfo(platform = process.platform, arch = process.arch) {
   if (platform === "linux" && arch === "x64") {
     return { os: "linux", arch: "x64", label: "linux-x64" };
   }
+  if (platform === "win32" && arch === "x64") {
+    return { os: "windows", arch: "x64", label: "windows-x64" };
+  }
 
   throw new UnsupportedPlatformError(
-    `unsupported platform ${platform}-${arch}; Falcon npm supports macOS arm64, macOS x64, and Linux x64`,
+    `unsupported platform ${platform}-${arch}; Falcon npm supports macOS arm64, macOS x64, Linux x64, and Windows x64`,
   );
+}
+
+// Windows binaries end in .exe and ship in a .zip; the rest ship in a .tar.gz.
+function exeSuffix(info) {
+  return info.os === "windows" ? ".exe" : "";
+}
+
+function archiveExtension(info) {
+  return info.os === "windows" ? "zip" : "tar.gz";
+}
+
+// On Windows, use the bsdtar in System32 (Windows 10 1803 and later), which
+// reads zip archives; a GNU tar from Git for Windows earlier on PATH would not.
+function tarProgram(platform = process.platform) {
+  if (platform === "win32" && process.env.SystemRoot) {
+    const systemTar = path.join(process.env.SystemRoot, "System32", "tar.exe");
+    if (fs.existsSync(systemTar)) {
+      return systemTar;
+    }
+  }
+  return "tar";
 }
 
 function installRoot() {
@@ -38,11 +62,11 @@ function installDir(info = platformInfo()) {
 }
 
 function binaryPath(info = platformInfo()) {
-  return path.join(installDir(info), "falcon");
+  return path.join(installDir(info), `falcon${exeSuffix(info)}`);
 }
 
 function assetName(version = PACKAGE_VERSION, info = platformInfo()) {
-  return `falcon-${version}-${info.label}.tar.gz`;
+  return `falcon-${version}-${info.label}.${archiveExtension(info)}`;
 }
 
 function releaseBaseUrl(version = PACKAGE_VERSION) {
@@ -161,23 +185,26 @@ function findExtractedBinary(root, binary) {
   return null;
 }
 
-async function extractBinaries(archive, destination) {
+async function extractBinaries(archive, destination, info = platformInfo()) {
   const tmpExtract = await fsp.mkdtemp(path.join(os.tmpdir(), "falcon-npm-extract-"));
+  const suffix = exeSuffix(info);
   try {
-    execFileSync("tar", ["-xzf", archive, "-C", tmpExtract], { stdio: "ignore" });
+    // bsdtar detects zip by content; gzip needs -z for GNU tar.
+    const readFlag = archive.toLowerCase().endsWith(".zip") ? "-xf" : "-xzf";
+    execFileSync(tarProgram(), [readFlag, archive, "-C", tmpExtract], { stdio: "ignore" });
     await fsp.rm(destination, { recursive: true, force: true });
     await fsp.mkdir(destination, { recursive: true });
 
     for (const binary of BINARIES) {
-      const source = findExtractedBinary(tmpExtract, binary);
+      const source = findExtractedBinary(tmpExtract, `${binary}${suffix}`);
       if (source) {
-        const target = path.join(destination, binary);
+        const target = path.join(destination, `${binary}${suffix}`);
         await fsp.copyFile(source, target);
         await fsp.chmod(target, 0o755);
       }
     }
 
-    if (!fs.existsSync(path.join(destination, "falcon"))) {
+    if (!fs.existsSync(path.join(destination, `falcon${suffix}`))) {
       throw new Error("release archive did not contain the falcon binary");
     }
   } finally {
@@ -195,7 +222,7 @@ async function install(options = {}) {
     const { archive, name } = await fetchArchive(version, info, tmpDir);
     const checksumsText = await readChecksums(version, tmpDir);
     verifyChecksum(archive, checksumsText, name);
-    await extractBinaries(archive, destination);
+    await extractBinaries(archive, destination, info);
     return binaryPath(info);
   } finally {
     await fsp.rm(tmpDir, { recursive: true, force: true });
@@ -213,8 +240,10 @@ async function ensureInstalled(options = {}) {
 
 module.exports = {
   UnsupportedPlatformError,
+  archiveExtension,
   assetName,
   binaryPath,
+  exeSuffix,
   ensureInstalled,
   install,
   parseChecksums,

@@ -33,13 +33,27 @@ fn platform_archive_label(os: &str, arch: &str) -> Option<&'static str> {
         ("macos", "aarch64") => Some("macos-arm64"),
         ("macos", "x86_64") => Some("macos-x64"),
         ("linux", "x86_64") => Some("linux-x64"),
+        ("windows", "x86_64") => Some("windows-x64"),
         _ => None,
     }
 }
 
+/// Release archives are `.zip` on Windows and `.tar.gz` everywhere else.
+fn archive_extension(os: &str) -> &'static str {
+    if os == "windows" {
+        "zip"
+    } else {
+        "tar.gz"
+    }
+}
+
+fn asset_name_for(version: &str, os: &str, arch: &str) -> Option<String> {
+    platform_archive_label(os, arch)
+        .map(|label| format!("falcon-{}-{}.{}", version, label, archive_extension(os)))
+}
+
 fn platform_asset_name(version: &str) -> Option<String> {
-    platform_archive_label(env::consts::OS, env::consts::ARCH)
-        .map(|label| format!("falcon-{}-{}.tar.gz", version, label))
+    asset_name_for(version, env::consts::OS, env::consts::ARCH)
 }
 
 fn fetch_json(url: &str) -> Result<String> {
@@ -275,9 +289,37 @@ fn current_binary_name(exe_path: &Path) -> Result<String> {
     Ok(name.to_string())
 }
 
+/// The `tar` to run. On Windows this is the bsdtar that ships in System32
+/// (Windows 10 1803 and later), which reads zip archives too; a GNU tar from
+/// Git for Windows or MSYS earlier on PATH would not.
+fn tar_program() -> std::ffi::OsString {
+    if cfg!(windows) {
+        if let Some(root) = env::var_os("SystemRoot") {
+            let system_tar = Path::new(&root).join("System32").join("tar.exe");
+            if system_tar.is_file() {
+                return system_tar.into_os_string();
+            }
+        }
+    }
+    "tar".into()
+}
+
+/// The flag that reads `archive`: `-z` for gzip, nothing for zip, which
+/// bsdtar recognises by its contents.
+fn archive_read_flag(archive: &Path, mode: char) -> String {
+    let is_zip = archive
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("zip"));
+    if is_zip {
+        format!("-{mode}f")
+    } else {
+        format!("-{mode}zf")
+    }
+}
+
 fn extract_binary_from_archive(archive: &Path, binary_name: &str, dest: &Path) -> Result<()> {
-    let list = std::process::Command::new("tar")
-        .arg("-tzf")
+    let list = std::process::Command::new(tar_program())
+        .arg(archive_read_flag(archive, 't'))
         .arg(archive)
         .output()
         .context("Failed to list release archive")?;
@@ -301,8 +343,8 @@ fn extract_binary_from_archive(archive: &Path, binary_name: &str, dest: &Path) -
             )
         })?;
 
-    let status = std::process::Command::new("tar")
-        .arg("-xzf")
+    let status = std::process::Command::new(tar_program())
+        .arg(archive_read_flag(archive, 'x'))
         .arg(archive)
         .arg("-O")
         .arg(member)
@@ -341,7 +383,12 @@ fn install_verified(release: &ReleaseInfo, asset: &AssetInfo) -> Result<()> {
     let exe_path = current_exe_path()?;
     let binary_name = current_binary_name(&exe_path)?;
     let tmp_path = exe_path.with_extension("update-tmp");
-    let archive_path = exe_path.with_extension("update.tar.gz");
+    let archive_ext = if asset.name.ends_with(".zip") {
+        "update.zip"
+    } else {
+        "update.tar.gz"
+    };
+    let archive_path = exe_path.with_extension(archive_ext);
     let sums_path = exe_path.with_extension("update.sha256sums");
 
     println!(
@@ -382,8 +429,13 @@ fn stage_verified_binary(
     extract_binary_from_archive(archive, binary_name, dest)
 }
 
+/// Swap `new_binary` into `exe_path`. Windows will not delete or overwrite a
+/// running program but will rename it, so the old binary is moved aside
+/// first. On Windows it cannot be deleted while it runs, so it stays as
+/// `<name>.backup` until the next update removes it.
 fn swap_binary(exe_path: &Path, new_binary: &Path, version: &str) -> Result<()> {
     let backup_path = exe_path.with_extension("backup");
+    let _ = fs::remove_file(&backup_path);
     if exe_path.exists() {
         fs::rename(exe_path, &backup_path).context("Failed to backup current binary")?;
     }
@@ -622,10 +674,12 @@ fn format_bytes(bytes: u64) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        expected_checksum, extract_binary_from_archive, install_verified, platform_archive_label,
-        platform_asset_name, verify_archive, version_cmp, AssetInfo, ReleaseInfo,
+        archive_read_flag, asset_name_for, expected_checksum, extract_binary_from_archive,
+        install_verified, platform_archive_label, platform_asset_name, swap_binary, verify_archive,
+        version_cmp, AssetInfo, ReleaseInfo,
     };
     use std::fs;
+    use std::path::Path;
     use std::process::Command;
 
     #[test]
@@ -636,8 +690,55 @@ mod tests {
         );
         assert_eq!(platform_archive_label("macos", "x86_64"), Some("macos-x64"));
         assert_eq!(platform_archive_label("linux", "x86_64"), Some("linux-x64"));
+        assert_eq!(
+            platform_archive_label("windows", "x86_64"),
+            Some("windows-x64")
+        );
         assert_eq!(platform_archive_label("linux", "aarch64"), None);
-        assert_eq!(platform_archive_label("windows", "x86_64"), None);
+        assert_eq!(platform_archive_label("windows", "aarch64"), None);
+    }
+
+    #[test]
+    fn windows_gets_a_zip_and_other_platforms_a_tarball() {
+        assert_eq!(
+            asset_name_for("1.2.3", "windows", "x86_64").as_deref(),
+            Some("falcon-1.2.3-windows-x64.zip")
+        );
+        assert_eq!(
+            asset_name_for("1.2.3", "linux", "x86_64").as_deref(),
+            Some("falcon-1.2.3-linux-x64.tar.gz")
+        );
+        assert_eq!(asset_name_for("1.2.3", "freebsd", "x86_64"), None);
+    }
+
+    #[test]
+    fn zip_archives_are_read_without_the_gzip_flag() {
+        assert_eq!(
+            archive_read_flag(Path::new("a/falcon.update.zip"), 't'),
+            "-tf"
+        );
+        assert_eq!(archive_read_flag(Path::new("a/FALCON.ZIP"), 'x'), "-xf");
+        assert_eq!(
+            archive_read_flag(Path::new("a/falcon.update.tar.gz"), 'x'),
+            "-xzf"
+        );
+    }
+
+    #[test]
+    fn swap_replaces_the_binary_and_clears_an_old_backup() {
+        let temp = tempfile::tempdir().unwrap();
+        let exe = temp.path().join("falcon.exe");
+        let new = temp.path().join("falcon.update-tmp");
+        let stale = temp.path().join("falcon.backup");
+        fs::write(&exe, "old").unwrap();
+        fs::write(&new, "new").unwrap();
+        fs::write(&stale, "older").unwrap();
+
+        swap_binary(&exe, &new, "1.2.3").unwrap();
+
+        assert_eq!(fs::read_to_string(&exe).unwrap(), "new");
+        assert!(!new.exists());
+        assert!(!stale.exists());
     }
 
     #[test]
@@ -646,7 +747,7 @@ mod tests {
 
         if let Some(asset) = asset {
             assert!(asset.starts_with("falcon-1.2.3-"));
-            assert!(asset.ends_with(".tar.gz"));
+            assert!(asset.ends_with(".tar.gz") || asset.ends_with(".zip"));
             assert!(!asset.contains("apple-darwin"));
             assert!(!asset.contains("unknown-linux-gnu"));
         }
@@ -674,6 +775,35 @@ mod tests {
 
         let extracted = temp.path().join("falcon-extracted");
         extract_binary_from_archive(&archive, "falcon", &extracted).unwrap();
+
+        assert_eq!(fs::read_to_string(extracted).unwrap(), "binary");
+    }
+
+    /// bsdtar, the system tar on macOS and Windows, writes and reads zip. GNU
+    /// tar on Linux does neither, and Linux releases are tarballs.
+    #[cfg(any(target_os = "macos", windows))]
+    #[test]
+    fn extracts_current_binary_from_a_windows_zip() {
+        let temp = tempfile::tempdir().unwrap();
+        let package = temp.path().join("falcon-1.2.3-windows-x64");
+        fs::create_dir_all(&package).unwrap();
+        fs::write(package.join("falcon.exe"), "binary").unwrap();
+        fs::write(package.join("falcon-mcp.exe"), "mcp").unwrap();
+
+        let archive = temp.path().join("falcon-1.2.3-windows-x64.zip");
+        let status = Command::new(super::tar_program())
+            .arg("-a")
+            .arg("-cf")
+            .arg(&archive)
+            .arg("-C")
+            .arg(temp.path())
+            .arg("falcon-1.2.3-windows-x64")
+            .status()
+            .unwrap();
+        assert!(status.success());
+
+        let extracted = temp.path().join("falcon-extracted");
+        extract_binary_from_archive(&archive, "falcon.exe", &extracted).unwrap();
 
         assert_eq!(fs::read_to_string(extracted).unwrap(), "binary");
     }

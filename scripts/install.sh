@@ -70,7 +70,7 @@ detect_platform() {
     Darwin) plat_os="macos" ;;
     Linux) plat_os="linux" ;;
     *)
-      fail "unsupported OS '$os'. Falcon's installer supports macOS and Linux; on Windows use WSL, or run 'cargo install falcon-flutter'."
+      fail "unsupported OS '$os'. This installer supports macOS and Linux. On Windows, run this in PowerShell: irm https://raw.githubusercontent.com/${REPO}/master/scripts/install.ps1 | iex"
       ;;
   esac
 
