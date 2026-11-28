@@ -26,7 +26,6 @@ use super::vm_events::{
 type WsStream = WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>;
 const VM_SERVICE_MAX_MESSAGE_SIZE: usize = 256 << 20;
 const VM_SERVICE_MAX_FRAME_SIZE: usize = 64 << 20;
-/// Inspector object group for the references Falcon asks the app to hold.
 /// Largest inspector screenshot, in pixels per side. Kept at a texture size
 /// every GPU supports: asked for more, the iOS simulator returned an image
 /// cut off on the right. A larger painted area is captured scaled down.
@@ -53,6 +52,8 @@ fn base64_png_dimensions(base64_png: &str) -> Option<(u32, u32)> {
         .ok()?;
     super::png_crop::dimensions(&bytes)
 }
+
+/// Inspector object group for the references Falcon asks the app to hold.
 const INSPECTOR_GROUP: &str = "falcon";
 
 // ──────────────────────────────────────────────────────────────────────
