@@ -218,6 +218,8 @@ fn review_quick_strictness_reports_only_errors() {
     assert_no_rule(&json, "avoid-print-in-production");
 }
 
+// Needs the fake `dart` shell script to run, which Windows cannot do.
+#[cfg(unix)]
 #[test]
 fn review_semantic_suppresses_same_line_falcon_issue() {
     let repo = temp_git_repo();
@@ -254,6 +256,8 @@ fn review_semantic_suppresses_same_line_falcon_issue() {
     assert_no_rule(&json, "avoid-print-in-production");
 }
 
+// Needs the fake `dart` shell script to run, which Windows cannot do.
+#[cfg(unix)]
 #[test]
 fn review_auto_runs_semantic_for_dart_project() {
     let repo = temp_git_repo();

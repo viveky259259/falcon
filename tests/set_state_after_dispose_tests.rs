@@ -47,10 +47,7 @@ class _ScreenState extends BaseState {
         .collect();
 
     assert_eq!(set_state_issues.len(), 1, "{:#?}", report.issues);
-    assert!(set_state_issues[0]
-        .file
-        .to_string_lossy()
-        .ends_with("lib/screen.dart"));
+    assert!(set_state_issues[0].file.ends_with("lib/screen.dart"));
     assert!(set_state_issues[0]
         .message
         .contains("must re-check `mounted`"));
