@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.0 (prepared, not yet tagged or published)
+## 0.7.0 (2026-11-28)
 
 The running-app MCP tools are new in this version. Falcon 0.6.0 does not have them. They have been run end to end on macOS desktop and the iOS simulator only ([docs/loop-evidence](docs/loop-evidence/README.md)); Android, physical iOS devices, Windows, Linux and Flutter web are untested, and `screenshot` does not support Flutter web.
 
@@ -28,6 +28,17 @@ The running-app MCP tools are new in this version. Falcon 0.6.0 does not have th
 - `screenshot`: the inspector capture (the path used under Impeller) is cut to the screen. A widget that overflowed made the image continue below the screen. The capture is taken at the screen's own resolution; when the painted area is larger than 4096 pixels it is taken smaller.
 - `falcon score` no longer prints "Production Ready — qualifies for Falcon Certified badge" for a project with a hardcoded credential. The label is capped at "Needs Improvement" and the score webhook's `production_ready` is false, whatever the number.
 - `avoid-hardcoded-credentials` flags AWS access keys (`AKIA…`, `ASIA…`), Stripe live keys, GitHub tokens, Slack tokens and private key blocks by their format. It only matched variable names such as `apiKey`, so `awsId = 'AKIA…'` passed. Projects with such keys in source will see new findings.
+- The MCP `score` tool (`falcon_ai_score`) reports `production_ready: false` for a project with a hardcoded credential, as `falcon score` does, and returns `hardcoded_credentials`. It decided from the number alone.
+- Frame statistics (`x devtools trace`, `runtime-check`, MCP `app_metrics`) come from the app's `Flutter.Frame` events. They asked for a `getRenderStats` extension that Flutter does not have, and the frame history replayed on connect is no longer counted.
+- Rebuild counts (`x devtools rebuilds`, MCP `app_metrics`) turn on Flutter's rebuild tracking and count `Flutter.RebuiltWidgets` events, named by source location. They were always empty. `x devtools rebuilds` gains `--duration`.
+- Hot reload and hot restart go through the services `flutter run` registers, so they behave like pressing `r` and `R`. A restart without `flutter run` says why it cannot work, and MCP `reload` returns an error when the reload fails instead of a success with a message.
+- `screenshot` falls back to `ext.flutter.inspector.screenshot` when the engine refuses (it does under Impeller), and `--window` on macOS reads the window bounds correctly.
+- `interact` waits for the current frame to finish before acting, and taps a point of the widget that a hit test reaches, so a widget partly covered by another is still tapped and a covered one is refused.
+- `interact` with `index` alone refuses an element that has no position, instead of tapping the top-left corner of the screen.
+- `x run` writes each "Another exception was thrown" line as its own error.
+- `avoid-long-functions` measures a top-level function from its signature to the end of its body. `check-widgets` only looks at `build` methods and ignores `setState` inside closures. `upgrade-check` ignores strings and comments and matches whole identifiers. `explain` covers every registered rule.
+- Network requests that end without a status (connection refused) count as failed, and `verify --target app_test.dart` finds the file in `integration_test/`.
+- `falcon x api` no longer resets connections it rejects (408, 413, 400) before the client reads the response.
 - `falcon devtools inspector`, `falcon devtools tree-diff` and `falcon journey` read the widget tree again. The VM Service wraps extension replies in a `{"type": "_extensionType", "result": …}` envelope, which was taken for the root node, so the tree came back as one node and journeys labelled every screen `_extensionType`.
 - Four preset entries named rules that do not exist (`avoid-unnecessary-set-state`, `avoid-throw-in-catch`, `always-override-equals-hashcode`, `avoid-collection-methods-unrelated-types`), so those rules were silently skipped. They now use the real names, and a test checks every preset and default entry against the rule registry.
 - A `falcon.yaml` without a `rules:` key (for example, one that only tunes `metrics:`) ran no lint rules at all. A missing key now means the default rule set; an explicit `rules: []` still disables rules. Projects with such a config will start seeing findings.

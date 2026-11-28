@@ -10,11 +10,11 @@ Dart wrapper for [Falcon](https://github.com/viveky259259/falcon) — Rust-power
 dart pub global activate falcon_cli
 ```
 
-> **Prerequisite**: Requires the Falcon Rust binary:
+> **Prerequisite**: this package runs the Falcon binary; it does not download it. Install that first (macOS and Linux x64):
 > ```bash
-> cargo install falcon-flutter
+> curl -fsSL https://raw.githubusercontent.com/viveky259259/falcon/master/scripts/install.sh | sh
 > ```
-> Or download from [GitHub Releases](https://github.com/viveky259259/falcon/releases).
+> or, with Rust installed, `cargo install falcon-flutter`. The wrapper looks in `$FALCON_BIN`, `~/.local/bin`, `~/.cargo/bin` and then `PATH`.
 
 ## Quick Start
 
