@@ -58,6 +58,9 @@ fn score_single_issue(
     let mut confidence: i32 = 95;
     let mut reducers = Vec::new();
 
+    // Lookups use the path as the sets store it; pattern checks such as
+    // "/test/" use forward slashes so they also match on Windows.
+    let file_key = issue.file.to_string_lossy().to_string();
     let file_str = crate::paths::slash(&issue.file);
     let file_name = issue
         .file
@@ -65,12 +68,12 @@ fn score_single_issue(
         .and_then(|f| f.to_str())
         .unwrap_or("");
 
-    if reflection_files.contains(&file_str) {
+    if reflection_files.contains(&file_key) {
         confidence -= 25;
         reducers.push("File contains reflection/mirrors — may be used dynamically".to_string());
     }
 
-    if dynamic_files.contains(&file_str) {
+    if dynamic_files.contains(&file_key) {
         confidence -= 15;
         reducers
             .push("File uses dynamic types — references may not be statically visible".to_string());

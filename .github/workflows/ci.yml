@@ -90,8 +90,9 @@ jobs:
       - name: Build (default features)
         run: cargo build --locked --all-targets
 
+      # --no-fail-fast: run every test binary so one failure doesn't hide others.
       - name: Test (default features)
-        run: cargo test --locked
+        run: cargo test --locked --no-fail-fast
 
       # The lint job runs on Linux only, so lint the Windows-only code here.
       - name: Clippy (Windows-only code)
